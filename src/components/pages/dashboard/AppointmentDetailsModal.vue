@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
@@ -142,8 +142,23 @@ function handleCancelClick() {
   }
 }
 
-function handleStartService() {
-  updateStatus('Em Atendimento')
+async function handleStartService() {
+  const appointmentId = props.event.originalEvent._id
+  
+    toast.success('Iniciando atendimento...')
+    emit('close')
+    
+    if (patient.value && patient.value._id) {
+      router.push({ 
+        name: 'atendimento-em-andamento', 
+        params: { 
+          appointmentId: appointmentId,
+          patientId: patient.value._id 
+        } 
+      })
+    } else {
+      toast.warning('Não foi possível redirecionar: Paciente não identificado.')
+    }
 }
 
 function handleFinishService() {
@@ -174,6 +189,9 @@ onUnmounted(() => {
           <span class="appointment-id">ID #{{ appointment._id.slice(-6).toUpperCase() }}</span>
         </div>
         <div class="header-right">
+          <button @click="$emit('close')" class="mobile-close-btn">
+            <X :size="24" />
+          </button>
            <!-- Paginação visual -->
           <div class="pagination-controls">
             <span class="page-info">{{ currentIndex + 1 }} de {{ totalCount }}</span>
@@ -941,5 +959,42 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: #6b7280;
   margin-top: 0.125rem;
+}
+
+/* Mobile Close Button */
+.mobile-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s;
+}
+
+.mobile-close-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+@media (max-width: 768px) {
+  .close-btn-outside {
+    display: none;
+  }
+
+  .mobile-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .drawer-content {
+    max-width: 100%;
+  }
+
+  .pagination-controls {
+    display: none;
+  }
 }
 </style>
