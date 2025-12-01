@@ -5,6 +5,7 @@ import { useClinicStore } from '@/stores/clinic'
 import { Check, Settings } from 'lucide-vue-next'
 import CustomSelect from '@/components/global/CustomSelect.vue'
 import Switch from '@/components/global/Switch.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
@@ -122,7 +123,7 @@ async function handleUpdateHours() {
       </div>
       <div class="action-wrapper">
         <span v-if="successMessage" class="success-message">{{ successMessage }}</span>
-        <button type="submit" class="save-button">Salvar Alterações</button>
+        <AppButton type="submit" variant="primary">Salvar Alterações</AppButton>
       </div>
     </div>
   </form>
@@ -287,19 +288,9 @@ async function handleUpdateHours() {
   color: #10b981;
   font-weight: 500;
 }
-.save-button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.save-button:hover {
-  background-color: var(--azul-escuro);
+.success-message {
+  color: #10b981;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {
@@ -316,9 +307,6 @@ async function handleUpdateHours() {
 
   .action-wrapper {
     justify-content: center;
-  }
-  .save-button {
-    width: 100%;
   }
 }
 </style>

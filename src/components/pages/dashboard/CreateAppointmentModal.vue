@@ -22,6 +22,7 @@ import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import Switch from '@/components/global/Switch.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import Datepicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 
@@ -551,10 +552,10 @@ async function handleSubmit() {
             <div class="divider">
               <span>OU</span>
             </div>
-            <button @click="goToCreatePatient" class="btn-outline">
+            <AppButton variant="default" @click="goToCreatePatient" class="w-full">
               <Plus :size="16" />
               Cadastrar novo paciente
-            </button>
+            </AppButton>
           </template>
         </div>
 
@@ -658,46 +659,38 @@ async function handleSubmit() {
       </div>
 
       <footer class="modal-footer">
-        <button @click="$emit('close')" type="button" class="btn-secondary">Cancelar</button>
+        <AppButton @click="$emit('close')" variant="default">Cancelar</AppButton>
         <div class="footer-actions">
-          <button
+          <AppButton
             v-if="currentStep === 3 || (currentStep === 2 && !isEditMode)"
             @click="currentStep--"
-            type="button"
-            class="btn-secondary"
+            variant="default"
           >
             Voltar
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             v-if="currentStep < steps.length"
             @click="nextStep"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="isCheckingConflict"
           >
             Avançar
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             v-else
             @click="handleSubmit"
-            type="button"
-            class="btn-primary"
+            variant="primary"
+            :loading="appointmentsStore.isLoading"
             :disabled="appointmentsStore.isLoading"
           >
             {{
-              appointmentsStore.isLoading
-                ? isRebookMode
-                  ? 'Salvando...'
-                  : isRescheduleMode
-                    ? 'Salvando...'
-                    : 'Agendando...'
-                : isRebookMode
-                  ? 'Confirmar Remarcação'
-                  : isRescheduleMode
-                    ? 'Confirmar Reagendamento'
-                    : 'Confirmar'
+              isRebookMode
+                ? 'Confirmar Remarcação'
+                : isRescheduleMode
+                  ? 'Confirmar Reagendamento'
+                  : 'Confirmar'
             }}
-          </button>
+          </AppButton>
         </div>
       </footer>
     </div>
@@ -898,25 +891,7 @@ async function handleSubmit() {
 .divider span {
   padding: 0 1rem;
 }
-.btn-outline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  background-color: var(--branco);
-  color: #374151;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btn-outline:hover {
-  border-color: #9ca3af;
-  background-color: #f9fafb;
-}
+
 
 .closed-message {
   display: flex;
@@ -1021,35 +996,7 @@ async function handleSubmit() {
   display: block;
 }
 
-.btn-primary {
-  background: var(--azul-principal);
-  color: var(--branco);
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-.btn-primary:hover {
-  background: #1e40af;
-}
-.btn-primary:disabled {
-  background-color: #a5b4fc;
-  cursor: not-allowed;
-}
-.btn-secondary {
-  background: var(--branco);
-  border: 1px solid #d1d5db;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-.btn-secondary:hover {
-  background-color: #f9fafb;
-}
+
 
 .btn-close-mobile {
   display: none;

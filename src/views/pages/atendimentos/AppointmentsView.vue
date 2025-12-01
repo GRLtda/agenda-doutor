@@ -20,12 +20,14 @@ import AppointmentInfoPopover from '@/components/pages/atendimentos/AppointmentI
 import { useToast } from 'vue-toastification'
 import { format } from 'date-fns'
 import { useStatusBadge } from '@/composables/useStatusBadge'
+import AppButton from '@/components/global/AppButton.vue'
 
 const appointmentsStore = useAppointmentsStore()
 const router = useRouter()
 const toast = useToast()
 
 const isModalOpen = ref(false)
+const modalInitialData = ref(null)
 const activePopover = ref({ appointment: null, event: null })
 const searchQuery = ref('')
 
@@ -76,6 +78,7 @@ function formatTime(dateTimeString) {
 }
 
 function openCreateModal() {
+  modalInitialData.value = null
   isModalOpen.value = true
 }
 
@@ -119,9 +122,11 @@ function goToAppointmentPage(appointment) {
   })
 }
 function rebookAppointment(appointment) {
-  // Lógica para reagendar
-  console.log('Reagendar:', appointment)
-  toast.info('Funcionalidade de reagendamento em breve.')
+  modalInitialData.value = {
+    ...appointment,
+    _mode: 'rebook'
+  }
+  isModalOpen.value = true
   closePopover()
 }
 
@@ -149,10 +154,10 @@ onMounted(() => {
             class="search-input"
           />
         </div>
-        <button class="btn-primary" @click="openCreateModal">
+        <AppButton variant="primary" @click="openCreateModal">
           <Plus :size="16" />
           Marcar Atendimento
-        </button>
+        </AppButton>
       </div>
     </header>
 
@@ -168,10 +173,10 @@ onMounted(() => {
         <p class="empty-state-text">
           Aproveite para organizar a agenda ou marque o próximo atendimento.
         </p>
-        <button class="btn-primary" @click="openCreateModal">
+        <AppButton variant="primary" @click="openCreateModal">
           <Plus :size="16" />
           Marcar Atendimento
-        </button>
+        </AppButton>
       </div>
 
       <div v-else class="appointments-grid-container">
@@ -225,35 +230,38 @@ onMounted(() => {
 
             <div class="card-footer">
                <template v-if="appt.status === 'Agendado'">
-                <button
+                <AppButton
                   @click.stop="handleStatusChange(appt, 'Confirmado')"
-                  class="btn-action confirm"
+                  variant="secondary"
+                  size="sm"
                   title="Confirmar Chegada"
+                  class="flex-grow"
                 >
                   <Check :size="16" /> Confirmar
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   @click.stop="handleStatusChange(appt, 'Cancelado')"
-                  class="btn-icon cancel"
+                  variant="dangerous"
+                  size="sm"
                   title="Cancelar"
                 >
                   <X :size="18" />
-                </button>
+                </AppButton>
               </template>
               <template v-else-if="appt.status === 'Confirmado'">
-                <button @click.stop="goToAppointmentPage(appt)" class="btn-action start">
+                <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow">
                   <Play :size="16" /> Iniciar
-                </button>
+                </AppButton>
               </template>
               <template v-else-if="appt.status === 'Não Compareceu'">
-                <button @click.stop="rebookAppointment(appt)" class="btn-action rebook">
+                <AppButton @click.stop="rebookAppointment(appt)" variant="warning" size="sm" class="flex-grow">
                   <CalendarPlus :size="16" /> Reagendar
-                </button>
+                </AppButton>
               </template>
               <template v-else>
-                 <button @click.stop="goToAppointmentPage(appt)" class="btn-action view">
+                 <AppButton @click.stop="goToAppointmentPage(appt)" variant="default" size="sm" class="flex-grow">
                   Ver Detalhes
-                </button>
+                </AppButton>
               </template>
             </div>
           </div>
@@ -271,7 +279,11 @@ onMounted(() => {
     @view="goToAppointmentPage(activePopover.appointment)"
   />
 
-  <CreateAppointmentModal v-if="isModalOpen" @close="isModalOpen = false" />
+  <CreateAppointmentModal
+    v-if="isModalOpen"
+    :initial-data="modalInitialData"
+    @close="isModalOpen = false"
+  />
 </template>
 
 <style scoped>
@@ -282,7 +294,7 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 .title {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 0.25rem;
@@ -314,9 +326,9 @@ onMounted(() => {
 
 .search-input {
   width: 320px;
-  height: 48px;
+  height: 38px;
   padding: 0.75rem 1rem 0.75rem 2.75rem;
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   border: 1px solid #e2e8f0;
   background-color: var(--branco);
   font-size: 0.95rem;
@@ -377,6 +389,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1;
+  min-width: 0;
+  margin-right: 0.5rem;
 }
 
 .patient-avatar {
@@ -397,6 +412,7 @@ onMounted(() => {
 .patient-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .patient-name {
@@ -404,6 +420,9 @@ onMounted(() => {
   color: #1e293b;
   font-size: 1rem;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .patient-phone {
@@ -495,102 +514,8 @@ onMounted(() => {
   border-top: 1px solid #f8fafc;
 }
 
-/* Buttons */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0 1.5rem;
-  border-radius: 1rem;
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  height: 48px;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
-}
-.btn-primary:hover {
-  background-color: var(--azul-escuro);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.3);
-}
-
-.btn-action {
+.flex-grow {
   flex-grow: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-action.confirm {
-  background-color: #f0fdf4;
-  color: #16a34a;
-  border-color: #dcfce7;
-}
-.btn-action.confirm:hover {
-  background-color: #dcfce7;
-}
-
-.btn-action.start {
-  background-color: #eff6ff;
-  color: #3b82f6;
-  border-color: #dbeafe;
-}
-.btn-action.start:hover {
-  background-color: #dbeafe;
-}
-
-.btn-action.rebook {
-  background-color: #fff7ed;
-  color: #f97316;
-  border-color: #ffedd5;
-}
-.btn-action.rebook:hover {
-  background-color: #ffedd5;
-}
-
-.btn-action.view {
-  background-color: #f8fafc;
-  color: #64748b;
-  border-color: #e2e8f0;
-}
-.btn-action.view:hover {
-  background-color: #f1f5f9;
-  color: #475569;
-}
-
-.btn-icon {
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: transparent;
-}
-
-.btn-icon.cancel {
-  color: #ef4444;
-  border-color: #fee2e2;
-  background-color: #fef2f2;
-}
-.btn-icon.cancel:hover {
-  background-color: #fee2e2;
 }
 
 /* Empty State */
@@ -654,9 +579,6 @@ onMounted(() => {
     align-items: stretch;
   }
   .search-input {
-    width: 100%;
-  }
-  .btn-primary {
     width: 100%;
   }
 }

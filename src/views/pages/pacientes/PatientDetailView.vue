@@ -30,6 +30,7 @@ import {
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { fetchAddressByCEP } from '@/api/external'
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue'
 import ViewAnamnesisModal from '@/components/pages/pacientes/modals/ViewAnamnesisModal.vue'
@@ -313,14 +314,14 @@ const missingInfo = computed(() => {
           </div>
         </div>
         <div class="header-actions">
-          <button @click="isAssignModalOpen = true" class="btn-secondary">
+          <AppButton @click="isAssignModalOpen = true" variant="secondary">
             <Clipboard :size="16" />
-            <span class="btn-text">Aplicar Anamnese</span>
-          </button>
-          <button v-if="!isEditing" @click="isEditing = true" class="btn-primary btn-edit">
+            Aplicar Anamnese
+          </AppButton>
+          <AppButton v-if="!isEditing" @click="isEditing = true" variant="primary">
             <Edit :size="16" />
-            <span class="btn-text">Editar</span>
-          </button>
+            Editar
+          </AppButton>
         </div>
       </header>
 
@@ -409,10 +410,10 @@ const missingInfo = computed(() => {
                   </section>
 
                   <footer class="edit-form-footer">
-                    <button @click="cancelEditing" type="button" class="btn-secondary">
+                    <AppButton @click="cancelEditing" type="button" variant="secondary">
                       Cancelar
-                    </button>
-                    <button type="submit" class="btn-primary">Salvar Alterações</button>
+                    </AppButton>
+                    <AppButton type="submit" variant="primary">Salvar Alterações</AppButton>
                   </footer>
                 </form>
               </div>
@@ -572,10 +573,10 @@ const missingInfo = computed(() => {
                     Você pode aplicar um modelo de anamnese para gerar um link de resposta para o
                     paciente.
                   </p>
-                  <button @click="isAssignModalOpen = true" class="empty-state-button">
+                  <AppButton @click="isAssignModalOpen = true" variant="secondary">
                     <Clipboard :size="16" />
                     Aplicar Anamnese
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             </div>
@@ -615,10 +616,10 @@ const missingInfo = computed(() => {
                     Este paciente ainda não possui atendimentos registrados. Que tal agendar o
                     primeiro?
                   </p>
-                  <button @click="isCreateAppointmentModalOpen = true" class="empty-state-button">
+                  <AppButton @click="isCreateAppointmentModalOpen = true" variant="secondary">
                     <CalendarPlus :size="16" />
                     Agendar Atendimento
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             </div>

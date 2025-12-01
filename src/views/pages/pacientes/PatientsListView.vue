@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next'
 import AppPagination from '@/components/global/AppPagination.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { formatPhone } from '@/directives/phone-mask.js'
 
 const patientsStore = usePatientsStore()
@@ -109,10 +110,10 @@ const formatCPF = (cpf) => {
           placeholder="Buscar paciente por nome..."
           class="patient-search"
         />
-        <router-link to="/app/pacientes/novo" class="btn-primary">
+        <AppButton variant="primary" to="/app/pacientes/novo">
           <UserPlus :size="16" />
-          <span class="btn-primary-text">Adicionar Paciente</span>
-        </router-link>
+          Adicionar Paciente
+        </AppButton>
       </div>
     </header>
 
@@ -335,20 +336,26 @@ const formatCPF = (cpf) => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0 1.5rem;
-  border-radius: 0.75rem;
+  padding: 0 1.25rem;
+  border-radius: 0.5rem; /* Slightly less rounded than before, closer to reference */
   border: none;
-  background-color: var(--azul-principal);
+  background: linear-gradient(180deg, #5b8bf7 0%, var(--azul-principal) 100%); /* More discrete gradient */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(59, 130, 246, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.2s ease;
   text-decoration: none;
-  height: 44px;
+  height: 38px; /* Reduced height */
 }
 .btn-primary:hover {
-  background-color: var(--azul-escuro);
+  background: linear-gradient(180deg, #6ba0f9 0%, #468bf7 100%); /* Slightly lighter on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-primary-sm {
@@ -372,9 +379,10 @@ const formatCPF = (cpf) => {
 }
 
 .patient-search :deep(.input-wrapper) {
-  height: 44px;
-  border-radius: 0.75rem;
+  height: 38px; /* Match button height */
+  border-radius: 0.5rem; /* Match button radius */
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 0.95rem;
 }
 .patient-search :deep(.input-wrapper:has(.select-input:focus)) {
   border-color: var(--azul-principal);

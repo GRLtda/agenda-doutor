@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { X, CornerDownRight } from 'lucide-vue-next'
+import AppButton from '@/components/global/AppButton.vue'
 
 const props = defineProps({
   anamnesis: { type: Object, required: true },
@@ -70,9 +71,9 @@ function formatAnswer(answerObj) {
             {{ formatSimpleDate(anamnesis.updatedAt) }}
           </p>
         </div>
-        <button @click="$emit('close')" class="close-btn" title="Fechar">
+        <AppButton @click="$emit('close')" variant="default" class="close-btn" title="Fechar">
           <X :size="24" />
-        </button>
+        </AppButton>
       </header>
 
       <div class="modal-body">
@@ -185,12 +186,7 @@ function formatAnswer(answerObj) {
   margin-top: 0.25rem;
   font-size: 0.875rem;
 }
-.close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--cinza-texto);
-}
+
 .modal-body {
   padding: 1.5rem;
   overflow-y: auto;

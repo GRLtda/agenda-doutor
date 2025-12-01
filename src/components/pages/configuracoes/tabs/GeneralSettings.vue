@@ -5,6 +5,7 @@ import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
 import { UploadCloud, Building, LayoutList, MapPin } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { fetchAddressByCEP } from '@/api/external'
 import { onBeforeRouteLeave } from 'vue-router'
 
@@ -174,10 +175,10 @@ onBeforeRouteLeave((to, from, next) => {
                             ref="logoInput"
                             hidden
                         />
-                        <button type="button" @click="logoInput.click()" class="btn-upload">
+                        <AppButton type="button" @click="logoInput.click()" variant="secondary">
                             <UploadCloud :size="16" />
                             Trocar Imagem
-                        </button>
+                        </AppButton>
                     </div>
                 </div>
 
@@ -218,7 +219,7 @@ onBeforeRouteLeave((to, from, next) => {
         <span v-if="hasUnsavedChanges" class="unsaved-changes-alert">
             Você tem alterações não salvas.
         </span>
-        <button type="submit" class="save-button">Salvar Alterações</button>
+        <AppButton type="submit" variant="primary">Salvar Alterações</AppButton>
       </div>
     </form>
     <div v-else class="loading-state-placeholder">
@@ -370,18 +371,10 @@ onBeforeRouteLeave((to, from, next) => {
   color: var(--cinza-texto);
   margin: 0;
 }
-.btn-upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--branco);
-  border: 1px solid #d1d5db;
-  padding: 0.6rem 1.2rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 600;
-  color: #374151;
-  width: fit-content;
+.logo-uploader p {
+  font-size: 0.875rem;
+  color: var(--cinza-texto);
+  margin: 0;
 }
 
 /* ------------------------------------------- */
@@ -401,19 +394,10 @@ onBeforeRouteLeave((to, from, next) => {
     font-size: 0.875rem;
     font-weight: 600;
 }
-.save-button {
-  padding: 0.75rem 2rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.save-button:hover {
-  background-color: var(--azul-escuro);
+.unsaved-changes-alert {
+    color: var(--laranja-alerta);
+    font-size: 0.875rem;
+    font-weight: 600;
 }
 .loading-state-placeholder {
     display: flex;
@@ -500,6 +484,5 @@ onBeforeRouteLeave((to, from, next) => {
         flex-direction: column-reverse;
         align-items: stretch;
     }
-    .save-button { width: 100%; }
 }
 </style>

@@ -4,6 +4,7 @@ import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useToast } from 'vue-toastification'
 import { FilePlus2, Pencil, Trash2, Copy } from 'lucide-vue-next'
 import CreateAnamnesisModal from '../modals/CreateAnamnesisModal.vue'
+import AppButton from '@/components/global/AppButton.vue'
 
 const anamnesisStore = useAnamnesisStore()
 const toast = useToast()
@@ -73,10 +74,10 @@ async function handleDelete(templateId) {
         <h2>Modelos de Anamnese</h2>
         <p class="header-subtitle">Você tem {{ templates.length }} modelo(s) cadastrado(s).</p>
       </div>
-      <button @click="openCreateModal" class="btn-primary">
+      <AppButton variant="primary" @click="openCreateModal">
         <FilePlus2 :size="16" />
         Criar Novo Modelo
-      </button>
+      </AppButton>
     </div>
 
     <div v-if="anamnesisStore.isLoading" class="templates-grid">
@@ -105,23 +106,25 @@ async function handleDelete(templateId) {
         </div>
 
         <div class="template-actions" v-click-outside="() => (templateIdToDelete = null)">
-          <button
+          <AppButton
             @click="openDuplicateModal(template._id)"
-            class="btn-icon"
+            variant="default"
+            size="sm"
             title="Duplicar"
           >
             <Copy :size="16" />
-          </button>
-          <button @click="openEditModal(template._id)" class="btn-icon" title="Editar">
+          </AppButton>
+          <AppButton @click="openEditModal(template._id)" variant="default" size="sm" title="Editar">
             <Pencil :size="16" />
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             @click="templateIdToDelete = template._id"
-            class="btn-icon btn-delete"
+            variant="dangerous"
+            size="sm"
             title="Excluir"
           >
             <Trash2 :size="16" />
-          </button>
+          </AppButton>
 
           <Transition name="fade">
             <div v-if="templateIdToDelete === template._id" class="delete-confirmation">
@@ -130,10 +133,10 @@ async function handleDelete(templateId) {
                 Esta ação é permanente e não poderá ser restaurada.
               </p>
               <div class="confirmation-buttons">
-                <button @click="templateIdToDelete = null" class="btn-cancel">Cancelar</button>
-                <button @click="handleDelete(template._id)" class="btn-confirm-delete">
+                <AppButton @click="templateIdToDelete = null" variant="secondary" size="sm">Cancelar</AppButton>
+                <AppButton @click="handleDelete(template._id)" variant="dangerous" size="sm">
                   Excluir
-                </button>
+                </AppButton>
               </div>
             </div>
           </Transition>
@@ -149,10 +152,10 @@ async function handleDelete(templateId) {
       <p class="empty-description">
         Comece criando seu primeiro modelo de anamnese para agilizar seus atendimentos.
       </p>
-      <button @click="openCreateModal" class="create-button">
+      <AppButton @click="openCreateModal" variant="primary">
         <FilePlus2 :size="16" />
         Criar Novo Modelo
-      </button>
+      </AppButton>
     </div>
   </div>
 </template>
@@ -192,22 +195,9 @@ async function handleDelete(templateId) {
   margin-top: 0.25rem;
   color: var(--cinza-texto);
 }
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.btn-primary:hover {
-  background-color: var(--azul-escuro);
+.header-subtitle {
+  margin-top: 0.25rem;
+  color: var(--cinza-texto);
 }
 
 .templates-grid {
@@ -322,24 +312,10 @@ async function handleDelete(templateId) {
   transform: translateY(-5px);
 }
 
-.btn-icon {
-  padding: 0.5rem;
-  background: none;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--cinza-texto);
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-.btn-icon:hover {
-  background-color: #f3f4f6;
-  color: var(--preto);
-}
-.btn-delete:hover {
-  background-color: #fee2e2;
-  color: #ef4444;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 
 .empty-state {
@@ -369,22 +345,10 @@ async function handleDelete(templateId) {
   color: var(--cinza-texto);
   margin-bottom: 2rem;
 }
-.create-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.create-button:hover {
-  background-color: var(--azul-escuro);
+.empty-description {
+  max-width: 400px;
+  color: var(--cinza-texto);
+  margin-bottom: 2rem;
 }
 
 @media (max-width: 768px) {

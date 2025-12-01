@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Plus, Menu, User, Calendar, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
+import AppButton from '@/components/global/AppButton.vue'
 
 import { useAppointmentsStore } from '@/stores/appointments'
 import { usePatientsStore } from '@/stores/patients'
@@ -130,10 +131,10 @@ function handleSearchSubmit() {
         </div>
       </Transition>
 
-      <button @click="$emit('open-schedule-modal')" class="btn-primary-topbar">
+      <AppButton variant="primary" @click="$emit('open-schedule-modal')">
         <Plus :size="16" />
-        <span class="btn-text">Agendar Atendimento</span>
-      </button>
+        Agendar Atendimento
+      </AppButton>
     </div>
   </header>
 </template>
@@ -295,26 +296,6 @@ function handleSearchSubmit() {
   color: var(--cinza-texto);
 }
 
-/* --- Ação Rápida --- */
-.btn-primary-topbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  white-space: nowrap;
-}
-.btn-primary-topbar:hover {
-  background-color: var(--azul-escuro);
-}
-
 /* ✨ 6. Estilos para o Loading Global */
 .global-loading-indicator {
   display: flex;
@@ -373,13 +354,6 @@ function handleSearchSubmit() {
      background-color: var(--branco);
      border-color: var(--azul-principal);
      box-shadow: 0 0 0 2px var(--azul-principal);
-  }
-
-  .btn-primary-topbar {
-    padding: 0.6rem;
-  }
-  .btn-text {
-    display: none;
   }
 
   /* ✨ Garante que o loading não tenha texto no mobile */

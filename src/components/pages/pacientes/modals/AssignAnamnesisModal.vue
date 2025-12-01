@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useAnamnesisStore } from '@/stores/anamnesis';
 import { useToast } from 'vue-toastification';
 import StyledSelect from '@/components/global/StyledSelect.vue';
+import AppButton from '@/components/global/AppButton.vue';
 import { Copy } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -119,13 +120,13 @@ function copyLink() {
       </div>
 
       <footer class="modal-footer">
-        <button @click="$emit('close')" type="button" class="btn-secondary">
+        <AppButton @click="$emit('close')" variant="default">
           {{ generatedLink ? 'Concluir' : 'Cancelar' }}
-        </button>
-        <button v-if="!generatedLink" @click="handleGenerateLink" type="button" class="btn-primary" :disabled="isLoading">
-          {{ isLoading ? 'Gerando...' : 'Gerar Link' }}
-        </button>
-        <button v-else @click="copyLink" type="button" class="btn-primary">Copiar Link</button>
+        </AppButton>
+        <AppButton v-if="!generatedLink" @click="handleGenerateLink" variant="primary" :loading="isLoading" :disabled="isLoading">
+          Gerar Link
+        </AppButton>
+        <AppButton v-else @click="copyLink" variant="primary">Copiar Link</AppButton>
       </footer>
     </div>
   </div>
@@ -168,8 +169,6 @@ function copyLink() {
 /* FIM ESTILOS DO CHECKBOX */
 
 .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 1rem; background-color: #f9fafb; }
-.btn-primary { background: var(--azul-principal); color: var(--branco); border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
-.btn-secondary { background: var(--branco); border: 1px solid #d1d5db; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
 .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; }
 .link-wrapper { position: relative; }
 .link-input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db; background-color: #f9fafb; font-size: 0.875rem; }

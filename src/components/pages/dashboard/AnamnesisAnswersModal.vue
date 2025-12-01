@@ -4,6 +4,7 @@ import { X, Calendar, User, Save } from 'lucide-vue-next'
 import AnamnesisQuestionsRenderer from '@/views/public/AnamnesisQuestionsRenderer.vue'
 import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useToast } from 'vue-toastification'
+import AppButton from '@/components/global/AppButton.vue'
 
 const props = defineProps({
   anamnesis: { type: Object, required: true },
@@ -153,14 +154,13 @@ async function handleSave() {
 
       <!-- Footer for Actions -->
       <footer v-if="isEditing" class="drawer-footer">
-        <button class="btn-cancel" @click="$emit('close')" :disabled="isSaving">
+        <AppButton variant="default" @click="$emit('close')" :disabled="isSaving">
           Cancelar
-        </button>
-        <button class="btn-save" @click="handleSave" :disabled="isSaving">
+        </AppButton>
+        <AppButton variant="primary" @click="handleSave" :loading="isSaving" :disabled="isSaving">
           <Save :size="18" v-if="!isSaving" />
-          <span v-else>Salvando...</span>
-          {{ isSaving ? '' : 'Responder' }}
-        </button>
+          Responder
+        </AppButton>
       </footer>
     </div>
   </div>
@@ -284,43 +284,5 @@ async function handleSave() {
   background-color: #fff;
 }
 
-.btn-cancel {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  background-color: white;
-  color: #374151;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-cancel:hover {
-  background-color: #f9fafb;
-}
-
-.btn-save {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s;
-}
-
-.btn-save:hover {
-  background-color: #2563eb; /* Darker blue */
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.btn-save:disabled,
-.btn-cancel:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
 </style>

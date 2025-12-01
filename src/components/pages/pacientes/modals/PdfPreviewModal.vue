@@ -1,5 +1,6 @@
 <script setup>
 import { Download, X } from 'lucide-vue-next'
+import AppButton from '@/components/global/AppButton.vue'
 
 defineProps({
   pdfUrl: { type: String, required: true },
@@ -14,10 +15,10 @@ const emit = defineEmits(['close'])
       <header class="modal-header">
         <h2 class="title">Pré-visualização do Documento</h2>
         <div class="header-actions">
-          <a :href="pdfUrl" :download="fileName" class="btn-download">
+          <AppButton :to="pdfUrl" :download="fileName" variant="default" target="_blank">
             <Download :size="16" />
             Baixar
-          </a>
+          </AppButton>
           <button @click="emit('close')" class="btn-close" title="Fechar">
             <X :size="24" />
           </button>
@@ -74,19 +75,7 @@ const emit = defineEmits(['close'])
   align-items: center;
   gap: 1rem;
 }
-.btn-download {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
-  background-color: var(--branco);
-  color: #374151;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-}
+
 .btn-close {
   background: none;
   border: none;

@@ -10,6 +10,7 @@ import {
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { useToast } from 'vue-toastification'
 
 const props = defineProps({
@@ -366,13 +367,15 @@ async function handleSubmit() {
                   class="question-type-select"
                 />
               </div>
-              <button
-                class="btn-icon btn-delete"
+              <AppButton
+                variant="dangerous"
+                size="sm"
                 @click="removeQuestion(qIndex)"
                 title="Remover Pergunta"
+                class="mt-6"
               >
                 <Trash2 :size="18" />
-              </button>
+              </AppButton>
             </div>
 
             <div
@@ -394,16 +397,18 @@ async function handleSubmit() {
                   v-model="question.options[oIndex]"
                   placeholder="Digite o texto da opção"
                 />
-                <button
-                  class="btn-icon btn-delete-option"
+                <AppButton
+                  variant="dangerous"
+                  size="sm"
                   @click="removeOption(qIndex, oIndex)"
+                  class="mt-0 p-1"
                 >
                   <Trash2 :size="16" />
-                </button>
+                </AppButton>
               </div>
-              <button class="add-option-btn" @click="addOption(qIndex)">
+              <AppButton variant="secondary" size="sm" @click="addOption(qIndex)" class="mt-2">
                 <Plus :size="16" /> Adicionar Opção
-              </button>
+              </AppButton>
             </div>
 
             <div
@@ -540,45 +545,55 @@ async function handleSubmit() {
                       </button>
                     </div>
                   </div>
-                  <button
-                    class="add-option-btn add-sub-question"
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
                     @click="addConditionalQuestion(qIndex, gIndex)"
+                    class="mt-2"
                   >
                     <Plus :size="16" /> Adicionar Sub-Pergunta
-                  </button>
+                  </AppButton>
                 </div>
 
-                <button
-                  class="add-group-btn"
+                <AppButton
+                  variant="secondary"
+                  size="sm"
                   @click="addConditionalQuestionGroup(qIndex)"
+                  class="mt-4"
                 >
                   <Plus :size="16" /> Adicionar Outra Condição
-                </button>
+                </AppButton>
               </div>
             </div>
             </div>
         </div>
 
-        <button class="add-question-btn" @click="addNewQuestion">
+        <AppButton variant="secondary" @click="addNewQuestion" class="btn-add-main">
           <Plus :size="20" />
           Adicionar Pergunta Principal
-        </button>
+        </AppButton>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="emit('close')">
+        <AppButton variant="secondary" @click="emit('close')">
           Cancelar
-        </button>
-        <button class="btn btn-primary" @click="handleSubmit">
+        </AppButton>
+        <AppButton variant="primary" @click="handleSubmit">
           <span v-if="isEditMode">Salvar Alterações</span>
           <span v-else>Criar Modelo</span>
-        </button>
+        </AppButton>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.btn-add-main {
+  width: 100%;
+  margin-top: 2rem;
+  justify-content: center;
+}
+
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -783,22 +798,7 @@ async function handleSubmit() {
   background-color: #eef2ff;
 }
 
-.add-question-btn {
-  width: 100%;
-  padding: 0.75rem;
-  margin-top: 1.5rem;
-  border-radius: 0.5rem;
-  background: #f9fafb;
-  border: 1px dashed #d1d5db;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: #374151;
-  transition: all 0.2s ease;
-}
+
 .add-question-btn:hover {
   background: #f3f4f6;
   border-color: var(--azul-principal);

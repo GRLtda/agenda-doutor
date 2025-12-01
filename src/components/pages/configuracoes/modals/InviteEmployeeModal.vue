@@ -4,6 +4,7 @@ import { useEmployeesStore } from '@/stores/employees'
 import { useToast } from 'vue-toastification'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { Copy, Check, Share2, CheckCircle, Mail, User, Calendar, Clock } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -155,13 +156,13 @@ async function shareLink() {
             <div class="link-wrapper">
               <input type="text" :value="generatedLink" readonly class="link-input" />
               <div class="action-buttons">
-                <button v-if="canShare" @click="shareLink" class="icon-button" title="Compartilhar">
+                <AppButton v-if="canShare" @click="shareLink" variant="default" size="sm" title="Compartilhar">
                   <Share2 :size="20" />
-                </button>
-                <button @click="copyLink" class="icon-button" title="Copiar">
+                </AppButton>
+                <AppButton @click="copyLink" variant="default" size="sm" title="Copiar">
                   <Check v-if="linkCopied" :size="20" class="text-green" />
                   <Copy v-else :size="20" />
-                </button>
+                </AppButton>
               </div>
             </div>
             <p class="info">
@@ -173,29 +174,27 @@ async function shareLink() {
       </div>
 
       <footer class="modal-footer">
-        <button @click="$emit('close')" type="button" class="btn-secondary">
+        <AppButton @click="$emit('close')" variant="secondary">
           {{ generatedLink ? 'Fechar' : 'Cancelar' }}
-        </button>
+        </AppButton>
 
-        <button
+        <AppButton
           v-if="!generatedLink"
           @click="handleInvite"
-          type="button"
-          class="btn-primary"
-          :disabled="employeesStore.isLoading"
+          variant="primary"
+          :loading="employeesStore.isLoading"
         >
-          {{ employeesStore.isLoading ? 'Enviando...' : 'Gerar Convite' }}
-        </button>
+          Gerar Convite
+        </AppButton>
 
-        <button
+        <AppButton
           v-else-if="generatedLink && canShare"
           @click="shareLink"
-          type="button"
-          class="btn-primary"
+          variant="primary"
         >
           Compartilhar Link
-        </button>
-        <button v-else @click="copyLink" type="button" class="btn-primary">Copiar Link</button>
+        </AppButton>
+        <AppButton v-else @click="copyLink" variant="primary">Copiar Link</AppButton>
       </footer>
     </div>
   </div>
@@ -271,18 +270,12 @@ async function shareLink() {
 .link-input:focus { outline: none; border-color: var(--azul-principal); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
 
 .action-buttons { position: absolute; top: 50%; right: 0.75rem; transform: translateY(-50%); display: flex; gap: 0.5rem; }
-.icon-button { padding: 0.6rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; color: #6b7280; transition: all 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.icon-button:hover { background-color: #f3f4f6; border-color: #d1d5db; color: var(--azul-principal); }
 
 .info { font-size: 0.9rem; color: #9ca3af; margin-top: 0.75rem; text-align: center; }
 .text-green { color: #16a34a; }
 
 /* Footer */
 .modal-footer { padding: 1.5rem 2.5rem; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; gap: 1rem; background-color: #fff; flex-shrink: 0; }
-.btn-primary { background: var(--azul-principal); color: var(--branco); border: none; padding: 0.875rem 1.75rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; font-size: 1rem; transition: opacity 0.2s; }
-.btn-primary:hover { opacity: 0.95; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
-.btn-secondary { background: #fff; border: 1px solid #d1d5db; color: #374151; padding: 0.875rem 1.75rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; }
-.btn-secondary:hover { background: #f9fafb; }
 .error-message { color: #ef4444; font-size: 0.875rem; margin-top: -0.5rem; margin-bottom: 1rem; }
 
 /* =========================================
@@ -337,11 +330,6 @@ async function shareLink() {
   .modal-footer {
     padding: 1rem 1.5rem;
     flex-direction: column-reverse; /* Botão principal em cima, cancelar embaixo */
-  }
-
-  .btn-primary, .btn-secondary {
-    width: 100%; /* Botões largura total */
-    padding: 1rem;
   }
 }
 </style>

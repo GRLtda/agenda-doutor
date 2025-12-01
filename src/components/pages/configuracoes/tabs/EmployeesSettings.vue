@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next'
 import InviteEmployeeModal from '../modals/InviteEmployeeModal.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 
 const employeesStore = useEmployeesStore()
 const authStore = useAuthStore()
@@ -97,14 +98,14 @@ function isOwner(employee) {
         <h2>Membros da Equipe</h2>
         <p class="header-subtitle">Gerencie os acessos e funções dos funcionários.</p>
       </div>
-      <button
+      <AppButton
         v-if="currentUser?.role === 'owner' || currentUser?.role === 'gerente'"
         @click="isModalOpen = true"
-        class="btn-primary"
+        variant="primary"
       >
         <UserPlus :size="16" />
         Convidar Funcionário
-      </button>
+      </AppButton>
     </div>
 
     <div class="section-container">
@@ -159,9 +160,9 @@ function isOwner(employee) {
               class="actions-wrapper"
               v-click-outside="() => (actionsMenuOpenFor = null)"
             >
-              <button @click.stop="actionsMenuOpenFor = employee._id" class="btn-icon">
+              <AppButton @click.stop="actionsMenuOpenFor = employee._id" variant="default" size="sm" class="btn-icon">
                 <MoreHorizontal :size="20" />
-              </button>
+              </AppButton>
               <Transition name="fade">
                 <div v-if="actionsMenuOpenFor === employee._id" class="actions-dropdown">
                   <button @click="openEditRole(employee)" class="dropdown-item">
@@ -183,10 +184,10 @@ function isOwner(employee) {
         <p class="empty-description">
           Você ainda não possui funcionários cadastrados. Comece convidando o primeiro membro.
         </p>
-        <button @click="isModalOpen = true" class="create-button">
+        <AppButton @click="isModalOpen = true" variant="primary">
           <UserPlus :size="16" />
           Convidar Funcionário
-        </button>
+        </AppButton>
       </div>
     </div>
 
@@ -230,13 +231,14 @@ function isOwner(employee) {
           </div>
           <div class="item-actions pending-actions">
             <span class="pending-text">Aguardando aceite</span>
-            <button
+            <AppButton
               @click="handleCancelInvite(invite._id)"
-              class="btn-icon btn-cancel-invite"
+              variant="dangerous"
+              size="sm"
               title="Cancelar convite"
             >
               <XCircle :size="20" />
-            </button>
+            </AppButton>
           </div>
         </li>
       </ul>
@@ -258,24 +260,9 @@ function isOwner(employee) {
   margin-top: 0.25rem;
   color: var(--cinza-texto);
 }
-.btn-primary,
-.create-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.btn-primary:hover,
-.create-button:hover {
-  background-color: var(--azul-escuro);
+.header-subtitle {
+  margin-top: 0.25rem;
+  color: var(--cinza-texto);
 }
 
 .section-container {
@@ -402,11 +389,12 @@ function isOwner(employee) {
   width: 150px;
 }
 
-.btn-cancel-invite {
-  color: #ef4444;
-}
-.btn-cancel-invite:hover {
-  background-color: #fee2e2;
+.pending-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  width: 150px;
 }
 
 .list-item.is-pending {
@@ -468,20 +456,10 @@ function isOwner(employee) {
 .dropdown-item.delete:hover {
   background-color: #fee2e2;
 }
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cinza-texto);
+.dropdown-item.delete:hover {
+  background-color: #fee2e2;
 }
-.btn-icon:hover {
-  background-color: #f3f4f6;
-}
+
 .fade-enter-active,
 .fade-leave-active {
   transition:
@@ -528,10 +506,6 @@ function isOwner(employee) {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
-  }
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
   }
   .list-item {
     display: grid;

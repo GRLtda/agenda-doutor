@@ -6,6 +6,7 @@ import { useToast } from 'vue-toastification'
 import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import StepPersonalData from '@/components/pages/pacientes/steps/StepPersonalData.vue'
 import StepAddressData from '@/components/pages/pacientes/steps/StepAddressData.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import { User, Map, ArrowLeft } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -131,22 +132,22 @@ async function submitForm() {
     </div>
 
     <footer class="form-actions">
-      <button v-if="currentStep > 1" @click="prevStep" type="button" class="btn-secondary">
+      <AppButton v-if="currentStep > 1" @click="prevStep" type="button" variant="secondary">
         Voltar
-      </button>
-      <button v-if="currentStep < steps.length" @click="nextStep" type="button" class="btn-primary">
+      </AppButton>
+      <AppButton v-if="currentStep < steps.length" @click="nextStep" type="button" variant="primary">
         Avançar
-      </button>
-      <button
+      </AppButton>
+      <AppButton
         v-if="currentStep === steps.length"
         @click="submitForm"
         type="button"
-        class="btn-primary"
-        :disabled="isSubmitting"
+        variant="primary"
+        :loading="isSubmitting"
       >
         <!-- ✨ 4. Altera o texto e desabilita o botão -->
-        {{ isSubmitting ? 'Salvando...' : 'Salvar Paciente' }}
-      </button>
+        Salvar Paciente
+      </AppButton>
     </footer>
   </div>
 </template>
@@ -207,24 +208,6 @@ async function submitForm() {
   gap: 1rem;
   margin-top: 2rem;
 }
-.btn-primary,
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  border: none;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-primary {
-  background-color: var(--azul-principal);
-  color: var(--branco);
-}
-.btn-secondary {
-  background-color: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-}
 /* .slide-next-enter-active, .slide-next-leave-active, .slide-prev-enter-active, .slide-prev-leave-active { transition: all 0.3s ease-in-out; } */
 .slide-next-enter-from {
   opacity: 0;
@@ -276,11 +259,6 @@ async function submitForm() {
     flex-direction: column-reverse; /* Empilha os botões */
     gap: 0.75rem;
     margin-top: 1.5rem;
-  }
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-    justify-content: center; /* Centraliza o texto */
   }
 }
 </style>

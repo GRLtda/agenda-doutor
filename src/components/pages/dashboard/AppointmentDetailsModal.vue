@@ -27,6 +27,7 @@ import {
 } from 'lucide-vue-next'
 import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
+import AppButton from '@/components/global/AppButton.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -348,44 +349,44 @@ onUnmounted(() => {
 
       <!-- Footer -->
       <footer class="drawer-footer">
-         <button
+         <AppButton
             v-if="appointment.status !== 'Cancelado' && appointment.status !== 'Realizado'"
             @click="handleCancelClick"
-            :class="['btn-decline', { 'confirming': isConfirmingCancel }]"
+            :variant="isConfirmingCancel ? 'dangerous' : 'default'"
          >
             <XCircle :size="18" />
             {{ isConfirmingCancel ? 'Confirmar?' : 'Cancelar' }}
-         </button>
+         </AppButton>
          
          <!-- Se não confirmado, mostra Confirmar -->
-         <button
+         <AppButton
             v-if="appointment.status !== 'Confirmado' && appointment.status !== 'Cancelado' && appointment.status !== 'Realizado' && appointment.status !== 'Em Atendimento'"
             @click="handleApprove"
-            class="btn-approve"
+            variant="secondary"
          >
             <Check :size="18" />
             Confirmar
-         </button>
+         </AppButton>
 
          <!-- Se Confirmado, mostra Iniciar Atendimento -->
-         <button
+         <AppButton
             v-if="appointment.status === 'Confirmado'"
             @click="handleStartService"
-            class="btn-approve"
+            variant="primary"
          >
             <Play :size="18" />
             Iniciar Atendimento
-         </button>
+         </AppButton>
 
          <!-- Se Em Atendimento, mostra Finalizar -->
-         <button
+         <AppButton
             v-if="appointment.status === 'Em Atendimento'"
             @click="handleFinishService"
-            class="btn-approve"
+            variant="secondary"
          >
             <Check :size="18" />
             Finalizar Atendimento
-         </button>
+         </AppButton>
       </footer>
     </div>
   </div>
@@ -859,46 +860,7 @@ onUnmounted(() => {
   background: #fff;
 }
 
-.btn-approve {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: #4f46e5;
-  color: #fff;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-approve:hover {
-  background: #4338ca;
-}
 
-.btn-decline {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-decline:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-.btn-decline.confirming {
-  background: #fee2e2;
-  color: #ef4444;
-  border-color: #fecaca;
-}
 
 /* Action Buttons */
 .actions-grid {
