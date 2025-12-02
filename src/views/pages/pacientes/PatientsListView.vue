@@ -110,7 +110,7 @@ const formatCPF = (cpf) => {
           placeholder="Buscar paciente por nome..."
           class="patient-search"
         />
-        <AppButton variant="primary" to="/app/pacientes/novo">
+        <AppButton variant="primary" to="/app/pacientes/novo" class="add-patient-btn">
           <UserPlus :size="16" />
           Adicionar Paciente
         </AppButton>
@@ -636,7 +636,7 @@ th.actions-header .th-content {
     flex-direction: column-reverse; /* Coloca o botão de adicionar por último */
   }
   .patient-search,
-  .btn-primary {
+  .add-patient-btn {
     width: 100%;
   }
   .mobile-list > .state-cell {
@@ -644,7 +644,7 @@ th.actions-header .th-content {
     background-color: transparent;
     border: none;
   }
-  .btn-primary {
+  .add-patient-btn {
     justify-content: center;
   }
   .table-wrapper {

@@ -294,7 +294,7 @@ const missingInfo = computed(() => {
           <div class="patient-avatar">
             {{ patient.name.charAt(0) }}
           </div>
-          <div>
+          <div class="patient-title-wrapper">
             <div class="name-and-status">
               <h1 class="patient-name">{{ patient.name }}</h1>
               <div v-if="missingInfo.length > 0" class="missing-info-badge" :title="`Faltam: ${missingInfo.join(', ')}`">
@@ -761,6 +761,13 @@ const missingInfo = computed(() => {
   font-weight: 700;
   margin: 0;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.patient-title-wrapper {
+  min-width: 0;
+  flex: 1;
 }
 .patient-meta {
   display: flex;
@@ -773,6 +780,16 @@ const missingInfo = computed(() => {
 .header-actions {
   display: flex;
   gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .header-actions {
+    width: 100%;
+  }
+  .header-actions .app-button {
+    flex: 1;
+    justify-content: center;
+  }
 }
 .tabs-nav {
   display: flex;

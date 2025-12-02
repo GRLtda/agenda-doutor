@@ -98,6 +98,7 @@ onUnmounted(() => {
   <div class="app-layout">
     <div class="unified-container">
       <Sidebar
+        v-if="!route.meta.layout?.fullscreen"
         class="sidebar-component"
         :class="{ 'is-mobile-open': isMobileSidebarOpen, 'is-collapsed': layoutStore.isSidebarCollapsed }"
         :is-collapsed="layoutStore.isSidebarCollapsed"
@@ -107,6 +108,7 @@ onUnmounted(() => {
 
       <div class="main-panel">
         <TopBar
+          v-if="!route.meta.layout?.fullscreen"
           :is-sidebar-collapsed="layoutStore.isSidebarCollapsed"
           @toggle-sidebar="isMobileSidebarOpen = true"
           @toggle-collapse="layoutStore.toggleSidebar()"

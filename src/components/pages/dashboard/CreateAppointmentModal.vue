@@ -1029,18 +1029,24 @@ async function handleSubmit() {
     margin-top: auto;
     justify-content: flex-end;
   }
-  .modal-footer > .btn-secondary:first-child {
-    display: none;
+  .modal-footer > .app-button:first-child {
+    display: flex; /* Garante que o botão Cancelar apareça */
+    flex-grow: 1;
   }
   .footer-actions {
     width: 100%;
     display: flex;
     gap: 0.75rem;
+    flex-grow: 1; /* Permite que o container de ações cresça */
   }
-  .footer-actions .btn-primary,
-  .footer-actions .btn-secondary {
+  .footer-actions .app-button {
     flex-grow: 1;
     justify-content: center;
+    width: 100%; /* Força largura total */
+  }
+  .modal-footer {
+    flex-direction: row; /* Mantém lado a lado */
+    gap: 0.75rem;
   }
   .stepper-component :deep(.stepper) {
     justify-content: center;

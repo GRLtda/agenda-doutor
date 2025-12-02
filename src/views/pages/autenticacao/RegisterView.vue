@@ -133,7 +133,17 @@ function handleRegistrationComplete() {
 <template>
   <div>
     <div v-if="registrationSuccess" class="success-screen">
-       </div>
+      <div class="success-content">
+        <CheckCircle2 :size="64" class="success-icon" />
+        <h2 class="title">Conta criada com sucesso!</h2>
+        <p class="message">
+          Sua conta foi criada. Agora vamos configurar sua clínica.
+        </p>
+        <button @click="handleRegistrationComplete" class="confirm-button">
+          Continuar
+        </button>
+      </div>
+    </div>
 
     <AuthCard :image-url="imageUrl" v-if="!registrationSuccess">
       <template #title>Crie sua conta</template>

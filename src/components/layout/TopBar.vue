@@ -133,7 +133,7 @@ function handleSearchSubmit() {
 
       <AppButton variant="primary" @click="$emit('open-schedule-modal')">
         <Plus :size="16" />
-        Agendar Atendimento
+        <span class="button-text">Agendar Atendimento</span>
       </AppButton>
     </div>
   </header>
@@ -358,6 +358,16 @@ function handleSearchSubmit() {
 
   /* ✨ Garante que o loading não tenha texto no mobile */
   .global-loading-indicator span {
+    display: none;
+  }
+
+  /* Oculta a barra de pesquisa no mobile */
+  .search-container {
+    display: none;
+  }
+
+  /* Oculta o texto do botão no mobile */
+  .button-text {
     display: none;
   }
 }

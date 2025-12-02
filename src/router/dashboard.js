@@ -79,7 +79,7 @@ const dashboardRoutes = [
         path: 'atendimentos/:appointmentId/patient/:patientId',
         name: 'atendimento-em-andamento',
         component: InProgressAppointmentView,
-        meta: { title: 'Em Atendimento', layout: { noPadding: true } },
+        meta: { title: 'Em Atendimento', layout: { noPadding: true, fullscreen: true } },
       },
       {
         path: 'marketing',

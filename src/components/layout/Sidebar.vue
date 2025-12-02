@@ -18,7 +18,8 @@ import {
   MessageSquare,
   LayoutTemplate,
   Link,
-  History
+  History,
+  ChevronsUpDown
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -91,11 +92,7 @@ const mainNavLinks = [
           <span v-else>{{ authStore.user?.clinic?.name?.charAt(0) || 'C' }}</span>
         </div>
         <h1 v-show="!isCollapsed" class="clinic-name">{{ authStore.user?.clinic?.name || 'Sua Clínica' }}</h1>
-        <MoreHorizontal v-show="!isCollapsed" :size="20" class="options-icon desktop-only" />
-
-        <button @click="$emit('close')" class="mobile-close-btn">
-          <X :size="24" />
-        </button>
+        <MoreHorizontal v-show="!isCollapsed" :size="20" class="options-icon" />
       </div>
     </div>
 
@@ -183,7 +180,7 @@ const mainNavLinks = [
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   border-top-right-radius: 1rem;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .sidebar.is-collapsed {
@@ -460,20 +457,11 @@ const mainNavLinks = [
   opacity: 0;
 }
 
-/* ✨ Estilos para o modo responsivo */
-.mobile-close-btn {
-  display: none; /* Escondido por padrão */
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--cinza-texto);
-}
-
 @media (max-width: 1024px) {
   .desktop-only {
     display: none;
   }
-  .mobile-close-btn {
+  .mobile-dropdown-icon {
     display: block;
   }
   /* Em mobile, sidebar sempre expandida quando visível */

@@ -271,9 +271,6 @@ onMounted(async () => {
   }
   handleViewportChange() // Verificação inicial
 
-  // ✨ Collapse Sidebar on Mount
-  layoutStore.setSidebarCollapsed(true)
-
   // ✨ Fetch Anamneses
   if (patientId) {
     await anamnesisStore.fetchAnamnesisForPatient(patientId)
@@ -369,99 +366,126 @@ const menuItems = [
   <div v-else class="in-progress-appointment-layout">
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
 
-    <header class="top-bar">
-      <div class="header-left">
-        <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle">
-          <Menu :size="24" />
-        </button>
-        <div class="header-title">
-          {{ isViewMode ? 'Visualizando Atendimento' : 'Novo Atendimento' }}
-        </div>
-      </div>
-      <div class="header-center desktop-only">
-        <div v-if="!isViewMode" class="appointment-timer">
-          <Clock :size="18" />
-          <span>{{ formattedElapsedTime }}</span>
-        </div>
-      </div>
-      <div class="header-right">
-        <SaveStatusIndicator
-          v-if="!isViewMode"
-          :status="saveStatus"
-          :last-saved="lastSaved"
-          class="desktop-only"
-        />
+    <!-- ✨ Sidebar moved to left (Full Height) -->
+    <aside class="left-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
+      <button @click="isSidebarOpen = false" class="mobile-close-btn">
+        <X :size="24" />
+      </button>
 
-        <button v-if="isViewMode" @click="router.back()" class="btn-secondary-solid">
-          <ArrowLeft :size="16" />
-          Voltar
-        </button>
+      <div v-if="patient" class="patient-card">
+        <div class="avatar">{{ patient.name?.charAt(0) }}</div>
+        <div class="patient-details">
+          <div class="name">{{ patient.name }}</div>
+          <div class="detail-row">
+            <span>Idade</span>
+            <span class="value">{{ patientAge }}</span>
+          </div>
+          <div class="detail-row">
+            <span>Convênio</span>
+            <span class="value">{{ patient.healthInsurance || '----' }}</span>
+          </div>
+          <div class="detail-row">
+            <span>Primeiro Atend.</span>
+            <span class="value">{{
+              patient.firstAppointmentDate
+                ? new Date(patient.firstAppointmentDate).toLocaleDateString('pt-BR')
+                : 'N/A'
+            }}</span>
+          </div>
+        </div>
+      </div>
+      <nav class="side-menu">
         <button
-          v-else
+          v-for="item in menuItems"
+          :key="item.id"
+          :class="{ 'is-active': activeTab === item.id }"
+          @click="activeTab = item.id"
+        >
+          <component :is="item.icon" :size="20" />
+          <span>{{ item.label }}</span>
+        </button>
+      </nav>
+
+      <!-- ✨ Desktop Sidebar Footer -->
+      <div class="sidebar-footer desktop-only">
+        <button @click="router.push('/app/atendimentos')" class="btn-secondary-solid w-full">
+          <ArrowLeft :size="16" />
+          Voltar para a Agenda
+        </button>
+      </div>
+
+      <div class="mobile-sidebar-footer">
+        <div v-if="!isViewMode" class="footer-info-group">
+          <div class="appointment-timer">
+            <Clock :size="18" />
+            <span>{{ formattedElapsedTime }}</span>
+          </div>
+          <SaveStatusIndicator :status="saveStatus" :last-saved="lastSaved" />
+        </div>
+        <button @click="router.back()" class="btn-secondary-solid">
+          <ArrowLeft :size="16" />
+          Voltar para a Agenda
+        </button>
+        
+        <!-- ✨ Finalizar Atendimento (Mobile Sidebar) -->
+        <button
+          v-if="!isViewMode"
           @click="saveAndFinish"
-          class="btn-finish-appointment"
+          class="btn-finish-appointment mobile-finish-btn"
           :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
         >
           Finalizar Atendimento
           <ChevronRight :size="16" />
         </button>
       </div>
-    </header>
+    </aside>
 
-    <div class="content-area">
-      <aside class="left-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
-        <button @click="isSidebarOpen = false" class="mobile-close-btn">
-          <X :size="24" />
-        </button>
-
-        <div v-if="patient" class="patient-card">
-          <div class="avatar">{{ patient.name?.charAt(0) }}</div>
-          <div class="patient-details">
-            <div class="name">{{ patient.name }}</div>
-            <div class="detail-row">
-              <span>Idade</span>
-              <span class="value">{{ patientAge }}</span>
-            </div>
-            <div class="detail-row">
-              <span>Convênio</span>
-              <span class="value">{{ patient.healthInsurance || '----' }}</span>
-            </div>
-            <div class="detail-row">
-              <span>Primeiro Atend.</span>
-              <span class="value">{{
-                patient.firstAppointmentDate
-                  ? new Date(patient.firstAppointmentDate).toLocaleDateString('pt-BR')
-                  : 'N/A'
-              }}</span>
-            </div>
+    <!-- ✨ Main Content Wrapper (TopBar + Content) -->
+    <div class="main-content-wrapper">
+      <header class="top-bar">
+        <div class="header-left">
+          <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle">
+            <Menu :size="24" />
+          </button>
+          <div class="header-title">
+            {{ isViewMode ? 'Visualizando Atendimento' : 'Novo Atendimento' }}
           </div>
         </div>
-        <nav class="side-menu">
-          <button
-            v-for="item in menuItems"
-            :key="item.id"
-            :class="{ 'is-active': activeTab === item.id }"
-            @click="activeTab = item.id"
-          >
-            <component :is="item.icon" :size="20" />
-            <span>{{ item.label }}</span>
-          </button>
-        </nav>
-
-        <div class="mobile-sidebar-footer">
-          <div v-if="!isViewMode" class="footer-info-group">
-            <div class="appointment-timer">
-              <Clock :size="18" />
-              <span>{{ formattedElapsedTime }}</span>
-            </div>
-            <SaveStatusIndicator :status="saveStatus" :last-saved="lastSaved" />
+        <div class="header-center">
+          <div class="mobile-patient-name">{{ patient?.name }}</div>
+          <div v-if="!isViewMode" class="appointment-timer desktop-only">
+            <Clock :size="18" />
+            <span>{{ formattedElapsedTime }}</span>
           </div>
-          <button @click="router.back()" class="btn-secondary-solid">
+        </div>
+        <div class="header-right">
+          <div v-if="!isViewMode" class="appointment-timer mobile-only">
+            <Clock :size="18" />
+            <span>{{ formattedElapsedTime }}</span>
+          </div>
+
+          <SaveStatusIndicator
+            v-if="!isViewMode"
+            :status="saveStatus"
+            :last-saved="lastSaved"
+            class="desktop-only"
+          />
+
+          <button v-if="isViewMode" @click="router.back()" class="btn-secondary-solid">
             <ArrowLeft :size="16" />
-            Voltar para a Agenda
+            Voltar
+          </button>
+          <button
+            v-else
+            @click="saveAndFinish"
+            class="btn-finish-appointment"
+            :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
+          >
+            Finalizar Atendimento
+            <ChevronRight :size="16" />
           </button>
         </div>
-      </aside>
+      </header>
 
       <main
         class="editor-main-content"
@@ -522,14 +546,6 @@ const menuItems = [
                         <span>{{ patient.email }}</span>
                       </div>
                     </div>
-                  </div>
-                  <div class="profile-actions">
-                    <button class="action-btn-circle" title="Enviar Mensagem">
-                      <MessageCircle :size="18" />
-                    </button>
-                    <button class="action-btn-circle" title="Ver Perfil">
-                      <ExternalLink :size="18" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -712,11 +728,28 @@ const menuItems = [
 </template>
 
 <style scoped>
+.in-progress-appointment-layout {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+}
+
 .tab-content-fixed {
   height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.top-bar {
+  background-color: var(--branco);
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 80px;
+  flex-shrink: 0;
 }
 
 .patient-info-layout {
@@ -740,7 +773,6 @@ const menuItems = [
   display: flex;
   flex-direction: column;
   overflow: hidden; /* Prevent unwanted scrollbar */
-  gap: 1rem;
 }
 
 .anamnesis-column {
@@ -801,31 +833,6 @@ const menuItems = [
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.profile-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.action-btn-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background-color: white;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-btn-circle:hover {
-  background-color: #f9fafb;
-  color: var(--azul-principal);
-  border-color: var(--azul-principal);
 }
 
 /* Info Card */
@@ -1125,120 +1132,6 @@ const menuItems = [
   color: var(--azul-principal);
   border-color: var(--azul-principal);
 }
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .in-progress-appointment-layout {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .content-area {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .tab-content-fixed {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .patient-info-layout {
-    flex-direction: column;
-    padding: 1rem;
-    gap: 1rem;
-    overflow: visible !important; /* Let it grow */
-    height: auto !important; /* Let it grow */
-  }
-  .info-column {
-    overflow: visible !important;
-    flex: 0 0 auto;
-  }
-  .anamnesis-column {
-    height: auto;
-    overflow: visible;
-    flex: 0 0 auto;
-  }
-  .anamnesis-scroll-area.info-card {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .anamnesis-group {
-    overflow: visible !important;
-    height: auto !important;
-  }
-  .anamnesis-tabs {
-    display: flex;
-    width: 100%;
-    padding: 0;
-    padding-top: 1rem;
-    overflow-x: visible;
-    white-space: normal;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  .anamnesis-tabs::-webkit-scrollbar {
-    display: none;
-  }
-  .tab-btn {
-    flex: 1;
-    justify-content: center;
-    padding: 0.75rem 0.25rem;
-    text-align: center;
-    font-size: 0.9rem;
-  }
-  .profile-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  .profile-contact {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 93vh;
-  gap: 1rem;
-  color: var(--cinza-texto);
-  background-color: #f8f9fa;
-}
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.in-progress-appointment-layout {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 5rem); /* Adjusted to fit viewport better */
-  background-color: #f8f9fa;
-  border-radius: 1vh;
-  overflow: hidden;
-}
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background-color: var(--branco);
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  z-index: 10;
-  position: relative;
-}
 .header-left,
 .header-right {
   flex: 1;
@@ -1317,39 +1210,45 @@ const menuItems = [
   overflow: hidden;
 }
 .left-sidebar {
-  width: 320px;
-  background-color: var(--branco);
+  width: 280px; /* Slightly wider for patient info */
+  background-color: #fafbfc; /* Match main sidebar */
   border-right: 1px solid #e5e7eb;
-  padding: 1.5rem;
+  padding: 1rem;
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  height: 100%; /* ✨ Full height */
 }
 .patient-card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 1rem;
-  padding-bottom: 1.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .patient-card .avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 0.5rem; /* Square with radius like clinic logo */
   background-color: #eef2ff;
   color: var(--azul-principal);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  border: 1px solid #e5e7eb;
 }
 .patient-card .patient-details .name {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  color: #111827;
+  margin-bottom: 0.25rem;
 }
 .patient-card .detail-row {
   display: flex;
@@ -1365,33 +1264,35 @@ const menuItems = [
 .side-menu {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem; /* Match nav-links gap */
 }
 .side-menu button {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  background: none;
-  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.875rem; /* Match nav-link size */
   font-weight: 500;
-  color: #6b7280;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  color: #525866;
+  transition: all 0.2s ease;
   white-space: nowrap;
+  width: 100%;
+  text-align: left;
 }
 .side-menu button:hover {
-  background-color: #f3f4f6;
-  color: #333;
+  background-color: #edf0f4;
+  color: var(--preto);
 }
 .side-menu button.is-active {
-  background-color: #eef2ff;
-  color: var(--azul-principal);
+  background-color: var(--branco);
+  color: var(--preto);
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: #f3f4f6;
 }
 .editor-main-content {
   flex-grow: 1;
@@ -1601,6 +1502,14 @@ const menuItems = [
   margin-right: 0.5rem;
 }
 
+.mobile-patient-name {
+  display: none;
+}
+
+.mobile-only {
+  display: none;
+}
+
 .sidebar-overlay {
   position: fixed;
   inset: 0;
@@ -1682,14 +1591,100 @@ const menuItems = [
   color: white;
 }
 
+.main-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+}
+
 @media (max-width: 1024px) {
-  .content-area {
+  .in-progress-appointment-layout {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .main-content-wrapper {
     display: block;
     position: relative;
+    height: auto;
+    overflow: visible;
+  }
+
+  .editor-main-content {
+    height: auto;
+    overflow: visible;
+  }
+
+  .tab-content {
+    height: auto;
   }
 
   .top-bar {
     padding: 0.75rem 1rem;
+    display: flex; /* ✨ Show TopBar on Mobile */
+    justify-content: space-between;
+    gap: 0.5rem;
+    position: relative; /* ✨ For absolute positioning of center element */
+  }
+
+  /* Hide Title on Mobile to save space */
+  .header-title {
+    display: none;
+  }
+
+  /* Hide Right Actions on Mobile (moved to sidebar) */
+  .header-right .desktop-only,
+  .header-right .btn-secondary-solid,
+  .header-right .btn-finish-appointment {
+    display: none;
+  }
+  
+  .header-right {
+    display: flex; /* Ensure container is visible for mobile timer */
+    align-items: center;
+  }
+
+  /* Show Timer on Mobile (Right side) */
+  .mobile-only.appointment-timer {
+    display: flex;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+    background-color: #f3f4f6;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+
+  /* Center: Patient Name */
+  .header-center {
+    position: absolute; /* ✨ Absolute positioning for perfect center */  
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    max-width: 50%; /* Prevent overlap with side elements */
+    overflow: hidden;
+  }
+
+  .mobile-patient-name {
+    display: block; /* ✨ Override global display: none */
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  /* Hide Desktop Timer on Mobile */
+  .header-center .desktop-only {
+    display: none;
   }
 
   .header-left {
@@ -1714,7 +1709,7 @@ const menuItems = [
     top: 0;
     left: 0;
     bottom: 0;
-    height: 100vh;
+    height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
     z-index: 4999;
@@ -1752,6 +1747,11 @@ const menuItems = [
     flex-direction: column;
     gap: 1rem;
   }
+  
+  .mobile-finish-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1760,5 +1760,70 @@ const menuItems = [
   .editor-main-content.keyboard-open-padding .editor-content {
     padding-bottom: 80px;
   }
+
+  /* ✨ Responsive Patient Info Layout ✨ */
+  .patient-info-layout {
+    flex-direction: column;
+    padding: 1rem;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .info-column,
+  .anamnesis-column {
+    width: 100%;
+    flex: none;
+    overflow: visible;
+  }
+
+  .anamnesis-scroll-area.info-card {
+     height: auto;
+     max-height: 500px; /* Optional limit */
+  }
+
+  .profile-contact {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .anamnesis-tabs {
+    padding: 1rem 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  background-color: #f8f9fa;
+  color: #6b7280;
+  gap: 1rem;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.w-full {
+  width: 100%;
 }
 </style>

@@ -23,7 +23,8 @@ import {
   Play,
   Bell,
   RotateCw,
-  CalendarClock
+  CalendarClock,
+  AlertCircle
 } from 'lucide-vue-next'
 import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
@@ -107,16 +108,6 @@ function goToPatient() {
     router.push(`/app/pacientes/${patient.value._id}`)
   } else {
     toast.info('Este agendamento não parece ter um paciente vinculado.')
-  }
-}
-
-function openWhatsApp() {
-  if (patient.value && patient.value.phone) {
-    const phone = patient.value.phone.replace(/\D/g, '')
-    const message = `Olá ${patient.value.name}, tudo bem?`
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank')
-  } else {
-    toast.warning('Paciente sem telefone cadastrado.')
   }
 }
 
@@ -241,9 +232,6 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="patient-actions">
-               <button @click="openWhatsApp" class="action-btn whatsapp" title="WhatsApp">
-                  <MessageCircle :size="18" />
-               </button>
                <button @click="goToPatient" class="action-btn profile" title="Ver Perfil">
                   <ExternalLink :size="18" />
                </button>
@@ -317,23 +305,19 @@ onUnmounted(() => {
         </section>
 
         <!-- Timeline (History) -->
-        <section class="section" v-if="appointment.timeline && appointment.timeline.length > 0">
+        <section class="section">
            <h3 class="section-title">Histórico</h3>
-           <div class="timeline-history">
+           <div v-if="appointment.timeline && appointment.timeline.length > 0" class="timeline-history">
               <div 
                 v-for="(item, index) in appointment.timeline" 
                 :key="index" 
                 class="history-item"
               >
                  <div class="history-marker">
-                    <!-- Ícone específico para lembrete enviado -->
                     <Bell v-if="item.action === 'REMINDER_SENT'" :size="12" class="marker-icon" />
-                    <!-- Check para itens passados (exceto o último) -->
                     <Check v-else-if="index < appointment.timeline.length - 1" :size="12" class="marker-icon" />
-                    <!-- Ponto para o último item (atual) -->
                     <div v-else class="marker-dot"></div>
                  </div>
-                 
                  <div class="history-content">
                     <div class="history-header">
                        <span class="history-date">{{ formatTimelineDate(item.timestamp) }}</span>
@@ -343,6 +327,12 @@ onUnmounted(() => {
                     <p class="history-description">{{ item.description }}</p>
                  </div>
               </div>
+           </div>
+           
+           <div v-else class="timeline-placeholder">
+              <AlertCircle :size="20" />
+              <p>Nenhum histórico disponível para este agendamento.</p>
+              <span class="sub-text">Pode ser um registro antigo ou incompleto.</span>
            </div>
         </section>
       </div>
@@ -629,11 +619,6 @@ onUnmounted(() => {
   border-color: #d1d5db;
   color: #374151;
 }
-.action-btn.whatsapp:hover {
-  background: #dcfce7;
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
 .action-btn.profile:hover {
   background: #eff6ff;
   color: #2563eb;
@@ -850,6 +835,32 @@ onUnmounted(() => {
   line-height: 1.4;
 }
 
+.timeline-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  gap: 0.5rem;
+  border: 1px dashed #e5e7eb;
+}
+
+.timeline-placeholder p {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin: 0;
+}
+
+.sub-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
 /* Footer */
 .drawer-footer {
   padding: 1.5rem;
@@ -858,6 +869,10 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 1rem;
   background: #fff;
+}
+
+.drawer-footer > * {
+  flex: 1;
 }
 
 
@@ -957,6 +972,18 @@ onUnmounted(() => {
 
   .pagination-controls {
     display: none;
+  }
+
+  .drawer-footer {
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+  
+  .drawer-footer :deep(button) {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: 0.8rem;
+    min-width: 0;
   }
 }
 </style>
