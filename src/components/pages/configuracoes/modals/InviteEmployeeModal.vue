@@ -70,11 +70,40 @@ async function handleInvite() {
 
 function copyLink() {
   if (!generatedLink.value) return
-  navigator.clipboard.writeText(generatedLink.value).then(() => {
-    linkCopied.value = true
-    setTimeout(() => (linkCopied.value = false), 2000)
-    toast.info('Link copiado!')
-  })
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(generatedLink.value)
+      .then(() => {
+        linkCopied.value = true
+        setTimeout(() => (linkCopied.value = false), 2000)
+        toast.info('Link copiado!')
+      })
+      .catch((err) => {
+        console.error('Erro ao copiar o link com Clipboard API:', err)
+        toast.error('Falha ao copiar o link.')
+      })
+  } else {
+    // Fallback for browsers that do not support Clipboard API
+    const textarea = document.createElement('textarea')
+    textarea.value = generatedLink.value
+    textarea.style.position = 'fixed' // Avoid scrolling to bottom
+    textarea.style.opacity = '0' // Hide it
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      linkCopied.value = true
+      setTimeout(() => (linkCopied.value = false), 2000)
+      toast.info('Link copiado!')
+    } catch (err) {
+      console.error('Erro ao copiar o link com execCommand:', err)
+      toast.error('Falha ao copiar o link. Por favor, copie manualmente.')
+    } finally {
+      document.body.removeChild(textarea)
+    }
+  }
 }
 
 async function shareLink() {

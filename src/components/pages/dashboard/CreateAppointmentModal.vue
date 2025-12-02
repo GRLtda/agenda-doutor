@@ -505,36 +505,43 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <header class="modal-header">
-        <div>
-          <h2>
-            {{
-              isRebookMode
-                ? 'Reagendar Horário'
-                : isRescheduleMode
-                  ? 'Agendar Retorno'
-                  : 'Novo Agendamento'
-            }}
-          </h2>
-          <p>
-            {{
-              isRebookMode
-                ? 'Escolha o novo horário para o agendamento existente.'
-                : isRescheduleMode
-                  ? 'Escolha uma nova data e horário para o paciente.'
-                  : 'Preencha os dados para criar um novo atendimento.'
-            }}
-          </p>
+  <div class="drawer-overlay" @click.self="$emit('close')">
+    <!-- Botão de fechar fora do drawer -->
+    <button @click="$emit('close')" class="close-btn-outside">
+      <X :size="24" />
+    </button>
+
+    <div class="drawer-content">
+      <header class="drawer-header">
+        <div class="header-top">
+          <div class="header-left">
+            <h2>
+              {{
+                isRebookMode
+                  ? 'Reagendar Horário'
+                  : isRescheduleMode
+                    ? 'Agendar Retorno'
+                    : 'Novo Agendamento'
+              }}
+            </h2>
+            <p>
+              {{
+                isRebookMode
+                  ? 'Escolha o novo horário para o agendamento existente.'
+                  : isRescheduleMode
+                    ? 'Escolha uma nova data e horário para o paciente.'
+                    : 'Preencha os dados para criar um novo atendimento.'
+              }}
+            </p>
+          </div>
+          <button @click="$emit('close')" class="mobile-close-btn">
+            <X :size="24" />
+          </button>
         </div>
-        <button @click="$emit('close')" class="btn-close-mobile">
-          <X :size="24" />
-        </button>
         <Stepper :steps="steps" :currentStep="currentStep" class="stepper-component" />
       </header>
 
-      <div class="modal-body" v-auto-animate>
+      <div class="drawer-body" v-auto-animate>
         <div v-if="currentStep === 1" class="step-content">
           <SearchableSelect
             v-model="appointmentData.patient"
@@ -658,7 +665,7 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <footer class="modal-footer">
+      <footer class="drawer-footer">
         <AppButton @click="$emit('close')" variant="default">Cancelar</AppButton>
         <div class="footer-actions">
           <AppButton
@@ -698,112 +705,104 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-/* 💡 Estilos para as Sugestões 💡 */
-.suggestions-wrapper {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-}
-.suggestions-title {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-  margin: 0 0 0.75rem 0;
-  text-align: left;
-}
-.suggestions-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.suggestion-chip {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  background-color: var(--branco);
-  border: 1px solid #d1d5db;
-  border-radius: 99px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.suggestion-chip:hover {
-  background-color: #eef2ff;
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
-}
-
-/* --- Estilos Anteriores --- */
-.warning-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #fefce8;
-  color: #a16207;
-  border: 1px solid #fde68a;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  text-align: left;
-  font-size: 0.875rem;
-  margin-top: 1rem;
-}
-.modal-overlay {
+.drawer-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(249, 250, 251, 0.7);
-  backdrop-filter: blur(10px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
   z-index: 1000;
-  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
 }
-.modal-content {
-  background: var(--branco);
+
+.close-btn-outside {
+  position: absolute;
+  top: 1rem;
+  right: 496px; /* 480px (width) + 16px (gap) */
+  background: #fff;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  z-index: 1010;
+}
+.close-btn-outside:hover {
+  color: #111827;
+  transform: scale(1.1);
+}
+
+.drawer-content {
   width: 100%;
-  max-width: 550px;
-  border-radius: 1rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  max-width: 480px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  animation: modal-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes modal-fade-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  z-index: 1005;
 }
-.modal-header h2 {
+
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Header */
+.drawer-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.header-left h2 {
   font-size: 1.25rem;
-  margin-bottom: 0.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
 }
-.modal-header p {
+
+.header-left p {
   color: var(--cinza-texto);
-  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  margin: 0;
 }
-.modal-body {
-  padding: 2rem;
-  flex-grow: 1;
+
+/* Body */
+.drawer-body {
+  flex: 1;
   overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
-.modal-footer {
+
+/* Footer */
+.drawer-footer {
   padding: 1rem 1.5rem;
   border-top: 1px solid #e5e7eb;
   display: flex;
@@ -811,11 +810,30 @@ async function handleSubmit() {
   gap: 1rem;
   background-color: #f9fafb;
 }
+
 .footer-actions {
   display: flex;
   gap: 1rem;
 }
 
+/* Mobile Close Button */
+.mobile-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s;
+}
+
+.mobile-close-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* --- Estilos Internos (Mantidos) --- */
 .step-content {
   display: flex;
   flex-direction: column;
@@ -849,24 +867,17 @@ async function handleSubmit() {
   flex-grow: 1;
 }
 
-/* ✨ 10. Estilo para o spinner */
 .spinner {
   color: var(--azul-principal);
   animation: spin 1s linear infinite;
-  margin-left: 0.5rem; /* Espaçamento do spinner */
+  margin-left: 0.5rem;
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* ✨ 11. Estilo para o erro de conflito (a prop :error já faz isso) */
-/* Mas vamos garantir que o erro de conflito também aplique a borda vermelha */
 :deep(.time-select .select-button.has-error) {
   border-color: #ef4444 !important;
   background-color: #fef2f2;
@@ -892,7 +903,6 @@ async function handleSubmit() {
   padding: 0 1rem;
 }
 
-
 .closed-message {
   display: flex;
   align-items: center;
@@ -905,6 +915,20 @@ async function handleSubmit() {
   border-radius: 0.5rem;
   text-align: center;
   font-size: 0.875rem;
+}
+
+.warning-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #fefce8;
+  color: #a16207;
+  border: 1px solid #fde68a;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  margin-top: 1rem;
 }
 
 .reminders-card {
@@ -960,9 +984,7 @@ async function handleSubmit() {
   border-radius: 0.4rem;
   border: 2px solid #d1d5db;
   background: #fff;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   cursor: pointer;
   accent-color: var(--azul-principal);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -996,68 +1018,80 @@ async function handleSubmit() {
   display: block;
 }
 
-
-
-.btn-close-mobile {
-  display: none;
+/* Sugestões */
+.suggestions-wrapper {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+.suggestions-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+  text-align: left;
+}
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.suggestion-chip {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background-color: var(--branco);
+  border: 1px solid #d1d5db;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.suggestion-chip:hover {
+  background-color: #eef2ff;
+  border-color: var(--azul-principal);
+  color: var(--azul-principal);
 }
 
 @media (max-width: 768px) {
-  .modal-overlay {
-    padding: 0;
-    background: var(--branco);
-    align-items: stretch;
+  .close-btn-outside {
+    display: none;
   }
-  .modal-content {
+
+  .mobile-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .drawer-content {
     max-width: 100%;
-    height: 100%;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
   }
-  .btn-close-mobile {
-    display: block;
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
-  }
-  .modal-footer {
-    margin-top: auto;
-    justify-content: flex-end;
-  }
-  .modal-footer > .app-button:first-child {
-    display: flex; /* Garante que o botão Cancelar apareça */
-    flex-grow: 1;
+
+  .drawer-footer {
+    padding: 1rem;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
   }
   .footer-actions {
     width: 100%;
-    display: flex;
-    gap: 0.75rem;
-    flex-grow: 1; /* Permite que o container de ações cresça */
+    flex-direction: column;
   }
   .footer-actions .app-button {
-    flex-grow: 1;
+    width: 100%;
     justify-content: center;
-    width: 100%; /* Força largura total */
   }
-  .modal-footer {
-    flex-direction: row; /* Mantém lado a lado */
-    gap: 0.75rem;
-  }
-  .stepper-component :deep(.stepper) {
+  .drawer-footer > .app-button:first-child {
+    width: 100%;
     justify-content: center;
-    padding: 0;
-    gap: 1.5rem;
   }
-  .modal-header p {
-    margin-bottom: 1rem;
+  
+  .drawer-header {
+    padding: 1rem;
   }
-  .modal-body {
-    padding: 1.5rem;
+  .drawer-body {
+    padding: 1rem;
   }
 }
 </style>
