@@ -29,6 +29,7 @@ import {
 import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -167,14 +168,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="drawer-overlay" @click.self="$emit('close')">
-    <!-- Botão de fechar fora do drawer -->
-    <button @click="$emit('close')" class="close-btn-outside">
-      <X :size="24" />
-    </button>
-
-    <div class="drawer-content">
-      <!-- Header -->
+  <SideDrawer @close="$emit('close')">
+    <template #header>
       <header class="drawer-header">
         <div class="header-left">
           <h2>Detalhes do Agendamento</h2>
@@ -208,136 +203,137 @@ onUnmounted(() => {
           </div>
         </div>
       </header>
+    </template>
 
-      <div class="drawer-body">
-        <!-- Personal Detail -->
-        <section class="section">
-          <h3 class="section-title">Dados do Paciente</h3>
-          <div class="patient-card">
-            <div class="patient-avatar">
-              <img v-if="patient.photoUrl" :src="patient.photoUrl" alt="Patient" />
-              <span v-else>{{ patient.name.charAt(0) }}</span>
-            </div>
-            <div class="patient-info">
-              <h4 @click="goToPatient" class="patient-name">{{ patient.name }}</h4>
-              <div class="contact-row">
-                 <div class="contact-item">
-                    <Phone :size="14" />
-                    <span>{{ formatPhone(patient.phone) }}</span>
-                 </div>
-                 <div class="contact-item" v-if="patient.email">
-                    <Mail :size="14" />
-                    <span>{{ patient.email }}</span>
-                 </div>
-              </div>
-            </div>
-            <div class="patient-actions">
-               <button @click="goToPatient" class="action-btn profile" title="Ver Perfil">
-                  <ExternalLink :size="18" />
-               </button>
+    <template #default>
+      <!-- Personal Detail -->
+      <section class="section">
+        <h3 class="section-title">Dados do Paciente</h3>
+        <div class="patient-card">
+          <div class="patient-avatar">
+            <img v-if="patient.photoUrl" :src="patient.photoUrl" alt="Patient" />
+            <span v-else>{{ patient.name.charAt(0) }}</span>
+          </div>
+          <div class="patient-info">
+            <h4 @click="goToPatient" class="patient-name">{{ patient.name }}</h4>
+            <div class="contact-row">
+               <div class="contact-item">
+                  <Phone :size="14" />
+                  <span>{{ formatPhone(patient.phone) }}</span>
+               </div>
+               <div class="contact-item" v-if="patient.email">
+                  <Mail :size="14" />
+                  <span>{{ patient.email }}</span>
+               </div>
             </div>
           </div>
-        </section>
+          <div class="patient-actions">
+             <button @click="goToPatient" class="action-btn profile" title="Ver Perfil">
+                <ExternalLink :size="18" />
+             </button>
+          </div>
+        </div>
+      </section>
 
-        <!-- Reason -->
-        <section class="section">
-           <div class="reason-box">
-              <h4 class="reason-title">Motivo / Queixa</h4>
-              <p class="reason-text">
-                {{ appointment.notes || 'Nenhuma observação registrada para este agendamento.' }}
-              </p>
-           </div>
-        </section>
+      <!-- Reason -->
+      <section class="section">
+         <div class="reason-box">
+            <h4 class="reason-title">Motivo / Queixa</h4>
+            <p class="reason-text">
+              {{ appointment.notes || 'Nenhuma observação registrada para este agendamento.' }}
+            </p>
+         </div>
+      </section>
 
-        <!-- Booking Information -->
-        <section class="section">
-           <h3 class="section-title">Informações do Agendamento</h3>
-           <div class="booking-info-card">
-              <div class="booking-row">
-                 <div class="booking-item">
-                    <span class="label">Data</span>
-                    <div class="value">
-                       <Calendar :size="16" />
-                       <span>{{ formatDate(event.start) }}</span>
-                    </div>
-                 </div>
-                 <div class="booking-item">
-                    <span class="label">Tipo</span>
-                    <div class="value">
-                       <MessageSquare :size="16" />
-                       <span>{{ isReturn ? 'Retorno' : 'Consulta' }}</span>
-                    </div>
-                 </div>
-              </div>
-              <div class="booking-row mt-4">
-                 <div class="booking-item full-width">
-                    <span class="label">Status Atual</span>
-                    <div :class="['status-pill', badgeInfo.badgeClass]" :style="badgeInfo.badgeStyle">
-                       {{ badgeInfo.displayText }}
-                    </div>
-                 </div>
-              </div>
-           </div>
-        </section>
+      <!-- Booking Information -->
+      <section class="section">
+         <h3 class="section-title">Informações do Agendamento</h3>
+         <div class="booking-info-card">
+            <div class="booking-row">
+               <div class="booking-item">
+                  <span class="label">Data</span>
+                  <div class="value">
+                     <Calendar :size="16" />
+                     <span>{{ formatDate(event.start) }}</span>
+                  </div>
+               </div>
+               <div class="booking-item">
+                  <span class="label">Tipo</span>
+                  <div class="value">
+                     <MessageSquare :size="16" />
+                     <span>{{ isReturn ? 'Retorno' : 'Consulta' }}</span>
+                  </div>
+               </div>
+            </div>
+            <div class="booking-row mt-4">
+               <div class="booking-item full-width">
+                  <span class="label">Status Atual</span>
+                  <div :class="['status-pill', badgeInfo.badgeClass]" :style="badgeInfo.badgeStyle">
+                     {{ badgeInfo.displayText }}
+                  </div>
+               </div>
+            </div>
+         </div>
+      </section>
 
-        <!-- Ações Rápidas -->
-        <section class="section">
-           <div class="actions-grid">
-              <button @click="$emit('return')" class="action-card-btn">
-                 <div class="icon-box">
-                    <RotateCw :size="20" />
-                 </div>
-                 <div class="action-text">
-                    <span class="action-label">Retorno</span>
-                    <span class="action-desc">Agendar nova consulta</span>
-                 </div>
-              </button>
-              <button @click="$emit('reschedule')" class="action-card-btn">
-                 <div class="icon-box">
-                    <CalendarClock :size="20" />
-                 </div>
-                 <div class="action-text">
-                    <span class="action-label">Reagendar</span>
-                    <span class="action-desc">Alterar horário atual</span>
-                 </div>
-              </button>
-           </div>
-        </section>
+      <!-- Ações Rápidas -->
+      <section class="section">
+         <div class="actions-grid">
+            <button @click="$emit('return')" class="action-card-btn">
+               <div class="icon-box">
+                  <RotateCw :size="20" />
+               </div>
+               <div class="action-text">
+                  <span class="action-label">Retorno</span>
+                  <span class="action-desc">Agendar nova consulta</span>
+               </div>
+            </button>
+            <button @click="$emit('reschedule')" class="action-card-btn">
+               <div class="icon-box">
+                  <CalendarClock :size="20" />
+               </div>
+               <div class="action-text">
+                  <span class="action-label">Reagendar</span>
+                  <span class="action-desc">Alterar horário atual</span>
+               </div>
+            </button>
+         </div>
+      </section>
 
-        <!-- Timeline (History) -->
-        <section class="section">
-           <h3 class="section-title">Histórico</h3>
-           <div v-if="appointment.timeline && appointment.timeline.length > 0" class="timeline-history">
-              <div 
-                v-for="(item, index) in appointment.timeline" 
-                :key="index" 
-                class="history-item"
-              >
-                 <div class="history-marker">
-                    <Bell v-if="item.action === 'REMINDER_SENT'" :size="12" class="marker-icon" />
-                    <Check v-else-if="index < appointment.timeline.length - 1" :size="12" class="marker-icon" />
-                    <div v-else class="marker-dot"></div>
-                 </div>
-                 <div class="history-content">
-                    <div class="history-header">
-                       <span class="history-date">{{ formatTimelineDate(item.timestamp) }}</span>
-                       <span class="history-user" v-if="item.user">por {{ item.user.name }}</span>
-                       <span class="history-user" v-else>Sistema</span>
-                    </div>
-                    <p class="history-description">{{ item.description }}</p>
-                 </div>
-              </div>
-           </div>
-           
-           <div v-else class="timeline-placeholder">
-              <AlertCircle :size="20" />
-              <p>Nenhum histórico disponível para este agendamento.</p>
-              <span class="sub-text">Pode ser um registro antigo ou incompleto.</span>
-           </div>
-        </section>
-      </div>
+      <!-- Timeline (History) -->
+      <section class="section">
+         <h3 class="section-title">Histórico</h3>
+         <div v-if="appointment.timeline && appointment.timeline.length > 0" class="timeline-history">
+            <div 
+              v-for="(item, index) in appointment.timeline" 
+              :key="index" 
+              class="history-item"
+            >
+               <div class="history-marker">
+                  <Bell v-if="item.action === 'REMINDER_SENT'" :size="12" class="marker-icon" />
+                  <Check v-else-if="index < appointment.timeline.length - 1" :size="12" class="marker-icon" />
+                  <div v-else class="marker-dot"></div>
+               </div>
+               <div class="history-content">
+                  <div class="history-header">
+                     <span class="history-date">{{ formatTimelineDate(item.timestamp) }}</span>
+                     <span class="history-user" v-if="item.user">por {{ item.user.name }}</span>
+                     <span class="history-user" v-else>Sistema</span>
+                  </div>
+                  <p class="history-description">{{ item.description }}</p>
+               </div>
+            </div>
+         </div>
+         
+         <div v-else class="timeline-placeholder">
+            <AlertCircle :size="20" />
+            <p>Nenhum histórico disponível para este agendamento.</p>
+            <span class="sub-text">Pode ser um registro antigo ou incompleto.</span>
+         </div>
+      </section>
+    </template>
 
-      <!-- Footer -->
+    <template #footer>
       <footer class="drawer-footer">
          <AppButton
             v-if="appointment.status !== 'Cancelado' && appointment.status !== 'Realizado'"
@@ -378,64 +374,11 @@ onUnmounted(() => {
             Finalizar Atendimento
          </AppButton>
       </footer>
-    </div>
-  </div>
+    </template>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.drawer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.close-btn-outside {
-  position: absolute;
-  top: 1rem;
-  right: 496px; /* 480px (width) + 16px (gap) */
-  background: #fff;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s;
-  z-index: 1010;
-}
-.close-btn-outside:hover {
-  color: #111827;
-  transform: scale(1.1);
-}
-
-.drawer-content {
-  width: 100%;
-  max-width: 480px;
-  height: 100%;
-  background: #fff;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  z-index: 1005;
-}
-
-@keyframes slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
 /* Header */
 .drawer-header {
   padding: 1.5rem;
@@ -448,7 +391,6 @@ onUnmounted(() => {
 .header-left {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 0.25rem;
 }
 
@@ -465,6 +407,7 @@ onUnmounted(() => {
   background: #f3f4f6;
   padding: 0.125rem 0.5rem;
   border-radius: 4px;
+  width: fit-content;
   font-weight: 500;
 }
 
@@ -488,42 +431,33 @@ onUnmounted(() => {
 
 .nav-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .nav-btn {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  padding: 0.25rem;
-  color: #6b7280;
-  cursor: pointer;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
   transition: all 0.2s;
 }
+
 .nav-btn:hover:not(:disabled) {
-  border-color: #d1d5db;
-  color: #374151;
   background: #f9fafb;
+  color: #111827;
+  border-color: #d1d5db;
 }
+
 .nav-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background: #f3f4f6;
-}
-
-/* Body */
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
 }
 
 .section-title {

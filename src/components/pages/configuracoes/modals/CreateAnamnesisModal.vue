@@ -575,7 +575,7 @@ async function handleSubmit() {
       </div>
 
       <div class="modal-footer">
-        <AppButton variant="secondary" @click="emit('close')">
+        <AppButton variant="default" @click="emit('close')">
           Cancelar
         </AppButton>
         <AppButton variant="primary" @click="handleSubmit">

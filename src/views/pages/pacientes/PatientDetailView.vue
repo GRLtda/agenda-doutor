@@ -33,7 +33,7 @@ import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import { fetchAddressByCEP } from '@/api/external'
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue'
-import ViewAnamnesisModal from '@/components/pages/pacientes/modals/ViewAnamnesisModal.vue'
+import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
 
@@ -272,9 +272,11 @@ const missingInfo = computed(() => {
       :patient-id="patient?._id"
       @close="isAssignModalOpen = false"
     />
-    <ViewAnamnesisModal
+    <AnamnesisAnswersModal
       v-if="viewingAnamnesis"
       :anamnesis="viewingAnamnesis"
+      :is-open="!!viewingAnamnesis"
+      :is-editing="false"
       @close="viewingAnamnesis = null"
     />
     <PdfPreviewModal

@@ -5,6 +5,7 @@ import AnamnesisQuestionsRenderer from '@/views/public/AnamnesisQuestionsRendere
 import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useToast } from 'vue-toastification'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const props = defineProps({
   anamnesis: { type: Object, required: true },
@@ -113,8 +114,8 @@ async function handleSave() {
 </script>
 
 <template>
-  <div v-if="isOpen" class="drawer-overlay" @click.self="$emit('close')">
-    <div class="drawer-content">
+  <SideDrawer v-if="isOpen" @close="$emit('close')">
+    <template #header>
       <header class="drawer-header">
         <div class="header-left">
           <h2>{{ isEditing ? 'Responder Anamnese' : 'Respostas da Anamnese' }}</h2>
@@ -124,7 +125,9 @@ async function handleSave() {
           <X :size="24" />
         </button>
       </header>
+    </template>
 
+    <template #default>
       <div class="drawer-body">
         <section class="section">
              <div class="info-card">
@@ -151,7 +154,9 @@ async function handleSave() {
           </div>
         </section>
       </div>
+    </template>
 
+    <template #footer>
       <!-- Footer for Actions -->
       <footer v-if="isEditing" class="drawer-footer">
         <AppButton variant="default" @click="$emit('close')" :disabled="isSaving">
@@ -162,60 +167,12 @@ async function handleSave() {
           Responder
         </AppButton>
       </footer>
-    </div>
-  </div>
+    </template>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.drawer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.close-btn-header {
-  background: transparent;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.close-btn-header:hover {
-  background-color: #f3f4f6;
-  color: #111827;
-}
-
-.drawer-content {
-  width: 100%;
-  max-width: 480px;
-  height: 100%;
-  background: #fff;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  z-index: 1005;
-}
-
-@keyframes slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
+/* Header */
 .drawer-header {
   padding: 1.5rem;
   border-bottom: 1px solid #f3f4f6;
@@ -238,10 +195,10 @@ async function handleSave() {
     display: block;
 }
 
+/* Body */
 .drawer-body {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;

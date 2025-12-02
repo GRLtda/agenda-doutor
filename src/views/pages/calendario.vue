@@ -424,8 +424,11 @@ function handleEventClick(event, e) {
 function closeModal() {
   isModalOpen.value = false
   initialAppointmentData.value = null
+}
 
+function handleAppointmentSaved() {
   fetchDataForView()
+  closeModal()
 }
 
 function closeDetailsModal() {
@@ -502,6 +505,7 @@ function handleReturn(appointment) {
       v-if="isModalOpen"
       :initial-data="initialAppointmentData"
       @close="closeModal"
+      @saved="handleAppointmentSaved"
     />
     <AppointmentDetailsModal
       v-if="isDetailsModalOpen"

@@ -23,6 +23,7 @@ import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import Switch from '@/components/global/Switch.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
 import Datepicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 
@@ -33,7 +34,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'saved'])
 const patientsStore = usePatientsStore()
 const appointmentsStore = useAppointmentsStore()
 const clinicStore = useClinicStore()
@@ -473,6 +474,7 @@ async function handleSubmit() {
     const { success } = await appointmentsStore.updateAppointment(appointmentId, payload)
     if (success) {
       toast.success('Agendamento remarcado com sucesso!')
+      emit('saved')
       emit('close')
     } else {
       toast.error('Erro ao remarcar o agendamento.')
@@ -496,6 +498,7 @@ async function handleSubmit() {
           ? 'Agendamento reagendado com sucesso!'
           : 'Agendamento criado com sucesso!',
       )
+      emit('saved')
       emit('close')
     } else {
       toast.error(isRescheduleMode.value ? 'Erro ao reagendar.' : 'Erro ao criar agendamento.')
@@ -505,13 +508,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="drawer-overlay" @click.self="$emit('close')">
-    <!-- Botão de fechar fora do drawer -->
-    <button @click="$emit('close')" class="close-btn-outside">
-      <X :size="24" />
-    </button>
-
-    <div class="drawer-content">
+  <SideDrawer @close="$emit('close')">
+    <template #header>
       <header class="drawer-header">
         <div class="header-top">
           <div class="header-left">
@@ -540,8 +538,10 @@ async function handleSubmit() {
         </div>
         <Stepper :steps="steps" :currentStep="currentStep" class="stepper-component" />
       </header>
+    </template>
 
-      <div class="drawer-body" v-auto-animate>
+    <template #default>
+      <div v-auto-animate class="flex-1 flex flex-col">
         <div v-if="currentStep === 1" class="step-content">
           <SearchableSelect
             v-model="appointmentData.patient"
@@ -664,7 +664,9 @@ async function handleSubmit() {
           </div>
         </div>
       </div>
+    </template>
 
+    <template #footer>
       <footer class="drawer-footer">
         <AppButton @click="$emit('close')" variant="default">Cancelar</AppButton>
         <div class="footer-actions">
@@ -700,64 +702,11 @@ async function handleSubmit() {
           </AppButton>
         </div>
       </footer>
-    </div>
-  </div>
+    </template>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.drawer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.close-btn-outside {
-  position: absolute;
-  top: 1rem;
-  right: 496px; /* 480px (width) + 16px (gap) */
-  background: #fff;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s;
-  z-index: 1010;
-}
-.close-btn-outside:hover {
-  color: #111827;
-  transform: scale(1.1);
-}
-
-.drawer-content {
-  width: 100%;
-  max-width: 480px;
-  height: 100%;
-  background: #fff;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  z-index: 1005;
-}
-
-@keyframes slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
 /* Header */
 .drawer-header {
   padding: 1.5rem;
@@ -765,40 +714,6 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.header-left h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0;
-}
-
-.header-left p {
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-/* Body */
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
 }
 
 /* Footer */
