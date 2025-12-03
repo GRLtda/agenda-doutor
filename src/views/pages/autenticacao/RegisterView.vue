@@ -10,6 +10,8 @@ import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import PasswordInput from '@/components/global/PasswordInput.vue'
 import { CheckCircle2, Building2 } from 'lucide-vue-next' // ✨ Importei o Building2
+import ClinicLogo from '@/components/global/ClinicLogo.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import confetti from 'canvas-confetti'
 
 const router = useRouter()
@@ -24,6 +26,8 @@ const phone = ref('')
 const password = ref('')
 const errorMessage = ref(null)
 const registrationSuccess = ref(false)
+
+const isLoading = ref(false)
 
 // Estado para o fluxo de convite
 const isStaffInvitation = ref(false)
@@ -92,6 +96,7 @@ watch(registrationSuccess, (newValue) => {
 
 async function handleRegister() {
   errorMessage.value = null
+  isLoading.value = true
 
   const payload = {
     name: name.value,
@@ -104,12 +109,13 @@ async function handleRegister() {
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
   } else {
-    // Se não tiver token NENHUM, o backend vai rejeitar (conforme novas regras)
     errorMessage.value = 'Registro permitido apenas através de um convite válido.'
+    isLoading.value = false
     return
   }
 
   const { success, error } = await authStore.register(payload)
+  isLoading.value = false
 
   if (success) {
     registrationSuccess.value = true
@@ -146,7 +152,25 @@ function handleRegistrationComplete() {
     </div>
 
     <AuthCard :image-url="imageUrl" v-if="!registrationSuccess">
-      <template #title>Crie sua conta</template>
+      <template #image-content>
+        <div class="brand-logo" @click="router.push('/')">
+          <ClinicLogo size="120px" />
+        </div>
+        <div class="testimonial-overlay">
+          <p class="quote">“A melhor decisão para o crescimento da nossa rede de clínicas.”</p>
+          <div class="author">
+            <strong>Dr. Ricardo Mendes</strong>
+            <span>Diretor Geral</span>
+          </div>
+        </div>
+      </template>
+
+      <template #title>
+        <div class="header-title-wrapper">
+          <span class="title-text">Crie sua conta</span>
+          <span class="subtitle-text">Comece a transformar sua clínica hoje mesmo.</span>
+        </div>
+      </template>
 
       <div v-if="plan" class="plan-info">
         <div class="plan-title-wrapper">
@@ -192,11 +216,15 @@ function handleRegistrationComplete() {
         <PasswordInput v-model="password" label="Senha" :required="true" />
 
         <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-        <button type="submit" class="auth-button">Criar conta</button>
+        <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 1rem;">
+          Criar conta
+        </AppButton>
       </form>
 
       <template #footer>
-        Já tem uma conta? <router-link to="/login" class="link">Entre</router-link>
+        <div class="footer-text">
+          Já tem uma conta? <router-link to="/login" class="link-purple">Entre</router-link>
+        </div>
       </template>
     </AuthCard>
   </div>
@@ -270,26 +298,92 @@ function handleRegistrationComplete() {
   margin-bottom: 1rem;
   text-align: left;
 }
-.auth-button {
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin-top: 1rem;
-}
-.auth-button:hover {
-  background-color: var(--azul-escuro);
-}
-.link {
+
+.link-purple {
   color: var(--azul-principal);
   font-weight: 600;
   text-decoration: none;
+  transition: color 0.2s;
+}
+
+.link-purple:hover {
+  color: var(--azul-escuro);
+}
+
+/* --- ESTILOS DO LOGIN (Adaptados) --- */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.brand-logo:hover {
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.testimonial-overlay {
+  margin-bottom: 2rem;
+}
+
+.quote {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 1.5rem;
+}
+
+.author {
+  display: flex;
+  flex-direction: column;
+}
+
+.author strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.author span {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.header-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  width: 100%;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.title-text {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--preto-principal);
+  margin-bottom: 0.5rem;
+}
+
+.subtitle-text {
+  font-size: 0.95rem;
+  color: var(--cinza-texto);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.footer-text {
+  font-size: 0.9rem;
+  color: var(--cinza-texto);
+}
+
+/* Override global input styles */
+:deep(.form-input:focus) {
+  border-color: var(--azul-principal) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
 }
 
 /* ✨ NOVOS ESTILOS (Formais) PARA O PLANO ✨ */

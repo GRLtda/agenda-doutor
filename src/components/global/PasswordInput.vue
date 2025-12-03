@@ -56,7 +56,7 @@ function handleInput(event) {
         :type="inputType"
         :value="modelValue"
         @input="handleInput"
-        placeholder="Crie uma senha forte"
+        :placeholder="props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha'"
         class="form-input"
         autocomplete="new-password"
       />

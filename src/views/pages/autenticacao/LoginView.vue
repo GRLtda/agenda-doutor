@@ -9,9 +9,10 @@ import {
   LifeBuoy,
   Zap,
   BadgeDollarSign,
-  HeartHandshake,
-  LogIn
+  HeartHandshake
 } from 'lucide-vue-next'
+import ClinicLogo from '@/components/global/ClinicLogo.vue'
+import AppButton from '@/components/global/AppButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -31,6 +32,10 @@ const newPassword = ref('')
 
 const imageUrl = new URL('@/assets/clinic1.webp', import.meta.url).href
 const whatsappLink = 'https://wa.me/5511921923978'
+
+function openWhatsapp() {
+  window.open(whatsappLink, '_blank')
+}
 
 // --- FUNÇÕES ---
 function goToStep(stepName) {
@@ -88,18 +93,26 @@ async function handleResetPassword() {
 </script>
 
 <template>
-  <AuthCard :image-url="imageUrl">
+  <AuthCard :image-url="imageUrl" image-side="right">
+
+    <template #image-content>
+      <div class="brand-logo" @click="router.push('/')">
+        <ClinicLogo size="120px" />
+      </div>
+      <div class="testimonial-overlay">
+        <p class="quote">“Simplesmente todas as ferramentas que minha equipe e eu precisamos.”</p>
+        <div class="author">
+          <strong>Karen Yue</strong>
+          <span>Diretora de Tecnologia Clínica</span>
+        </div>
+      </div>
+    </template>
 
     <template #title>
       <Transition name="fade" mode="out-in">
         <div v-if="step === 'login'" key="title-login" class="header-title-wrapper">
-          <div class="icon-wrapper">
-            <LogIn :size="32" />
-          </div>
-          <div class="text-content">
-            <span class="title-text">Acesse sua conta</span>
-            <span class="subtitle-text">Bem-vindo de volta! Informe seus dados.</span>
-          </div>
+          <span class="title-text">Bem-vindo!</span>
+          <span class="subtitle-text">Por favor, insira seus dados para entrar.</span>
         </div>
 
         <span v-else-if="step === 'forgot'" key="title-forgot" class="simple-title">
@@ -111,13 +124,8 @@ async function handleResetPassword() {
         </span>
 
         <div v-else-if="step === 'contact'" key="title-contact" class="header-title-wrapper">
-          <div class="icon-wrapper">
-            <LifeBuoy :size="32" />
-          </div>
-          <div class="text-content">
-            <span class="title-text">Fale com um especialista</span>
-            <span class="subtitle-text">Para melhor atendimento, cadastro via consultoria.</span>
-          </div>
+          <span class="title-text">Fale com um especialista</span>
+          <span class="subtitle-text">Para melhor atendimento, cadastro via consultoria.</span>
         </div>
       </Transition>
     </template>
@@ -138,13 +146,13 @@ async function handleResetPassword() {
           <PasswordInput v-model="password" label="Senha" :required="true" :show-validation="false" />
 
           <div class="forgot-password-link">
-            <a @click.prevent="goToStep('forgot')" href="#" class="link">Esqueceu a senha?</a>
+            <a @click.prevent="goToStep('forgot')" href="#" class="link-purple">Esqueceu a senha?</a>
           </div>
 
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-          <button type="submit" class="auth-button" :disabled="isLoading">
-            {{ isLoading ? 'Entrando...' : 'Entrar' }}
-          </button>
+          <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
+            Entrar
+          </AppButton>
         </form>
       </div>
 
@@ -161,9 +169,9 @@ async function handleResetPassword() {
             :required="true"
           />
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-          <button type="submit" class="auth-button" :disabled="isLoading">
-            {{ isLoading ? 'Enviando...' : 'Enviar código' }}
-          </button>
+          <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
+            Enviar código
+          </AppButton>
         </form>
       </div>
 
@@ -184,9 +192,9 @@ async function handleResetPassword() {
           />
           <PasswordInput v-model="newPassword" label="Nova Senha" :required="true" />
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-          <button type="submit" class="auth-button" :disabled="isLoading">
-            {{ isLoading ? 'Salvando...' : 'Salvar e Entrar' }}
-          </button>
+          <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
+            Salvar e Entrar
+          </AppButton>
         </form>
       </div>
 
@@ -215,28 +223,28 @@ async function handleResetPassword() {
             </div>
           </li>
         </ul>
-        <a :href="whatsappLink" target="_blank" class="auth-button contact-button">
+        <AppButton variant="primary" size="lg" @click="openWhatsapp" style="width: 100%; margin-top: 0.5rem;">
           Entrar em contato
-        </a>
+        </AppButton>
       </div>
 
     </Transition>
 
     <template #footer>
       <Transition name="fade" mode="out-in">
-        <div v-if="step === 'login'" key="footer-login">
+        <div v-if="step === 'login'" key="footer-login" class="footer-text">
           Não tem uma conta?
-          <a @click.prevent="goToStep('contact')" href="#" class="link">Entre em Contato</a>
+          <a @click.prevent="goToStep('contact')" href="#" class="link-purple">Entre em contato</a>
         </div>
 
-        <div v-else-if="step === 'forgot' || step === 'contact'" key="footer-back">
+        <div v-else-if="step === 'forgot' || step === 'contact'" key="footer-back" class="footer-text">
           Já tem uma conta?
-          <a @click.prevent="goToStep('login')" href="#" class="link">Voltar ao Login</a>
+          <a @click.prevent="goToStep('login')" href="#" class="link-purple">Voltar ao Login</a>
         </div>
 
-        <div v-else-if="step === 'reset'" key="footer-retry">
+        <div v-else-if="step === 'reset'" key="footer-retry" class="footer-text">
           Não recebeu o código?
-          <a @click.prevent="goToStep('forgot')" href="#" class="link">Tentar novamente</a>
+          <a @click.prevent="goToStep('forgot')" href="#" class="link-purple">Tentar novamente</a>
         </div>
       </Transition>
     </template>
@@ -274,82 +282,123 @@ async function handleResetPassword() {
 
 /* -------------------------------------- */
 
-.header-title-wrapper {
+/* Overlay da Imagem */
+.brand-logo {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  width: 100%;
-}
-
-/* Garante que o span 'simple-title' se comporte como um bloco completo quando não há icones */
-.simple-title {
-  display: block;
+  gap: 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+.brand-logo:hover {
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.testimonial-overlay {
+  margin-bottom: 2rem;
+}
+
+.quote {
+  font-size: 1.75rem;
+  font-weight: 600;
   line-height: 1.3;
-  color: var(--preto-principal);
+  margin-bottom: 1.5rem;
 }
 
-.icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 1rem;
-  background-color: #eef2ff;
-  color: var(--azul-principal);
-  flex-shrink: 0;
-}
-
-.text-content {
+.author {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+}
+
+.author strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.author span {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+/* Títulos */
+.header-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
   text-align: left;
 }
 
-.title-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--preto-principal);
-}
-
-.subtitle-text {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
-  font-weight: 400;
-  margin-top: 0.25rem;
-  line-height: 1.4;
-}
-
-/* Removi a regra para o 'header-title-wrapper > span' pois não é mais necessário */
-/* .header-title-wrapper > span:not(.icon-wrapper):not(.text-content) {
-  font-size: 1.5rem;
+.simple-title {
+  display: block;
+  font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.3;
   color: var(--preto-principal);
-} */
+  margin-bottom: 0.5rem;
+}
 
+.title-text {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--preto-principal);
+  margin-bottom: 0.75rem;
+}
+
+.subtitle-text {
+  font-size: 0.95rem;
+  color: var(--cinza-texto);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Formulário */
+.forgot-password-link {
+  text-align: left; /* Alinhado a esquerda como na referência */
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.link-purple {
+  color: var(--azul-principal); /* Cor azul */
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.link-purple:hover {
+  color: var(--azul-escuro);
+}
+
+
+
+/* Footer */
+.footer-text {
+  font-size: 0.9rem;
+  color: var(--cinza-texto);
+}
+
+/* Outros */
 .contact-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
-/* Removi o margin-top do contact-description pois agora é um subtitulo */
-.contact-description {
-  text-align: center;
-  margin-bottom: 1.25rem;
-  /* margin-top: 1.5rem; */
-}
+
 .divider {
   width: 100%;
   border: none;
   border-top: 1px solid var(--cinza-borda);
   margin-bottom: 1.25rem;
 }
+
 .features-list {
   list-style: none;
   padding: 0;
@@ -357,42 +406,40 @@ async function handleResetPassword() {
   width: 100%;
   color: var(--cinza-texto-escuro);
 }
+
 .features-list li {
   display: flex;
   align-items: flex-start;
   text-align: left;
   margin-bottom: 1rem;
 }
+
 .feature-icon {
   color: var(--azul-principal);
   margin-right: 0.75rem;
   flex-shrink: 0;
   margin-top: 0.125rem;
 }
+
 .feature-text {
   display: flex;
   flex-direction: column;
 }
+
 .feature-text strong {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--preto-principal);
   line-height: 1.4;
 }
+
 .feature-text p {
   font-size: 0.875rem;
   color: var(--cinza-texto);
   margin: 0;
   line-height: 1.5;
 }
-.contact-button {
-  text-decoration: none;
-  display: inline-block;
-  padding: 0.875rem;
-  width: 100%;
-  box-sizing: border-box;
-  margin-top: 0;
-}
+
 .step-description {
   font-size: 0.95rem;
   color: var(--cinza-texto);
@@ -400,55 +447,29 @@ async function handleResetPassword() {
   text-align: left;
   line-height: 1.5;
 }
+
 .notification-message {
   color: var(--azul-principal);
-  background-color: var(--azul-claro);
+  background-color: #eef2ff;
   font-size: 0.875rem;
   margin-bottom: 1rem;
   text-align: left;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--azul-borda);
+  border: 1px solid #c7d2fe;
 }
-.forgot-password-link {
-  text-align: right;
-  margin-top: -0.5rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
+
 .error-message {
   color: #ef4444;
   font-size: 0.875rem;
   margin-bottom: 1rem;
   text-align: left;
 }
-.auth-button {
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: 0.75rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin-top: 1rem;
-}
-.auth-button:disabled {
-  background-color: var(--cinza-claro);
-  cursor: not-allowed;
-}
-.auth-button:hover:not(:disabled) {
-  background-color: var(--azul-escuro);
-}
-.link {
-  color: var(--azul-principal);
-  font-weight: 600;
-  text-decoration: none;
-}
-.link:hover {
-  text-decoration: underline;
+
+/* Override global input styles for this view to match purple theme */
+:deep(.form-input:focus) {
+  border-color: var(--azul-principal) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
 }
 </style>
 ```http://googleusercontent.com/image_generation_content/0

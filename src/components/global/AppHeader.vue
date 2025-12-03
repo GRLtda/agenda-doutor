@@ -27,9 +27,6 @@ onUnmounted(() => {
   <header class="app-header-wrapper" :class="{ 'is-scrolled': isScrolled }">
     <div class="app-header-pill">
       <router-link to="/" class="logo">
-        <div class="logo-icon">
-          <div class="logo-dot"></div>
-        </div>
         Agenda Doutor
       </router-link>
 

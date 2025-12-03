@@ -1,7 +1,7 @@
 <script setup>
-import { defineProps } from 'vue'
+import { defineProps, computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   imageUrl: {
     type: String,
     required: true,
@@ -10,11 +10,22 @@ defineProps({
     type: String,
     default: 'default', // 'default' ou 'large'
   },
+  imageSide: {
+    type: String,
+    default: 'right', // 'left' ou 'right'
+  },
+})
+
+const containerClasses = computed(() => {
+  return {
+    'auth-container': true,
+    'image-left': props.imageSide === 'left',
+  }
 })
 </script>
 
 <template>
-  <div class="auth-container">
+  <div :class="containerClasses">
     <div class="form-panel" :class="`panel-${panelWidth}`">
       <div class="form-content">
         <div v-if="$slots.title" class="content-title">
@@ -28,7 +39,12 @@ defineProps({
         </div>
       </div>
     </div>
-    <div class="image-panel" :style="{ backgroundImage: `url(${imageUrl})` }"></div>
+    <div class="image-panel">
+      <img :src="imageUrl" alt="Auth Image" class="auth-image" />
+      <div class="image-overlay">
+        <slot name="image-content" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -37,16 +53,29 @@ defineProps({
   display: flex;
   width: 100%;
   min-height: 100vh;
-  background-color: var(--branco);
+  background-color: #ffffff;
+  background-image:
+    /* Pontos de luz (Radial Gradients) */
+    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(147, 51, 234, 0.05) 0%, transparent 25%),
+    /* Grid (Linear Gradients) */
+    linear-gradient(to right, rgba(229, 231, 235, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 231, 235, 0.2) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+.auth-container.image-left {
+  flex-direction: row-reverse;
 }
 
 .form-panel {
-  width: 45%;
+  flex: 1; /* Ocupa o espaço restante */
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 2rem;
   overflow-y: auto;
+  position: relative;
 }
 
 .form-content {
@@ -54,16 +83,14 @@ defineProps({
 }
 
 .panel-default .form-content {
-  max-width: 450px;
+  max-width: 400px;
 }
 .panel-large .form-content {
   max-width: 700px;
 }
 
 .content-title {
-  margin-bottom: 1.0rem;
-  font-size: 2rem;
-  font-weight: 700;
+  margin-bottom: 2rem; /* Aumentado espaçamento */
   text-align: left;
 }
 
@@ -75,15 +102,47 @@ defineProps({
 }
 
 .image-panel {
-  width: 55%;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  width: 50%; /* Mantém 50% como base */
+  max-width: 800px; /* Limita a largura máxima */
+  position: relative;
+  padding: 12px; /* Padding solicitado */
+  height: 100vh; /* Garante altura total da viewport */
+  display: flex; /* Para centralizar se necessário */
+  align-items: center;
+}
+
+.auth-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px; /* Border radius solicitado */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Sutil shadow */
+}
+
+.image-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  border-radius: 16px; /* Acompanha o radius da imagem */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3rem;
+  color: white;
+}
+
+.auth-container:not(.image-left) .image-overlay {
+  align-items: flex-end;
+  text-align: right;
 }
 
 /* ✨ INÍCIO DAS ALTERAÇÕES PARA RESPONSIVIDADE ✨ */
 @media (max-width: 900px) {
-  .auth-container {
+  .auth-container,
+  .auth-container.image-left {
     display: block; /* Remove o flex layout */
   }
 
@@ -95,18 +154,10 @@ defineProps({
     width: 100%; /* Ocupa a largura total */
     min-height: 100vh;
     padding: 2rem 1.5rem;
-    /* Não precisa mais de z-index ou fundo transparente */
   }
 
   .content-title {
     text-align: center; /* Centraliza o título no mobile */
-    font-size: 1.75rem;
   }
-
-  /*
-    Como o fundo agora é branco, não precisamos mais sobrescrever as cores
-    dos componentes filhos, então as regras :deep() foram removidas para
-    que eles voltem a usar seus estilos padrão.
-  */
 }
 </style>
