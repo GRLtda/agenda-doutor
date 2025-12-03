@@ -42,6 +42,12 @@ const formattedLabel = computed(() => {
   if (props.data.label) return props.data.label
   
   const subtype = props.data.subtype || props.data.type
+  
+  // Handle generic event trigger label
+  if (subtype === 'event_trigger') {
+    return 'Gatilho de Evento'
+  }
+
   // Format: procedure_completed -> Procedure Completed
   return subtype
     .split('_')
@@ -51,6 +57,20 @@ const formattedLabel = computed(() => {
 
 const details = computed(() => {
   const config = props.data.config || {}
+  
+  if (props.data.subtype === 'event_trigger') {
+    const eventType = config.eventType || 'Não configurado'
+    // Map internal event types to user-friendly labels
+    const eventLabels = {
+      'appointment_created': 'Agendamento Criado',
+      'appointment_updated': 'Agendamento Atualizado',
+      'appointment_completed': 'Agendamento Realizado',
+      'appointment_canceled': 'Agendamento Cancelado',
+      'procedure_completed': 'Procedimento Realizado'
+    }
+    return eventLabels[eventType] || eventType
+  }
+
   if (props.data.subtype === 'wait_days') {
     return `Aguardar ${config.days} dia(s)`
   }

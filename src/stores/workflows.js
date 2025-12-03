@@ -148,7 +148,7 @@ export const useWorkflowsStore = defineStore('workflows', {
 
         async updateNodePosition(nodeId, position) {
             // Find node and update locally
-            const node = this.nodes.find(n => n.id === nodeId)
+            const node = this.nodes.find(n => n._id === nodeId)
             if (node) {
                 node.position = position
                 try {
@@ -156,6 +156,38 @@ export const useWorkflowsStore = defineStore('workflows', {
                 } catch (err) {
                     console.error('Failed to save node position', err)
                 }
+            }
+        },
+
+        async updateNode(nodeId, data) {
+            try {
+                const response = await workflowsApi.updateNode(nodeId, data)
+                const updatedNode = response.data.node
+                
+                // Update in local list
+                const index = this.nodes.findIndex(n => n._id === nodeId)
+                if (index !== -1) {
+                    this.nodes[index] = updatedNode
+                }
+                
+                toast.success('Nó atualizado com sucesso')
+                return updatedNode
+            } catch (err) {
+                console.error('Error updating node:', err)
+                toast.error('Erro ao atualizar nó')
+                throw err
+            }
+        },
+
+        async deleteNode(nodeId) {
+            try {
+                await workflowsApi.deleteNode(nodeId)
+                this.nodes = this.nodes.filter(n => n._id !== nodeId)
+                toast.success('Nó removido com sucesso')
+            } catch (err) {
+                console.error('Error deleting node:', err)
+                toast.error('Erro ao remover nó')
+                throw err
             }
         },
 

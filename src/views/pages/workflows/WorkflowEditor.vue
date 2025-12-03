@@ -164,7 +164,7 @@ async function saveNodeChanges() {
   
   try {
     // Call store update
-    // await workflowsStore.updateNode(selectedNode.value._id, selectedNode.value)
+    await workflowsStore.updateNode(selectedNode.value._id, selectedNode.value)
     
     // Update local graph data to reflect changes immediately
     const nodeIndex = nodes.value.findIndex(n => n.id === selectedNode.value._id)
@@ -172,10 +172,9 @@ async function saveNodeChanges() {
       nodes.value[nodeIndex].data = { ...selectedNode.value }
     }
     
-    toast.success('Alterações salvas (localmente)')
     closeDrawer()
   } catch (error) {
-    toast.error('Erro ao salvar alterações')
+    // Error handled in store
   }
 }
 
@@ -184,16 +183,15 @@ async function deleteSelectedNode() {
   if (!confirm('Tem certeza que deseja excluir este nó?')) return
 
   try {
-    // await workflowsStore.deleteNode(selectedNode.value._id)
+    await workflowsStore.deleteNode(selectedNode.value._id)
     
     // Remove from local graph
     nodes.value = nodes.value.filter(n => n.id !== selectedNode.value._id)
     edges.value = edges.value.filter(e => e.source !== selectedNode.value._id && e.target !== selectedNode.value._id)
     
-    toast.success('Nó removido')
     closeDrawer()
   } catch (error) {
-    toast.error('Erro ao remover nó')
+    // Error already handled in store
   }
 }
 
