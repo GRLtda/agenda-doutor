@@ -5,6 +5,7 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useWorkflowsStore } from '@/stores/workflows'
+import { useProceduresStore } from '@/stores/procedures' // ✨ Importar store de procedimentos
 import WorkflowNode from './WorkflowNode.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import dagre from 'dagre'
@@ -20,6 +21,7 @@ import '@vue-flow/controls/dist/style.css'
 const route = useRoute()
 const router = useRouter()
 const workflowsStore = useWorkflowsStore()
+const proceduresStore = useProceduresStore() // ✨ Inicializar store
 const toast = useToast()
 
 const workflowId = route.params.id
@@ -41,7 +43,8 @@ onMounted(async () => {
   if (workflowId) {
     await Promise.all([
       workflowsStore.fetchWorkflowById(workflowId),
-      workflowsStore.fetchNodeTypes()
+      workflowsStore.fetchNodeTypes(),
+      proceduresStore.fetchProcedures(), // ✨ Carregar procedimentos
     ])
     initializeGraph()
   }
@@ -436,6 +439,18 @@ async function handleToggleStatus() {
               class="form-input"
             >
               <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+
+            <!-- Procedure Select (Dynamic from Store) -->
+            <select 
+              v-else-if="field.type === 'procedure-select'"
+              v-model="selectedNode.config[field.key]"
+              class="form-input"
+            >
+              <option value="" disabled>Selecione um procedimento</option>
+              <option v-for="proc in proceduresStore.procedures" :key="proc._id" :value="proc._id">
+                {{ proc.name }}
+              </option>
             </select>
 
             <span v-if="field.helperText" class="helper-text">{{ field.helperText }}</span>

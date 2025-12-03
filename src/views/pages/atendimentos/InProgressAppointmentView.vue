@@ -5,6 +5,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import { useRecordsStore } from '@/stores/records'
 import { usePatientsStore } from '@/stores/patients'
 import { useAnamnesisStore } from '@/stores/anamnesis'
+import { useProceduresStore } from '@/stores/procedures' // ✨ Import Store
 import { useLayoutStore } from '@/stores/layout'
 import { useEditor, EditorContent} from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -40,7 +41,9 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  Pencil
+  Pencil,
+  Plus, // ✨ Import Plus icon
+  Syringe // ✨ Import Syringe icon for procedures
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -50,6 +53,7 @@ const appointmentsStore = useAppointmentsStore()
 const recordsStore = useRecordsStore()
 const patientsStore = usePatientsStore()
 const anamnesisStore = useAnamnesisStore()
+const proceduresStore = useProceduresStore() // ✨ Initialize Store
 const layoutStore = useLayoutStore()
 const toast = useToast()
 
@@ -95,6 +99,47 @@ function handleAnamnesisSaved(updatedData) {
   // Atualiza o objeto selecionado com os novos dados (ex: status, updatedAt)
   if (selectedAnamnesis.value) {
     selectedAnamnesis.value = { ...selectedAnamnesis.value, ...updatedData }
+  }
+}
+
+// ✨ Procedure Management State
+const showAddProcedureModal = ref(false)
+const newProcedure = ref({
+  procedureId: '',
+  aliasName: '',
+  discountPercentage: 0
+})
+const isAddingProcedure = ref(false)
+
+async function handleAddProcedure() {
+  if (!newProcedure.value.procedureId) {
+    toast.warning('Selecione um procedimento.')
+    return
+  }
+
+  isAddingProcedure.value = true
+  try {
+    const result = await patientsStore.addProcedureToPatient(patientId, {
+      procedureId: newProcedure.value.procedureId,
+      aliasName: newProcedure.value.aliasName,
+      discountPercentage: newProcedure.value.discountPercentage,
+      appointmentId: appointmentId
+    })
+
+    if (result.success) {
+      toast.success('Procedimento adicionado com sucesso!')
+      showAddProcedureModal.value = false
+      newProcedure.value = { procedureId: '', aliasName: '', discountPercentage: 0 }
+      // Update local patient data to reflect changes
+      patient.value = patientsStore.selectedPatient
+    } else {
+      toast.error(result.error || 'Erro ao adicionar procedimento.')
+    }
+  } catch (error) {
+    console.error(error)
+    toast.error('Erro inesperado ao adicionar procedimento.')
+  } finally {
+    isAddingProcedure.value = false
   }
 }
 
@@ -271,9 +316,12 @@ onMounted(async () => {
   }
   handleViewportChange() // Verificação inicial
 
-  // ✨ Fetch Anamneses
+  // ✨ Fetch Anamneses & Procedures
   if (patientId) {
-    await anamnesisStore.fetchAnamnesisForPatient(patientId)
+    await Promise.all([
+      anamnesisStore.fetchAnamnesisForPatient(patientId),
+      proceduresStore.fetchProcedures()
+    ])
   }
 })
 
@@ -571,6 +619,40 @@ const menuItems = [
                   </div>
                 </div>
               </div>
+
+              <!-- ✨ Procedures Section -->
+              <div class="procedures-section mt-6">
+                <div class="section-header">
+                  <h3 class="column-title mb-0">Procedimentos</h3>
+                  <button class="btn-add-procedure" @click="showAddProcedureModal = true">
+                    <Plus :size="16" />
+                    Adicionar
+                  </button>
+                </div>
+
+                <div class="procedures-list info-card mt-2">
+                  <div v-if="!patient?.procedures || patient.procedures.length === 0" class="empty-list">
+                    Nenhum procedimento registrado.
+                  </div>
+                  <ul v-else class="procedure-items">
+                    <li v-for="(proc, index) in patient.procedures" :key="index" class="procedure-item">
+                      <div class="proc-icon">
+                        <Syringe :size="18" />
+                      </div>
+                      <div class="proc-info">
+                        <span class="proc-name">{{ proc.name }}</span>
+                        <span class="proc-details">
+                          {{ proc.alias ? `Alias: ${proc.alias}` : '' }}
+                          {{ proc.discountPercentage ? `(-${proc.discountPercentage}%)` : '' }}
+                        </span>
+                      </div>
+                      <div class="proc-value">
+                        {{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proc.finalValue) }}
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             <!-- Right Column: Anamneses (Scrollable) -->
@@ -724,6 +806,56 @@ const menuItems = [
       @close="showAnamnesisModal = false"
       @saved="handleAnamnesisSaved"
     />
+
+    <!-- ✨ Add Procedure Modal -->
+    <div v-if="showAddProcedureModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Adicionar Procedimento</h3>
+          <button @click="showAddProcedureModal = false" class="close-btn">
+            <X :size="20" />
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Procedimento</label>
+            <select v-model="newProcedure.procedureId" class="form-select">
+              <option value="" disabled>Selecione...</option>
+              <option v-for="proc in proceduresStore.procedures" :key="proc._id" :value="proc._id">
+                {{ proc.name }} ({{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proc.baseValue) }})
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group mt-4">
+            <label>Alias (Opcional)</label>
+             <select v-model="newProcedure.aliasName" class="form-select" :disabled="!newProcedure.procedureId">
+              <option value="">Nenhum</option>
+              <template v-if="newProcedure.procedureId">
+                 <option 
+                   v-for="alias in proceduresStore.procedures.find(p => p._id === newProcedure.procedureId)?.aliases || []" 
+                   :key="alias.name" 
+                   :value="alias.name"
+                 >
+                   {{ alias.name }} ({{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(alias.price) }})
+                 </option>
+              </template>
+            </select>
+          </div>
+
+          <div class="form-group mt-4">
+            <label>Desconto (%)</label>
+            <input type="number" v-model="newProcedure.discountPercentage" min="0" max="100" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showAddProcedureModal = false">Cancelar</button>
+          <button class="btn-confirm" @click="handleAddProcedure" :disabled="isAddingProcedure">
+            {{ isAddingProcedure ? 'Adicionando...' : 'Adicionar' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -796,6 +928,178 @@ const menuItems = [
   display: flex;
   align-items: center;
   gap: 1.5rem;
+}
+
+/* ✨ Procedures Styles */
+.procedures-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.btn-add-procedure {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--azul-principal);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-add-procedure:hover {
+  text-decoration: underline;
+}
+
+.procedure-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.procedure-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.procedure-item:last-child {
+  border-bottom: none;
+}
+
+.proc-icon {
+  color: var(--azul-principal);
+  background-color: #eff6ff;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+}
+
+.proc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.proc-name {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.proc-details {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.proc-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+/* ✨ Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 0.75rem;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-select, .form-input {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-confirm {
+  padding: 0.5rem 1rem;
+  background-color: var(--azul-principal);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .profile-avatar {
