@@ -113,6 +113,18 @@ const dashboardRoutes = [
         meta: { title: 'Histórico de Envios' },
       },
       {
+        path: 'workflows',
+        name: 'workflows-list',
+        component: () => import('../views/pages/workflows/WorkflowsListView.vue'),
+        meta: { title: 'Workflows' },
+      },
+      {
+        path: 'workflows/:id',
+        name: 'workflow-editor',
+        component: () => import('../views/pages/workflows/WorkflowEditor.vue'),
+        meta: { title: 'Editor de Workflow', layout: { noPadding: true, fullscreen: true } },
+      },
+      {
         path: 'anamneses-pendentes',
         name: 'anamneses-pendentes',
         component: PendingAnamnesesView,
