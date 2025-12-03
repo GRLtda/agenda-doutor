@@ -65,6 +65,12 @@ const dashboardRoutes = [
         meta: { title: 'Detalhes do Paciente' },
       },
       {
+        path: 'procedimentos',
+        name: 'procedimentos',
+        component: () => import('../views/pages/procedimentos/ProceduresListView.vue'),
+        meta: { title: 'Procedimentos' },
+      },
+      {
         path: 'ajuda',
         name: 'ajuda',
         component: AjudaView,

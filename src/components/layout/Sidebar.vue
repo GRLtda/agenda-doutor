@@ -9,6 +9,7 @@ import {
   CalendarSearch,
   Calendar,
   Users,
+  Stethoscope,
   LifeBuoy,
   Settings,
   MoreHorizontal,
@@ -61,6 +62,7 @@ const mainNavLinks = [
   { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
   { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
   { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
+  { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
   {
     icon: Megaphone,
     text: 'Marketing',
