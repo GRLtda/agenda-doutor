@@ -282,11 +282,6 @@ onBeforeRouteLeave((to, from, next) => {
 /* ------------------------------------------- */
 /* ESTILOS DOS CARDS E SEÇÕES                  */
 /* ------------------------------------------- */
-.info-card {
-    background-color: var(--branco);
-    border: 1px solid var(--borda);
-    border-radius: 0.75rem;
-}
 .section-header {
     display: flex;
     align-items: center;
@@ -325,7 +320,6 @@ onBeforeRouteLeave((to, from, next) => {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    padding-top: 1.5rem;
 }
 .text-fields-wrapper > :deep(.form-group) {
     margin-bottom: 0;
