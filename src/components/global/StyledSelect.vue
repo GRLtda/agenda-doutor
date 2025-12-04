@@ -135,7 +135,8 @@ function selectOption(option) {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 0.75rem 1rem;
+  height: 48px;
+  padding: 0 1rem;
   background-color: var(--branco);
   border: 1px solid #d1d5db;
   border-radius: 0.75rem;

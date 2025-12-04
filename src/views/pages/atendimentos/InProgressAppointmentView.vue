@@ -14,6 +14,7 @@ import BubbleMenuExtension from '@tiptap/extension-bubble-menu'
 
 import EditorToolbar from '@/components/shared/EditorToolbar.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import RecordAttachments from '@/components/pages/appointments/RecordAttachments.vue'
 import SaveStatusIndicator from '@/components/shared/SaveStatusIndicator.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
@@ -392,6 +393,18 @@ const menuItems = [
   { id: 'documents', label: 'Documentos', icon: Paperclip },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
 ]
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('pt-BR')
+}
 </script>
 
 <template>
@@ -620,10 +633,15 @@ const menuItems = [
               <div class="procedures-section mt-6">
                 <div class="section-header">
                   <h3 class="column-title mb-0">Procedimentos</h3>
-                  <button class="btn-add-procedure" @click="showAddProcedureModal = true">
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    @click="showAddProcedureModal = true"
+                    class="btn-add-procedure"
+                  >
                     <Plus :size="16" />
                     Adicionar
-                  </button>
+                  </AppButton>
                 </div>
 
                 <div class="procedures-list info-card mt-2">
@@ -638,12 +656,17 @@ const menuItems = [
                       <div class="proc-info">
                         <span class="proc-name">{{ proc.name }}</span>
                         <span class="proc-details">
-                          {{ proc.alias ? `Alias: ${proc.alias}` : '' }}
-                          {{ proc.discountPercentage ? `(-${proc.discountPercentage}%)` : '' }}
+                          {{ formatDate(proc.assignedAt) }}
                         </span>
                       </div>
-                      <div class="proc-value">
-                        {{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proc.finalValue) }}
+                      <div class="proc-values">
+                        <div v-if="proc.discountPercentage" class="original-price">
+                          {{ formatCurrency(proc.finalValue / (1 - proc.discountPercentage / 100)) }}
+                        </div>
+                        <div class="final-price-row">
+                          <span v-if="proc.discountPercentage" class="discount-badge">-{{ proc.discountPercentage }}%</span>
+                          <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
+                        </div>
                       </div>
                     </li>
                   </ul>
@@ -852,6 +875,7 @@ const menuItems = [
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden; /* Prevent unwanted scrollbar */
 }
 
@@ -862,6 +886,8 @@ const menuItems = [
   height: 100%;
   overflow: hidden;
 }
+
+
 
 /* Patient Profile Card */
 .patient-profile-card {
@@ -879,28 +905,28 @@ const menuItems = [
 }
 
 /* ✨ Procedures Styles */
+.procedures-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .procedures-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin: 1rem 0;
+  flex-shrink: 0;
 }
 
-.btn-add-procedure {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.8rem;
-  color: var(--azul-principal);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
+.procedures-list {
+  flex: 1;
+  overflow-y: auto;
+  height: auto; /* Reset height to let flex handle it */
 }
 
-.btn-add-procedure:hover {
-  text-decoration: underline;
-}
+
 
 .procedure-items {
   list-style: none;
@@ -945,10 +971,38 @@ const menuItems = [
   color: #6b7280;
 }
 
-.proc-value {
+.proc-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.original-price {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.final-price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.final-price {
   font-weight: 600;
   color: #111827;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+}
+
+.discount-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ef4444;
+  background-color: #fef2f2;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
 }
 
 /* ✨ Modal Styles */
@@ -2024,6 +2078,7 @@ const menuItems = [
   .info-column,
   .anamnesis-column {
     width: 100%;
+    height: 100%;
     flex: none;
     overflow: visible;
   }

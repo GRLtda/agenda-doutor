@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { X, Save, Stethoscope } from 'lucide-vue-next'
+import { ref, computed, onMounted, watch } from 'vue'
+import { X, Save, Stethoscope, Check } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import { useProceduresStore } from '@/stores/procedures'
 
 const props = defineProps({
@@ -28,11 +30,27 @@ onMounted(async () => {
 
 const procedures = computed(() => proceduresStore.procedures)
 
+const procedureOptions = computed(() => {
+  return procedures.value.map((proc) => ({
+    label: proc.name,
+    value: proc._id,
+  }))
+})
+
 const selectedProcedure = computed(() => {
   return procedures.value.find((p) => p._id === selectedProcedureId.value)
 })
 
 const quantity = ref(1)
+
+// Watcher para limitar o desconto a 100%
+watch(discountPercentage, (newValue) => {
+  if (newValue > 100) {
+    discountPercentage.value = 100
+  } else if (newValue < 0) {
+    discountPercentage.value = 0
+  }
+})
 
 const originalValue = computed(() => {
   if (!selectedProcedure.value) return 0
@@ -79,32 +97,33 @@ function handleProcedureChange() {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h3 class="modal-title">
+  <SideDrawer @close="$emit('close')">
+    <template #header>
+      <div class="drawer-header">
+        <h2 class="drawer-title">
           <Stethoscope :size="20" />
           Adicionar Procedimento
-        </h3>
-        <button class="close-btn" @click="$emit('close')">
-          <X :size="20" />
+        </h2>
+        <button @click="$emit('close')" class="close-btn-header">
+          <X :size="24" />
         </button>
-      </header>
+      </div>
+    </template>
 
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Procedimento</label>
-          <select v-model="selectedProcedureId" class="form-select" @change="handleProcedureChange">
-            <option value="" disabled>Selecione um procedimento</option>
-            <option v-for="proc in procedures" :key="proc._id" :value="proc._id">
-              {{ proc.name }}
-            </option>
-          </select>
-        </div>
+    <div class="drawer-body-content">
+      <div class="form-group">
+        <label class="form-label">Procedimento</label>
+        <StyledSelect
+          v-model="selectedProcedureId"
+          :options="procedureOptions"
+          @update:modelValue="handleProcedureChange"
+        />
+      </div>
 
+      <div class="form-row">
         <div class="form-group" v-if="selectedProcedure?.pricingType === 'UNIT' || selectedProcedure?.pricingType === 'ML'">
           <label class="form-label">
-            Quantidade ({{ selectedProcedure.pricingType === 'UNIT' ? 'Unidades' : 'mL' }})
+            Quantidade ({{ selectedProcedure.pricingType === 'UNIT' ? 'Uni' : 'mL' }})
           </label>
           <input
             v-model.number="quantity"
@@ -130,100 +149,94 @@ function handleProcedureChange() {
             <span class="suffix">%</span>
           </div>
         </div>
-
-        <div class="values-summary" v-if="selectedProcedure">
-          <div class="summary-row">
-            <span>Valor Original:</span>
-            <strong>{{ formatCurrency(originalValue) }}</strong>
-          </div>
-          <div class="summary-row discount" v-if="discountPercentage > 0">
-            <span>Desconto ({{ discountPercentage }}%):</span>
-            <strong>- {{ formatCurrency(originalValue - finalValue) }}</strong>
-          </div>
-          <div class="summary-row total">
-            <span>Valor Final:</span>
-            <strong>{{ formatCurrency(finalValue) }}</strong>
-          </div>
-        </div>
       </div>
 
-      <footer class="modal-footer">
-        <AppButton variant="secondary" @click="$emit('close')">Cancelar</AppButton>
+      <div class="values-summary" v-if="selectedProcedure">
+        <div class="summary-row">
+          <span>Valor Original:</span>
+          <strong>{{ formatCurrency(originalValue) }}</strong>
+        </div>
+        <div class="summary-row discount" v-if="discountPercentage > 0">
+          <span>Desconto ({{ discountPercentage }}%):</span>
+          <strong>- {{ formatCurrency(originalValue - finalValue) }}</strong>
+        </div>
+        <div class="summary-row total">
+          <span>Valor Final:</span>
+          <strong>{{ formatCurrency(finalValue) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="drawer-footer">
+        <AppButton variant="default" @click="$emit('close')" class="btn-cancel">
+          <X :size="18" />
+          Cancelar
+        </AppButton>
         <AppButton
           variant="primary"
           @click="handleSubmit"
           :disabled="!selectedProcedureId"
+          class="btn-save"
         >
-          <Save :size="16" />
+          <Check :size="18" />
           Salvar
         </AppButton>
-      </footer>
-    </div>
-  </div>
+      </div>
+    </template>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background-color: var(--branco);
-  border-radius: 1rem;
-  width: 100%;
-  max-width: 500px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.modal-header {
-  padding: 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+.drawer-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.modal-title {
+.drawer-title {
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #111827;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0;
 }
 
-.close-btn {
+.close-btn-header {
   background: none;
   border: none;
-  color: var(--cinza-texto);
+  color: #9ca3af;
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 0.375rem;
-  transition: background-color 0.2s;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.close-btn:hover {
-  background-color: #f3f4f6;
+.close-btn-header:hover {
+  color: #111827;
 }
 
-.modal-body {
-  padding: 1.5rem;
+.drawer-body-content {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
 }
 
 .form-group {
@@ -234,21 +247,23 @@ function handleProcedureChange() {
 
 .form-label {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #374151;
 }
 
-.form-select,
 .form-input {
-  padding: 0.625rem;
+  padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
   width: 100%;
-  background-color: var(--branco);
+  color: #111827;
+  background-color: #fff;
+  height: 48px;
 }
 
-.form-select:focus,
 .form-input:focus {
   outline: none;
   border-color: var(--azul-principal);
@@ -263,25 +278,27 @@ function handleProcedureChange() {
 
 .suffix {
   position: absolute;
-  right: 0.75rem;
-  color: var(--cinza-texto);
+  right: 1rem;
+  color: #6b7280;
   pointer-events: none;
+  font-weight: 500;
 }
 
 .values-summary {
   background-color: #f9fafb;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.75rem;
+  margin-top: auto;
+  border: 1px solid #f3f4f6;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #4b5563;
 }
 
@@ -291,17 +308,30 @@ function handleProcedureChange() {
 
 .summary-row.total {
   border-top: 1px solid #e5e7eb;
-  padding-top: 0.5rem;
+  padding-top: 0.75rem;
   margin-top: 0.25rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   color: #111827;
+  font-weight: 600;
 }
 
-.modal-footer {
-  padding: 1.25rem;
-  border-top: 1px solid #e5e7eb;
+.drawer-footer {
+  padding: 1.5rem;
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+@media (min-width: 768px) {
+  .btn-cancel,
+  .btn-save {
+    flex: 1;
+    width: auto;
+  }
+
+  .close-btn-header {
+    display: none;
+  }
 }
 </style>

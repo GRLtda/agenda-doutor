@@ -1,141 +1,99 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { X } from 'lucide-vue-next'
-import AppButton from '@/components/global/AppButton.vue'
+import { computed, nextTick } from 'vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
+import CurrencyInput from '@/components/global/CurrencyInput.vue'
 
 const props = defineProps({
-  procedure: {
+  modelValue: {
     type: Object,
-    default: null,
+    required: true,
+    default: () => ({
+      name: '',
+      description: '',
+      baseValue: 0,
+      pricingType: 'FIXED',
+    }),
   },
 })
 
-const emit = defineEmits(['save', 'cancel'])
+const emit = defineEmits(['update:modelValue'])
 
-const formData = ref({
-  name: '',
-  description: '',
-  price: 0,
-  pricingType: 'FIXED',
+const formData = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value),
 })
 
-// Preenche o formulário quando um procedimento é passado
-watch(
-  () => props.procedure,
-  (newProcedure) => {
-    if (newProcedure) {
-      formData.value = {
-        name: newProcedure.name || '',
-        description: newProcedure.description || '',
-        pricingType: newProcedure.pricingType || 'FIXED',
-        price: newProcedure.baseValue || newProcedure.pricePerUnit || 0,
-      }
-    } else {
-      resetForm()
-    }
-  },
-  { immediate: true }
-)
+const pricingOptions = [
+  { value: 'FIXED', label: 'Preço Fixo' },
+  { value: 'UNIT', label: 'Por Unidade' },
+  { value: 'ML', label: 'Por mL' },
+]
 
-function resetForm() {
-  formData.value = {
-    name: '',
-    description: '',
-    price: 0,
-    pricingType: 'FIXED',
-  }
-}
-
-function handleSubmit() {
-  if (!formData.value.name) return
-  if (formData.value.price <= 0) return
-
-  const payload = {
-    name: formData.value.name,
-    description: formData.value.description,
-    pricingType: formData.value.pricingType,
-    baseValue: formData.value.price,
-    pricePerUnit: 0,
-  }
-
-  emit('save', payload)
-}
-
-function handleCancel() {
-  emit('cancel')
-}
-
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
+const resizeTextarea = (event) => {
+  const element = event.target
+  element.style.height = 'auto'
+  element.style.height = element.scrollHeight + 'px'
 }
 </script>
 
 <template>
   <div class="procedure-form">
-    <div class="form-header">
-      <h2 class="form-title">{{ procedure ? 'Editar Procedimento' : 'Novo Procedimento' }}</h2>
-      <button @click="handleCancel" class="btn-close">
-        <X :size="20" />
-      </button>
-    </div>
+    <!-- Dados do Procedimento -->
+    <section class="form-section">
+      <h3 class="section-title">Dados do Procedimento</h3>
+      <div class="section-card">
+        <div class="form-group">
+          <label for="name" class="form-label">Nome do Procedimento *</label>
+          <input
+            id="name"
+            v-model="formData.name"
+            type="text"
+            class="form-input"
+            placeholder="Ex: Consulta, Limpeza, etc."
+            required
+          />
+        </div>
 
-    <form @submit.prevent="handleSubmit" class="form-body">
-      <div class="form-group">
-        <label for="name" class="form-label">Nome do Procedimento *</label>
-        <input
-          id="name"
-          v-model="formData.name"
-          type="text"
-          class="form-input"
-          placeholder="Ex: Consulta, Limpeza, etc."
-          required
-        />
+        <div class="form-group">
+          <label for="description" class="form-label">Descrição</label>
+          <textarea
+            id="description"
+            v-model="formData.description"
+            class="form-textarea"
+            placeholder="Descrição opcional do procedimento"
+            rows="3"
+            @input="resizeTextarea"
+          ></textarea>
+        </div>
       </div>
+    </section>
 
-      <div class="form-group">
-        <label for="description" class="form-label">Descrição</label>
-        <textarea
-          id="description"
-          v-model="formData.description"
-          class="form-textarea"
-          placeholder="Descrição opcional do procedimento"
-          rows="3"
-        ></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Preço</label>
-        <div class="price-input-group">
-          <select v-model="formData.pricingType" class="form-select pricing-type-select">
-            <option value="FIXED">Preço Fixo</option>
-            <option value="UNIT">Por Unidade</option>
-            <option value="ML">Por mL</option>
-          </select>
-          <div class="input-with-prefix">
-            <span class="input-prefix">R$</span>
-            <input
-              v-model.number="formData.price"
-              type="number"
-              step="0.01"
-              min="0"
-              class="form-input with-prefix"
-              placeholder="0,00"
-              required
-            />
+    <!-- Precificação -->
+    <section class="form-section">
+      <h3 class="section-title">Precificação</h3>
+      <div class="section-card">
+        <div class="form-group">
+          <label class="form-label">Configuração de Preço</label>
+          <div class="price-row">
+            <div class="price-col type-col">
+              <label class="sub-label">Tipo de Cobrança</label>
+              <StyledSelect
+                v-model="formData.pricingType"
+                :options="pricingOptions"
+              />
+            </div>
+            
+            <div class="price-col value-col">
+              <label class="sub-label">Valor Base</label>
+              <CurrencyInput
+                v-model="formData.baseValue"
+                placeholder="R$ 0,00"
+              />
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="form-actions">
-        <AppButton type="button" variant="secondary" @click="handleCancel">Cancelar</AppButton>
-        <AppButton type="submit" variant="primary">
-          {{ procedure ? 'Salvar Alterações' : 'Criar Procedimento' }}
-        </AppButton>
-      </div>
-    </form>
+    </section>
   </div>
 </template>
 
@@ -143,45 +101,30 @@ const formatCurrency = (value) => {
 .procedure-form {
   display: flex;
   flex-direction: column;
+  gap: 2rem;
 }
 
-.form-header {
+.form-section {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.form-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
   color: #111827;
   margin: 0;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cinza-texto);
-  transition: background-color 0.2s ease;
-}
-
-.btn-close:hover {
-  background-color: #f3f4f6;
-}
-
-.form-body {
-  padding: 1.5rem;
+.section-card {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .form-group {
@@ -196,75 +139,68 @@ const formatCurrency = (value) => {
   color: #374151;
 }
 
+.sub-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
 .form-input,
-.form-textarea {
-  padding: 0.75rem;
+.form-textarea,
+.form-select {
+  padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
   transition: all 0.2s ease;
   font-family: inherit;
+  width: 100%;
+  color: #111827;
+  background-color: #fff;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: #9ca3af;
 }
 
 .form-input:focus,
-.form-textarea:focus {
+.form-textarea:focus,
+.form-select:focus {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-textarea {
-  resize: vertical;
+  resize: none;
   min-height: 80px;
 }
 
-.input-with-prefix {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-prefix {
-  position: absolute;
-  left: 0.75rem;
-  color: var(--cinza-texto);
-  font-weight: 500;
-  pointer-events: none;
-}
-
-.form-input.with-prefix {
-  padding-left: 2.5rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-@media (max-width: 768px) {
-  .form-actions {
-    flex-direction: column-reverse;
-  }
-
-  .form-actions button {
-    width: 100%;
-  }
-}
-
-.price-input-group {
+.price-row {
   display: flex;
   gap: 1rem;
 }
 
-.pricing-type-select {
-  width: 150px;
-  flex-shrink: 0;
+.price-col {
+  display: flex;
+  flex-direction: column;
 }
 
-.input-with-prefix {
+.type-col {
   flex: 1;
+}
+
+.value-col {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .price-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 </style>

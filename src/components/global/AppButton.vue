@@ -6,7 +6,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'default',
-    validator: (value) => ['default', 'primary', 'secondary', 'dangerous', 'warning'].includes(value),
+    validator: (value) => ['default', 'primary', 'secondary', 'dangerous', 'warning', 'ghost'].includes(value),
   },
   size: {
     type: String,
@@ -201,5 +201,21 @@ const classes = computed(() => {
 }
 .variant-warning:active:not(.is-disabled) {
   transform: translateY(0);
+}
+
+/* Ghost */
+.variant-ghost {
+  background-color: transparent;
+  color: var(--azul-principal);
+  border-color: transparent;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.variant-ghost:hover:not(.is-disabled) {
+  background-color: #eff6ff; /* Blue 50 */
+  color: var(--azul-principal);
+}
+.variant-ghost:active:not(.is-disabled) {
+  background-color: #dbeafe; /* Blue 100 */
 }
 </style>

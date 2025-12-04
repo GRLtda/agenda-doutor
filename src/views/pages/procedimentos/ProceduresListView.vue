@@ -12,8 +12,11 @@ import {
   DollarSign,
   Tag,
   SlidersHorizontal,
+  X,
+  Check,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const proceduresStore = useProceduresStore()
 const router = useRouter()
@@ -39,7 +42,12 @@ function handleEdit(procedure) {
 }
 
 function handleNew() {
-  selectedProcedure.value = null
+  selectedProcedure.value = {
+    name: '',
+    description: '',
+    baseValue: 0,
+    pricingType: 'FIXED',
+  }
   showFormModal.value = true
 }
 
@@ -60,10 +68,25 @@ function closeModal() {
   selectedProcedure.value = null
 }
 
-async function handleSave(procedureData) {
+async function handleSave() {
+  if (!selectedProcedure.value.name) {
+    toast.error('O nome do procedimento é obrigatório.')
+    return
+  }
+  
+  // Allow 0 if it's intentional, but usually price > 0. The previous form checked > 0.
+  // Let's keep the check but maybe allow 0 if it's a free procedure? 
+  // The previous code: if (formData.value.price <= 0) return
+  if (selectedProcedure.value.baseValue <= 0) {
+    toast.error('O valor deve ser maior que zero.')
+    return
+  }
+
+  const procedureData = { ...selectedProcedure.value }
+  
   let result
-  if (selectedProcedure.value?._id) {
-    result = await proceduresStore.updateProcedure(selectedProcedure.value._id, procedureData)
+  if (procedureData._id) {
+    result = await proceduresStore.updateProcedure(procedureData._id, procedureData)
     if (result.success) {
       toast.success('Procedimento atualizado com sucesso!')
     }
@@ -86,6 +109,17 @@ const formatCurrency = (value) => {
     style: 'currency',
     currency: 'BRL',
   }).format(value)
+}
+
+const getPricingTypeInfo = (type) => {
+  switch (type) {
+    case 'ML':
+      return { label: 'Por ML', class: 'tag-ml' }
+    case 'UNIT':
+      return { label: 'Por Unidade', class: 'tag-unit' }
+    default:
+      return { label: type || 'N/A', class: 'tag-default' }
+  }
 }
 </script>
 
@@ -124,7 +158,7 @@ const formatCurrency = (value) => {
               <th>
                 <div class="th-content">
                   <Tag :size="14" />
-                  <span>Variações</span>
+                  <span>Tipo</span>
                 </div>
               </th>
               <th class="actions-header">
@@ -174,11 +208,13 @@ const formatCurrency = (value) => {
                   </div>
                 </td>
                 <td class="procedure-value">{{ formatCurrency(procedure.baseValue) }}</td>
-                <td class="procedure-aliases">
-                  <span v-if="procedure.aliases && procedure.aliases.length > 0" class="aliases-badge">
-                    {{ procedure.aliases.length }} {{ procedure.aliases.length === 1 ? 'variação' : 'variações' }}
+                <td class="procedure-type">
+                  <span 
+                    class="pricing-tag" 
+                    :class="getPricingTypeInfo(procedure.pricingType).class"
+                  >
+                    {{ getPricingTypeInfo(procedure.pricingType).label }}
                   </span>
-                  <span v-else class="no-aliases">Nenhuma</span>
                 </td>
                 <td class="actions-cell" @click.stop>
                   <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)">
@@ -226,8 +262,11 @@ const formatCurrency = (value) => {
               <div class="procedure-details-mobile">
                 <span class="procedure-name">{{ procedure.name }}</span>
                 <span class="procedure-value">{{ formatCurrency(procedure.baseValue) }}</span>
-                <span v-if="procedure.aliases && procedure.aliases.length > 0" class="aliases-count">
-                  {{ procedure.aliases.length }} {{ procedure.aliases.length === 1 ? 'variação' : 'variações' }}
+                <span 
+                  class="pricing-tag mobile-tag" 
+                  :class="getPricingTypeInfo(procedure.pricingType).class"
+                >
+                  {{ getPricingTypeInfo(procedure.pricingType).label }}
                 </span>
               </div>
             </div>
@@ -267,17 +306,39 @@ const formatCurrency = (value) => {
     </div>
 
     <!-- Modal de Formulário -->
-    <Transition name="modal">
-      <div v-if="showFormModal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-content">
-          <ProcedureForm
-            :procedure="selectedProcedure"
-            @save="handleSave"
-            @cancel="closeModal"
-          />
+    <!-- Side Drawer de Formulário -->
+    <SideDrawer v-if="showFormModal" @close="closeModal">
+      <template #header>
+        <div class="drawer-header">
+          <div class="header-left">
+            <h2 class="drawer-title">
+              {{ selectedProcedure._id ? 'Editar Procedimento' : 'Novo Procedimento' }}
+            </h2>
+            <span v-if="selectedProcedure._id" class="procedure-id">
+              ID #{{ selectedProcedure._id.slice(-6).toUpperCase() }}
+            </span>
+          </div>
+          <button @click="closeModal" class="close-btn-header">
+            <X :size="24" />
+          </button>
         </div>
-      </div>
-    </Transition>
+      </template>
+
+      <ProcedureForm v-model="selectedProcedure" />
+
+      <template #footer>
+        <div class="drawer-footer">
+          <AppButton variant="default" @click="closeModal" class="btn-cancel">
+            <X :size="18" />
+            Cancelar
+          </AppButton>
+          <AppButton variant="secondary" @click="handleSave" class="btn-save">
+            <Check :size="18" />
+            {{ selectedProcedure._id ? 'Salvar Alterações' : 'Criar Procedimento' }}
+          </AppButton>
+        </div>
+      </template>
+    </SideDrawer>
   </div>
 </template>
 
@@ -287,6 +348,7 @@ import ProcedureForm from './ProcedureForm.vue'
 export default {
   components: {
     ProcedureForm,
+    SideDrawer,
   },
 }
 </script>
@@ -463,20 +525,35 @@ th.actions-header .th-content {
   color: #059669;
 }
 
-.aliases-badge {
+.pricing-tag {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
-  background-color: #eef2ff;
-  color: var(--azul-principal);
   border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
 }
 
-.no-aliases {
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
+.tag-ml {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.tag-unit {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.tag-default {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.mobile-tag {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
 }
 
 .state-cell {
@@ -617,47 +694,56 @@ th.actions-header .th-content {
 }
 
 /* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+.drawer-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
 }
 
-.modal-content {
-  background-color: var(--branco);
-  border-radius: 1rem;
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
+.drawer-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
 }
 
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
+.procedure-id {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  width: fit-content;
+  font-weight: 500;
 }
 
-.modal-enter-active .modal-content,
-.modal-leave-active .modal-content {
-  transition: transform 0.3s ease;
+.drawer-footer {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid #f3f4f6;
 }
 
-.modal-enter-from .modal-content,
-.modal-leave-to .modal-content {
-  transform: scale(0.9);
+.btn-cancel,
+.btn-save {
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .btn-cancel,
+  .btn-save {
+    flex: 1;
+    width: auto;
+  }
 }
 
 @media (max-width: 768px) {
