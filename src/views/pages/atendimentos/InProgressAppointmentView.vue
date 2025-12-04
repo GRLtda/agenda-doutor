@@ -47,6 +47,8 @@ import {
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
+
 const route = useRoute()
 const router = useRouter()
 const appointmentsStore = useAppointmentsStore()
@@ -104,32 +106,19 @@ function handleAnamnesisSaved(updatedData) {
 
 // ✨ Procedure Management State
 const showAddProcedureModal = ref(false)
-const newProcedure = ref({
-  procedureId: '',
-  aliasName: '',
-  discountPercentage: 0
-})
 const isAddingProcedure = ref(false)
 
-async function handleAddProcedure() {
-  if (!newProcedure.value.procedureId) {
-    toast.warning('Selecione um procedimento.')
-    return
-  }
-
+async function handleAddProcedure(payload) {
   isAddingProcedure.value = true
   try {
     const result = await patientsStore.addProcedureToPatient(patientId, {
-      procedureId: newProcedure.value.procedureId,
-      aliasName: newProcedure.value.aliasName,
-      discountPercentage: newProcedure.value.discountPercentage,
+      ...payload,
       appointmentId: appointmentId
     })
 
     if (result.success) {
       toast.success('Procedimento adicionado com sucesso!')
       showAddProcedureModal.value = false
-      newProcedure.value = { procedureId: '', aliasName: '', discountPercentage: 0 }
       // Update local patient data to reflect changes
       patient.value = patientsStore.selectedPatient
     } else {
@@ -412,6 +401,13 @@ const menuItems = [
   </div>
 
   <div v-else class="in-progress-appointment-layout">
+    <AddProcedureModal
+      v-if="showAddProcedureModal"
+      :patient-id="patientId"
+      @close="showAddProcedureModal = false"
+      @save="handleAddProcedure"
+    />
+
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
 
     <!-- ✨ Sidebar moved to left (Full Height) -->
@@ -807,55 +803,7 @@ const menuItems = [
       @saved="handleAnamnesisSaved"
     />
 
-    <!-- ✨ Add Procedure Modal -->
-    <div v-if="showAddProcedureModal" class="modal-overlay">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Adicionar Procedimento</h3>
-          <button @click="showAddProcedureModal = false" class="close-btn">
-            <X :size="20" />
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Procedimento</label>
-            <select v-model="newProcedure.procedureId" class="form-select">
-              <option value="" disabled>Selecione...</option>
-              <option v-for="proc in proceduresStore.procedures" :key="proc._id" :value="proc._id">
-                {{ proc.name }} ({{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proc.baseValue) }})
-              </option>
-            </select>
-          </div>
-          
-          <div class="form-group mt-4">
-            <label>Alias (Opcional)</label>
-             <select v-model="newProcedure.aliasName" class="form-select" :disabled="!newProcedure.procedureId">
-              <option value="">Nenhum</option>
-              <template v-if="newProcedure.procedureId">
-                 <option 
-                   v-for="alias in proceduresStore.procedures.find(p => p._id === newProcedure.procedureId)?.aliases || []" 
-                   :key="alias.name" 
-                   :value="alias.name"
-                 >
-                   {{ alias.name }} ({{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(alias.price) }})
-                 </option>
-              </template>
-            </select>
-          </div>
 
-          <div class="form-group mt-4">
-            <label>Desconto (%)</label>
-            <input type="number" v-model="newProcedure.discountPercentage" min="0" max="100" class="form-input" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="showAddProcedureModal = false">Cancelar</button>
-          <button class="btn-confirm" @click="handleAddProcedure" :disabled="isAddingProcedure">
-            {{ isAddingProcedure ? 'Adicionando...' : 'Adicionar' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

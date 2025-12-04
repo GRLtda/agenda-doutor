@@ -16,7 +16,6 @@ const emit = defineEmits(['close', 'save'])
 const proceduresStore = useProceduresStore()
 
 const selectedProcedureId = ref('')
-const selectedAliasName = ref('')
 const discountPercentage = ref(0)
 const isLoading = ref(false)
 
@@ -33,17 +32,18 @@ const selectedProcedure = computed(() => {
   return procedures.value.find((p) => p._id === selectedProcedureId.value)
 })
 
-const procedureAliases = computed(() => {
-  return selectedProcedure.value?.aliases || []
-})
+const quantity = ref(1)
 
 const originalValue = computed(() => {
   if (!selectedProcedure.value) return 0
-  if (selectedAliasName.value) {
-    const alias = selectedProcedure.value.aliases.find((a) => a.name === selectedAliasName.value)
-    return alias ? alias.price : selectedProcedure.value.baseValue
+
+  const price = selectedProcedure.value.baseValue || selectedProcedure.value.pricePerUnit || 0
+
+  if (selectedProcedure.value.pricingType === 'UNIT' || selectedProcedure.value.pricingType === 'ML') {
+    return price * quantity.value
   }
-  return selectedProcedure.value.baseValue
+
+  return price
 })
 
 const finalValue = computed(() => {
@@ -66,11 +66,15 @@ function handleSubmit() {
 
   const payload = {
     procedureId: selectedProcedureId.value,
-    aliasName: selectedAliasName.value || undefined,
     discountPercentage: discountPercentage.value,
+    quantity: quantity.value,
   }
 
   emit('save', payload)
+}
+
+function handleProcedureChange() {
+  quantity.value = 1
 }
 </script>
 
@@ -90,7 +94,7 @@ function handleSubmit() {
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">Procedimento</label>
-          <select v-model="selectedProcedureId" class="form-select" @change="selectedAliasName = ''">
+          <select v-model="selectedProcedureId" class="form-select" @change="handleProcedureChange">
             <option value="" disabled>Selecione um procedimento</option>
             <option v-for="proc in procedures" :key="proc._id" :value="proc._id">
               {{ proc.name }}
@@ -98,14 +102,18 @@ function handleSubmit() {
           </select>
         </div>
 
-        <div class="form-group" v-if="procedureAliases.length > 0">
-          <label class="form-label">Variação (Opcional)</label>
-          <select v-model="selectedAliasName" class="form-select">
-            <option value="">Preço Base ({{ formatCurrency(selectedProcedure?.baseValue) }})</option>
-            <option v-for="alias in procedureAliases" :key="alias.name" :value="alias.name">
-              {{ alias.name }} ({{ formatCurrency(alias.price) }})
-            </option>
-          </select>
+        <div class="form-group" v-if="selectedProcedure?.pricingType === 'UNIT' || selectedProcedure?.pricingType === 'ML'">
+          <label class="form-label">
+            Quantidade ({{ selectedProcedure.pricingType === 'UNIT' ? 'Unidades' : 'mL' }})
+          </label>
+          <input
+            v-model.number="quantity"
+            type="number"
+            min="0.1"
+            step="0.1"
+            class="form-input"
+            placeholder="0"
+          />
         </div>
 
         <div class="form-group">

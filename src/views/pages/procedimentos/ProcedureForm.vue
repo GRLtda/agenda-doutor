@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { X, Plus, Trash2 } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 
 const props = defineProps({
@@ -15,13 +15,8 @@ const emit = defineEmits(['save', 'cancel'])
 const formData = ref({
   name: '',
   description: '',
-  baseValue: 0,
-  aliases: [],
-})
-
-const newAlias = ref({
-  name: '',
   price: 0,
+  pricingType: 'FIXED',
 })
 
 // Preenche o formulário quando um procedimento é passado
@@ -32,8 +27,8 @@ watch(
       formData.value = {
         name: newProcedure.name || '',
         description: newProcedure.description || '',
-        baseValue: newProcedure.baseValue || 0,
-        aliases: newProcedure.aliases ? [...newProcedure.aliases] : [],
+        pricingType: newProcedure.pricingType || 'FIXED',
+        price: newProcedure.baseValue || newProcedure.pricePerUnit || 0,
       }
     } else {
       resetForm()
@@ -46,31 +41,24 @@ function resetForm() {
   formData.value = {
     name: '',
     description: '',
-    baseValue: 0,
-    aliases: [],
-  }
-  newAlias.value = {
-    name: '',
     price: 0,
+    pricingType: 'FIXED',
   }
-}
-
-function addAlias() {
-  if (newAlias.value.name && newAlias.value.price > 0) {
-    formData.value.aliases.push({ ...newAlias.value })
-    newAlias.value = { name: '', price: 0 }
-  }
-}
-
-function removeAlias(index) {
-  formData.value.aliases.splice(index, 1)
 }
 
 function handleSubmit() {
-  if (!formData.value.name || formData.value.baseValue <= 0) {
-    return
+  if (!formData.value.name) return
+  if (formData.value.price <= 0) return
+
+  const payload = {
+    name: formData.value.name,
+    description: formData.value.description,
+    pricingType: formData.value.pricingType,
+    baseValue: formData.value.price,
+    pricePerUnit: 0,
   }
-  emit('save', formData.value)
+
+  emit('save', payload)
 }
 
 function handleCancel() {
@@ -119,71 +107,25 @@ const formatCurrency = (value) => {
       </div>
 
       <div class="form-group">
-        <label for="baseValue" class="form-label">Valor Base *</label>
-        <div class="input-with-prefix">
-          <span class="input-prefix">R$</span>
-          <input
-            id="baseValue"
-            v-model.number="formData.baseValue"
-            type="number"
-            step="0.01"
-            min="0"
-            class="form-input with-prefix"
-            placeholder="0,00"
-            required
-          />
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="section-header">
-          <h3 class="section-title">Variações de Preço</h3>
-          <p class="section-subtitle">
-            Adicione variações do procedimento com preços diferentes (opcional)
-          </p>
-        </div>
-
-        <div class="aliases-list" v-if="formData.aliases.length > 0">
-          <div v-for="(alias, index) in formData.aliases" :key="index" class="alias-item">
-            <div class="alias-info">
-              <span class="alias-name">{{ alias.name }}</span>
-              <span class="alias-price">{{ formatCurrency(alias.price) }}</span>
-            </div>
-            <button type="button" @click="removeAlias(index)" class="btn-remove">
-              <Trash2 :size="16" />
-            </button>
-          </div>
-        </div>
-
-        <div class="add-alias-form">
-          <div class="alias-inputs">
+        <label class="form-label">Preço</label>
+        <div class="price-input-group">
+          <select v-model="formData.pricingType" class="form-select pricing-type-select">
+            <option value="FIXED">Preço Fixo</option>
+            <option value="UNIT">Por Unidade</option>
+            <option value="ML">Por mL</option>
+          </select>
+          <div class="input-with-prefix">
+            <span class="input-prefix">R$</span>
             <input
-              v-model="newAlias.name"
-              type="text"
-              class="form-input"
-              placeholder="Nome da variação"
+              v-model.number="formData.price"
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-input with-prefix"
+              placeholder="0,00"
+              required
             />
-            <div class="input-with-prefix">
-              <span class="input-prefix">R$</span>
-              <input
-                v-model.number="newAlias.price"
-                type="number"
-                step="0.01"
-                min="0"
-                class="form-input with-prefix"
-                placeholder="0,00"
-              />
-            </div>
           </div>
-          <button
-            type="button"
-            @click="addAlias"
-            class="btn-add-alias"
-            :disabled="!newAlias.name || newAlias.price <= 0"
-          >
-            <Plus :size="16" />
-            Adicionar
-          </button>
         </div>
       </div>
 
@@ -294,123 +236,6 @@ const formatCurrency = (value) => {
   padding-left: 2.5rem;
 }
 
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 0.75rem;
-}
-
-.section-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0;
-}
-
-.section-subtitle {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
-  margin: 0;
-}
-
-.aliases-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.alias-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-}
-
-.alias-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.alias-name {
-  font-weight: 600;
-  color: #111827;
-}
-
-.alias-price {
-  font-size: 0.875rem;
-  color: #059669;
-  font-weight: 600;
-}
-
-.btn-remove {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ef4444;
-  transition: background-color 0.2s ease;
-}
-
-.btn-remove:hover {
-  background-color: #fee2e2;
-}
-
-.add-alias-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.alias-inputs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-.btn-add-alias {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
-  background-color: var(--branco);
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-add-alias:hover:not(:disabled) {
-  background-color: #f9fafb;
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
-}
-
-.btn-add-alias:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -420,10 +245,6 @@ const formatCurrency = (value) => {
 }
 
 @media (max-width: 768px) {
-  .alias-inputs {
-    grid-template-columns: 1fr;
-  }
-
   .form-actions {
     flex-direction: column-reverse;
   }
@@ -431,5 +252,19 @@ const formatCurrency = (value) => {
   .form-actions button {
     width: 100%;
   }
+}
+
+.price-input-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.pricing-type-select {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.input-with-prefix {
+  flex: 1;
 }
 </style>

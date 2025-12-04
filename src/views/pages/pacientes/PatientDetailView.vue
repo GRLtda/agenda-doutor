@@ -38,7 +38,7 @@ import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnam
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
-import AddProcedureModal from '@/components/pages/pacientes/modals/AddProcedureModal.vue' // ✨ Importar Modal
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
 
 const route = useRoute()
 const router = useRouter()
@@ -674,7 +674,6 @@ async function handleAddProcedure(payload) {
                     <div class="procedure-info">
                       <div class="proc-main">
                         <span class="proc-name">{{ proc.name }}</span>
-                        <span v-if="proc.alias" class="proc-alias-badge">{{ proc.alias }}</span>
                       </div>
                       <span class="proc-date">{{ formatSimpleDate(proc.assignedAt) }}</span>
                     </div>
