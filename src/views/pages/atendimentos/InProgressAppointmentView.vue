@@ -148,6 +148,12 @@ const formattedElapsedTime = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
+// ✨ Filter procedures by current appointment
+const currentAppointmentProcedures = computed(() => {
+  if (!patient.value || !patient.value.procedures) return []
+  return patient.value.procedures.filter(p => p.appointmentId === appointmentId)
+})
+
 const recordModels = ref([
   { label: 'Anamnese Geral', value: 'anamnese-geral' },
   { label: 'Retorno', value: 'retorno' },
@@ -645,11 +651,11 @@ const formatDate = (dateString) => {
                 </div>
 
                 <div class="procedures-list info-card mt-2">
-                  <div v-if="!patient?.procedures || patient.procedures.length === 0" class="empty-list">
-                    Nenhum procedimento registrado.
+                  <div v-if="currentAppointmentProcedures.length === 0" class="empty-list">
+                    Nenhum procedimento registrado neste atendimento.
                   </div>
                   <ul v-else class="procedure-items">
-                    <li v-for="(proc, index) in patient.procedures" :key="index" class="procedure-item">
+                    <li v-for="(proc, index) in currentAppointmentProcedures" :key="index" class="procedure-item">
                       <div class="proc-icon">
                         <Syringe :size="18" />
                       </div>

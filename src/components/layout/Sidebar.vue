@@ -20,7 +20,8 @@ import {
   LayoutTemplate,
   Link,
   History,
-  ChevronsUpDown
+  ChevronsUpDown,
+  DollarSign
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -63,6 +64,7 @@ const mainNavLinks = [
   { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
   { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
   { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
+  { icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' },
   {
     icon: Megaphone,
     text: 'Marketing',

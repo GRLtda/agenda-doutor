@@ -71,6 +71,12 @@ const dashboardRoutes = [
         meta: { title: 'Procedimentos' },
       },
       {
+        path: 'financeiro',
+        name: 'financeiro',
+        component: () => import('../views/pages/finance/FinanceDashboardView.vue'),
+        meta: { title: 'Financeiro' },
+      },
+      {
         path: 'ajuda',
         name: 'ajuda',
         component: AjudaView,
