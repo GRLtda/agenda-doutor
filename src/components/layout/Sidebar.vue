@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute } from 'vue-router'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import ClinicDropdown from '@/components/global/ClinicDropdown.vue'
@@ -21,7 +22,8 @@ import {
   Link,
   History,
   ChevronsUpDown,
-  DollarSign
+  DollarSign,
+  Workflow
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -35,6 +37,7 @@ const emit = defineEmits(['close', 'toggle-collapse'])
 
 const authStore = useAuthStore()
 const route = useRoute()
+const { hasAccess } = usePlanAccess()
 const isUserDropdownOpen = ref(false)
 const isClinicDropdownOpen = ref(false)
 
@@ -58,26 +61,44 @@ const isParentActive = (children) => {
   return children.some(child => route.path.startsWith(child.to))
 }
 
-const mainNavLinks = [
-  { icon: LayoutDashboard, text: 'Resumo', to: '/app' },
-  { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
-  { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
-  { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
-  { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
-  { icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' },
-  {
+// Computed para filtrar links baseado no plano
+const mainNavLinks = computed(() => {
+  const allMarketingChildren = [
+    { text: 'Visão Geral', to: '/app/marketing', icon: LayoutDashboard, feature: 'marketing_overview' },
+    { text: 'Mensagens', to: '/app/marketing/mensagens', icon: MessageSquare, feature: 'marketing_messages' },
+    { text: 'Modelos', to: '/app/marketing/modelos', icon: LayoutTemplate, feature: 'marketing_templates' },
+    { text: 'Conexão', to: '/app/marketing/conexao', icon: Link, feature: 'marketing_connection' },
+    { text: 'Histórico', to: '/app/marketing/logs', icon: History, feature: 'marketing_logs' },
+    { text: 'Workflows', to: '/app/workflows', icon: Workflow, feature: 'workflows' },
+  ]
+
+  // Filtra os children baseado no acesso
+  const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))
+
+  // Links base
+  const links = [
+    { icon: LayoutDashboard, text: 'Resumo', to: '/app' },
+    { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
+    { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
+    { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
+    { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
+  ]
+
+  // Adiciona Financeiro apenas se tiver acesso
+  if (hasAccess('finance')) {
+    links.push({ icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' })
+  }
+
+  // Adiciona Marketing
+  links.push({
     icon: Megaphone,
     text: 'Marketing',
-    key: 'marketing', // Chave única para controle de expansão
-    children: [
-      { text: 'Visão Geral', to: '/app/marketing', icon: LayoutDashboard },
-      { text: 'Mensagens', to: '/app/marketing/mensagens', icon: MessageSquare },
-      { text: 'Modelos', to: '/app/marketing/modelos', icon: LayoutTemplate },
-      { text: 'Conexão', to: '/app/marketing/conexao', icon: Link },
-      { text: 'Histórico', to: '/app/marketing/logs', icon: History },
-    ]
-  },
-]
+    key: 'marketing',
+    children: filteredMarketingChildren
+  })
+
+  return links
+})
 
 </script>
 

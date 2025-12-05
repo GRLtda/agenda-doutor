@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { checkPlanAccess, getRouteFeature } from '@/composables/usePlanAccess'
 import dashboardRoutes from './dashboard'
 import { nextTick } from 'vue'
 
@@ -103,10 +104,22 @@ router.beforeEach((to, from, next) => {
         // Redireciona para o dashboard
         return next({ name: 'dashboard' })
       }
+
+      const requiredFeature = getRouteFeature(to.name)
+      if (requiredFeature) {
+        const clinicPlan = authStore.user?.clinic?.plan || 'basic'
+        const hasAccess = checkPlanAccess(clinicPlan, requiredFeature)
+
+        if (!hasAccess) {
+          if (from.name && from.name !== to.name) {
+            return next(false)
+          }
+          return next({ name: 'resumo-dashboard' })
+        }
+      }
     }
   }
 
-  // 5. Se nenhuma regra anterior barrou, permite a navegação
   next()
 })
 
