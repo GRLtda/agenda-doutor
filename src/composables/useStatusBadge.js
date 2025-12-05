@@ -1,18 +1,16 @@
-// import { computed } from 'vue' // <-- REMOVIDO
-
 export function useStatusBadge(status) {
-  // 'status' agora é uma string, não um ref.
-  // Esta é a linha 5 que estava dando erro:
   const normalizedStatus = status?.toLowerCase().replace(/\s+/g, '-')
 
   const configs = {
+    // ✅ Realizado - Cinza/Slate (finalizado, passado)
     realizado: {
       class: 'realizado',
       style: {
-        backgroundColor: '#f0fdf4',
-        color: '#16a34a',
+        backgroundColor: '#f1f5f9',
+        color: '#475569',
       },
     },
+    // 📅 Agendado - Azul (agendado, futuro)
     agendado: {
       class: 'agendado',
       style: {
@@ -24,7 +22,7 @@ export function useStatusBadge(status) {
       class: 'confirmado',
       style: {
         backgroundColor: '#fefce8',
-        color: '#a16207',
+        color: '#ca8a04',
       },
     },
     cancelado: {
@@ -41,11 +39,20 @@ export function useStatusBadge(status) {
         color: '#64748b',
       },
     },
+    // 🔄 Em Atendimento - Roxo
     'em-atendimento': {
       class: 'em-atendimento',
       style: {
-        backgroundColor: '#f3e8ff', // Roxo claro
-        color: '#7e22ce', // Roxo escuro
+        backgroundColor: '#f3e8ff',
+        color: '#7e22ce',
+      },
+    },
+    // 🟢 Iniciado - Verde (ao vivo, em andamento)
+    iniciado: {
+      class: 'iniciado',
+      style: {
+        backgroundColor: '#dcfce7',
+        color: '#16a34a',
       },
     },
     // V-- Alteração aqui --V

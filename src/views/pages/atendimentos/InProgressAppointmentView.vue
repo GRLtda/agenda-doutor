@@ -279,6 +279,11 @@ onMounted(async () => {
 
   isViewMode.value = appointment.value.status === 'Realizado'
 
+  // ✨ Atualizar status para "Iniciado" quando não estiver em modo de visualização
+  if (!isViewMode.value && appointment.value.status !== 'Iniciado') {
+    await appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
+  }
+
   await recordsStore.fetchRecordByAppointmentId(appointmentId)
 
   if (isViewMode.value) {

@@ -253,6 +253,11 @@ onMounted(() => {
                   <Play :size="16" /> Iniciar
                 </AppButton>
               </template>
+              <template v-else-if="appt.status === 'Iniciado'">
+                <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow">
+                  <Play :size="16" /> Continuar Atendimento
+                </AppButton>
+              </template>
               <template v-else-if="appt.status === 'Não Compareceu'">
                 <AppButton @click.stop="rebookAppointment(appt)" variant="warning" size="sm" class="flex-grow">
                   <CalendarPlus :size="16" /> Reagendar
