@@ -17,8 +17,9 @@ const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
 
 const selectedLabel = computed(() => {
+  if (!props.modelValue) return 'Selecione'
   const selectedOption = props.options.find((opt) => opt.value === props.modelValue)
-  return selectedOption ? selectedOption.label : 'Selecione'
+  return selectedOption?.label || 'Selecione'
 })
 
 async function updateDropdownPosition() {

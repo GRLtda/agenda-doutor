@@ -396,6 +396,7 @@ const mainNavLinks = [
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #f3f4f6;
+  display: none;
 }
 .user-profile {
   display: flex;
@@ -464,6 +465,9 @@ const mainNavLinks = [
 @media (max-width: 1024px) {
   .desktop-only {
     display: none;
+  }
+  .sidebar-footer {
+    display: block;
   }
   .mobile-dropdown-icon {
     display: block;

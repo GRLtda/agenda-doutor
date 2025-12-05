@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus, Menu, User, Calendar, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
+import { Search, Plus, Menu, User, Calendar, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import UserDropdown from '@/components/global/UserDropdown.vue'
+import { useAuthStore } from '@/stores/auth'
 
 import { useAppointmentsStore } from '@/stores/appointments'
 import { usePatientsStore } from '@/stores/patients'
@@ -31,6 +33,9 @@ const recordsStore = useRecordsStore()
 const anamnesisStore = useAnamnesisStore()
 const employeesStore = useEmployeesStore()
 const dashboardStore = useDashboardStore()
+const authStore = useAuthStore()
+
+const isUserDropdownOpen = ref(false)
 
 const isGlobalLoading = computed(() => {
   return appointmentsStore.isLoading ||
@@ -131,10 +136,26 @@ function handleSearchSubmit() {
         </div>
       </Transition>
 
-      <AppButton variant="primary" @click="$emit('open-schedule-modal')">
-        <Plus :size="16" />
-        <span class="button-text">Agendar Atendimento</span>
-      </AppButton>
+      <button class="add-button" @click="$emit('open-schedule-modal')" title="Agendar Atendimento">
+        <Plus :size="24" />
+      </button>
+
+      <div class="separator"></div>
+
+      <div
+        class="user-profile"
+        @click="isUserDropdownOpen = !isUserDropdownOpen"
+        v-click-outside="() => (isUserDropdownOpen = false)"
+      >
+        <UserDropdown v-if="isUserDropdownOpen" direction="down" />
+        <div class="user-details">
+          <span class="user-name">{{ authStore.user?.name || 'Usuário' }}</span>
+          <span class="user-email">{{ authStore.user?.email || 'email@exemplo.com' }}</span>
+        </div>
+        <div class="user-avatar">
+          {{ authStore.user?.name.charAt(0) || 'U' }}
+        </div>
+      </div>
     </div>
   </header>
 </template>
@@ -322,6 +343,87 @@ function handleSearchSubmit() {
 }
 /* --- Fim dos Estilos de Loading --- */
 
+/* --- Botão Adicionar Arredondado --- */
+.add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%; /* Arredondado */
+  background-color: var(--azul-principal);
+  color: var(--branco);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.add-button:hover {
+  background-color: var(--azul-escuro);
+  transform: scale(1.05);
+}
+
+.add-button:active {
+  transform: scale(0.95);
+}
+
+/* --- Separator --- */
+.separator {
+  width: 1px;
+  height: 24px;
+  background-color: #e5e7eb;
+  margin: 0 0.5rem;
+}
+
+/* --- User Profile na TopBar --- */
+.user-profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.user-profile:hover {
+  background-color: #f3f4f6;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: #eef2ff;
+  color: var(--azul-principal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--preto);
+  line-height: 1.2;
+}
+
+.user-email {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+}
+
+
 /* --- Responsividade --- */
 @media (max-width: 1024px) {
   .hamburger-button {
@@ -332,6 +434,10 @@ function handleSearchSubmit() {
   }
   .top-bar-center {
     justify-content: center;
+  }
+  
+  .separator {
+    display: none;
   }
 }
 
@@ -370,6 +476,11 @@ function handleSearchSubmit() {
   .button-text {
     display: none;
   }
+
+  /* Oculta detalhes do usuário no mobile, mostra apenas avatar */
+  .user-profile {
+    display: none;
+  }
 }
 
 /* Animação do Dropdown */
@@ -382,4 +493,8 @@ function handleSearchSubmit() {
   opacity: 0;
   transform: translateY(-5px);
 }
+
+
+
+
 </style>

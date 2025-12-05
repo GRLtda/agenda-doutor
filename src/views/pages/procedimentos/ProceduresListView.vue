@@ -113,6 +113,8 @@ const formatCurrency = (value) => {
 
 const getPricingTypeInfo = (type) => {
   switch (type) {
+    case 'FIXED':
+      return { label: 'Preço Fixo', class: 'tag-default' }
     case 'ML':
       return { label: 'Por ML', class: 'tag-ml' }
     case 'UNIT':

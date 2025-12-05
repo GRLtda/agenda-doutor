@@ -112,11 +112,7 @@ router.beforeEach((to, from, next) => {
 
 
 router.afterEach((to) => {
-  // Esta função é executada após cada mudança de rota
-  // Usamos 'nextTick' para garantir que o DOM seja atualizado
-  // antes de tentarmos mudar o título do documento.
   nextTick(() => {
-    // Função auxiliar para definir meta tags
     const setMetaTag = (name, content) => {
       let element = document.querySelector(`meta[name="${name}"]`);
       if (!element) {
@@ -127,10 +123,8 @@ router.afterEach((to) => {
       element.setAttribute('content', content);
     };
 
-    // Garante que as meta tags para a experiência de app iOS estejam sempre presentes
     setMetaTag('apple-mobile-web-app-capable', 'yes');
     setMetaTag('apple-mobile-web-app-status-bar-style', 'black-translucent');
-    // ✨ FIM DA ALTERAÇÃO ✨
 
     const authStore = useAuthStore()
     const clinic = authStore.user?.clinic
@@ -139,21 +133,17 @@ router.afterEach((to) => {
     const pageTitle = to.meta.title
     const defaultAppName = 'Agenda Doutor'
 
-    // Elementos do <head> que vamos atualizar
     const favicon = document.getElementById('favicon')
     const appleTouchIcon = document.getElementById('apple-touch-icon')
 
-    // ✨ Atualiza o Favicon e o Ícone da Tela de Início (iOS)
     if (clinicLogo) {
       if (favicon) favicon.href = clinicLogo
       if (appleTouchIcon) appleTouchIcon.href = clinicLogo
     } else {
       if (favicon) favicon.href = '/activity.svg'
-      // Se não tiver logo, voltamos ao padrão.
       if (appleTouchIcon) appleTouchIcon.href = '/activity.svg'
     }
 
-    // ✨ Atualiza o título da página (usado como nome do app na tela de início)
     if (pageTitle && clinicName && to.meta.requiresAuth) {
       document.title = `${pageTitle} | ${clinicName}`
     } else if (pageTitle) {
@@ -164,7 +154,6 @@ router.afterEach((to) => {
       document.title = defaultAppName
     }
 
-    // ✨ Atualiza o nome do app na tela de início (iOS)
     if (clinicName) {
       setMetaTag('apple-mobile-web-app-title', clinicName);
     } else {

@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useFinanceStore } from '@/stores/finance'
 import AppPagination from '@/components/global/AppPagination.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -340,11 +341,17 @@ const getComparisonPercent = (current, previous) => {
           </div>
         </div>
         <div class="balance-content">
-          <h2 class="balance-value">{{ formatCurrency(financeStore.revenueSummary.totalRevenue) }}</h2>
-          <div class="balance-trend" :class="getComparisonClass(financeStore.comparison.month.current, financeStore.comparison.month.previous)">
-            <component :is="getComparisonIcon(financeStore.comparison.month.current, financeStore.comparison.month.previous)" :size="16" />
-            <span>{{ getComparisonPercent(financeStore.comparison.month.current, financeStore.comparison.month.previous) }}% vs período anterior</span>
+          <div v-if="financeStore.isLoading">
+             <AppSkeleton width="180px" height="36px" class="mb-2" bg="rgba(255,255,255,0.2)" shimmer="rgba(255,255,255,0.3)" />
+             <AppSkeleton width="140px" height="24px" borderRadius="2rem" bg="rgba(255,255,255,0.2)" shimmer="rgba(255,255,255,0.3)" />
           </div>
+          <template v-else>
+            <h2 class="balance-value">{{ formatCurrency(financeStore.revenueSummary.totalRevenue) }}</h2>
+            <div class="balance-trend" :class="getComparisonClass(financeStore.comparison.month.current, financeStore.comparison.month.previous)">
+                <component :is="getComparisonIcon(financeStore.comparison.month.current, financeStore.comparison.month.previous)" :size="16" />
+                <span>{{ getComparisonPercent(financeStore.comparison.month.current, financeStore.comparison.month.previous) }}% vs período anterior</span>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -355,7 +362,8 @@ const getComparisonPercent = (current, previous) => {
           <TrendingUp :size="18" class="text-emerald-500" />
         </div>
         <div class="kpi-body">
-          <span class="kpi-value">{{ formatCurrency(financeStore.kpi.averageTicket) }}</span>
+          <AppSkeleton v-if="financeStore.isLoading" width="100px" height="28px" />
+          <span v-else class="kpi-value">{{ formatCurrency(financeStore.kpi.averageTicket) }}</span>
         </div>
       </div>
 
@@ -365,8 +373,14 @@ const getComparisonPercent = (current, previous) => {
           <Activity :size="18" class="text-violet-500" />
         </div>
         <div class="kpi-body">
-          <span class="kpi-value">{{ financeStore.kpi.proceduresCount }}</span>
-          <span class="kpi-sub">realizados</span>
+          <template v-if="financeStore.isLoading">
+             <AppSkeleton width="60px" height="28px" class="mb-1" />
+             <AppSkeleton width="80px" height="14px" />
+          </template>
+          <template v-else>
+            <span class="kpi-value">{{ financeStore.kpi.proceduresCount }}</span>
+            <span class="kpi-sub">realizados</span>
+          </template>
         </div>
       </div>
 
@@ -376,8 +390,14 @@ const getComparisonPercent = (current, previous) => {
           <Users :size="18" class="text-amber-500" />
         </div>
         <div class="kpi-body">
-          <span class="kpi-value text-sm truncate" :title="financeStore.topClients[0]?.name">{{ financeStore.topClients[0]?.name || '-' }}</span>
-          <span class="kpi-sub">{{ formatCurrency(financeStore.topClients[0]?.totalRevenue) }}</span>
+          <template v-if="financeStore.isLoading">
+             <AppSkeleton width="120px" height="20px" class="mb-1" />
+             <AppSkeleton width="90px" height="14px" />
+          </template>
+          <template v-else>
+            <span class="kpi-value text-sm truncate" :title="financeStore.topClients[0]?.name">{{ financeStore.topClients[0]?.name || '-' }}</span>
+            <span class="kpi-sub">{{ formatCurrency(financeStore.topClients[0]?.totalRevenue) }}</span>
+          </template>
         </div>
       </div>
     </div>
@@ -391,7 +411,10 @@ const getComparisonPercent = (current, previous) => {
           <button class="icon-btn"><Filter :size="16" /></button>
         </div>
         <div class="chart-wrapper">
-          <Line :data="dailyRevenueChartData" :options="mainChartOptions" />
+          <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
+             <AppSkeleton width="100%" height="100%" borderRadius="0.5rem" />
+          </div>
+          <Line v-else :data="dailyRevenueChartData" :options="mainChartOptions" />
         </div>
       </div>
 
@@ -401,7 +424,10 @@ const getComparisonPercent = (current, previous) => {
           <h3 class="card-title">Por Procedimento</h3>
         </div>
         <div class="doughnut-wrapper">
-          <Doughnut :data="proceduresChartData" :options="doughnutOptions" />
+          <div v-if="financeStore.isLoading" class="w-full h-full flex items-center justify-center">
+             <AppSkeleton width="200px" height="200px" borderRadius="50%" />
+          </div>
+          <Doughnut v-else :data="proceduresChartData" :options="doughnutOptions" />
         </div>
       </div>
     </div>
@@ -412,7 +438,10 @@ const getComparisonPercent = (current, previous) => {
             <h3 class="card-title">Faturamento Mensal (Ano Atual)</h3>
         </div>
         <div class="chart-wrapper">
-            <Line :data="monthlyRevenueChartData" :options="mainChartOptions" />
+            <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
+                <AppSkeleton width="100%" height="100%" borderRadius="0.5rem" />
+            </div>
+            <Line v-else :data="monthlyRevenueChartData" :options="mainChartOptions" />
         </div>
     </div>
 
@@ -443,22 +472,37 @@ const getComparisonPercent = (current, previous) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id">
-                <td>
-                  <div class="client-info">
-                    <div class="client-avatar">{{ client.name.charAt(0) }}</div>
-                    <span class="client-name">{{ client.name }}</span>
-                  </div>
-                </td>
-                <td class="text-center">{{ client.appointmentsCount }}</td>
-                <td class="text-right font-bold">{{ formatCurrency(client.totalRevenue) }}</td>
-                <td class="text-right">
-                    <span class="status-badge success">Ativo</span>
-                </td>
-              </tr>
-              <tr v-if="financeStore.topClientsPaginated.data.length === 0">
-                  <td colspan="4" class="text-center py-8 text-muted">Nenhum cliente encontrado.</td>
-              </tr>
+              <template v-if="financeStore.topClientsPaginated.isLoading">
+                  <tr v-for="i in 5" :key="i">
+                      <td>
+                          <div class="flex items-center gap-3">
+                              <AppSkeleton width="32px" height="32px" borderRadius="50%" />
+                              <AppSkeleton width="120px" height="16px" />
+                          </div>
+                      </td>
+                      <td class="text-center"><AppSkeleton width="40px" height="16px" class="mx-auto" /></td>
+                      <td class="text-right"><AppSkeleton width="80px" height="16px" class="ml-auto" /></td>
+                      <td class="text-right"><AppSkeleton width="60px" height="20px" borderRadius="1rem" class="ml-auto" /></td>
+                  </tr>
+              </template>
+              <template v-else>
+                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id">
+                    <td>
+                    <div class="client-info">
+                        <div class="client-avatar">{{ client.name.charAt(0) }}</div>
+                        <span class="client-name">{{ client.name }}</span>
+                    </div>
+                    </td>
+                    <td class="text-center">{{ client.appointmentsCount }}</td>
+                    <td class="text-right font-bold">{{ formatCurrency(client.totalRevenue) }}</td>
+                    <td class="text-right">
+                        <span class="status-badge success">Ativo</span>
+                    </td>
+                </tr>
+                <tr v-if="financeStore.topClientsPaginated.data.length === 0">
+                    <td colspan="4" class="text-center py-8 text-muted">Nenhum cliente encontrado.</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -497,16 +541,25 @@ const getComparisonPercent = (current, previous) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id">
-                <td>
-                  <span class="font-medium text-slate-700">{{ proc._id }}</span>
-                </td>
-                <td class="text-right">{{ proc.count }}</td>
-                <td class="text-right font-bold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
-              </tr>
-               <tr v-if="financeStore.topProceduresPaginated.data.length === 0">
-                  <td colspan="3" class="text-center py-8 text-muted">Nenhum procedimento encontrado.</td>
-              </tr>
+              <template v-if="financeStore.topProceduresPaginated.isLoading">
+                  <tr v-for="i in 5" :key="i">
+                      <td><AppSkeleton width="150px" height="16px" /></td>
+                      <td class="text-right"><AppSkeleton width="40px" height="16px" class="ml-auto" /></td>
+                      <td class="text-right"><AppSkeleton width="80px" height="16px" class="ml-auto" /></td>
+                  </tr>
+              </template>
+              <template v-else>
+                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id">
+                    <td>
+                    <span class="font-medium text-slate-700">{{ proc._id }}</span>
+                    </td>
+                    <td class="text-right">{{ proc.count }}</td>
+                    <td class="text-right font-bold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
+                </tr>
+                <tr v-if="financeStore.topProceduresPaginated.data.length === 0">
+                    <td colspan="3" class="text-center py-8 text-muted">Nenhum procedimento encontrado.</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -803,6 +856,9 @@ const getComparisonPercent = (current, previous) => {
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
   padding: 1.5rem;
+  height: 550px;
+  display: flex;
+  flex-direction: column;
 }
 
 .search-box {
@@ -826,12 +882,14 @@ const getComparisonPercent = (current, previous) => {
 
 .table-responsive {
   overflow-x: auto;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .premium-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 0.5rem;
+  border-spacing: 0 0.3rem;
 }
 
 .premium-table th {
