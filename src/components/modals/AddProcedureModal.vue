@@ -11,6 +11,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  isLoading: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -19,7 +23,6 @@ const proceduresStore = useProceduresStore()
 
 const selectedProcedureId = ref('')
 const discountPercentage = ref(0)
-const isLoading = ref(false)
 
 // Carrega os procedimentos ao montar o modal
 onMounted(async () => {
@@ -176,7 +179,8 @@ function handleProcedureChange() {
         <AppButton
           variant="primary"
           @click="handleSubmit"
-          :disabled="!selectedProcedureId"
+          :disabled="!selectedProcedureId || isLoading"
+          :loading="isLoading"
           class="btn-save"
         >
           <Check :size="18" />

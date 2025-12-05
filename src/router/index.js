@@ -124,6 +124,43 @@ router.beforeEach((to, from, next) => {
 })
 
 
+// Função para criar favicon com cantos arredondados
+const createRoundedFavicon = (imageUrl, callback) => {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onload = () => {
+    const size = 64
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+
+    // Desenhar círculo com cantos arredondados (border-radius)
+    const radius = size * 0.2 // 20% de arredondamento
+    ctx.beginPath()
+    ctx.moveTo(radius, 0)
+    ctx.lineTo(size - radius, 0)
+    ctx.quadraticCurveTo(size, 0, size, radius)
+    ctx.lineTo(size, size - radius)
+    ctx.quadraticCurveTo(size, size, size - radius, size)
+    ctx.lineTo(radius, size)
+    ctx.quadraticCurveTo(0, size, 0, size - radius)
+    ctx.lineTo(0, radius)
+    ctx.quadraticCurveTo(0, 0, radius, 0)
+    ctx.closePath()
+    ctx.clip()
+
+    // Desenhar a imagem dentro do clipping path
+    ctx.drawImage(img, 0, 0, size, size)
+
+    callback(canvas.toDataURL('image/png'))
+  }
+  img.onerror = () => {
+    callback(imageUrl) // Fallback para a imagem original
+  }
+  img.src = imageUrl
+}
+
 router.afterEach((to) => {
   nextTick(() => {
     const setMetaTag = (name, content) => {
@@ -150,8 +187,11 @@ router.afterEach((to) => {
     const appleTouchIcon = document.getElementById('apple-touch-icon')
 
     if (clinicLogo) {
-      if (favicon) favicon.href = clinicLogo
-      if (appleTouchIcon) appleTouchIcon.href = clinicLogo
+      // Criar favicon com cantos arredondados
+      createRoundedFavicon(clinicLogo, (roundedUrl) => {
+        if (favicon) favicon.href = roundedUrl
+        if (appleTouchIcon) appleTouchIcon.href = roundedUrl
+      })
     } else {
       if (favicon) favicon.href = '/activity.svg'
       if (appleTouchIcon) appleTouchIcon.href = '/activity.svg'

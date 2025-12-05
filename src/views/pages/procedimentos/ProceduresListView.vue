@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   X,
   Check,
+  LoaderCircle,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
@@ -26,6 +27,7 @@ const procedures = computed(() => proceduresStore.procedures)
 const actionsMenuOpenFor = ref(null)
 const selectedProcedure = ref(null)
 const showFormModal = ref(false)
+const isSaving = ref(false)
 
 onMounted(async () => {
   await proceduresStore.fetchProcedures()
@@ -69,6 +71,8 @@ function closeModal() {
 }
 
 async function handleSave() {
+  if (isSaving.value) return
+  
   if (!selectedProcedure.value.name) {
     toast.error('O nome do procedimento é obrigatório.')
     return
@@ -82,25 +86,31 @@ async function handleSave() {
     return
   }
 
-  const procedureData = { ...selectedProcedure.value }
-  
-  let result
-  if (procedureData._id) {
-    result = await proceduresStore.updateProcedure(procedureData._id, procedureData)
-    if (result.success) {
-      toast.success('Procedimento atualizado com sucesso!')
-    }
-  } else {
-    result = await proceduresStore.createProcedure(procedureData)
-    if (result.success) {
-      toast.success('Procedimento criado com sucesso!')
-    }
-  }
+  isSaving.value = true
 
-  if (!result.success) {
-    toast.error(proceduresStore.error || 'Erro ao salvar procedimento.')
-  } else {
-    closeModal()
+  try {
+    const procedureData = { ...selectedProcedure.value }
+    
+    let result
+    if (procedureData._id) {
+      result = await proceduresStore.updateProcedure(procedureData._id, procedureData)
+      if (result.success) {
+        toast.success('Procedimento atualizado com sucesso!')
+      }
+    } else {
+      result = await proceduresStore.createProcedure(procedureData)
+      if (result.success) {
+        toast.success('Procedimento criado com sucesso!')
+      }
+    }
+
+    if (!result.success) {
+      toast.error(proceduresStore.error || 'Erro ao salvar procedimento.')
+    } else {
+      closeModal()
+    }
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -334,8 +344,9 @@ const getPricingTypeInfo = (type) => {
             <X :size="18" />
             Cancelar
           </AppButton>
-          <AppButton variant="secondary" @click="handleSave" class="btn-save">
-            <Check :size="18" />
+          <AppButton variant="secondary" @click="handleSave" class="btn-save" :disabled="isSaving">
+            <LoaderCircle v-if="isSaving" :size="18" class="animate-spin" />
+            <Check v-else :size="18" />
             {{ selectedProcedure._id ? 'Salvar Alterações' : 'Criar Procedimento' }}
           </AppButton>
         </div>
@@ -658,6 +669,19 @@ th.actions-header .th-content {
   50% {
     opacity: 0.6;
   }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 .skeleton-row,

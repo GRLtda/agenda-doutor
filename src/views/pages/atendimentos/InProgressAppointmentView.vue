@@ -268,14 +268,17 @@ onMounted(async () => {
 
   await patientsStore.fetchPatientById(patientId)
   patient.value = patientsStore.selectedPatient
-  await appointmentsStore.fetchAppointmentsByDate()
-  appointment.value = appointmentsStore.appointments.find((appt) => appt._id === appointmentId)
 
-  if (!appointment.value) {
+  // ✨ Buscar agendamento pelo ID diretamente (funciona para qualquer data)
+  const { success, data } = await appointmentsStore.fetchAppointmentById(appointmentId)
+  
+  if (!success || !data) {
     toast.error('Agendamento não encontrado.')
     router.push('/app/atendimentos')
     return
   }
+
+  appointment.value = data
 
   isViewMode.value = appointment.value.status === 'Realizado'
 
@@ -428,13 +431,13 @@ const formatDate = (dateString) => {
     <AddProcedureModal
       v-if="showAddProcedureModal"
       :patient-id="patientId"
+      :is-loading="isAddingProcedure"
       @close="showAddProcedureModal = false"
       @save="handleAddProcedure"
     />
 
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
 
-    <!-- ✨ Sidebar moved to left (Full Height) -->
     <aside class="left-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
       <button @click="isSidebarOpen = false" class="mobile-close-btn">
         <X :size="24" />
@@ -539,12 +542,8 @@ const formatDate = (dateString) => {
             class="desktop-only"
           />
 
-          <button v-if="isViewMode" @click="router.back()" class="btn-secondary-solid">
-            <ArrowLeft :size="16" />
-            Voltar
-          </button>
           <button
-            v-else
+            v-if="!isViewMode"
             @click="saveAndFinish"
             class="btn-finish-appointment"
             :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
@@ -645,6 +644,7 @@ const formatDate = (dateString) => {
                 <div class="section-header">
                   <h3 class="column-title mb-0">Procedimentos</h3>
                   <AppButton
+                    v-if="!isViewMode"
                     variant="ghost"
                     size="sm"
                     @click="showAddProcedureModal = true"
@@ -734,7 +734,7 @@ const formatDate = (dateString) => {
                         </div>
                         <div class="anamnesis-actions">
                             <span class="status-badge pending">Pendente</span>
-                            <button class="btn-edit-small" @click="openAnamnesisModal(anamnesis, true)" title="Responder">
+                            <button v-if="!isViewMode" class="btn-edit-small" @click="openAnamnesisModal(anamnesis, true)" title="Responder">
                                 <Pencil :size="14" />
                             </button>
                         </div>
@@ -1029,6 +1029,8 @@ const formatDate = (dateString) => {
   align-items: center;
   z-index: 100;
 }
+
+
 
 .modal-content {
   background-color: white;
@@ -2134,6 +2136,19 @@ const formatDate = (dateString) => {
   background-color: #f8f9fa;
   color: #6b7280;
   gap: 1rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 .sidebar-footer {

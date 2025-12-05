@@ -12,9 +12,13 @@ import {
   Play,
   Pause,
   Calendar,
-  Activity
+  Activity,
+  X,
+  Check
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import SideDrawer from '@/components/global/SideDrawer.vue'
+import FormInput from '@/components/global/FormInput.vue'
 
 const workflowsStore = useWorkflowsStore()
 const router = useRouter()
@@ -22,6 +26,23 @@ const toast = useToast()
 
 const workflows = computed(() => workflowsStore.workflows)
 const actionsMenuOpenFor = ref(null)
+
+// Estado do modal de criação
+const showCreateModal = ref(false)
+const newWorkflowData = ref({
+  name: '',
+  description: ''
+})
+const isCreating = ref(false)
+
+// Estado do modal de edição
+const showEditModal = ref(false)
+const editWorkflowData = ref({
+  _id: null,
+  name: '',
+  description: ''
+})
+const isEditing = ref(false)
 
 onMounted(async () => {
   await workflowsStore.fetchWorkflows()
@@ -36,15 +57,40 @@ function toggleActionsMenu(id) {
   actionsMenuOpenFor.value = actionsMenuOpenFor.value === id ? null : id
 }
 
+function openCreateModal() {
+  newWorkflowData.value = {
+    name: '',
+    description: ''
+  }
+  showCreateModal.value = true
+}
+
+function closeCreateModal() {
+  showCreateModal.value = false
+  newWorkflowData.value = {
+    name: '',
+    description: ''
+  }
+}
+
 async function handleCreate() {
+  if (!newWorkflowData.value.name.trim()) {
+    toast.error('O nome do workflow é obrigatório.')
+    return
+  }
+
+  isCreating.value = true
   try {
     const newWorkflow = await workflowsStore.createWorkflow({
-      name: 'Novo Workflow',
-      description: 'Descrição do workflow'
+      name: newWorkflowData.value.name.trim(),
+      description: newWorkflowData.value.description.trim()
     })
+    closeCreateModal()
     router.push(`/app/workflows/${newWorkflow._id}`)
   } catch (error) {
     // Erro já tratado no store
+  } finally {
+    isCreating.value = false
   }
 }
 
@@ -53,6 +99,46 @@ async function handleDelete(id) {
     await workflowsStore.deleteWorkflow(id)
   }
   actionsMenuOpenFor.value = null
+}
+
+function openEditModal(workflow) {
+  editWorkflowData.value = {
+    _id: workflow._id,
+    name: workflow.name,
+    description: workflow.description || ''
+  }
+  actionsMenuOpenFor.value = null
+  showEditModal.value = true
+}
+
+function closeEditModal() {
+  showEditModal.value = false
+  editWorkflowData.value = {
+    _id: null,
+    name: '',
+    description: ''
+  }
+}
+
+async function handleEdit() {
+  if (!editWorkflowData.value.name.trim()) {
+    toast.error('O nome do workflow é obrigatório.')
+    return
+  }
+
+  isEditing.value = true
+  try {
+    await workflowsStore.updateWorkflow(editWorkflowData.value._id, {
+      name: editWorkflowData.value.name.trim(),
+      description: editWorkflowData.value.description.trim()
+    })
+    toast.success('Workflow atualizado com sucesso!')
+    closeEditModal()
+  } catch (error) {
+    // Erro já tratado no store
+  } finally {
+    isEditing.value = false
+  }
 }
 
 function formatDate(dateString) {
@@ -69,7 +155,7 @@ function formatDate(dateString) {
         <p class="subtitle">Automatize processos e gerencie fluxos de trabalho.</p>
       </div>
       <div class="header-actions">
-        <AppButton variant="primary" @click="handleCreate" class="add-btn">
+        <AppButton variant="primary" @click="openCreateModal" class="add-btn">
           <Plus :size="16" />
           Novo Workflow
         </AppButton>
@@ -129,7 +215,7 @@ function formatDate(dateString) {
                     <p class="empty-state-text">
                       Crie seu primeiro fluxo de automação.
                     </p>
-                    <AppButton variant="primary" @click="handleCreate" class="btn-primary-sm">
+                    <AppButton variant="primary" @click="openCreateModal" class="btn-primary-sm">
                       <Plus :size="16" />
                       <span>Criar Workflow</span>
                     </AppButton>
@@ -169,7 +255,7 @@ function formatDate(dateString) {
                     </button>
                     <Transition name="fade">
                       <div v-if="actionsMenuOpenFor === workflow._id" class="actions-dropdown">
-                        <button @click.stop="goToWorkflow(workflow._id)" class="dropdown-item">
+                        <button @click.stop="openEditModal(workflow)" class="dropdown-item">
                           <Pencil :size="14" /> Editar
                         </button>
                          <!-- Futuro: Ativar/Desativar -->
@@ -186,6 +272,110 @@ function formatDate(dateString) {
         </table>
       </div>
     </div>
+
+    <!-- Modal Lateral para Criação de Workflow -->
+    <SideDrawer v-if="showCreateModal" @close="closeCreateModal">
+      <template #header>
+        <div class="drawer-header">
+          <div class="header-left">
+            <h2 class="drawer-title">Novo Workflow</h2>
+            <span class="drawer-subtitle">Defina o nome e descrição do seu workflow</span>
+          </div>
+          <button @click="closeCreateModal" class="close-btn-header">
+            <X :size="24" />
+          </button>
+        </div>
+      </template>
+
+      <div class="workflow-form">
+        <FormInput
+          v-model="newWorkflowData.name"
+          label="Nome do Workflow"
+          placeholder="Ex: Lembrete de consulta"
+          :required="true"
+        />
+
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea
+            v-model="newWorkflowData.description"
+            class="form-textarea"
+            placeholder="Descreva o objetivo deste workflow..."
+            rows="4"
+          ></textarea>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="drawer-footer">
+          <AppButton variant="default" @click="closeCreateModal" class="btn-cancel">
+            <X :size="18" />
+            Cancelar
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            @click="handleCreate"
+            :disabled="isCreating || !newWorkflowData.name.trim()"
+            class="btn-save"
+          >
+            <Check :size="18" />
+            {{ isCreating ? 'Criando...' : 'Criar Workflow' }}
+          </AppButton>
+        </div>
+      </template>
+    </SideDrawer>
+
+    <!-- Modal Lateral para Edição de Workflow -->
+    <SideDrawer v-if="showEditModal" @close="closeEditModal">
+      <template #header>
+        <div class="drawer-header">
+          <div class="header-left">
+            <h2 class="drawer-title">Editar Workflow</h2>
+            <span class="drawer-subtitle">Atualize as informações do seu workflow</span>
+          </div>
+          <button @click="closeEditModal" class="close-btn-header">
+            <X :size="24" />
+          </button>
+        </div>
+      </template>
+
+      <div class="workflow-form">
+        <FormInput
+          v-model="editWorkflowData.name"
+          label="Nome do Workflow"
+          placeholder="Ex: Lembrete de consulta"
+          :required="true"
+        />
+
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea
+            v-model="editWorkflowData.description"
+            class="form-textarea"
+            placeholder="Descreva o objetivo deste workflow..."
+            rows="4"
+          ></textarea>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="drawer-footer">
+          <AppButton variant="default" @click="closeEditModal" class="btn-cancel">
+            <X :size="18" />
+            Cancelar
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            @click="handleEdit"
+            :disabled="isEditing || !editWorkflowData.name.trim()"
+            class="btn-save"
+          >
+            <Check :size="18" />
+            {{ isEditing ? 'Salvando...' : 'Salvar Alterações' }}
+          </AppButton>
+        </div>
+      </template>
+    </SideDrawer>
   </div>
 </template>
 
@@ -384,5 +574,94 @@ th {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+/* Modal Drawer Styles */
+.drawer-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.drawer-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.drawer-subtitle {
+  font-size: 0.875rem;
+  color: var(--cinza-texto);
+}
+
+.workflow-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: var(--branco);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.form-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.drawer-footer {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.btn-cancel,
+.btn-save {
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .btn-cancel,
+  .btn-save {
+    flex: 1;
+    width: auto;
+  }
 }
 </style>

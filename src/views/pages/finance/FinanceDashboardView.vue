@@ -130,14 +130,24 @@ const getGradient = (ctx, chartArea, colorStart, colorEnd) => {
 }
 
 const dailyRevenueChartData = computed(() => {
+  // Quando período é 'day', usa hoursRevenue; caso contrário, usa dailyRevenue
+  const revenueData = selectedPeriod.value === 'day' 
+    ? (financeStore.hoursRevenue || [])
+    : (financeStore.dailyRevenue || [])
+  
   return {
-    labels: financeStore.dailyRevenue.map(d => {
-        const date = new Date(d._id + 'T00:00:00')
-        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    labels: revenueData.map(d => {
+      if (selectedPeriod.value === 'day') {
+        // Para dia, mostra apenas a hora (ex: "13:00")
+        const timePart = d._id.split(' ')[1] || d._id
+        return timePart
+      }
+      const date = new Date(d._id + 'T00:00:00')
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
     }),
     datasets: [
       {
-        label: 'Receita',
+        label: selectedPeriod.value === 'day' ? 'Receita por Hora' : 'Receita',
         borderColor: '#3b82f6', // Azul Principal
         backgroundColor: (context) => {
           const chart = context.chart
@@ -145,7 +155,7 @@ const dailyRevenueChartData = computed(() => {
           if (!chartArea) return null
           return getGradient(ctx, chartArea, 'rgba(59, 130, 246, 0.0)', 'rgba(59, 130, 246, 0.2)')
         },
-        data: financeStore.dailyRevenue.map(d => d.totalRevenue),
+        data: revenueData.map(d => d.totalRevenue),
         tension: 0.4, // Smooth curve
         fill: true,
         pointRadius: 0,
@@ -267,6 +277,7 @@ const doughnutOptions = {
     },
     tooltip: {
       backgroundColor: '#fff',
+      titleColor: '#1e293b',
       bodyColor: '#475569',
       borderColor: '#e2e8f0',
       borderWidth: 1,
@@ -408,7 +419,6 @@ const getComparisonPercent = (current, previous) => {
       <div class="chart-card main-chart-card">
         <div class="card-header">
           <h3 class="card-title">Evolução da Receita</h3>
-          <button class="icon-btn"><Filter :size="16" /></button>
         </div>
         <div class="chart-wrapper">
           <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
@@ -461,7 +471,40 @@ const getComparisonPercent = (current, previous) => {
             />
           </div>
         </div>
-        <div class="table-responsive">
+        
+        <!-- Mobile Cards View -->
+        <div class="mobile-cards-list">
+          <template v-if="financeStore.topClientsPaginated.isLoading">
+            <div v-for="i in 3" :key="i" class="mobile-card">
+              <div class="mobile-card-header">
+                <AppSkeleton width="36px" height="36px" borderRadius="50%" />
+                <div class="mobile-card-info">
+                  <AppSkeleton width="100px" height="14px" class="mb-1" />
+                  <AppSkeleton width="60px" height="12px" />
+                </div>
+              </div>
+              <AppSkeleton width="80px" height="18px" />
+            </div>
+          </template>
+          <template v-else>
+            <div v-for="client in financeStore.topClientsPaginated.data" :key="client._id" class="mobile-card">
+              <div class="mobile-card-header">
+                <div class="client-avatar">{{ client.name.charAt(0) }}</div>
+                <div class="mobile-card-info">
+                  <span class="mobile-card-name">{{ client.name }}</span>
+                  <span class="mobile-card-sub">{{ client.appointmentsCount }} procedimentos</span>
+                </div>
+              </div>
+              <span class="mobile-card-value">{{ formatCurrency(client.totalRevenue) }}</span>
+            </div>
+            <div v-if="financeStore.topClientsPaginated.data.length === 0" class="mobile-empty">
+              Nenhum cliente encontrado.
+            </div>
+          </template>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="table-responsive desktop-only">
           <table class="premium-table">
             <thead>
               <tr>
@@ -506,7 +549,7 @@ const getComparisonPercent = (current, previous) => {
             </tbody>
           </table>
         </div>
-        <div class="p-4 border-t border-gray-100" v-if="financeStore.topClientsPaginated.pagination.total > 0">
+        <div class="card-footer" v-if="financeStore.topClientsPaginated.pagination.total > 0">
             <AppPagination
                 :current-page="financeStore.topClientsPaginated.pagination.page"
                 :total-pages="financeStore.topClientsPaginated.pagination.pages"
@@ -531,7 +574,38 @@ const getComparisonPercent = (current, previous) => {
             />
           </div>
         </div>
-        <div class="table-responsive">
+
+        <!-- Mobile Cards View -->
+        <div class="mobile-cards-list">
+          <template v-if="financeStore.topProceduresPaginated.isLoading">
+            <div v-for="i in 3" :key="i" class="mobile-card">
+              <div class="mobile-card-header">
+                <div class="mobile-card-info">
+                  <AppSkeleton width="120px" height="14px" class="mb-1" />
+                  <AppSkeleton width="50px" height="12px" />
+                </div>
+              </div>
+              <AppSkeleton width="80px" height="18px" />
+            </div>
+          </template>
+          <template v-else>
+            <div v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" class="mobile-card">
+              <div class="mobile-card-header">
+                <div class="mobile-card-info">
+                  <span class="mobile-card-name">{{ proc._id }}</span>
+                  <span class="mobile-card-sub">{{ proc.count }} realizados</span>
+                </div>
+              </div>
+              <span class="mobile-card-value text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</span>
+            </div>
+            <div v-if="financeStore.topProceduresPaginated.data.length === 0" class="mobile-empty">
+              Nenhum procedimento encontrado.
+            </div>
+          </template>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="table-responsive desktop-only">
           <table class="premium-table">
             <thead>
               <tr>
@@ -563,7 +637,7 @@ const getComparisonPercent = (current, previous) => {
             </tbody>
           </table>
         </div>
-        <div class="p-4 border-t border-gray-100" v-if="financeStore.topProceduresPaginated.pagination.total > 0">
+        <div class="card-footer" v-if="financeStore.topProceduresPaginated.pagination.total > 0">
             <AppPagination
                 :current-page="financeStore.topProceduresPaginated.pagination.page"
                 :total-pages="financeStore.topProceduresPaginated.pagination.pages"
@@ -773,6 +847,15 @@ const getComparisonPercent = (current, previous) => {
   grid-template-columns: 2fr 1fr;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 1200px) {
+  .charts-section {
+    grid-template-columns: 1.5fr 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -788,14 +871,18 @@ const getComparisonPercent = (current, previous) => {
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .chart-card.full-width {
-    width: 100%;
+  width: 100%;
 }
 
 .mb-8 {
-    margin-bottom: 2rem;
+  margin-bottom: 2rem;
 }
 
 .card-header {
@@ -811,30 +898,65 @@ const getComparisonPercent = (current, previous) => {
   color: var(--preto);
 }
 
-.icon-btn {
-  background: transparent;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.4rem;
-  color: var(--cinza-texto);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.icon-btn:hover {
-  background-color: #f8fafc;
-  color: var(--preto);
-}
-
 .chart-wrapper {
   height: 300px;
   width: 100%;
+  max-width: 100%;
+  position: relative;
 }
 
 .doughnut-wrapper {
   height: 300px;
   width: 100%;
+  max-width: 100%;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doughnut-card {
+  min-width: 0;
+}
+
+/* Responsividade dos gráficos */
+@media (max-width: 768px) {
+  .charts-section {
+    gap: 1rem;
+  }
+
+  .chart-wrapper {
+    height: 250px;
+  }
+  
+  .doughnut-wrapper {
+    height: 280px;
+  }
+  
+  .chart-card {
+    padding: 1rem;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-wrapper {
+    height: 200px;
+  }
+  
+  .doughnut-wrapper {
+    height: 220px;
+  }
+  
+  .card-title {
+    font-size: 0.95rem;
+  }
 }
 
 /* Lists Grid */
@@ -967,6 +1089,257 @@ const getComparisonPercent = (current, previous) => {
 .text-violet-500 { color: #8b5cf6; }
 .text-amber-500 { color: #f59e0b; }
 .text-slate-700 { color: #334155; }
-.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.text-sm { font-size: 0.875rem; }
+/* Card Footer */
+.card-footer {
+  padding: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ===================== */
+/* Mobile Card Components */
+/* ===================== */
+
+.mobile-cards-list {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.mobile-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem;
+  background-color: #f8fafc;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s ease;
+}
+
+.mobile-card:hover {
+  background-color: #f1f5f9;
+}
+
+.mobile-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-card-name {
+  font-weight: 600;
+  color: var(--preto);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-card-sub {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  margin-top: 0.125rem;
+}
+
+.mobile-card-value {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--preto);
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.mobile-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
+}
+
+/* ===================== */
+/* Mobile Responsive     */
+/* ===================== */
+
+@media (max-width: 768px) {
+  .finance-dashboard {
+    padding: 0;
+  }
+
+  /* Show mobile cards, hide desktop tables */
+  .mobile-cards-list {
+    display: flex;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Header Mobile */
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .header-text {
+    width: 100%;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    font-size: 0.875rem;
+  }
+
+  /* Period Tabs Mobile */
+  .period-tabs {
+    width: 100%;
+    justify-content: center;
+    background-color: #f1f5f9;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Balance Card Mobile */
+  .balance-card {
+    padding: 1.25rem;
+    min-height: auto;
+  }
+
+  .balance-value {
+    font-size: 1.75rem;
+  }
+
+  .balance-trend {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
+  }
+
+  /* KPI Cards Mobile */
+  .kpi-card {
+    padding: 1.25rem;
+  }
+
+  .kpi-value {
+    font-size: 1.25rem;
+  }
+
+  /* Charts Mobile */
+  .chart-card {
+    padding: 1rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-title {
+    font-size: 1rem;
+  }
+
+  .chart-wrapper,
+  .doughnut-wrapper {
+    height: 250px;
+  }
+
+  /* Table Cards Mobile */
+  .table-card {
+    padding: 1rem;
+    height: auto;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .search-box {
+    width: 100%;
+    padding: 0.5rem 0.875rem;
+  }
+
+  .search-box input {
+    width: 100%;
+    font-size: 0.875rem;
+  }
+
+  /* Card Footer Mobile */
+  .card-footer {
+    padding: 0.875rem;
+  }
+
+  /* Client Avatar in mobile cards */
+  .mobile-card .client-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .balance-value {
+    font-size: 1.5rem;
+  }
+
+  .balance-trend span {
+    font-size: 0.7rem;
+  }
+
+  .kpi-value {
+    font-size: 1.1rem;
+  }
+
+  .kpi-label {
+    font-size: 0.8rem;
+  }
+
+  .chart-wrapper,
+  .doughnut-wrapper {
+    height: 200px;
+  }
+
+  .mobile-card {
+    padding: 0.75rem;
+  }
+
+  .mobile-card-name {
+    font-size: 0.85rem;
+  }
+
+  .mobile-card-value {
+    font-size: 0.875rem;
+  }
+
+  .tab-btn {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
 </style>

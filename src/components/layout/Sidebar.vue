@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute } from 'vue-router'
@@ -44,6 +44,14 @@ const isClinicDropdownOpen = ref(false)
 // Estado para controlar quais menus estão expandidos
 const expandedItems = ref([])
 
+// Refs para o indicador flutuante
+const sidebarNavRef = ref(null)
+const indicatorStyle = ref({
+  top: '0px',
+  height: '0px',
+  opacity: 0
+})
+
 const toggleExpand = (key) => {
   if (props.isCollapsed) return
   const index = expandedItems.value.indexOf(key)
@@ -61,43 +69,106 @@ const isParentActive = (children) => {
   return children.some(child => route.path.startsWith(child.to))
 }
 
-// Computed para filtrar links baseado no plano
-const mainNavLinks = computed(() => {
+// Atualiza posição do indicador
+const updateIndicator = () => {
+  nextTick(() => {
+    if (!sidebarNavRef.value) return
+    
+    const activeLink = sidebarNavRef.value.querySelector('.active-link, .nav-link.active')
+    
+    if (activeLink) {
+      const navRect = sidebarNavRef.value.getBoundingClientRect()
+      const linkRect = activeLink.getBoundingClientRect()
+      
+      indicatorStyle.value = {
+        top: `${linkRect.top - navRect.top}px`,
+        height: `${linkRect.height}px`,
+        opacity: 1
+      }
+    } else {
+      indicatorStyle.value = { ...indicatorStyle.value, opacity: 0 }
+    }
+  })
+}
+
+// Watch na rota para atualizar indicador
+watch(() => route.path, () => {
+  updateIndicator()
+}, { immediate: true })
+
+// Atualizar ao montar
+onMounted(() => {
+  setTimeout(updateIndicator, 100)
+})
+
+// Computed para organizar links por seções/módulos
+const sidebarSections = computed(() => {
+  // Seção Principal
+  const principalSection = {
+    title: null, // Sem título para a primeira seção
+    links: [
+      { icon: LayoutDashboard, text: 'Resumo', to: '/app' },
+      { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
+      { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
+    ]
+  }
+
+  // Seção Gestão
+  const gestaoLinks = [
+    { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
+    { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
+  ]
+  
+  // Adiciona Financeiro apenas se tiver acesso
+  if (hasAccess('finance')) {
+    gestaoLinks.push({ icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' })
+  }
+  
+  const gestaoSection = {
+    title: 'Gestão',
+    links: gestaoLinks
+  }
+
+  // Seção Marketing - com subitens
   const allMarketingChildren = [
     { text: 'Visão Geral', to: '/app/marketing', icon: LayoutDashboard, feature: 'marketing_overview' },
     { text: 'Mensagens', to: '/app/marketing/mensagens', icon: MessageSquare, feature: 'marketing_messages' },
     { text: 'Modelos', to: '/app/marketing/modelos', icon: LayoutTemplate, feature: 'marketing_templates' },
     { text: 'Conexão', to: '/app/marketing/conexao', icon: Link, feature: 'marketing_connection' },
     { text: 'Histórico', to: '/app/marketing/logs', icon: History, feature: 'marketing_logs' },
-    { text: 'Workflows', to: '/app/workflows', icon: Workflow, feature: 'workflows' },
   ]
-
-  // Filtra os children baseado no acesso
+  
   const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))
-
-  // Links base
-  const links = [
-    { icon: LayoutDashboard, text: 'Resumo', to: '/app' },
-    { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
-    { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
-    { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
-    { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
+  
+  const marketingLinks = [
+    {
+      icon: Megaphone,
+      text: 'Marketing',
+      key: 'marketing',
+      children: filteredMarketingChildren
+    }
   ]
-
-  // Adiciona Financeiro apenas se tiver acesso
-  if (hasAccess('finance')) {
-    links.push({ icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' })
+  
+  // Adiciona Workflows se tiver acesso
+  if (hasAccess('workflows')) {
+    marketingLinks.push({ icon: Workflow, text: 'Workflows', to: '/app/workflows' })
+  }
+  
+  const marketingSection = {
+    title: 'Automação',
+    links: marketingLinks
   }
 
-  // Adiciona Marketing
-  links.push({
-    icon: Megaphone,
-    text: 'Marketing',
-    key: 'marketing',
-    children: filteredMarketingChildren
-  })
+  // Seção Configurações
+  const configSection = {
+    title: 'Sistema',
+    links: [
+      { icon: Settings, text: 'Configurações', to: '/app/configuracoes' },
+      { icon: LifeBuoy, text: 'Suporte', to: '/app/suporte' },
+    ]
+  }
 
-  return links
+  return [principalSection, gestaoSection, marketingSection]
 })
 
 </script>
@@ -121,58 +192,75 @@ const mainNavLinks = computed(() => {
       </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <ul class="nav-links">
-        <li v-for="link in mainNavLinks" :key="link.text" class="nav-item">
-          <!-- Item com Submenu -->
-          <div v-if="link.children" class="nav-item-wrapper">
-            <div
-              class="nav-link parent-link"
-              :class="{ 'active': isParentActive(link.children), 'expanded': isExpanded(link.key) }"
-              @click="toggleExpand(link.key)"
+    <nav ref="sidebarNavRef" class="sidebar-nav">
+      <!-- Indicador flutuante que desliza -->
+      <div 
+        class="sliding-indicator" 
+        :style="{ 
+          top: indicatorStyle.top, 
+          height: indicatorStyle.height,
+          opacity: indicatorStyle.opacity 
+        }"
+      ></div>
+      
+      <div v-for="(section, sectionIndex) in sidebarSections" :key="sectionIndex" class="nav-section">
+        <!-- Título da seção -->
+        <div v-if="section.title && !isCollapsed" class="section-title">
+          {{ section.title }}
+        </div>
+        <div v-else-if="section.title && isCollapsed" class="section-divider"></div>
+        
+        <ul class="nav-links">
+          <li v-for="link in section.links" :key="link.text" class="nav-item">
+            <!-- Item com Submenu -->
+            <div v-if="link.children" class="nav-item-wrapper">
+              <div
+                class="nav-link parent-link"
+                :class="{ 'active': isParentActive(link.children), 'expanded': isExpanded(link.key) }"
+                @click="toggleExpand(link.key)"
+                :title="isCollapsed ? link.text : ''"
+              >
+                <component :is="link.icon" :size="20" stroke-width="2" />
+                <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
+                <ChevronDown
+                  v-show="!isCollapsed"
+                  :size="16"
+                  class="chevron-icon"
+                  :class="{ 'rotate': isExpanded(link.key) }"
+                />
+              </div>
+
+              <!-- Submenu -->
+              <div
+                class="submenu-wrapper"
+                :class="{ 'is-open': isExpanded(link.key) && !isCollapsed }"
+              >
+                <ul class="submenu">
+                  <li v-for="child in link.children" :key="child.text">
+                    <RouterLink :to="child.to" class="submenu-link" active-class="active-child">
+                      <component :is="child.icon" :size="18" stroke-width="2" class="submenu-icon" />
+                      <span class="submenu-text">{{ child.text }}</span>
+                    </RouterLink>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Item Simples -->
+            <RouterLink
+              v-else
+              :to="link.to"
+              class="nav-link"
               :title="isCollapsed ? link.text : ''"
+              :active-class="link.to === '/app' ? '' : 'active-link'"
+              :exact-active-class="link.to === '/app' ? 'active-link' : ''"
             >
               <component :is="link.icon" :size="20" stroke-width="2" />
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
-              <ChevronDown
-                v-show="!isCollapsed"
-                :size="16"
-                class="chevron-icon"
-                :class="{ 'rotate': isExpanded(link.key) }"
-              />
-            </div>
-
-            <!-- Submenu -->
-            <div
-              class="submenu-wrapper"
-              :class="{ 'is-open': isExpanded(link.key) && !isCollapsed }"
-            >
-              <ul class="submenu">
-                <li v-for="child in link.children" :key="child.text">
-                  <RouterLink :to="child.to" class="submenu-link" active-class="active-child">
-                    <component :is="child.icon" :size="18" stroke-width="2" class="submenu-icon" />
-                    <span class="submenu-text">{{ child.text }}</span>
-                  </RouterLink>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Item Simples -->
-          <RouterLink
-            v-else
-            :to="link.to"
-            class="nav-link"
-            :title="isCollapsed ? link.text : ''"
-            :active-class="link.to === '/app' ? '' : 'active-link'"
-            :exact-active-class="link.to === '/app' ? 'active-link' : ''"
-          >
-            <component :is="link.icon" :size="20" stroke-width="2" />
-            <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
-          </RouterLink>
-        </li>
-      </ul>
-
+            </RouterLink>
+          </li>
+        </ul>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -275,8 +363,25 @@ const mainNavLinks = computed(() => {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  overflow-y: auto; /* Permite scroll se o menu for muito grande */
+  gap: 0;
+  overflow-y: auto;
+  position: relative; /* Para o indicador flutuante */
+}
+
+/* Indicador flutuante que desliza */
+.sliding-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  background-color: var(--azul-principal);
+  border-radius: 0 2px 2px 0;
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  pointer-events: none;
+  transform: scaleY(0.6);
+  transform-origin: center;
 }
 
 /* Esconde a barra de rolagem */
@@ -286,6 +391,31 @@ const mainNavLinks = computed(() => {
 .sidebar-nav::-webkit-scrollbar-thumb {
   background-color: #e5e7eb;
   border-radius: 4px;
+}
+
+/* Seções */
+.nav-section {
+  margin-bottom: 0.25rem;
+}
+
+.nav-section:first-child {
+  margin-top: 0;
+}
+
+.section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding: 0.5rem 0.75rem 0.375rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.section-divider {
+  height: 1px;
+  background-color: #e5e7eb;
+  margin: 0.5rem 0.5rem;
 }
 
 .nav-links {
@@ -311,12 +441,18 @@ const mainNavLinks = computed(() => {
   color: #525866;
   font-weight: 500;
   font-size: 0.875rem;
-  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
   cursor: pointer;
   user-select: none;
   border: 1px solid transparent;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s ease,
+              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link svg {
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .sidebar.is-collapsed .nav-link {
@@ -335,17 +471,28 @@ const mainNavLinks = computed(() => {
   display: none;
 }
 
+/* Hover suave */
 .nav-link:hover {
-  background-color: #edf0f4;
-  color: var(--preto);
+  background-color: #f0f2f5;
+  color: var(--azul-principal);
+  padding-left: 0.875rem;
 }
 
+.nav-link:hover svg {
+  color: var(--azul-principal);
+}
+
+/* Estado ativo com animação */
 .active-link, .nav-link.active {
-  background-color: var(--branco);
-  color: var(--preto);
+  background-color: #eef2ff;
+  color: var(--azul-principal);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f3f4f6;
+  border: 1px solid transparent;
+}
+
+.active-link svg, .nav-link.active svg {
+  color: var(--azul-principal);
+  transform: scale(1);
 }
 
 /* Chevron Icon */

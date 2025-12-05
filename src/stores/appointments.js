@@ -4,6 +4,7 @@ import {
   createAppointment as apiCreateAppointment,
   updateAppointment as apiUpdateAppointment,
   getAppointments as apiGetAppointments,
+  getAppointmentById as apiGetAppointmentById,
 } from '@/api/appointments'
 import apiClient from '@/api'
 import { useDashboardStore } from './dashboard'
@@ -12,6 +13,10 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   const appointments = ref([])
   const patientAppointments = ref([])
   const isLoading = ref(false)
+
+  // State dedicado para agendamentos do dia (AppointmentsView)
+  const todayAppointments = ref([])
+  const isTodayLoading = ref(false)
 
   const currentStartDate = ref(null)
   const currentEndDate = ref(null)
@@ -35,6 +40,41 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     } catch (error) {
       console.error('Erro ao buscar agendamentos:', error)
       appointments.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Função dedicada para buscar apenas os agendamentos de hoje
+  async function fetchTodayAppointments() {
+    isTodayLoading.value = true
+    try {
+      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const response = await apiGetAppointments({ startDate: today, endDate: today })
+
+      if (Array.isArray(response.data)) {
+        todayAppointments.value = response.data
+      } else {
+        console.warn('API de agendamentos não retornou um array.')
+        todayAppointments.value = []
+      }
+    } catch (error) {
+      console.error('Erro ao buscar agendamentos de hoje:', error)
+      todayAppointments.value = []
+    } finally {
+      isTodayLoading.value = false
+    }
+  }
+
+  // ✨ Função para buscar um agendamento específico pelo ID
+  async function fetchAppointmentById(appointmentId) {
+    isLoading.value = true
+    try {
+      const response = await apiGetAppointmentById(appointmentId)
+      return { success: true, data: response.data }
+    } catch (error) {
+      console.error('Erro ao buscar agendamento:', error)
+      return { success: false, error }
     } finally {
       isLoading.value = false
     }
@@ -78,8 +118,19 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     }
   }
 
+  function updateLocalStatus(appointmentId, newStatus) {
+    const todayIndex = todayAppointments.value.findIndex(a => a._id === appointmentId)
+    if (todayIndex !== -1) {
+      todayAppointments.value[todayIndex].status = newStatus
+    }
+
+    const index = appointments.value.findIndex(a => a._id === appointmentId)
+    if (index !== -1) {
+      appointments.value[index].status = newStatus
+    }
+  }
+
   async function updateAppointmentStatus(appointmentId, status) {
-    isLoading.value = true
     try {
       await apiUpdateAppointment(appointmentId, { status })
       const dashboardStore = useDashboardStore()
@@ -93,8 +144,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     } catch (error) {
       console.error('Erro ao atualizar status do agendamento:', error)
       return { success: false, error }
-    } finally {
-      isLoading.value = false
     }
   }
 
@@ -116,10 +165,17 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   return {
     isLoading,
     appointments,
+    // State e funções dedicadas para agendamentos do dia
+    todayAppointments,
+    isTodayLoading,
+    fetchTodayAppointments,
+    // Funções existentes
     fetchAppointmentsByDate,
+    fetchAppointmentById,
     createAppointment,
     updateAppointment,
     updateAppointmentStatus,
+    updateLocalStatus,
     fetchAppointmentsByPatient,
   }
 })

@@ -10,6 +10,7 @@ export const useFinanceStore = defineStore('finance', () => {
   const revenueSummary = ref({ totalRevenue: 0 })
   const revenueByProcedure = ref([])
   const dailyRevenue = ref([])
+  const hoursRevenue = ref([])
   const monthlyRevenue = ref([])
   const topClients = ref([])
   const topProcedures = ref([])
@@ -31,14 +32,15 @@ export const useFinanceStore = defineStore('finance', () => {
       const response = await apiClient.get('/finance/dashboard', { params: { period } })
       const data = response.data
 
-      revenueSummary.value = data.revenueSummary
-      revenueByProcedure.value = data.revenueByProcedure
-      dailyRevenue.value = data.dailyRevenue
-      monthlyRevenue.value = data.monthlyRevenue
-      topClients.value = data.topClients
-      kpi.value = data.kpi
-      comparison.value = data.comparison
-      topProcedures.value = data.topProcedures
+      revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
+      revenueByProcedure.value = data.revenueByProcedure || []
+      dailyRevenue.value = data.dailyRevenue || []
+      hoursRevenue.value = data.hoursRevenue || []
+      monthlyRevenue.value = data.monthlyRevenue || []
+      topClients.value = data.topClients || []
+      kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
+      comparison.value = data.comparison || { month: { current: 0, previous: 0 } }
+      topProcedures.value = data.topProcedures || []
 
     } catch (err) {
       console.error('Error fetching finance data:', err)
@@ -52,10 +54,10 @@ export const useFinanceStore = defineStore('finance', () => {
   const topClientsPaginated = ref({
     data: [],
     pagination: {
-        total: 0,
-        page: 1,
-        pages: 1,
-        limit: 5
+      total: 0,
+      page: 1,
+      pages: 1,
+      limit: 5
     },
     isLoading: false
   })
@@ -63,25 +65,25 @@ export const useFinanceStore = defineStore('finance', () => {
   async function fetchTopClients({ period = 'month', page = 1, search = '' } = {}) {
     topClientsPaginated.value.isLoading = true
     try {
-        const response = await apiClient.get('/finance/top-clients', { 
-            params: { period, page, search } 
-        })
-        topClientsPaginated.value.data = response.data.data
-        topClientsPaginated.value.pagination = response.data.pagination
+      const response = await apiClient.get('/finance/top-clients', {
+        params: { period, page, search }
+      })
+      topClientsPaginated.value.data = response.data.data
+      topClientsPaginated.value.pagination = response.data.pagination
     } catch (err) {
-        console.error('Error fetching top clients:', err)
+      console.error('Error fetching top clients:', err)
     } finally {
-        topClientsPaginated.value.isLoading = false
+      topClientsPaginated.value.isLoading = false
     }
   }
 
   const topProceduresPaginated = ref({
     data: [],
     pagination: {
-        total: 0,
-        page: 1,
-        pages: 1,
-        limit: 5
+      total: 0,
+      page: 1,
+      pages: 1,
+      limit: 5
     },
     isLoading: false
   })
@@ -89,15 +91,15 @@ export const useFinanceStore = defineStore('finance', () => {
   async function fetchTopProcedures({ period = 'month', page = 1, search = '' } = {}) {
     topProceduresPaginated.value.isLoading = true
     try {
-        const response = await apiClient.get('/finance/top-procedures', { 
-            params: { period, page, search } 
-        })
-        topProceduresPaginated.value.data = response.data.data
-        topProceduresPaginated.value.pagination = response.data.pagination
+      const response = await apiClient.get('/finance/top-procedures', {
+        params: { period, page, search }
+      })
+      topProceduresPaginated.value.data = response.data.data
+      topProceduresPaginated.value.pagination = response.data.pagination
     } catch (err) {
-        console.error('Error fetching top procedures:', err)
+      console.error('Error fetching top procedures:', err)
     } finally {
-        topProceduresPaginated.value.isLoading = false
+      topProceduresPaginated.value.isLoading = false
     }
   }
 
@@ -107,13 +109,14 @@ export const useFinanceStore = defineStore('finance', () => {
     revenueSummary,
     revenueByProcedure,
     dailyRevenue,
+    hoursRevenue,
     monthlyRevenue,
     topClients,
     topProcedures,
     kpi,
     comparison,
     fetchDashboardData,
-    
+
     // Pagination
     topClientsPaginated,
     fetchTopClients,
