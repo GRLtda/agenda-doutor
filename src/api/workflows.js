@@ -1,97 +1,84 @@
-import axios from 'axios'
-
-const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-})
-
-// Interceptor para adicionar token (se necessário, assumindo padrão do projeto)
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-})
+import apiClient from './index'
 
 export default {
     // Workflows
     getWorkflows(params = {}) {
-        return api.get('/workflows', { params })
+        return apiClient.get('/workflows', { params })
     },
 
     getNodeTypes() {
-        return api.get('/workflows/node-types')
+        return apiClient.get('/workflows/node-types')
     },
 
     getWorkflowById(id) {
-        return api.get(`/workflows/${id}`)
+        return apiClient.get(`/workflows/${id}`)
     },
 
     createWorkflow(data) {
-        return api.post('/workflows', data)
+        return apiClient.post('/workflows', data)
     },
 
     updateWorkflow(id, data) {
-        return api.patch(`/workflows/${id}`, data)
+        return apiClient.patch(`/workflows/${id}`, data)
     },
 
     activateWorkflow(id) {
-        return api.post(`/workflows/${id}/activate`)
+        return apiClient.post(`/workflows/${id}/activate`)
     },
 
     deactivateWorkflow(id) {
-        return api.post(`/workflows/${id}/deactivate`)
+        return apiClient.post(`/workflows/${id}/deactivate`)
     },
 
     deleteWorkflow(id) {
-        return api.delete(`/workflows/${id}`)
+        return apiClient.delete(`/workflows/${id}`)
     },
 
     // Nodes
     createNode(workflowId, data) {
-        return api.post(`/workflows/${workflowId}/nodes`, data)
+        return apiClient.post(`/workflows/${workflowId}/nodes`, data)
     },
 
     updateNode(nodeId, data) {
-        return api.patch(`/workflows/nodes/${nodeId}`, data)
+        return apiClient.patch(`/workflows/nodes/${nodeId}`, data)
     },
 
     updateNodePosition(nodeId, position) {
-        return api.patch(`/workflows/nodes/${nodeId}/position`, position)
+        return apiClient.patch(`/workflows/nodes/${nodeId}/position`, position)
     },
 
     deleteNode(nodeId) {
-        return api.delete(`/workflows/nodes/${nodeId}`)
+        return apiClient.delete(`/workflows/nodes/${nodeId}`)
     },
 
     // Edges
     createEdge(workflowId, data) {
-        return api.post(`/workflows/${workflowId}/edges`, data)
+        return apiClient.post(`/workflows/${workflowId}/edges`, data)
     },
 
     deleteEdge(edgeId) {
-        return api.delete(`/workflows/edges/${edgeId}`)
+        return apiClient.delete(`/workflows/edges/${edgeId}`)
     },
 
     // Runs
     getRuns(params = {}) {
-        return api.get('/workflows/runs', { params })
+        return apiClient.get('/workflows/runs', { params })
     },
 
     getRunById(runId) {
-        return api.get(`/workflows/runs/${runId}`)
+        return apiClient.get(`/workflows/runs/${runId}`)
     },
 
     getRunLogs(runId) {
-        return api.get(`/workflows/runs/${runId}/logs`)
+        return apiClient.get(`/workflows/runs/${runId}/logs`)
     },
 
     cancelRun(runId) {
-        return api.post(`/workflows/runs/${runId}/cancel`)
+        return apiClient.post(`/workflows/runs/${runId}/cancel`)
     },
 
     // Triggers
     triggerWorkflow(data) {
-        return api.post('/workflows/trigger', data)
+        return apiClient.post('/workflows/trigger', data)
     }
 }
