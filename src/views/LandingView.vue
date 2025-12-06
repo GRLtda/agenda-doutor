@@ -20,39 +20,14 @@ import {
   Play,
   ArrowRight,
   Plus,
-  FileQuestion,
   Minus,
-  Plus,
   FileQuestion,
-  Minus,
   Calendar,
   ShieldCheck,
   TrendingUp,
   Smartphone
 } from 'lucide-vue-next'
 
-const features = [
-  {
-    icon: Calendar,
-    title: 'Agendamento Inteligente',
-    description: 'Organize sua agenda com facilidade e evite conflitos de horários.'
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Segurança Total',
-    description: 'Seus dados e de seus pacientes protegidos com criptografia de ponta.'
-  },
-  {
-    icon: TrendingUp,
-    title: 'Gestão Financeira',
-    description: 'Acompanhe o fluxo de caixa e faturamento em tempo real.'
-  },
-  {
-    icon: Smartphone,
-    title: 'Acesso Remoto',
-    description: 'Acesse sua clínica de qualquer lugar, pelo computador ou celular.'
-  }
-]
 
 // 🎯 Foco apenas no plano Empresarial
 const planos = ref([
@@ -187,29 +162,6 @@ onMounted(() => {
       </div>
     </section>
 
-    <section class="features-section">
-      <div class="container">
-        <div class="features-grid">
-          <div 
-            v-for="(feature, index) in features" 
-            :key="index" 
-            class="feature-card"
-          >
-            <div class="icon-wrapper">
-              <component :is="feature.icon" :size="32" stroke-width="2" />
-            </div>
-            <h3 class="feature-title">{{ feature.title }}</h3>
-            <p class="feature-description">{{ feature.description }}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <Carousel
-      :images="carouselImages"
-      :auto-play="true"
-      :interval="4000"
-    />
 
     <section class="trusted-section" v-if="false">
       <div class="container">
