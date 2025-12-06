@@ -24,7 +24,8 @@ import {
   Bell,
   RotateCw,
   CalendarClock,
-  AlertCircle
+  AlertCircle,
+  Trash2 // ✨ Import Trash2 icon
 } from 'lucide-vue-next'
 import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
@@ -132,6 +133,20 @@ function handleCancelClick() {
     cancelConfirmTimer.value = setTimeout(() => {
       isConfirmingCancel.value = false
     }, 5000)
+  }
+}
+
+async function handleDelete() {
+  if (!confirm('Tem certeza que deseja excluir permanentemente este agendamento?')) {
+    return
+  }
+
+  const result = await appointmentsStore.deleteAppointment(props.event.originalEvent._id)
+  if (result.success) {
+    toast.success('Agendamento excluído.')
+    emit('close')
+  } else {
+    toast.error('Erro ao excluir agendamento.')
   }
 }
 
@@ -373,6 +388,15 @@ onUnmounted(() => {
             <Check :size="18" />
             Finalizar Atendimento
          </AppButton>
+
+         <!-- ✨ Delete Button -->
+         <button 
+           @click="handleDelete" 
+           class="btn-delete-modal" 
+           title="Excluir Agendamento"
+         >
+            <Trash2 :size="18" />
+         </button>
       </footer>
     </template>
   </SideDrawer>
@@ -919,5 +943,25 @@ onUnmounted(() => {
     font-size: 0.8rem;
     min-width: 0;
   }
+}
+
+.btn-delete-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #fee2e2;
+  background-color: #fef2f2;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 0 0 40px !important; /* Force width */
+}
+
+.btn-delete-modal:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
 }
 </style>

@@ -5,6 +5,7 @@ import {
   updateAppointment as apiUpdateAppointment,
   getAppointments as apiGetAppointments,
   getAppointmentById as apiGetAppointmentById,
+  deleteAppointment as apiDeleteAppointment,
 } from '@/api/appointments'
 import apiClient from '@/api'
 import { useDashboardStore } from './dashboard'
@@ -162,6 +163,27 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     }
   }
 
+  async function deleteAppointment(appointmentId) {
+    isLoading.value = true
+    try {
+      await apiDeleteAppointment(appointmentId)
+
+      // Remove from lists
+      todayAppointments.value = todayAppointments.value.filter(a => a._id !== appointmentId)
+      appointments.value = appointments.value.filter(a => a._id !== appointmentId)
+
+      const dashboardStore = useDashboardStore()
+      dashboardStore.fetchDashboardStats()
+
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error)
+      return { success: false, error }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     isLoading,
     appointments,
@@ -177,5 +199,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     updateAppointmentStatus,
     updateLocalStatus,
     fetchAppointmentsByPatient,
+    deleteAppointment,
   }
 })

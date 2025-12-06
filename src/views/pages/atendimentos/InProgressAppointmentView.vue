@@ -44,7 +44,7 @@ import {
   CheckCircle2,
   Pencil,
   Plus, // ✨ Import Plus icon
-  Syringe // ✨ Import Syringe icon for procedures
+  Syringe, // ✨ Import Syringe icon for procedures
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -398,6 +398,7 @@ async function saveAndFinish() {
     toast.error('Prontuário salvo, mas houve um erro ao atualizar o status do agendamento.')
   }
 }
+
 
 const menuItems = [
   { id: 'record', label: 'Registro do Atendimento', icon: FileText },

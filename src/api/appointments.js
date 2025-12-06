@@ -43,3 +43,7 @@ export const checkConflict = (patientId, startTime, endTime) => {
     params: { patientId, startTime, endTime },
   })
 }
+
+export const deleteAppointment = (appointmentId) => {
+  return apiClient.delete(`/appointments/${appointmentId}`)
+}
