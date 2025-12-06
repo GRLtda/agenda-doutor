@@ -424,6 +424,7 @@ function handleEventClick(event, e) {
 function closeModal() {
   isModalOpen.value = false
   initialAppointmentData.value = null
+  fetchDataForView()
 }
 
 function handleAppointmentSaved() {

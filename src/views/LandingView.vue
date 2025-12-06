@@ -157,6 +157,12 @@ onMounted(() => {
       </div>
     </section>
 
+    <Carousel
+      :images="carouselImages"
+      :auto-play="true"
+      :interval="4000"
+    />
+
     <section class="trusted-section" v-if="false">
       <div class="container">
         <p class="trusted-title">Mais de 500 clínicas confiam no Agenda Doutor</p>
@@ -554,7 +560,7 @@ main {
 
 .hero-title {
   font-family: var(--fonte-titulo);
-  font-size: clamp(2.5rem, 5vw, 4.5rem); /* Tipografia responsiva */
+  font-size: clamp(2rem, 4vw, 3.5rem); /* Tipografia responsiva reduzida */
   font-weight: 700;
   line-height: 1.1;
   margin-bottom: 1.5rem;

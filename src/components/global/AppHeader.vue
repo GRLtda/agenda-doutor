@@ -27,7 +27,7 @@ onUnmounted(() => {
   <header class="app-header-wrapper" :class="{ 'is-scrolled': isScrolled }">
     <div class="app-header-pill">
       <router-link to="/" class="logo">
-        Agenda Doutor
+        <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
       </router-link>
 
 
@@ -46,7 +46,9 @@ onUnmounted(() => {
         <div v-if="isMobileMenuOpen" class="mobile-nav-overlay" @click.self="toggleMobileMenu">
           <div class="mobile-nav-content">
             <div class="mobile-nav-header">
-              <span class="logo">Agenda Doutor</span>
+              <span class="logo">
+                <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
+              </span>
               <button @click="toggleMobileMenu" class="close-btn">
                 <X :size="24" />
               </button>
@@ -137,6 +139,11 @@ onUnmounted(() => {
   height: 8px;
   background: white;
   border-radius: 50%;
+}
+
+.logo-img {
+  height: 40px; /* Ajuste conforme necessário */
+  width: auto;
 }
 
 
