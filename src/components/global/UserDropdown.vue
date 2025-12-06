@@ -23,7 +23,7 @@ function handleLogout() {
 <template>
   <div class="dropdown-menu" :class="`direction-${direction}`">
     <ul>
-      <li>
+      <!-- <li>
         <button class="dropdown-item">
           <User :size="16" />
           <span>Perfil</span>
@@ -42,7 +42,7 @@ function handleLogout() {
         </button>
       </li>
       
-      <li class="separator"></li>
+      <li class="separator"></li> -->
 
       <li>
         <button class="dropdown-item" @click="router.push('/app/ajuda')">

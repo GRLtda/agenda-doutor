@@ -31,7 +31,6 @@ const planFeatures = {
         'marketing_templates',
         'marketing_connection',
         'marketing_logs',
-        'workflows',
         'finance',
         'settings',
     ],
