@@ -83,7 +83,7 @@ router.beforeEach((to, from, next) => {
   }
 
   if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
-    return next({ name: 'dashboard' })
+    return next({ name: 'resumo-dashboard' })
   }
 
   // 4. Se a rota exige uma clínica (a maioria das rotas 'requiresAuth')
@@ -102,7 +102,7 @@ router.beforeEach((to, from, next) => {
       // Mas está tentando acessar o wizard
       if (to.name === 'clinic-wizard') {
         // Redireciona para o dashboard
-        return next({ name: 'dashboard' })
+        return next({ name: 'resumo-dashboard' })
       }
 
       const requiredFeature = getRouteFeature(to.name)

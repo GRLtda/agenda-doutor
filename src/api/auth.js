@@ -26,5 +26,5 @@ export const forgotPassword = (emailOrPhone) => {
 
 // Função para redefinir a senha com o código
 export const resetPassword = (data) => {
-  return apiClient.post('/auth/reset-password', data) // data = { code, newPassword }
+  return apiClient.post('/auth/reset-password', data)
 }
