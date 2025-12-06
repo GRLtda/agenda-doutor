@@ -27,6 +27,8 @@ import {
   ClipboardPlus,
   CalendarPlus,
   AlertTriangle,
+  Stethoscope, // ✨ Importar ícone
+  Trash2,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -36,6 +38,7 @@ import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnam
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
 
 const route = useRoute()
 const router = useRouter()
@@ -259,6 +262,26 @@ const missingInfo = computed(() => {
 
   return missing
 })
+
+// --- PROCEDIMENTOS ---
+const isAddProcedureModalOpen = ref(false)
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+async function handleAddProcedure(payload) {
+  const { success } = await patientsStore.addProcedureToPatient(patient.value._id, payload)
+  if (success) {
+    toast.success('Procedimento adicionado com sucesso!')
+    isAddProcedureModalOpen.value = false
+  } else {
+    toast.error(patientsStore.error || 'Erro ao adicionar procedimento.')
+  }
+}
 </script>
 
 <template>
@@ -284,6 +307,12 @@ const missingInfo = computed(() => {
       :pdf-url="pdfPreview.url"
       :file-name="pdfPreview.name"
       @close="pdfPreview = { url: null, name: null }"
+    />
+    <AddProcedureModal
+      v-if="isAddProcedureModalOpen"
+      :patient-id="patient?._id"
+      @close="isAddProcedureModalOpen = false"
+      @save="handleAddProcedure"
     />
 
     <div v-if="patientsStore.isLoading && !patient" class="loading-state">
@@ -339,6 +368,10 @@ const missingInfo = computed(() => {
         <button @click="activeTab = 'history'" :class="{ active: activeTab === 'history' }">
           <History :size="16" />
           Histórico
+        </button>
+        <button @click="activeTab = 'procedures'" :class="{ active: activeTab === 'procedures' }">
+          <Stethoscope :size="16" />
+          Procedimentos
         </button>
       </nav>
 
@@ -625,6 +658,54 @@ const missingInfo = computed(() => {
                 </div>
               </div>
             </div>
+
+            <div v-if="activeTab === 'procedures'">
+              <div class="procedures-section">
+                <div class="section-header-row">
+                  <h3 class="title-procedures"><Stethoscope :size="20" /> Procedimentos Realizados</h3>
+                  <AppButton @click="isAddProcedureModalOpen = true" variant="primary" class="btn-sm">
+                    <CalendarPlus :size="16" />
+                    Adicionar
+                  </AppButton>
+                </div>
+
+                <ul v-if="patient.procedures && patient.procedures.length > 0" class="procedures-list">
+                  <li v-for="proc in patient.procedures" :key="proc._id" class="procedure-item">
+                    <div class="procedure-info">
+                      <div class="proc-main">
+                        <span class="proc-name">{{ proc.name }}</span>
+                      </div>
+                      <span class="proc-date">{{ formatSimpleDate(proc.assignedAt) }}</span>
+                    </div>
+                    <div class="procedure-values">
+                      <div v-if="proc.discountPercentage > 0" class="discount-tag">
+                        -{{ proc.discountPercentage }}%
+                      </div>
+                      <div class="price-wrapper">
+                        <span v-if="proc.discountPercentage > 0" class="original-price">
+                          {{ formatCurrency(proc.originalValue) }}
+                        </span>
+                        <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+
+                <div v-else class="empty-state-card">
+                  <div class="empty-state-icon">
+                    <Stethoscope :size="40" />
+                  </div>
+                  <h4 class="empty-state-title">Nenhum procedimento registrado</h4>
+                  <p class="empty-state-text">
+                    Adicione procedimentos ao paciente para manter o histórico financeiro e clínico.
+                  </p>
+                  <AppButton @click="isAddProcedureModalOpen = true" variant="secondary">
+                    <CalendarPlus :size="16" />
+                    Adicionar Procedimento
+                  </AppButton>
+                </div>
+              </div>
+            </div>
           </div>
         </Transition>
       </div>
@@ -797,7 +878,128 @@ const missingInfo = computed(() => {
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 2rem;
+  overflow-x: auto; /* Permitir scroll em telas pequenas */
 }
+
+/* ... (estilos anteriores) ... */
+
+/* ESTILOS DA ABA DE PROCEDIMENTOS */
+.procedures-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.title-procedures {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.procedures-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.procedure-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  transition: box-shadow 0.2s;
+}
+
+.procedure-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.procedure-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.proc-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.proc-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.proc-alias-badge {
+  font-size: 0.75rem;
+  background-color: #eef2ff;
+  color: var(--azul-principal);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.proc-date {
+  font-size: 0.875rem;
+  color: var(--cinza-texto);
+}
+
+.procedure-values {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.discount-tag {
+  font-size: 0.75rem;
+  color: #ef4444;
+  background-color: #fef2f2;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+
+.price-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.original-price {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  text-decoration: line-through;
+}
+
+.final-price {
+  font-weight: 600;
+  color: #059669;
+  font-size: 1rem;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+}
+
 .tabs-nav button {
   display: flex;
   align-items: center;

@@ -22,6 +22,15 @@ export const updateAppointment = (appointmentId, data) => {
 }
 
 /**
+ * ✨ Busca um agendamento específico pelo ID.
+ * @param {string} appointmentId - ID do agendamento.
+ * @returns {Promise}
+ */
+export const getAppointmentById = (appointmentId) => {
+  return apiClient.get(`/appointments/${appointmentId}`)
+}
+
+/**
  * ✨ NOVA FUNÇÃO ADICIONADA ✨
  * Verifica se há conflito de horário para um paciente.
  * @param {string} patientId - ID do paciente.

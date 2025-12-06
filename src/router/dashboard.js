@@ -65,6 +65,18 @@ const dashboardRoutes = [
         meta: { title: 'Detalhes do Paciente' },
       },
       {
+        path: 'procedimentos',
+        name: 'procedimentos',
+        component: () => import('../views/pages/procedimentos/ProceduresListView.vue'),
+        meta: { title: 'Procedimentos' },
+      },
+      {
+        path: 'financeiro',
+        name: 'financeiro',
+        component: () => import('../views/pages/finance/FinanceDashboardView.vue'),
+        meta: { title: 'Financeiro' },
+      },
+      {
         path: 'ajuda',
         name: 'ajuda',
         component: AjudaView,
@@ -111,6 +123,18 @@ const dashboardRoutes = [
         name: 'marketing-logs',
         component: LogsTab,
         meta: { title: 'Histórico de Envios' },
+      },
+      {
+        path: 'workflows',
+        name: 'workflows-list',
+        component: () => import('../views/pages/workflows/WorkflowsListView.vue'),
+        meta: { title: 'Workflows' },
+      },
+      {
+        path: 'workflows/:id',
+        name: 'workflow-editor',
+        component: () => import('../views/pages/workflows/WorkflowEditor.vue'),
+        meta: { title: 'Editor de Workflow', layout: { noPadding: true, fullscreen: true } },
       },
       {
         path: 'anamneses-pendentes',

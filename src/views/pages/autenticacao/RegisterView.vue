@@ -131,7 +131,7 @@ function handleRegistrationComplete() {
     router.push('/app')
   } else {
     // Se for registro (com convite de ?token), vai para o onboarding
-    router.push('/onboarding/clinic')
+    router.push('/onboarding/clinic') 
   }
 }
 </script>

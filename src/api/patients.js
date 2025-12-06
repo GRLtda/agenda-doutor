@@ -58,3 +58,7 @@ export const getBirthdayPatients = () => {
   return apiClient.get('/patients/birthdays/month')
 }
 
+export const addProcedureToPatient = (patientId, procedureData) => {
+  return apiClient.post(`/patients/${patientId}/procedures`, procedureData)
+}
+

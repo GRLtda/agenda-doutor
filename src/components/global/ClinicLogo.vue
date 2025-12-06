@@ -1,6 +1,6 @@
 <template>
   <div class="clinic-logo" :style="{ width: size, height: 'auto' }">
-    <img src="@/assets/logo_agenda.svg" alt="Logo Clínica" />
+    <img src="@/assets/logo_dark.svg" alt="Logo Clínica" />
   </div>
 </template>
 

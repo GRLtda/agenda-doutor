@@ -8,6 +8,7 @@ import {
   deletePatient as apiDeletePatient, // ✨ 2. Importar a função da API
   getAllPatients as apiGetAllPatients, // ✨ 1. Importar a nova função
   getBirthdayPatients as apiGetBirthdayPatients,
+  addProcedureToPatient as apiAddProcedureToPatient,
 } from '@/api/patients'
 
 export const usePatientsStore = defineStore('patients', () => {
@@ -174,6 +175,24 @@ export const usePatientsStore = defineStore('patients', () => {
     }
   }
 
+  // Adicionar procedimento ao paciente
+  async function addProcedureToPatient(patientId, procedureData) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiAddProcedureToPatient(patientId, procedureData)
+      // Atualiza o paciente selecionado com os novos dados retornados
+      selectedPatient.value = response.data
+      return { success: true, data: response.data }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao adicionar procedimento.'
+      console.error('Falha em addProcedureToPatient:', err)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // RETURN
   return {
     allPatients,
@@ -190,5 +209,6 @@ export const usePatientsStore = defineStore('patients', () => {
     deletePatient, // ✨ 7. Expor a nova action
     fetchAllPatients, // ✨ 5. Expor a nova action
     fetchBirthdayPatients,
+    addProcedureToPatient,
   }
 })

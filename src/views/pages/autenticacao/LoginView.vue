@@ -80,7 +80,7 @@ async function handleResetPassword() {
   errorMessage.value = null
   isLoading.value = true
   const { success, error } = await authStore.performPasswordReset({
-    code: token.value,
+    token: token.value,
     newPassword: newPassword.value,
   })
   isLoading.value = false

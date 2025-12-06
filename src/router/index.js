@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { checkPlanAccess, getRouteFeature } from '@/composables/usePlanAccess'
 import dashboardRoutes from './dashboard'
 import { nextTick } from 'vue'
 
@@ -82,7 +83,7 @@ router.beforeEach((to, from, next) => {
   }
 
   if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
-    return next({ name: 'dashboard' })
+    return next({ name: 'resumo-dashboard' })
   }
 
   // 4. Se a rota exige uma clínica (a maioria das rotas 'requiresAuth')
@@ -101,22 +102,67 @@ router.beforeEach((to, from, next) => {
       // Mas está tentando acessar o wizard
       if (to.name === 'clinic-wizard') {
         // Redireciona para o dashboard
-        return next({ name: 'dashboard' })
+        return next({ name: 'resumo-dashboard' })
+      }
+
+      const requiredFeature = getRouteFeature(to.name)
+      if (requiredFeature) {
+        const clinicPlan = authStore.user?.clinic?.plan || 'basic'
+        const hasAccess = checkPlanAccess(clinicPlan, requiredFeature)
+
+        if (!hasAccess) {
+          if (from.name && from.name !== to.name) {
+            return next(false)
+          }
+          return next({ name: 'resumo-dashboard' })
+        }
       }
     }
   }
 
-  // 5. Se nenhuma regra anterior barrou, permite a navegação
   next()
 })
 
 
+// Função para criar favicon com cantos arredondados
+const createRoundedFavicon = (imageUrl, callback) => {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onload = () => {
+    const size = 64
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+
+    // Desenhar círculo com cantos arredondados (border-radius)
+    const radius = size * 0.2 // 20% de arredondamento
+    ctx.beginPath()
+    ctx.moveTo(radius, 0)
+    ctx.lineTo(size - radius, 0)
+    ctx.quadraticCurveTo(size, 0, size, radius)
+    ctx.lineTo(size, size - radius)
+    ctx.quadraticCurveTo(size, size, size - radius, size)
+    ctx.lineTo(radius, size)
+    ctx.quadraticCurveTo(0, size, 0, size - radius)
+    ctx.lineTo(0, radius)
+    ctx.quadraticCurveTo(0, 0, radius, 0)
+    ctx.closePath()
+    ctx.clip()
+
+    // Desenhar a imagem dentro do clipping path
+    ctx.drawImage(img, 0, 0, size, size)
+
+    callback(canvas.toDataURL('image/png'))
+  }
+  img.onerror = () => {
+    callback(imageUrl) // Fallback para a imagem original
+  }
+  img.src = imageUrl
+}
+
 router.afterEach((to) => {
-  // Esta função é executada após cada mudança de rota
-  // Usamos 'nextTick' para garantir que o DOM seja atualizado
-  // antes de tentarmos mudar o título do documento.
   nextTick(() => {
-    // Função auxiliar para definir meta tags
     const setMetaTag = (name, content) => {
       let element = document.querySelector(`meta[name="${name}"]`);
       if (!element) {
@@ -127,10 +173,8 @@ router.afterEach((to) => {
       element.setAttribute('content', content);
     };
 
-    // Garante que as meta tags para a experiência de app iOS estejam sempre presentes
     setMetaTag('apple-mobile-web-app-capable', 'yes');
     setMetaTag('apple-mobile-web-app-status-bar-style', 'black-translucent');
-    // ✨ FIM DA ALTERAÇÃO ✨
 
     const authStore = useAuthStore()
     const clinic = authStore.user?.clinic
@@ -139,21 +183,20 @@ router.afterEach((to) => {
     const pageTitle = to.meta.title
     const defaultAppName = 'Agenda Doutor'
 
-    // Elementos do <head> que vamos atualizar
     const favicon = document.getElementById('favicon')
     const appleTouchIcon = document.getElementById('apple-touch-icon')
 
-    // ✨ Atualiza o Favicon e o Ícone da Tela de Início (iOS)
     if (clinicLogo) {
-      if (favicon) favicon.href = clinicLogo
-      if (appleTouchIcon) appleTouchIcon.href = clinicLogo
+      // Criar favicon com cantos arredondados
+      createRoundedFavicon(clinicLogo, (roundedUrl) => {
+        if (favicon) favicon.href = roundedUrl
+        if (appleTouchIcon) appleTouchIcon.href = roundedUrl
+      })
     } else {
       if (favicon) favicon.href = '/activity.svg'
-      // Se não tiver logo, voltamos ao padrão.
       if (appleTouchIcon) appleTouchIcon.href = '/activity.svg'
     }
 
-    // ✨ Atualiza o título da página (usado como nome do app na tela de início)
     if (pageTitle && clinicName && to.meta.requiresAuth) {
       document.title = `${pageTitle} | ${clinicName}`
     } else if (pageTitle) {
@@ -164,7 +207,6 @@ router.afterEach((to) => {
       document.title = defaultAppName
     }
 
-    // ✨ Atualiza o nome do app na tela de início (iOS)
     if (clinicName) {
       setMetaTag('apple-mobile-web-app-title', clinicName);
     } else {

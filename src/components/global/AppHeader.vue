@@ -24,21 +24,28 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="app-header-wrapper" :class="{ 'is-scrolled': isScrolled }">
-    <div class="app-header-pill">
-      <router-link to="/" class="logo">
-        Agenda Doutor
-      </router-link>
+  <header class="app-header" :class="{ 'is-scrolled': isScrolled }">
+    <div class="app-header-content">
+      
+      <!-- ESQUERDA: Menu Mobile (apenas mobile) ou Espaço vazio (desktop) -->
+      <div class="nav-left">
+        <button @click="toggleMobileMenu" class="mobile-menu-toggle">
+          <Menu :size="24" />
+        </button>
+      </div>
 
+      <!-- CENTRO: Logo -->
+      <div class="logo-wrapper">
+        <router-link to="/" class="logo">
+          <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
+        </router-link>
+      </div>
 
-
-      <div class="actions desktop-only">
+      <!-- DIREITA: Login -->
+      <div class="nav-right">
         <router-link to="/login" class="btn-login">Entrar</router-link>
       </div>
 
-      <button @click="toggleMobileMenu" class="mobile-menu-toggle">
-        <Menu :size="24" />
-      </button>
     </div>
 
     <Teleport to="body">
@@ -46,14 +53,14 @@ onUnmounted(() => {
         <div v-if="isMobileMenuOpen" class="mobile-nav-overlay" @click.self="toggleMobileMenu">
           <div class="mobile-nav-content">
             <div class="mobile-nav-header">
-              <span class="logo">Agenda Doutor</span>
+              <span class="logo">
+                <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
+              </span>
               <button @click="toggleMobileMenu" class="close-btn">
                 <X :size="24" />
               </button>
             </div>
             
-
-
             <div class="mobile-actions">
               <router-link to="/login" class="btn-login-mobile" @click="toggleMobileMenu">Entrar</router-link>
             </div>
@@ -65,114 +72,103 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.app-header-wrapper {
+.app-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  padding: 1.5rem 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none; /* Permite clicar através do wrapper, mas não da pílula */
-}
-
-.app-header-wrapper.is-scrolled {
-  padding: 1rem 0;
-}
-
-.app-header-pill {
-  pointer-events: auto;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.8); /* Fundo sempre visível, mas levemente transparente */
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  height: 80px; /* Altura fixa para evitar pulos */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 2px 4px -1px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 90%; /* Fallback para telas menores */
 }
 
-.is-scrolled .app-header-pill {
+.app-header.is-scrolled {
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 
-    0 10px 15px -3px rgba(0, 0, 0, 0.05),
-    0 4px 6px -2px rgba(0, 0, 0, 0.025),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  height: 70px; /* Leve redução ao rolar */
 }
 
-/* LOGO */
+.app-header-content {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* Grid de 3 colunas: 1fr (nav-left) | auto (logo) | 1fr (nav-right) */
+  align-items: center;
+}
+
+/* LEFT AREA */
+.nav-left {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* CENTER AREA */
+.logo-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: #0f172a;
-  text-decoration: none;
-  letter-spacing: -0.02em;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 8px;
+.logo-img {
+  height: 48px;
+  width: auto;
+  transition: height 0.3s ease;
+}
+
+.is-scrolled .logo-img {
+  height: 40px;
+}
+
+/* RIGHT AREA */
+.nav-right {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-}
-
-.logo-dot {
-  width: 8px;
-  height: 8px;
-  background: white;
-  border-radius: 50%;
-}
-
-
-
-/* ACTIONS */
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 .btn-login {
   color: #0f172a;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-decoration: none;
-  padding: 0.5rem 1rem;
-  transition: color 0.2s ease;
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 1.5rem;
+  border-radius: 99px;
+  transition: all 0.2s ease;
+  background-color: transparent;
 }
 
 .btn-login:hover {
-  color: #2563eb;
+  background-color: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
 }
 
-
-
-/* MOBILE */
+/* MOBILE AREA */
 .mobile-menu-toggle {
-  display: none;
+  display: none; /* Escondido no desktop */
   background: none;
   border: none;
   color: #0f172a;
   cursor: pointer;
   padding: 0.5rem;
+  margin-left: -0.5rem; /* Alinhamento visual */
 }
 
+/* Mobile Menu Styles */
 .mobile-nav-overlay {
   position: fixed;
   inset: 0;
@@ -180,7 +176,7 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start; /* Menu saindo da esquerda é mais comum, mas mantive o padrão anterior layout */
   pointer-events: auto;
 }
 
@@ -192,7 +188,7 @@ onUnmounted(() => {
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-nav-header {
@@ -209,8 +205,6 @@ onUnmounted(() => {
   cursor: pointer;
   padding: 0.5rem;
 }
-
-
 
 .mobile-actions {
   margin-top: auto;
@@ -229,8 +223,6 @@ onUnmounted(() => {
   border-radius: 12px;
 }
 
-
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -242,14 +234,43 @@ onUnmounted(() => {
 }
 
 @media (max-width: 900px) {
-  .desktop-only {
+  .app-header-content {
+    display: flex; /* Flex no mobile para facilitar espaçamento */
+    justify-content: space-between;
+    padding: 0 1rem;
+  }
+  
+  /* No mobile, o grid 1fr auto 1fr pode não funcionar tão bem se o logo crescer demais, 
+     mas vamos manter o flex space-between clássico */
+   
+   .nav-left {
+     order: 1;
+     flex: 0 0 auto;
+   }
+   
+   .logo-wrapper {
+     order: 2;
+     flex: 1; /* Ocupa o espaço */
+     /* Logo no centro apenas se houver espaço, mas geralmente no mobile fica logo ao lado do menu ou centro absoluto */
+     /* Vamos forçar centro absoluto usando position ou margens se quiser */
+     position: absolute;
+     left: 50%;
+     transform: translateX(-50%);
+   }
+  
+  .nav-right {
+    order: 3;
+    flex: 0 0 auto;
+    /* Esconder o botão de login no header mobile se desejar, e mostrar só no menu hambúrguer? 
+       Geralmente botão de login fica visível ou vai pro menu. Vou manter visível SE couber, ou esconder.
+       O design anterior escondia 'desktop-only'. Vamos esconder o botão de login do header no mobile
+       e deixar só no menu hambúrguer para limpar a interface.
+    */
     display: none;
   }
+
   .mobile-menu-toggle {
     display: block;
-  }
-  .app-header-pill {
-    padding: 0.75rem 1.25rem;
   }
 }
 </style>

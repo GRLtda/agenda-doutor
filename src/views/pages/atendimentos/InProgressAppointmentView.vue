@@ -5,6 +5,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import { useRecordsStore } from '@/stores/records'
 import { usePatientsStore } from '@/stores/patients'
 import { useAnamnesisStore } from '@/stores/anamnesis'
+import { useProceduresStore } from '@/stores/procedures' // ✨ Import Store
 import { useLayoutStore } from '@/stores/layout'
 import { useEditor, EditorContent} from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -13,6 +14,7 @@ import BubbleMenuExtension from '@tiptap/extension-bubble-menu'
 
 import EditorToolbar from '@/components/shared/EditorToolbar.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import RecordAttachments from '@/components/pages/appointments/RecordAttachments.vue'
 import SaveStatusIndicator from '@/components/shared/SaveStatusIndicator.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
@@ -40,9 +42,13 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  Pencil
+  Pencil,
+  Plus, // ✨ Import Plus icon
+  Syringe // ✨ Import Syringe icon for procedures
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
+
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +56,7 @@ const appointmentsStore = useAppointmentsStore()
 const recordsStore = useRecordsStore()
 const patientsStore = usePatientsStore()
 const anamnesisStore = useAnamnesisStore()
+const proceduresStore = useProceduresStore() // ✨ Initialize Store
 const layoutStore = useLayoutStore()
 const toast = useToast()
 
@@ -98,6 +105,34 @@ function handleAnamnesisSaved(updatedData) {
   }
 }
 
+// ✨ Procedure Management State
+const showAddProcedureModal = ref(false)
+const isAddingProcedure = ref(false)
+
+async function handleAddProcedure(payload) {
+  isAddingProcedure.value = true
+  try {
+    const result = await patientsStore.addProcedureToPatient(patientId, {
+      ...payload,
+      appointmentId: appointmentId
+    })
+
+    if (result.success) {
+      toast.success('Procedimento adicionado com sucesso!')
+      showAddProcedureModal.value = false
+      // Update local patient data to reflect changes
+      patient.value = patientsStore.selectedPatient
+    } else {
+      toast.error(result.error || 'Erro ao adicionar procedimento.')
+    }
+  } catch (error) {
+    console.error(error)
+    toast.error('Erro inesperado ao adicionar procedimento.')
+  } finally {
+    isAddingProcedure.value = false
+  }
+}
+
 // Cronômetro
 const elapsedTimeInSeconds = ref(0)
 const timerInterval = ref(null)
@@ -111,6 +146,12 @@ const formattedElapsedTime = computed(() => {
     ).padStart(2, '0')}`
   }
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
+
+// ✨ Filter procedures by current appointment
+const currentAppointmentProcedures = computed(() => {
+  if (!patient.value || !patient.value.procedures) return []
+  return patient.value.procedures.filter(p => p.appointmentId === appointmentId)
 })
 
 const recordModels = ref([
@@ -227,16 +268,24 @@ onMounted(async () => {
 
   await patientsStore.fetchPatientById(patientId)
   patient.value = patientsStore.selectedPatient
-  await appointmentsStore.fetchAppointmentsByDate()
-  appointment.value = appointmentsStore.appointments.find((appt) => appt._id === appointmentId)
 
-  if (!appointment.value) {
+  // ✨ Buscar agendamento pelo ID diretamente (funciona para qualquer data)
+  const { success, data } = await appointmentsStore.fetchAppointmentById(appointmentId)
+  
+  if (!success || !data) {
     toast.error('Agendamento não encontrado.')
     router.push('/app/atendimentos')
     return
   }
 
+  appointment.value = data
+
   isViewMode.value = appointment.value.status === 'Realizado'
+
+  // ✨ Atualizar status para "Iniciado" quando não estiver em modo de visualização
+  if (!isViewMode.value && appointment.value.status !== 'Iniciado') {
+    await appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
+  }
 
   await recordsStore.fetchRecordByAppointmentId(appointmentId)
 
@@ -271,9 +320,12 @@ onMounted(async () => {
   }
   handleViewportChange() // Verificação inicial
 
-  // ✨ Fetch Anamneses
+  // ✨ Fetch Anamneses & Procedures
   if (patientId) {
-    await anamnesisStore.fetchAnamnesisForPatient(patientId)
+    await Promise.all([
+      anamnesisStore.fetchAnamnesisForPatient(patientId),
+      proceduresStore.fetchProcedures()
+    ])
   }
 })
 
@@ -355,6 +407,18 @@ const menuItems = [
   { id: 'documents', label: 'Documentos', icon: Paperclip },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
 ]
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('pt-BR')
+}
 </script>
 
 <template>
@@ -364,9 +428,16 @@ const menuItems = [
   </div>
 
   <div v-else class="in-progress-appointment-layout">
+    <AddProcedureModal
+      v-if="showAddProcedureModal"
+      :patient-id="patientId"
+      :is-loading="isAddingProcedure"
+      @close="showAddProcedureModal = false"
+      @save="handleAddProcedure"
+    />
+
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
 
-    <!-- ✨ Sidebar moved to left (Full Height) -->
     <aside class="left-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
       <button @click="isSidebarOpen = false" class="mobile-close-btn">
         <X :size="24" />
@@ -471,12 +542,8 @@ const menuItems = [
             class="desktop-only"
           />
 
-          <button v-if="isViewMode" @click="router.back()" class="btn-secondary-solid">
-            <ArrowLeft :size="16" />
-            Voltar
-          </button>
           <button
-            v-else
+            v-if="!isViewMode"
             @click="saveAndFinish"
             class="btn-finish-appointment"
             :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
@@ -571,6 +638,51 @@ const menuItems = [
                   </div>
                 </div>
               </div>
+
+              <!-- ✨ Procedures Section -->
+              <div class="procedures-section mt-6">
+                <div class="section-header">
+                  <h3 class="column-title mb-0">Procedimentos</h3>
+                  <AppButton
+                    v-if="!isViewMode"
+                    variant="ghost"
+                    size="sm"
+                    @click="showAddProcedureModal = true"
+                    class="btn-add-procedure"
+                  >
+                    <Plus :size="16" />
+                    Adicionar
+                  </AppButton>
+                </div>
+
+                <div class="procedures-list info-card mt-2">
+                  <div v-if="currentAppointmentProcedures.length === 0" class="empty-list">
+                    Nenhum procedimento registrado neste atendimento.
+                  </div>
+                  <ul v-else class="procedure-items">
+                    <li v-for="(proc, index) in currentAppointmentProcedures" :key="index" class="procedure-item">
+                      <div class="proc-icon">
+                        <Syringe :size="18" />
+                      </div>
+                      <div class="proc-info">
+                        <span class="proc-name">{{ proc.name }}</span>
+                        <span class="proc-details">
+                          {{ formatDate(proc.assignedAt) }}
+                        </span>
+                      </div>
+                      <div class="proc-values">
+                        <div v-if="proc.discountPercentage" class="original-price">
+                          {{ formatCurrency(proc.finalValue / (1 - proc.discountPercentage / 100)) }}
+                        </div>
+                        <div class="final-price-row">
+                          <span v-if="proc.discountPercentage" class="discount-badge">-{{ proc.discountPercentage }}%</span>
+                          <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
+                        </div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             <!-- Right Column: Anamneses (Scrollable) -->
@@ -622,7 +734,7 @@ const menuItems = [
                         </div>
                         <div class="anamnesis-actions">
                             <span class="status-badge pending">Pendente</span>
-                            <button class="btn-edit-small" @click="openAnamnesisModal(anamnesis, true)" title="Responder">
+                            <button v-if="!isViewMode" class="btn-edit-small" @click="openAnamnesisModal(anamnesis, true)" title="Responder">
                                 <Pencil :size="14" />
                             </button>
                         </div>
@@ -724,6 +836,8 @@ const menuItems = [
       @close="showAnamnesisModal = false"
       @saved="handleAnamnesisSaved"
     />
+
+
   </div>
 </template>
 
@@ -772,6 +886,7 @@ const menuItems = [
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden; /* Prevent unwanted scrollbar */
 }
 
@@ -782,6 +897,8 @@ const menuItems = [
   height: 100%;
   overflow: hidden;
 }
+
+
 
 /* Patient Profile Card */
 .patient-profile-card {
@@ -796,6 +913,208 @@ const menuItems = [
   display: flex;
   align-items: center;
   gap: 1.5rem;
+}
+
+/* ✨ Procedures Styles */
+.procedures-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.procedures-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+  flex-shrink: 0;
+}
+
+.procedures-list {
+  flex: 1;
+  overflow-y: auto;
+  height: auto; /* Reset height to let flex handle it */
+}
+
+
+
+.procedure-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.procedure-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.procedure-item:last-child {
+  border-bottom: none;
+}
+
+.proc-icon {
+  color: var(--azul-principal);
+  background-color: #eff6ff;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+}
+
+.proc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.proc-name {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.proc-details {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.proc-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.original-price {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.final-price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.final-price {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.discount-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ef4444;
+  background-color: #fef2f2;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+}
+
+/* ✨ Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+
+
+.modal-content {
+  background-color: white;
+  border-radius: 0.75rem;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-select, .form-input {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-confirm {
+  padding: 0.5rem 1rem;
+  background-color: var(--azul-principal);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .profile-avatar {
@@ -1772,6 +2091,7 @@ const menuItems = [
   .info-column,
   .anamnesis-column {
     width: 100%;
+    height: 100%;
     flex: none;
     overflow: visible;
   }
@@ -1816,6 +2136,19 @@ const menuItems = [
   background-color: #f8f9fa;
   color: #6b7280;
   gap: 1rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 .sidebar-footer {
