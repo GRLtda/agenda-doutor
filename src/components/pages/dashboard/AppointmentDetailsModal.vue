@@ -136,10 +136,25 @@ function handleCancelClick() {
   }
 }
 
-async function handleDelete() {
-  if (!confirm('Tem certeza que deseja excluir permanentemente este agendamento?')) {
-    return
+const isDeleteConfirming = ref(false)
+let deleteTimeout = null
+
+function handleDeleteClick() {
+  if (isDeleteConfirming.value) {
+    confirmDelete()
+  } else {
+    isDeleteConfirming.value = true
+    if (deleteTimeout) clearTimeout(deleteTimeout)
+    deleteTimeout = setTimeout(() => {
+      isDeleteConfirming.value = false
+      deleteTimeout = null
+    }, 3000)
   }
+}
+
+async function confirmDelete() {
+  if (deleteTimeout) clearTimeout(deleteTimeout)
+  isDeleteConfirming.value = false
 
   const result = await appointmentsStore.deleteAppointment(props.event.originalEvent._id)
   if (result.success) {
@@ -149,6 +164,11 @@ async function handleDelete() {
     toast.error('Erro ao excluir agendamento.')
   }
 }
+
+onUnmounted(() => {
+  clearCancelTimer()
+  if (deleteTimeout) clearTimeout(deleteTimeout)
+})
 
 async function handleStartService() {
   const appointmentId = props.event.originalEvent._id
@@ -391,11 +411,14 @@ onUnmounted(() => {
 
          <!-- ✨ Delete Button -->
          <button 
-           @click="handleDelete" 
-           class="btn-delete-modal" 
-           title="Excluir Agendamento"
+           @click="handleDeleteClick" 
+           class="btn-delete-modal"
+           :class="{ 'confirming': isDeleteConfirming }"
+           :title="isDeleteConfirming ? 'Confirmar Exclusão' : 'Excluir Agendamento'"
          >
-            <Trash2 :size="18" />
+            <Check v-if="isDeleteConfirming" :size="18" />
+            <Trash2 v-else :size="18" />
+            <div class="progress-bg"></div>
          </button>
       </footer>
     </template>
@@ -958,10 +981,41 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   flex: 0 0 40px !important; /* Force width */
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 }
 
 .btn-delete-modal:hover {
   background-color: #fee2e2;
   color: #dc2626;
+}
+
+.btn-delete-modal.confirming {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.progress-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: #fee2e2; /* Darker red fill */
+  z-index: -1;
+  transition: width 0s linear; /* Reset instantâneo */
+}
+
+.btn-delete-modal.confirming .progress-bg {
+  width: 100%;
+  transition: width 3s linear; /* Anima o preenchimento */
+}
+
+/* Ensure icons stay on top */
+.btn-delete-modal svg {
+  position: relative;
+  z-index: 2;
 }
 </style>
