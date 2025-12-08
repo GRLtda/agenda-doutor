@@ -4,7 +4,7 @@ Este documento define a estética, padrões visuais e diretrizes de desenvolvime
 
 ---
 
-## 1. Identidade e Estilo
+## 1. Identidade e Estilo.
 
 ### Estilo da Clínica
 *   **Moderno & Limpo:** Design minimalista, com amplo uso de espaço em branco (whitespace) para evitar poluição visual.
