@@ -360,9 +360,8 @@ function handleProcedureChange() {
   border-top: 1px solid #f3f4f6;
 }
 
-  .close-btn-header {
-    display: none;
-  }
+.close-btn-header {
+  display: none;
 }
 
 .label-row {
