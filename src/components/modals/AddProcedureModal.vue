@@ -23,6 +23,8 @@ const proceduresStore = useProceduresStore()
 
 const selectedProcedureId = ref('')
 const discountPercentage = ref(0)
+const discountValue = ref(0)
+const discountMode = ref('percentage') // 'percentage' | 'fixed'
 
 // Carrega os procedimentos ao montar o modal
 onMounted(async () => {
@@ -55,6 +57,12 @@ watch(discountPercentage, (newValue) => {
   }
 })
 
+// Reset discount values when mode changes
+watch(discountMode, () => {
+  discountPercentage.value = 0
+  discountValue.value = 0
+})
+
 const originalValue = computed(() => {
   if (!selectedProcedure.value) return 0
 
@@ -69,6 +77,11 @@ const originalValue = computed(() => {
 
 const finalValue = computed(() => {
   const value = originalValue.value
+  
+  if (discountMode.value === 'fixed') {
+     return Math.max(0, value - discountValue.value)
+  }
+  
   if (discountPercentage.value > 0) {
     return value * (1 - discountPercentage.value / 100)
   }
@@ -87,7 +100,8 @@ function handleSubmit() {
 
   const payload = {
     procedureId: selectedProcedureId.value,
-    discountPercentage: discountPercentage.value,
+    discountPercentage: discountMode.value === 'percentage' ? discountPercentage.value : 0,
+    discountValue: discountMode.value === 'fixed' ? discountValue.value : 0,
     quantity: quantity.value,
   }
 
@@ -139,8 +153,14 @@ function handleProcedureChange() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Desconto (%)</label>
-          <div class="input-wrapper">
+          <div class="label-row">
+             <label class="form-label">Desconto</label>
+             <button class="toggle-mode-btn" @click="discountMode = discountMode === 'percentage' ? 'fixed' : 'percentage'">
+                {{ discountMode === 'percentage' ? 'Mudar para R$' : 'Mudar para %' }}
+             </button>
+          </div>
+          
+          <div class="input-wrapper" v-if="discountMode === 'percentage'">
             <input
               v-model.number="discountPercentage"
               type="number"
@@ -151,6 +171,18 @@ function handleProcedureChange() {
             />
             <span class="suffix">%</span>
           </div>
+          
+          <div class="input-wrapper" v-else>
+             <span class="prefix">R$</span>
+             <input
+              v-model.number="discountValue"
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-input pl-10"
+              placeholder="0,00"
+            />
+          </div>
         </div>
       </div>
 
@@ -159,8 +191,9 @@ function handleProcedureChange() {
           <span>Valor Original:</span>
           <strong>{{ formatCurrency(originalValue) }}</strong>
         </div>
-        <div class="summary-row discount" v-if="discountPercentage > 0">
-          <span>Desconto ({{ discountPercentage }}%):</span>
+        <div class="summary-row discount" v-if="originalValue > finalValue">
+          <span v-if="discountMode === 'percentage'">Desconto ({{ discountPercentage }}%):</span>
+          <span v-else>Desconto:</span>
           <strong>- {{ formatCurrency(originalValue - finalValue) }}</strong>
         </div>
         <div class="summary-row total">
@@ -327,15 +360,39 @@ function handleProcedureChange() {
   border-top: 1px solid #f3f4f6;
 }
 
-@media (min-width: 768px) {
-  .btn-cancel,
-  .btn-save {
-    flex: 1;
-    width: auto;
-  }
+.close-btn-header {
+  display: none;
+}
 
-  .close-btn-header {
-    display: none;
-  }
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-mode-btn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--azul-principal, #3b82f6);
+  cursor: pointer;
+  font-weight: 500;
+  padding: 0;
+}
+
+.toggle-mode-btn:hover {
+  text-decoration: underline;
+}
+
+.prefix {
+  position: absolute;
+  left: 1rem;
+  color: #6b7280;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+.pl-10 {
+  padding-left: 2.5rem;
 }
 </style>

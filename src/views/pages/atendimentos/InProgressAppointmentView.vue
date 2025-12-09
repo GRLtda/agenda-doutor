@@ -672,11 +672,11 @@ const formatDate = (dateString) => {
                         </span>
                       </div>
                       <div class="proc-values">
-                        <div v-if="proc.discountPercentage" class="original-price">
-                          {{ formatCurrency(proc.finalValue / (1 - proc.discountPercentage / 100)) }}
+                        <div v-if="proc.originalValue > proc.finalValue" class="original-price">
+                          {{ formatCurrency(proc.originalValue) }}
                         </div>
                         <div class="final-price-row">
-                          <span v-if="proc.discountPercentage" class="discount-badge">-{{ proc.discountPercentage }}%</span>
+                          <span v-if="proc.originalValue > proc.finalValue" class="discount-badge">-{{ Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%</span>
                           <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
                         </div>
                       </div>
