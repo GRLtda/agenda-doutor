@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue' // ✨ Adicionado onUnmounted
 import { useRoute } from 'vue-router'
-import GeneralSettings from '@/components/pages/configuracoes/tabs/GeneralSettings.vue'
-import WorkingHoursSettings from '@/components/pages/configuracoes/tabs/WorkingHoursSettings.vue'
-import AnamnesisTemplates from '@/components/pages/configuracoes/tabs/AnamnesisTemplates.vue'
-import EmployeesSettings from '@/components/pages/configuracoes/tabs/EmployeesSettings.vue'
-import AuditLog from '@/components/pages/configuracoes/tabs/AuditLog.vue' // 📋 1. Importar o novo componente
+import GeneralSettings from '@/views/pages/configuracoes/tabs/GeneralSettings.vue'
+import WorkingHoursSettings from '@/views/pages/configuracoes/tabs/WorkingHoursSettings.vue'
+import AnamnesisTemplates from '@/views/pages/configuracoes/tabs/AnamnesisTemplates.vue'
+import EmployeesSettings from '@/views/pages/configuracoes/tabs/EmployeesSettings.vue'
+import AuditLog from '@/views/pages/configuracoes/tabs/AuditLog.vue' // 📋 1. Importar o novo componente
 
 import { SlidersHorizontal, Clock, FileText, Users, History } from 'lucide-vue-next' // 📋 2. Importar o ícone History
 

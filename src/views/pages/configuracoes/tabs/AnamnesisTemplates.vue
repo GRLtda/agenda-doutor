@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useToast } from 'vue-toastification'
 import { FilePlus2, Pencil, Trash2, Copy } from 'lucide-vue-next'
-import CreateAnamnesisModal from '../modals/CreateAnamnesisModal.vue'
+import CreateAnamnesisModal from '@/components/pages/configuracoes/modals/CreateAnamnesisModal.vue'
 import AppButton from '@/components/global/AppButton.vue'
 
 const anamnesisStore = useAnamnesisStore()

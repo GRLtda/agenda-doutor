@@ -5,7 +5,7 @@ import { usePatientsStore } from '@/stores/patients'
 import { useEmployeesStore } from '@/stores/employees'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal } from 'lucide-vue-next'
+import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal, AlertCircle } from 'lucide-vue-next'
 import AppPagination from '@/components/global/AppPagination.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
@@ -123,12 +123,25 @@ function formatRelativeTime(dateString) {
 function formatAction(action) {
   const labels = {
     APPOINTMENT_CREATE: 'criou um agendamento',
+    APPOINTMENT_UPDATE: 'atualizou um agendamento',
     APPOINTMENT_STATUS_CHANGE: 'alterou o status de um agendamento',
+    APPOINTMENT_DELETE: 'excluiu um agendamento',
     PATIENT_CREATE: 'criou um paciente',
     PATIENT_UPDATE: 'atualizou um paciente',
+    PATIENT_DELETE: 'excluiu um paciente',
     CLINIC_UPDATE: 'atualizou os dados da clínica',
   }
   return labels[action] || action.replace(/_/g, ' ').toLowerCase()
+}
+
+function translateEntity(entity) {
+  const labels = {
+    Appointment: 'Agendamento',
+    Patient: 'Paciente',
+    Clinic: 'Clínica',
+    User: 'Usuário'
+  }
+  return labels[entity] || entity
 }
 
 function formatLogSummary(log) {
@@ -143,6 +156,11 @@ function formatLogSummary(log) {
     } else if (log.action === 'APPOINTMENT_STATUS_CHANGE') {
       const newStatus = log.details?.changes?.find((c) => c.field === 'status')?.new
       target = `para <strong>${newStatus}</strong>`
+    } else if (log.action === 'APPOINTMENT_DELETE') {
+      const patientId = log.details?.changes?.find((c) => c.field === 'patient')?.old
+       if (patientId) {
+          target = `de <strong>${patientNameMap.value[patientId] || '...'}</strong>`
+       }
     } else if (log.action === 'PATIENT_CREATE') {
       const patientName = log.details?.changes?.find((c) => c.field === 'name')?.new
       target = `<strong>${patientName || '...'}</strong>`
@@ -194,19 +212,40 @@ function formatChange(change) {
     name: 'Nome',
     cpf: 'CPF',
     phone: 'Telefone',
+    type: 'Tipo',
+    notes: 'Observações',
+    isReturn: 'É Retorno?',
+    originAppointment: 'Agendamento Origem'
   }
 
   const field = fieldLabels[change.field] || change.field
   const from = formatValue(change.old, change.field)
   const to = formatValue(change.new, change.field)
+  
+  // Tratamento específico para booleanos ou vazios
+  const formatDisplay = (val) => {
+      if (val === true) return 'Sim'
+      if (val === false) return 'Não'
+      if (val === '') return 'Vazio'
+      return val
+  }
+
+  if (from === null && to === null) {
+      // Caso update onde só tem field e sem old/new explícito (ex: notes no json do usuário)
+      return `alterou ${field}`
+  }
 
   if (from === null) {
-    return `definiu ${field} como <span class="change-new">"${to}"</span>`
+    return `definiu ${field} como <span class="change-new">"${formatDisplay(to)}"</span>`
   }
   if (to === null) {
-    return `removeu ${field} (era <span class="change-old">"${from}"</span>)`
+     if (change.field === 'patient' || change.field === 'status') {
+         // Para deletes, pode mostrar apenas "era X"
+         return `${field} era <span class="change-old">"${formatDisplay(from)}"</span>`
+     }
+    return `removeu ${field} (era <span class="change-old">"${formatDisplay(from)}"</span>)`
   }
-  return `alterou ${field} de <span class="change-old">"${from}"</span> para <span class="change-new">"${to}"</span>`
+  return `alterou ${field} de <span class="change-old">"${formatDisplay(from)}"</span> para <span class="change-new">"${formatDisplay(to)}"</span>`
 }
 </script>
 
@@ -221,6 +260,11 @@ function formatChange(change) {
           :loading="employeesStore.isLoading"
         />
         <StyledSelect v-model="selectedEntity" :options="entityOptions" />
+      </div>
+
+      <div class="retention-info" title="O sistema mantém registros dos últimos 30 dias">
+         <AlertCircle :size="14" />
+         <span>Histórico de 30 dias</span>
       </div>
     </div>
 
@@ -264,7 +308,7 @@ function formatChange(change) {
               </div>
               <div class="log-details-desktop">
                 <span class="entity-info"
-                  >{{ log.entity }} (ID: ...{{ log.entityId.slice(-6) }})</span
+                  >{{ translateEntity(log.entity) }} (ID: ...{{ log.entityId.slice(-6) }})</span
                 >
               </div>
             </div>
@@ -306,13 +350,13 @@ function formatChange(change) {
 </template>
 <style scoped>
 .audit-log-container {
-  /* ✨ 1. REMOVIDO max-height e min-height, agora usa 100% da altura do pai */
-  height: 100%;
+  height: calc(100vh - 300px);
   display: flex;
   flex-direction: column;
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
   overflow: hidden;
+  background: white;
 }
 
 .filters-header {
@@ -718,6 +762,35 @@ function formatChange(change) {
     border-radius: 0;
     border-left: none;
     border-right: none;
+  }
+  :deep(.pagination-container) {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+.retention-info {
+  margin-left: auto; /* Empurra para a direita */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  background-color: #f3f4f6;
+  padding: 0.35rem 0.75rem;
+  border-radius: 99px;
+  cursor: help;
+}
+.retention-info:hover {
+  color: #4b5563;
+  background-color: #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  .retention-info {
+    margin-left: 0;
+    width: fit-content;
   }
 }
 </style>

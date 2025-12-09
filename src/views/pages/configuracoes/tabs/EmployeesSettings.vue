@@ -14,7 +14,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-vue-next'
-import InviteEmployeeModal from '../modals/InviteEmployeeModal.vue'
+import InviteEmployeeModal from '@/components/pages/configuracoes/modals/InviteEmployeeModal.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 
