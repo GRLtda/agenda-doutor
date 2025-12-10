@@ -16,6 +16,7 @@ import AjudaView from '../views/pages/ajuda/AjudaView.vue'
 import MarketingView from '../views/pages/marketing/MarketingView.vue'
 import PendingAnamnesesView from '../views/pages/resumo/PendingAnamnesesView.vue'
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
+import ProfileView from '../views/pages/ProfileView.vue'
 
 import MessagesTab from '../views/pages/marketing/pages/MessagesTab.vue'
 import TemplatesTab from '../views/pages/marketing/pages/TemplatesTab.vue'
@@ -45,6 +46,12 @@ const dashboardRoutes = [
         name: 'configuracoes',
         component: SettingsView,
         meta: { title: 'Configurações' },
+      },
+      {
+        path: 'perfil',
+        name: 'perfil',
+        component: ProfileView,
+        meta: { title: 'Meu Perfil' },
       },
       {
         path: 'pacientes',

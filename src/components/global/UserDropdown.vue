@@ -23,13 +23,13 @@ function handleLogout() {
 <template>
   <div class="dropdown-menu" :class="`direction-${direction}`">
     <ul>
-      <!-- <li>
-        <button class="dropdown-item">
+      <li>
+        <button class="dropdown-item" @click="router.push('/app/perfil')">
           <User :size="16" />
           <span>Perfil</span>
         </button>
       </li>
-      <li>
+      <!-- <li>
         <button class="dropdown-item">
           <CreditCard :size="16" />
           <span>Assinatura</span>
@@ -40,9 +40,9 @@ function handleLogout() {
           <Settings :size="16" />
           <span>Configurações</span>
         </button>
-      </li>
+      </li>-->
       
-      <li class="separator"></li> -->
+      <li class="separator"></li>
 
       <li>
         <button class="dropdown-item" @click="router.push('/app/ajuda')">
