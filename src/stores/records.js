@@ -6,6 +6,7 @@ import {
   updateRecord as apiUpdateRecord,
   uploadImageAttachment as apiUploadImageAttachment,
   removeAttachment as apiRemoveAttachment, // ✨ 1. Importa a função correta do lugar certo
+  addProcedureToRecord as apiAddProcedureToRecord, // ✨ Import add procedure
 } from '@/api/records'
 import apiClient from '@/api'
 
@@ -108,6 +109,22 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  // Add procedure to record
+  async function addProcedureToRecord(procedureData) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiAddProcedureToRecord(procedureData)
+      currentRecord.value = response.data
+      return { success: true, data: response.data }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao adicionar procedimento.'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     currentRecord,
     isLoading,
@@ -117,5 +134,6 @@ export const useRecordsStore = defineStore('records', () => {
     updateRecord,
     uploadAttachmentImage,
     deleteAttachment,
+    addProcedureToRecord, // ✨ Export new function
   }
 })

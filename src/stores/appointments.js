@@ -50,8 +50,13 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   async function fetchTodayAppointments() {
     isTodayLoading.value = true
     try {
-      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-      const response = await apiGetAppointments({ startDate: today, endDate: today })
+      // Usa a data local ao invés de UTC para evitar problemas de timezone
+      const today = new Date()
+      const year = today.getFullYear()
+      const month = String(today.getMonth() + 1).padStart(2, '0')
+      const day = String(today.getDate()).padStart(2, '0')
+      const localDate = `${year}-${month}-${day}` // YYYY-MM-DD em horário local
+      const response = await apiGetAppointments({ startDate: localDate, endDate: localDate })
 
       if (Array.isArray(response.data)) {
         todayAppointments.value = response.data

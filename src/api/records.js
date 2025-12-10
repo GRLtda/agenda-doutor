@@ -64,3 +64,12 @@ export const listRecordsByPatient = (patientId, params) => {
 export const removeAttachment = (recordId, uploadId) => {
   return apiClient.delete(`/records/${recordId}/attachments/${uploadId}`)
 }
+
+/**
+ * Adiciona um procedimento ao prontuário do atendimento.
+ * Rota: POST /api/records/procedures
+ * @param {object} procedureData - Dados do procedimento (appointmentId, procedureId, discountPercentage, quantity).
+ */
+export const addProcedureToRecord = (procedureData) => {
+  return apiClient.post('/records/procedures', procedureData)
+}

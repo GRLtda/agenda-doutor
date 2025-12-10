@@ -49,6 +49,7 @@ import {
 import { useToast } from 'vue-toastification'
 
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
+import CheckoutModal from '@/components/modals/CheckoutModal.vue' // ✨ Import Checkout Modal
 
 const route = useRoute()
 const router = useRouter()
@@ -109,19 +110,20 @@ function handleAnamnesisSaved(updatedData) {
 const showAddProcedureModal = ref(false)
 const isAddingProcedure = ref(false)
 
+// ✨ Checkout State
+const showCheckoutModal = ref(false)
+const isProcessingCheckout = ref(false)
+
 async function handleAddProcedure(payload) {
   isAddingProcedure.value = true
   try {
-    const result = await patientsStore.addProcedureToPatient(patientId, {
-      ...payload,
-      appointmentId: appointmentId
-    })
+    const result = await recordsStore.addProcedureToRecord(payload)
 
     if (result.success) {
       toast.success('Procedimento adicionado com sucesso!')
       showAddProcedureModal.value = false
-      // Update local patient data to reflect changes
-      patient.value = patientsStore.selectedPatient
+      // Refresh record to get updated procedures
+      await recordsStore.fetchRecordByAppointmentId(appointmentId)
     } else {
       toast.error(result.error || 'Erro ao adicionar procedimento.')
     }
@@ -148,10 +150,10 @@ const formattedElapsedTime = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
-// ✨ Filter procedures by current appointment
+// ✨ Get procedures from current record
 const currentAppointmentProcedures = computed(() => {
-  if (!patient.value || !patient.value.procedures) return []
-  return patient.value.procedures.filter(p => p.appointmentId === appointmentId)
+  if (!currentRecord.value || !currentRecord.value.procedures) return []
+  return currentRecord.value.procedures
 })
 
 const recordModels = ref([
@@ -378,6 +380,13 @@ async function saveAndFinish() {
     return
   }
 
+  // Verificar se há procedimentos
+  if (!currentRecord.value?.procedures || currentRecord.value.procedures.length === 0) {
+    toast.error('Adicione pelo menos um procedimento antes de finalizar o atendimento.')
+    return
+  }
+
+  // Salvar o prontuário antes de abrir o modal de checkout
   clearTimeout(debounceTimeout)
   await autoSave()
 
@@ -386,16 +395,29 @@ async function saveAndFinish() {
     return
   }
 
-  const { success: appointmentStatusSuccess } = await appointmentsStore.updateAppointmentStatus(
-    appointment.value._id,
-    'Realizado',
-  )
+  // Abrir modal de checkout
+  showCheckoutModal.value = true
+}
 
-  if (appointmentStatusSuccess) {
-    toast.success('Atendimento finalizado e prontuário salvo!')
-    router.push('/app/atendimentos')
-  } else {
-    toast.error('Prontuário salvo, mas houve um erro ao atualizar o status do agendamento.')
+// ✨ Handle Checkout Confirmation
+async function handleCheckoutConfirm(checkoutData) {
+  isProcessingCheckout.value = true
+  
+  try {
+    const result = await patientsStore.checkout(checkoutData)
+    
+    if (result.success) {
+      toast.success('Atendimento finalizado com sucesso!')
+      showCheckoutModal.value = false
+      router.push('/app/atendimentos')
+    } else {
+      toast.error(result.error || 'Erro ao processar checkout.')
+    }
+  } catch (error) {
+    console.error('Erro no checkout:', error)
+    toast.error('Erro inesperado ao finalizar atendimento.')
+  } finally {
+    isProcessingCheckout.value = false
   }
 }
 
@@ -431,10 +453,22 @@ const formatDate = (dateString) => {
   <div v-else class="in-progress-appointment-layout">
     <AddProcedureModal
       v-if="showAddProcedureModal"
-      :patient-id="patientId"
+      :appointment-id="appointmentId"
       :is-loading="isAddingProcedure"
       @close="showAddProcedureModal = false"
       @save="handleAddProcedure"
+    />
+
+    <CheckoutModal
+      v-if="showCheckoutModal"
+      :procedures="currentRecord?.procedures || []"
+      :patient-id="patientId"
+      :appointment-id="appointmentId"
+      :patient-name="currentRecord?.patient?.name || 'Paciente'"
+      :appointment-date="currentRecord?.appointmentDate || new Date().toLocaleDateString('pt-BR')"
+      :appointment-time="currentRecord?.appointmentTime || '00:00'"
+      @close="showCheckoutModal = false"
+      @confirm="handleCheckoutConfirm"
     />
 
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>

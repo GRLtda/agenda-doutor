@@ -62,3 +62,6 @@ export const addProcedureToPatient = (patientId, procedureData) => {
   return apiClient.post(`/patients/${patientId}/procedures`, procedureData)
 }
 
+export const checkout = (checkoutData) => {
+  return apiClient.post('/patients/checkout', checkoutData)
+}

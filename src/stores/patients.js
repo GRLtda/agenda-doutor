@@ -9,7 +9,9 @@ import {
   getAllPatients as apiGetAllPatients, // ✨ 1. Importar a nova função
   getBirthdayPatients as apiGetBirthdayPatients,
   addProcedureToPatient as apiAddProcedureToPatient,
+  checkout as apiCheckout, // ✨ Import checkout
 } from '@/api/patients'
+
 
 export const usePatientsStore = defineStore('patients', () => {
   // STATE
@@ -193,6 +195,22 @@ export const usePatientsStore = defineStore('patients', () => {
     }
   }
 
+  // Checkout - Finalizar atendimento com pagamento
+  async function checkout(checkoutData) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiCheckout(checkoutData)
+      return { success: true, data: response.data }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao processar checkout.'
+      console.error('Falha em checkout:', err)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // RETURN
   return {
     allPatients,
@@ -210,5 +228,6 @@ export const usePatientsStore = defineStore('patients', () => {
     fetchAllPatients, // ✨ 5. Expor a nova action
     fetchBirthdayPatients,
     addProcedureToPatient,
+    checkout, // ✨ Export checkout
   }
 })

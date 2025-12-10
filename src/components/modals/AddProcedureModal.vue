@@ -7,7 +7,7 @@ import StyledSelect from '@/components/global/StyledSelect.vue'
 import { useProceduresStore } from '@/stores/procedures'
 
 const props = defineProps({
-  patientId: {
+  appointmentId: {
     type: String,
     required: true,
   },
@@ -99,6 +99,7 @@ function handleSubmit() {
   if (!selectedProcedureId.value) return
 
   const payload = {
+    appointmentId: props.appointmentId,
     procedureId: selectedProcedureId.value,
     discountPercentage: discountMode.value === 'percentage' ? discountPercentage.value : 0,
     discountValue: discountMode.value === 'fixed' ? discountValue.value : 0,
