@@ -380,11 +380,7 @@ async function saveAndFinish() {
     return
   }
 
-  // Verificar se há procedimentos
-  if (!currentRecord.value?.procedures || currentRecord.value.procedures.length === 0) {
-    toast.error('Adicione pelo menos um procedimento antes de finalizar o atendimento.')
-    return
-  }
+
 
   // Salvar o prontuário antes de abrir o modal de checkout
   clearTimeout(debounceTimeout)

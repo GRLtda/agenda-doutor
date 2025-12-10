@@ -73,6 +73,9 @@ const remainingAmount = computed(() => {
 
 // Validation
 const isValid = computed(() => {
+  // Allow checkout if total is zero
+  if (totalAmount.value === 0 && totalPaid.value === 0) return true
+
   // Check if there are confirmed payments
   if (confirmedPayments.value.length === 0) return false
   
