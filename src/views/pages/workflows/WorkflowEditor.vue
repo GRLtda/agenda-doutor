@@ -65,6 +65,20 @@ const templateOptions = computed(() => {
   }))
 })
 
+// Procedure options for StyledSelect
+const procedureOptions = computed(() => {
+  const options = proceduresStore.procedures.map(procedure => ({
+    value: procedure._id,
+    label: procedure.name
+  }))
+  
+  // Add "All Procedures" option at the beginning
+  return [
+    { value: '', label: 'Todos os Procedimentos' },
+    ...options
+  ]
+})
+
 onMounted(async () => {
   if (workflowId) {
     await Promise.all([
@@ -576,6 +590,21 @@ async function handleToggleStatus() {
               :options="eventTypeOptions"
               :required="true"
             />
+
+            <!-- Conditional Procedure Select -->
+            <StyledSelect
+              v-if="selectedNode.config.eventType === 'procedure_completed'"
+              v-model="selectedNode.config.procedureId"
+              label="Procedimento Específico"
+              :options="procedureOptions"
+              :required="false"
+              class="mt-4"
+            />
+            
+            <div v-if="selectedNode.config.eventType === 'procedure_completed'" class="field-hint">
+              <span class="hint-icon">💡</span>
+              <span>Deixe em branco para disparar em qualquer procedimento realizado, ou selecione um procedimento específico.</span>
+            </div>
           </div>
 
           <div class="info-card">
@@ -1716,5 +1745,10 @@ async function handleToggleStatus() {
 /* Vue Flow Customizations */
 :deep(.vue-flow__node-custom) {
   /* Ensure custom nodes handle selection correctly if needed */
+}
+
+/* Utility Classes */
+.mt-4 {
+  margin-top: 1rem;
 }
 </style>
