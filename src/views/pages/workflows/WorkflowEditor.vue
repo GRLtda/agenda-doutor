@@ -417,32 +417,7 @@ async function handleToggleStatus() {
                 <span class="node-item-desc">Envia uma mensagem para o paciente</span>
               </div>
             </div>
-            <div 
-              class="node-item node-action"
-              draggable="true"
-              @dragstart="onDragStart($event, 'action', 'update_patient')"
-            >
-              <div class="node-item-icon icon-action">
-                <User :size="18" />
-              </div>
-              <div class="node-item-content">
-                <span class="node-item-label">Atualizar Paciente</span>
-                <span class="node-item-desc">Atualiza dados do cadastro do paciente</span>
-              </div>
-            </div>
-            <div 
-              class="node-item node-action"
-              draggable="true"
-              @dragstart="onDragStart($event, 'action', 'create_appointment')"
-            >
-              <div class="node-item-icon icon-action">
-                <CalendarPlus :size="18" />
-              </div>
-              <div class="node-item-content">
-                <span class="node-item-label">Agendar Retorno</span>
-                <span class="node-item-desc">Cria um agendamento automático</span>
-              </div>
-            </div>
+
           </div>
 
           <!-- AGUARDAR -->
@@ -463,23 +438,7 @@ async function handleToggleStatus() {
             </div>
           </div>
 
-          <!-- CONDIÇÃO -->
-          <div class="node-category">
-            <h4 class="category-title">Condição</h4>
-            <div 
-              class="node-item node-condition"
-              draggable="true"
-              @dragstart="onDragStart($event, 'condition', 'check_variable')"
-            >
-              <div class="node-item-icon icon-condition">
-                <GitBranch :size="18" />
-              </div>
-              <div class="node-item-content">
-                <span class="node-item-label">Verificar Variável</span>
-                <span class="node-item-desc">Verifica uma condição e divide o fluxo</span>
-              </div>
-            </div>
-          </div>
+
         </div>
       </aside>
 

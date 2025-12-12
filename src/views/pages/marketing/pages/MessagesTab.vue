@@ -7,7 +7,13 @@ import Switch from '@/components/global/Switch.vue'
 
 const settingsStore = useCrmSettingsStore()
 
-const availableTriggers = computed(() => settingsStore.availableTriggers)
+const availableTriggers = computed(() => {
+  const triggers = settingsStore.availableTriggers || []
+  return triggers.filter(t => 
+    t.type !== 'APPOINTMENT_3_MINS_BEFORE' && 
+    t.type !== 'WORKFLOW_AUTOMATION'
+  )
+})
 const currentSettings = computed(() => settingsStore.currentSettings)
 const templateOptions = computed(() => settingsStore.templateOptions)
 const isLoading = computed(() => settingsStore.isLoading)
