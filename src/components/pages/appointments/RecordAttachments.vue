@@ -48,21 +48,35 @@ function triggerFileUpload() {
 }
 async function handleFileUpload(event) {
   if (props.disabled) return
-  const file = event.target.files[0]
-  if (!file) return
+  const files = Array.from(event.target.files)
+  if (!files.length) return
 
   isUploading.value = true
 
-  const { success, error } = await recordsStore.uploadAttachmentImage(
-    props.record?._id,
-    file,
-    { patientId: props.patientId, appointmentId: props.appointmentId },
-  )
+  let successCount = 0
+  let errorCount = 0
 
-  if (success) {
-    toast.success('Imagem anexada com sucesso!')
-  } else {
-    toast.error(error || 'Falha no upload da imagem.')
+  // Upload sequential to avoid overwhelming the server/browser
+  for (const file of files) {
+    const { success } = await recordsStore.uploadAttachmentImage(
+      props.record?._id,
+      file,
+      { patientId: props.patientId, appointmentId: props.appointmentId },
+    )
+
+    if (success) {
+      successCount++
+    } else {
+      errorCount++
+    }
+  }
+
+  if (successCount > 0) {
+    toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!`)
+  }
+  
+  if (errorCount > 0) {
+    toast.error(`Falha no upload de ${errorCount} imagem(ns).`)
   }
 
   event.target.value = ''
@@ -146,6 +160,7 @@ async function handleDeleteAttachment(uploadId) {
       ref="fileInput"
       @change="handleFileUpload"
       accept="image/png, image/jpeg, image/webp"
+      multiple
       hidden
       :disabled="disabled"
     />
