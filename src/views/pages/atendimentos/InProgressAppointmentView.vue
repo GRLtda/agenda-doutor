@@ -41,6 +41,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Trash2, // ✨ Ícone
   CheckCircle2,
   Pencil,
   Plus, // ✨ Import Plus icon
@@ -113,6 +114,23 @@ const isAddingProcedure = ref(false)
 // ✨ Checkout State
 const showCheckoutModal = ref(false)
 const isProcessingCheckout = ref(false)
+
+async function handleDeleteProcedure(procedure) {
+  if (!confirm('Tem certeza que deseja remover este procedimento?')) {
+    return
+  }
+  
+  // ✨ FIX: Use recordsStore instead of patientsStore because we are effectively editing the Record
+  // The procedure ID here corresponds to the subdocument in the Record, not the Patient document
+  const result = await recordsStore.removeProcedureFromRecord(currentRecord.value._id, procedure._id)
+  
+  if (result.success) {
+      toast.success('Procedimento removido com sucesso!')
+      // Record is automatically updated via store
+  } else {
+    toast.error(result.error || 'Erro ao remover procedimento')
+  }
+}
 
 async function handleAddProcedure(payload) {
   isAddingProcedure.value = true
@@ -709,6 +727,9 @@ const formatDate = (dateString) => {
                           <span v-if="proc.originalValue > proc.finalValue" class="discount-badge">-{{ Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%</span>
                           <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
                         </div>
+                        <button v-if="!isViewMode" @click="handleDeleteProcedure(proc)" class="btn-icon delete-btn" title="Remover Procedimento">
+                              <Trash2 :size="14" />
+                        </button>
                       </div>
                     </li>
                   </ul>
@@ -895,6 +916,25 @@ const formatDate = (dateString) => {
   align-items: center;
   height: 80px;
   flex-shrink: 0;
+}
+
+/* Delete Button Style (reused from PatientDetailView logic) */
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ef4444;
+  opacity: 0.7;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.delete-btn:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+  opacity: 1;
 }
 
 .patient-info-layout {

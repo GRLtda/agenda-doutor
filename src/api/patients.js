@@ -62,6 +62,10 @@ export const addProcedureToPatient = (patientId, procedureData) => {
   return apiClient.post(`/patients/${patientId}/procedures`, procedureData)
 }
 
+export const deleteProcedureFromPatient = (patientId, procedureId) => {
+  return apiClient.delete(`/patients/${patientId}/procedures/${procedureId}`)
+}
+
 export const checkout = (checkoutData) => {
   return apiClient.post('/patients/checkout', checkoutData)
 }

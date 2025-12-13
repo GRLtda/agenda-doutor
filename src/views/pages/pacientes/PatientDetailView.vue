@@ -278,8 +278,23 @@ async function handleAddProcedure(payload) {
   if (success) {
     toast.success('Procedimento adicionado com sucesso!')
     isAddProcedureModalOpen.value = false
+    // Não precisamos recarregar tudo, pois o addProcedureToPatient atualiza o selectedPatient
   } else {
     toast.error(patientsStore.error || 'Erro ao adicionar procedimento.')
+  }
+}
+
+async function handleDeleteProcedure(procedure) {
+  if (!confirm('Tem certeza que deseja remover este procedimento?')) {
+    return
+  }
+
+  const result = await patientsStore.removeProcedureFromPatient(patient.value._id, procedure._id)
+  if (result.success) {
+    toast.success('Procedimento removido com sucesso!')
+    // Sucesso (store já atualizou o patient local)
+  } else {
+    toast.error(result.error || 'Erro ao remover procedimento.')
   }
 }
 </script>
@@ -687,6 +702,9 @@ async function handleAddProcedure(payload) {
                         </span>
                         <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
                       </div>
+                      <button @click="handleDeleteProcedure(proc)" class="btn-icon delete-btn" title="Remover Procedimento">
+                          <Trash2 :size="16" />
+                      </button>
                     </div>
                   </li>
                 </ul>
@@ -788,6 +806,18 @@ async function handleAddProcedure(payload) {
     margin-bottom: 0.5rem;
     color: #1f2937; /* Cor do título mais escura */
 }
+
+/* Delete Button Style */
+.delete-btn {
+  color: #ef4444; /* Vermelho */
+  opacity: 0.7;
+}
+.delete-btn:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+  opacity: 1;
+}
+
 .tooltip-list {
     /* Corrigido de ul para .tooltip-list */
     list-style: disc;

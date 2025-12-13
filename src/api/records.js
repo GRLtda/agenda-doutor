@@ -73,3 +73,13 @@ export const removeAttachment = (recordId, uploadId) => {
 export const addProcedureToRecord = (procedureData) => {
   return apiClient.post('/records/procedures', procedureData)
 }
+
+/**
+ * Remove um procedimento do prontuário.
+ * Rota: DELETE /api/records/:recordId/procedures/:procedureId
+ * @param {string} recordId - O ID do prontuário.
+ * @param {string} procedureId - O ID do procedimento (subdocumento).
+ */
+export const removeProcedureFromRecord = (recordId, procedureId) => {
+  return apiClient.delete(`/records/${recordId}/procedures/${procedureId}`)
+}

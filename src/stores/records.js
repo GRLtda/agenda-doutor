@@ -7,6 +7,7 @@ import {
   uploadImageAttachment as apiUploadImageAttachment,
   removeAttachment as apiRemoveAttachment, // ✨ 1. Importa a função correta do lugar certo
   addProcedureToRecord as apiAddProcedureToRecord, // ✨ Import add procedure
+  removeProcedureFromRecord as apiRemoveProcedureFromRecord, // ✨ Import remove procedure
 } from '@/api/records'
 import apiClient from '@/api'
 
@@ -125,6 +126,23 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  // Remove procedure from record
+  async function removeProcedureFromRecord(recordId, procedureId) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiRemoveProcedureFromRecord(recordId, procedureId)
+      // Atualiza o record atual com a resposta (que deve ser o record atualizado)
+      currentRecord.value = response.data
+      return { success: true }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao remover procedimento.'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     currentRecord,
     isLoading,
@@ -135,5 +153,6 @@ export const useRecordsStore = defineStore('records', () => {
     uploadAttachmentImage,
     deleteAttachment,
     addProcedureToRecord, // ✨ Export new function
+    removeProcedureFromRecord, // ✨ Export remove function
   }
 })

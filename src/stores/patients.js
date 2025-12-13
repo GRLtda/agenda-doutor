@@ -9,6 +9,7 @@ import {
   getAllPatients as apiGetAllPatients, // ✨ 1. Importar a nova função
   getBirthdayPatients as apiGetBirthdayPatients,
   addProcedureToPatient as apiAddProcedureToPatient,
+  deleteProcedureFromPatient as apiDeleteProcedureFromPatient, // ✨ Importar a função de deletar procedimento
   checkout as apiCheckout, // ✨ Import checkout
 } from '@/api/patients'
 
@@ -195,6 +196,7 @@ export const usePatientsStore = defineStore('patients', () => {
     }
   }
 
+
   // Checkout - Finalizar atendimento com pagamento
   async function checkout(checkoutData) {
     isLoading.value = true
@@ -205,6 +207,24 @@ export const usePatientsStore = defineStore('patients', () => {
     } catch (err) {
       error.value = err.response?.data?.message || 'Erro ao processar checkout.'
       console.error('Falha em checkout:', err)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Remove procedimento do paciente
+  async function removeProcedureFromPatient(patientId, procedureId) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiDeleteProcedureFromPatient(patientId, procedureId)
+      // Atualiza o paciente selecionado com os novos dados retornados (que já vem sem o procedimento)
+      selectedPatient.value = response.data
+      return { success: true }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao remover procedimento.'
+      console.error('Falha em removeProcedureFromPatient:', err)
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -229,5 +249,6 @@ export const usePatientsStore = defineStore('patients', () => {
     fetchBirthdayPatients,
     addProcedureToPatient,
     checkout, // ✨ Export checkout
+    removeProcedureFromPatient,
   }
 })
