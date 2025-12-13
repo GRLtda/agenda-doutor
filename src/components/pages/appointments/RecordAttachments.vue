@@ -159,7 +159,7 @@ async function handleDeleteAttachment(uploadId) {
       type="file"
       ref="fileInput"
       @change="handleFileUpload"
-      accept="image/png, image/jpeg, image/webp"
+      accept="image/*"
       multiple
       hidden
       :disabled="disabled"
