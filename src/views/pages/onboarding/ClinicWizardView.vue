@@ -1,16 +1,16 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import StepCreateClinic from '@/components/pages/onboarding/steps/StepCreateClinic.vue'
-import StepWorkingHours from '@/components/pages/onboarding/steps/StepWorkingHours.vue' // 1. Importar nova etapa
-import { Building, Clock, CheckCircle, CalendarPlus, UserPlus, PartyPopper } from 'lucide-vue-next' // 2. Importar ícone Clock
+import StepWorkingHours from '@/components/pages/onboarding/steps/StepWorkingHours.vue'
+import ClinicLogo from '@/components/global/ClinicLogo.vue' // Import Logo
+import { Building, Clock, CheckCircle, CalendarPlus, UserPlus, PartyPopper } from 'lucide-vue-next'
 
 const router = useRouter()
 const currentStep = ref(1)
 
-// 3. Adicionar a nova etapa ao array
 const steps = [
   { name: 'Dados da Clínica', subtitle: 'Informações principais', icon: Building },
   { name: 'Horário', subtitle: 'Funcionamento', icon: Clock },
@@ -22,6 +22,26 @@ function nextStep() {
     currentStep.value++
   }
 }
+
+// --- ROTATING TEXT LOGIC ---
+const currentQuoteIndex = ref(0)
+const quotes = [
+  "Falta pouco para sua rotina automatizada",
+  "Gestão simplificada e eficiente para sua clínica",
+  "Tecnologia que transforma o seu dia a dia"
+]
+
+let quoteInterval
+
+onMounted(() => {
+  quoteInterval = setInterval(() => {
+    currentQuoteIndex.value = (currentQuoteIndex.value + 1) % quotes.length
+  }, 5000)
+})
+
+onUnmounted(() => {
+  clearInterval(quoteInterval)
+})
 </script>
 
 <template>
@@ -29,6 +49,19 @@ function nextStep() {
     image-url="https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=1168&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
     panel-width="large"
   >
+    <template #image-content>
+      <div class="brand-logo">
+        <ClinicLogo size="120px" />
+      </div>
+      <div class="testimonial-overlay">
+        <Transition name="fade" mode="out-in">
+          <p :key="currentQuoteIndex" class="quote">
+            “{{ quotes[currentQuoteIndex] }}”
+          </p>
+        </Transition>
+      </div>
+    </template>
+
     <template #title>
       <Stepper :steps="steps" :currentStep="currentStep" />
     </template>
@@ -70,6 +103,42 @@ function nextStep() {
 </template>
 
 <style scoped>
+/* --- TRANSITIONS --- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* --- OVERLAY STYLES --- */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.testimonial-overlay {
+  margin-bottom: 2rem;
+  min-height: 120px; /* Prevent jumping */
+  display: flex;
+  align-items: flex-end; /* Align bottom */
+}
+
+.quote {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: white; /* Ensure text is white on image */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin: 0;
+}
+
 .step-content-wrapper {
   margin-top: 2rem;
 }

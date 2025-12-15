@@ -9,7 +9,7 @@ import { useToast } from 'vue-toastification'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import PasswordInput from '@/components/global/PasswordInput.vue'
-import { CheckCircle2, Building2 } from 'lucide-vue-next' // ✨ Importei o Building2
+import { CheckCircle2, Building2, Check } from 'lucide-vue-next' // ✨ Importei o Building2 e Check
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import confetti from 'canvas-confetti'
@@ -26,6 +26,7 @@ const phone = ref('')
 const password = ref('')
 const errorMessage = ref(null)
 const registrationSuccess = ref(false)
+const termsAccepted = ref(false)
 
 const isLoading = ref(false)
 
@@ -34,6 +35,7 @@ const isStaffInvitation = ref(false)
 const invitationToken = ref(null)
 const emailIsDisabled = ref(false)
 const phoneIsDisabled = ref(false)
+const nameIsDisabled = ref(false)
 
 const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
 
@@ -51,11 +53,13 @@ onMounted(async () => {
     try {
       const response = await verifyInvitationToken(newUserToken)
       if (response.data) {
+        name.value = response.data.name || '' // Preenche o nome se ele vier
         email.value = response.data.email
         phone.value = response.data.phone || '' // Preenche o telefone se ele vier
         plan.value = response.data.plan
         emailIsDisabled.value = true
         phoneIsDisabled.value = !!response.data.phone // Desativa fone se ele veio
+        nameIsDisabled.value = !!response.data.name // Desativa nome se ele veio
         isStaffInvitation.value = false // É um registro normal, não um convite de staff
         toast.info(`Bem-vindo(a)! Complete seu cadastro.`)
       }
@@ -103,6 +107,12 @@ async function handleRegister() {
     email: email.value,
     phone: phone.value,
     password: password.value,
+  }
+
+  if (!termsAccepted.value) {
+    errorMessage.value = 'Você deve aceitar os termos e condições para criar a conta.'
+    isLoading.value = false
+    return
   }
 
   // O token (seja de staff ou registro) é obrigatório e será enviado aqui
@@ -191,6 +201,7 @@ function handleRegistrationComplete() {
           placeholder="Seu nome completo"
           autocomplete="name"
           :required="true"
+          :disabled="nameIsDisabled"
         />
         <FormInput
           v-model="email"
@@ -214,6 +225,18 @@ function handleRegistrationComplete() {
           :disabled="phoneIsDisabled"
         />
         <PasswordInput v-model="password" label="Senha" :required="true" />
+
+        <div class="terms-checkbox">
+          <label class="checkbox-container">
+            <input type="checkbox" v-model="termsAccepted" />
+            <span class="custom-checkbox" :class="{ 'checked': termsAccepted }">
+              <Check v-if="termsAccepted" :size="14" stroke-width="3" />
+            </span>
+          </label>
+          <span class="checkbox-label" @click="termsAccepted = !termsAccepted">
+            Li e concordo com os Termos de Uso e Política de Privacidade.
+          </span>
+        </div>
 
         <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
         <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 1rem;">
@@ -427,5 +450,71 @@ function handleRegistrationComplete() {
   color: var(--cinza-texto, #4b5563);
   line-height: 1.5;
   margin: 0;
+}
+
+.terms-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.checkbox-container {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem; /* Alinhar com a primeira linha do texto */
+}
+
+/* Esconde o input checkbox padrão */
+.checkbox-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+/* O quadrado customizado */
+.custom-checkbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 1.25rem;
+  width: 1.25rem;
+  background-color: #fff;
+  border: 2px solid #d1d5db; /* cinza claro */
+  border-radius: 6px; /* bordas arredondadas modernas */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+  color: white;
+}
+
+.checkbox-container:hover .custom-checkbox {
+  border-color: var(--azul-principal);
+}
+
+.custom-checkbox.checked {
+  background-color: var(--azul-principal);
+  border-color: var(--azul-principal);
+}
+
+.checkbox-label {
+  font-size: 0.85rem;
+  color: var(--cinza-texto);
+  line-height: 1.4;
+  cursor: pointer;
+  text-align: left;
+  user-select: none; /* Evita seleção de texto ao clicar repetidamente */
+}
+
+.checkbox-label strong {
+  color: var(--preto-principal);
+  font-weight: 600;
 }
 </style>

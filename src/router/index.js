@@ -83,7 +83,8 @@ router.beforeEach((to, from, next) => {
   }
 
   if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
-    return next({ name: 'resumo-dashboard' })
+    // Permite que o usuário acesse a página para trocar de conta se desejar (o logout ocorrerá ao submeter o form)
+    return next()
   }
 
   // 4. Se a rota exige uma clínica (a maioria das rotas 'requiresAuth')

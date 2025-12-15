@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useRecordsStore } from '@/stores/records'
@@ -82,6 +82,47 @@ const isSidebarOpen = ref(false)
 const currentRecord = computed(() => recordsStore.currentRecord)
 const saveStatus = ref('idle')
 const lastSaved = ref(null)
+
+// ✨ Sliding Indicator Logic
+const sideMenuRef = ref(null)
+const indicatorStyle = ref({
+  top: '0px',
+  height: '0px',
+  opacity: 0
+})
+
+const updateIndicator = () => {
+  nextTick(() => {
+    if (!sideMenuRef.value) return
+    
+    // Find active button
+    const activeBtn = sideMenuRef.value.querySelector('.is-active')
+    
+    if (activeBtn) {
+      const navRect = sideMenuRef.value.getBoundingClientRect()
+      const btnRect = activeBtn.getBoundingClientRect()
+      
+      indicatorStyle.value = {
+        top: `${btnRect.top - navRect.top}px`,
+        height: `${btnRect.height}px`,
+        opacity: 1
+      }
+    } else {
+      indicatorStyle.value = { ...indicatorStyle.value, opacity: 0 }
+    }
+  })
+}
+
+// Watch activeTab to update indicator
+watch(activeTab, () => {
+  updateIndicator()
+}, { immediate: true })
+
+// Update on resize too
+const handleResize = () => {
+  updateIndicator()
+  handleViewportChange()
+}
 
 // ✨ State for "See More" functionality
 const showAllPending = ref(false)
@@ -333,11 +374,14 @@ onMounted(async () => {
   isLoadingData.value = false
 
   // ✨ ADICIONAR "ESCUTADORES" DE EVENTO MAIS ROBUSTOS ✨
-  window.addEventListener('resize', handleViewportChange)
+  window.addEventListener('resize', handleResize)
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', handleViewportChange)
+    window.visualViewport.addEventListener('resize', handleResize)
     window.visualViewport.addEventListener('scroll', handleViewportChange)
   }
+  
+  // Initial update
+  setTimeout(updateIndicator, 100)
   handleViewportChange() // Verificação inicial
 
   // ✨ Fetch Anamneses & Procedures
@@ -356,9 +400,9 @@ onBeforeUnmount(() => {
   }
 
   // ✨ REMOVER "ESCUTADORES" DE EVENTO ✨
-  window.removeEventListener('resize', handleViewportChange)
+  window.removeEventListener('resize', handleResize)
   if (window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', handleViewportChange)
+    window.visualViewport.removeEventListener('resize', handleResize)
     window.visualViewport.removeEventListener('scroll', handleViewportChange)
   }
 })
@@ -437,8 +481,8 @@ async function handleCheckoutConfirm(checkoutData) {
 
 
 const menuItems = [
-  { id: 'record', label: 'Registro do Atendimento', icon: FileText },
-  { id: 'patient-info', label: 'Informações do Paciente', icon: User },
+  { id: 'record', label: 'Prontuario', icon: FileText },
+  { id: 'patient-info', label: 'Informações', icon: User },
   { id: 'exams', label: 'Exames', icon: Stethoscope },
   { id: 'prescriptions', label: 'Prescrições', icon: Calendar },
   { id: 'documents', label: 'Documentos', icon: Paperclip },
@@ -514,24 +558,34 @@ const formatDate = (dateString) => {
           </div>
         </div>
       </div>
-      <nav class="side-menu">
+      <nav class="side-menu" ref="sideMenuRef">
+        <!-- Indicador flutuante que desliza -->
+        <div 
+          class="sliding-indicator" 
+          :style="{ 
+            top: indicatorStyle.top, 
+            height: indicatorStyle.height,
+            opacity: indicatorStyle.opacity 
+          }"
+        ></div>
+
         <button
           v-for="item in menuItems"
           :key="item.id"
           :class="{ 'is-active': activeTab === item.id }"
           @click="activeTab = item.id"
         >
-          <component :is="item.icon" :size="20" />
+          <component :is="item.icon" :size="20" stroke-width="2" />
           <span>{{ item.label }}</span>
         </button>
       </nav>
 
       <!-- ✨ Desktop Sidebar Footer -->
       <div class="sidebar-footer desktop-only">
-        <button @click="router.push('/app/atendimentos')" class="btn-secondary-solid w-full">
+        <AppButton @click="router.push('/app/atendimentos')" variant="default" class="w-full">
           <ArrowLeft :size="16" />
-          Voltar para a Agenda
-        </button>
+          Voltar
+        </AppButton>
       </div>
 
       <div class="mobile-sidebar-footer">
@@ -542,21 +596,23 @@ const formatDate = (dateString) => {
           </div>
           <SaveStatusIndicator :status="saveStatus" :last-saved="lastSaved" />
         </div>
-        <button @click="router.back()" class="btn-secondary-solid">
+        <AppButton @click="router.back()" variant="default">
           <ArrowLeft :size="16" />
-          Voltar para a Agenda
-        </button>
+          Voltar
+        </AppButton>
         
         <!-- ✨ Finalizar Atendimento (Mobile Sidebar) -->
-        <button
+        <AppButton
           v-if="!isViewMode"
           @click="saveAndFinish"
-          class="btn-finish-appointment mobile-finish-btn"
+          variant="secondary"
+          class="mobile-finish-btn"
+          :loading="recordsStore.isLoading || appointmentsStore.isLoading"
           :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
         >
           Finalizar Atendimento
           <ChevronRight :size="16" />
-        </button>
+        </AppButton>
       </div>
     </aside>
 
@@ -591,15 +647,16 @@ const formatDate = (dateString) => {
             class="desktop-only"
           />
 
-          <button
+          <AppButton
             v-if="!isViewMode"
             @click="saveAndFinish"
-            class="btn-finish-appointment"
+            variant="secondary"
+            :loading="recordsStore.isLoading || appointmentsStore.isLoading"
             :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
           >
             Finalizar Atendimento
             <ChevronRight :size="16" />
-          </button>
+          </AppButton>
         </div>
       </header>
 
@@ -727,9 +784,16 @@ const formatDate = (dateString) => {
                           <span v-if="proc.originalValue > proc.finalValue" class="discount-badge">-{{ Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%</span>
                           <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
                         </div>
-                        <button v-if="!isViewMode" @click="handleDeleteProcedure(proc)" class="btn-icon delete-btn" title="Remover Procedimento">
+                        <AppButton 
+                          v-if="!isViewMode" 
+                          @click="handleDeleteProcedure(proc)" 
+                          variant="ghost" 
+                          size="sm" 
+                          class="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Remover Procedimento"
+                        >
                               <Trash2 :size="14" />
-                        </button>
+                        </AppButton>
                       </div>
                     </li>
                   </ul>
@@ -786,9 +850,15 @@ const formatDate = (dateString) => {
                         </div>
                         <div class="anamnesis-actions">
                             <span class="status-badge pending">Pendente</span>
-                            <button v-if="!isViewMode" class="btn-edit-small" @click="openAnamnesisModal(anamnesis, true)" title="Responder">
+                            <AppButton 
+                              v-if="!isViewMode" 
+                              variant="ghost" 
+                              size="sm" 
+                              @click="openAnamnesisModal(anamnesis, true)" 
+                              title="Responder"
+                            >
                                 <Pencil :size="14" />
-                            </button>
+                            </AppButton>
                         </div>
                       </li>
                     </ul>
@@ -811,9 +881,9 @@ const formatDate = (dateString) => {
                           <span class="anamnesis-name">{{ anamnesis.template?.name || 'Anamnese Sem Título' }}</span>
                           <span class="anamnesis-date">Respondida em: {{ new Date(anamnesis.updatedAt).toLocaleDateString('pt-BR') }}</span>
                         </div>
-                        <button class="btn-view-anamnesis" @click="openAnamnesisModal(anamnesis)">
+                        <AppButton variant="default" size="sm" @click="openAnamnesisModal(anamnesis)">
                           Ver Respostas
-                        </button>
+                        </AppButton>
                       </li>
                     </ul>
                   </div>
@@ -834,7 +904,7 @@ const formatDate = (dateString) => {
                 Você pode adicionar solicitações de exames para este paciente. Eles ficarão
                 registrados aqui.
               </p>
-              <button class="create-button is-disabled">Solicitar Exame</button>
+              <AppButton variant="primary" :disabled="true">Solicitar Exame</AppButton>
             </div>
           </div>
         </div>
@@ -849,7 +919,7 @@ const formatDate = (dateString) => {
               <p class="empty-description">
                 Crie e gerencie as prescrições de medicamentos e tratamentos para o paciente.
               </p>
-              <button class="create-button is-disabled">Criar Prescrição</button>
+              <AppButton variant="primary" :disabled="true">Criar Prescrição</AppButton>
             </div>
           </div>
         </div>
@@ -864,7 +934,7 @@ const formatDate = (dateString) => {
               <p class="empty-description">
                 Gere atestados, laudos ou outros documentos personalizados para este atendimento.
               </p>
-              <button class="create-button is-disabled">Gerar Documento</button>
+              <AppButton variant="primary" :disabled="true">Gerar Documento</AppButton>
             </div>
           </div>
         </div>
@@ -908,34 +978,16 @@ const formatDate = (dateString) => {
 }
 
 .top-bar {
-  background-color: var(--branco);
-  border-bottom: 1px solid #e5e7eb;
+  background-color: #fafbfc;
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 80px;
+  height: 60px;
   flex-shrink: 0;
 }
 
-/* Delete Button Style (reused from PatientDetailView logic) */
-.delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #ef4444;
-  opacity: 0.7;
-  padding: 0.25rem;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.delete-btn:hover {
-  background-color: #fef2f2;
-  color: #dc2626;
-  opacity: 1;
-}
+/* Delete Button Style (reused logic) handled by utility classes now */
 
 .patient-info-layout {
   display: flex;
@@ -1253,6 +1305,31 @@ const formatDate = (dateString) => {
   gap: 1.5rem;
 }
 
+.side-menu {
+  flex-grow: 1;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative; /* Contexto de posicionamento para o indicador */
+}
+
+/* Indicador flutuante que desliza */
+.sliding-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  background-color: var(--azul-principal);
+  border-radius: 0 2px 2px 0;
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  pointer-events: none;
+  transform: scaleY(0.6);
+  transform-origin: center;
+}
+
 .info-item {
   display: flex;
   flex-direction: column;
@@ -1479,23 +1556,7 @@ const formatDate = (dateString) => {
   border: 1px solid #ffedd5;
 }
 
-.btn-view-anamnesis {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  background-color: white;
-  color: var(--azul-principal);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
 
-.btn-view-anamnesis:hover {
-  background-color: var(--azul-principal);
-  color: white;
-  border-color: var(--azul-principal);
-}
 
 .anamnesis-actions {
   display: flex;
@@ -1503,25 +1564,7 @@ const formatDate = (dateString) => {
   gap: 0.75rem;
 }
 
-.btn-edit-small {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background-color: white;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
 
-.btn-edit-small:hover {
-  background-color: #f9fafb;
-  color: var(--azul-principal);
-  border-color: var(--azul-principal);
-}
 .header-left,
 .header-right {
   flex: 1;
@@ -1553,62 +1596,22 @@ const formatDate = (dateString) => {
   padding: 0.5rem 1rem;
   border-radius: 9999px;
 }
-.btn-finish-appointment {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  border: none;
-  background-color: #dcfce7;
-  color: #16a34a;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
-}
-.btn-finish-appointment:hover:not(:disabled) {
-  background-color: #bbf7d0;
-}
-.btn-finish-appointment:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-.btn-secondary-solid {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  border: none;
-  background-color: #f1f5f9;
-  color: #334155;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  justify-content: center;
-}
-.btn-secondary-solid:hover {
-  background-color: #e2e8f0;
-}
+
 .content-area {
   flex-grow: 1;
   display: flex;
   overflow: hidden;
 }
 .left-sidebar {
-  width: 280px; /* Slightly wider for patient info */
-  background-color: #fafbfc; /* Match main sidebar */
-  border-right: 1px solid #e5e7eb;
+  width: 240px; /* Match Dashboard Sidebar width */
+  background-color: #fafbfc;
+  border-top-right-radius: 1rem; /* Dashboard aesthetic */
   padding: 1rem;
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  height: 100%; /* ✨ Full height */
+  height: 100dvh; /* Garante altura total */
 }
 .patient-card {
   display: flex;
@@ -1665,29 +1668,33 @@ const formatDate = (dateString) => {
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
-  font-size: 0.875rem; /* Match nav-link size */
+  font-size: 0.875rem;
   font-weight: 500;
   color: #525866;
-  transition: all 0.2s ease;
   white-space: nowrap;
   width: 100%;
   text-align: left;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s ease,
+              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .side-menu button:hover {
-  background-color: #edf0f4;
-  color: var(--preto);
+  background-color: #f0f2f5;
+  color: var(--azul-principal);
+  padding-left: 0.875rem;
 }
 .side-menu button.is-active {
-  background-color: var(--branco);
-  color: var(--preto);
+  background-color: #eef2ff;
+  color: var(--azul-principal);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border-color: #f3f4f6;
+  border-color: transparent;
 }
 .editor-main-content {
   flex-grow: 1;
   overflow-y: auto;
   display: flex;
+  border-radius: 1rem 0 0 0rem;
+  border: 1px solid #e5e7eb;
   flex-direction: column;
 }
 .tab-content {
@@ -1739,7 +1746,6 @@ const formatDate = (dateString) => {
   gap: 0.75rem;
   color: #333;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
 }
 .view-mode-header h3 {
@@ -1752,7 +1758,6 @@ const formatDate = (dateString) => {
   display: none;
   justify-content: flex-end;
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
 
@@ -2104,7 +2109,6 @@ const formatDate = (dateString) => {
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
     z-index: 4999;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
-    border-right: 1px solid #e5e7eb;
     background-color: var(--branco);
   }
 

@@ -61,6 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(credentials) {
+    logout()
     try {
       const response = await apiLogin(credentials)
       const { token: authToken } = response.data // 1. Pegamos apenas o token
@@ -78,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function register(userData) {
+    logout()
     try {
       const response = await apiRegister(userData)
       const { token: authToken } = response.data // 1. Pegamos apenas o token

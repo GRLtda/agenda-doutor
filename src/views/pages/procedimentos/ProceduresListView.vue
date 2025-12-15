@@ -128,7 +128,7 @@ const getPricingTypeInfo = (type) => {
     case 'ML':
       return { label: 'Por ML', class: 'tag-ml' }
     case 'UNIT':
-      return { label: 'Por Unidade', class: 'tag-unit' }
+      return { label: 'Unidade', class: 'tag-unit' }
     default:
       return { label: type || 'N/A', class: 'tag-default' }
   }
@@ -155,7 +155,7 @@ const getPricingTypeInfo = (type) => {
         <table>
           <thead>
             <tr>
-              <th>
+              <th class="col-name">
                 <div class="th-content">
                   <Stethoscope :size="14" />
                   <span>Nome do Procedimento</span>
@@ -167,7 +167,7 @@ const getPricingTypeInfo = (type) => {
                   <span>Valor Base</span>
                 </div>
               </th>
-              <th>
+              <th class="col-type">
                 <div class="th-content">
                   <Tag :size="14" />
                   <span>Tipo</span>
@@ -503,6 +503,15 @@ th {
 
 th.actions-header {
   width: 100px;
+}
+
+th.col-name {
+  width: 65%;
+}
+
+th.col-type {
+  width: 15%;
+  min-width: 100px;
 }
 
 th.actions-header .th-content {

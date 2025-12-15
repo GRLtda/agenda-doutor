@@ -37,6 +37,7 @@ function openWhatsapp() {
   window.open(whatsappLink, '_blank')
 }
 
+
 // --- FUNÇÕES ---
 function goToStep(stepName) {
   step.value = stepName

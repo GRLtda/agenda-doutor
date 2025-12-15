@@ -310,8 +310,7 @@ function handleRefresh() {
   flex-direction: column;
   height: 100%;
   gap: 1.25rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  /* max-width e margin removidos para ocupar a tela toda */
   width: 100%;
 }
 
