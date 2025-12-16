@@ -29,18 +29,12 @@ function handleLogout() {
           <span>Perfil</span>
         </button>
       </li>
-      <!-- <li>
-        <button class="dropdown-item">
+      <li v-if="authStore.user?.role === 'owner'">
+        <button class="dropdown-item" @click="router.push('/app/assinatura')">
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
       </li>
-      <li>
-        <button class="dropdown-item">
-          <Settings :size="16" />
-          <span>Configurações</span>
-        </button>
-      </li>-->
       
       <li class="separator"></li>
 

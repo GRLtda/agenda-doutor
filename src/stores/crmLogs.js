@@ -12,6 +12,7 @@ const logStatusDescriptions = {
   READ: 'Lida',
   ERROR_WHATSAPP: 'Erro WhatsApp',
   ERROR_SYSTEM: 'Erro Sistema',
+  ERROR_INVALID_NUMBER: 'Erro Número'
 }
 
 // Mapeamento para nomes amigáveis de tipos de ação

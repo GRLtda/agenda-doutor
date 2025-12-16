@@ -22,6 +22,7 @@ import MessagesTab from '../views/pages/marketing/pages/MessagesTab.vue'
 import TemplatesTab from '../views/pages/marketing/pages/TemplatesTab.vue'
 import ConnectionTab from '../views/pages/marketing/pages/ConnectionTab.vue'
 import LogsTab from '../views/pages/marketing/pages/LogsTab.vue'
+import SubscriptionView from '../views/pages/assinatura/SubscriptionView.vue'
 
 const dashboardRoutes = [
   {
@@ -46,6 +47,12 @@ const dashboardRoutes = [
         name: 'configuracoes',
         component: SettingsView,
         meta: { title: 'Configurações' },
+      },
+      {
+        path: 'assinatura',
+        name: 'subscription',
+        component: SubscriptionView,
+        meta: { title: 'Assinatura', feature: 'subscription' }
       },
       {
         path: 'perfil',

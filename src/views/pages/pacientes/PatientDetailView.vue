@@ -486,7 +486,13 @@ async function handleDeleteProcedure(procedure) {
                     </div>
                     <div class="detail-item">
                       <span class="label">Telefone</span>
-                      <strong class="value">{{ formatPhone(patient.phone) }}</strong>
+                      <strong class="value" :class="{ 'text-red-500 flex items-center gap-1': patient.isInvalidWhatsapp }">
+                          {{ formatPhone(patient.phone) }}
+                          <div v-if="patient.isInvalidWhatsapp" class="invalid-whatsapp-badge" title="Este número não possui WhatsApp ou é inválido.">
+                             <AlertTriangle :size="14" />
+                             <span class="text-xs">Inválido</span>
+                          </div>
+                      </strong>
                     </div>
                     <div class="detail-item">
                       <span class="label">E-mail</span>
@@ -798,7 +804,19 @@ async function handleDeleteProcedure(procedure) {
 .missing-info-badge:hover .missing-info-tooltip {
   visibility: visible;
   opacity: 1;
-  transform: translateY(0);
+}
+
+.invalid-whatsapp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: #fef2f2;
+    color: #ef4444;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #fca5a5;
+    font-size: 0.75rem;
+    font-weight: 500;
 }
 .tooltip-title {
     font-weight: 700;
