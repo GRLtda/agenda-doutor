@@ -162,6 +162,31 @@ const dashboardRoutes = [
         component: BirthdayPatientsView,
         meta: { title: 'Aniversariantes do Mês', layout: { noPadding: true } },
       },
+      // ==================== DOCUMENTS ====================
+      {
+        path: 'documentos',
+        name: 'documents-list',
+        component: () => import('../views/pages/documents/DocumentsListView.vue'),
+        meta: { title: 'Documentos' },
+      },
+      {
+        path: 'documentos/novo',
+        name: 'document-create',
+        component: () => import('../views/pages/documents/DocumentEditorView.vue'),
+        meta: { title: 'Novo Documento' },
+      },
+      {
+        path: 'documentos/:id/editar',
+        name: 'document-edit',
+        component: () => import('../views/pages/documents/DocumentEditorView.vue'),
+        meta: { title: 'Editar Documento' },
+      },
+      {
+        path: 'documentos/:id',
+        name: 'document-detail',
+        component: () => import('../views/pages/documents/DocumentDetailView.vue'),
+        meta: { title: 'Detalhes do Documento' },
+      },
     ],
   },
 ]
