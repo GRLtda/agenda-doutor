@@ -60,7 +60,9 @@ const patient = computed(() => patientsStore.selectedPatient)
 const clinic = computed(() => authStore.user?.clinic)
 const answeredAnamneses = computed(() => anamnesisStore.answeredAnamneses)
 const pendingAnamneses = computed(() => anamnesisStore.pendingAnamneses)
-const patientHistory = computed(() => appointmentsStore.patientAppointments)
+const patientHistory = computed(() => 
+  (appointmentsStore.patientAppointments || []).filter(app => app.status !== 'Agendado')
+)
 
 const genderOptions = [
   { value: 'Masculino', label: 'Masculino' },
@@ -553,9 +555,9 @@ async function handleDeleteProcedure(procedure) {
                       <div class="value-with-badge">
                         <strong>{{ formatSimpleDate(lastAppointment.startTime) }}</strong>
                         <span
-                          :class="useStatusBadge(lastAppointment.status).badgeClass.value"
-                          :style="useStatusBadge(lastAppointment.status).badgeStyle.value"
-                          >{{ useStatusBadge(lastAppointment.status).displayText.value }}</span
+                          :class="useStatusBadge(lastAppointment.status).badgeClass"
+                          :style="useStatusBadge(lastAppointment.status).badgeStyle"
+                          >{{ useStatusBadge(lastAppointment.status).displayText }}</span
                         >
                       </div>
                     </div>
@@ -644,23 +646,26 @@ async function handleDeleteProcedure(procedure) {
                   Carregando histórico...
                 </div>
                 <ul v-else-if="patientHistory.length > 0" class="history-list">
-                  <li v-for="item in patientHistory" :key="item._id">
-                    <div class="history-info">
-                      <span class="history-date">{{ formatSimpleDate(item.startTime) }}</span>
-                      <span
-                        :class="useStatusBadge(item.status).badgeClass.value"
-                          :style="useStatusBadge(item.status).badgeStyle.value"
-                        >{{ useStatusBadge(item.status).displayText.value }}</span
+                  <li v-for="item in patientHistory" :key="item._id" :class="['history-item-new', useStatusBadge(item.status).class]">
+                    <div class="history-item-content">
+                      <div class="history-main-info">
+                        <span class="history-date-new">{{ formatSimpleDate(item.startTime) }}</span>
+                        <span
+                          :class="useStatusBadge(item.status).badgeClass"
+                          :style="useStatusBadge(item.status).badgeStyle"
+                        >
+                          {{ useStatusBadge(item.status).displayText }}
+                        </span>
+                      </div>
+                      <router-link
+                        v-if="item.status === 'Realizado'"
+                        :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
+                        class="history-action-btn"
                       >
+                        <Eye :size="14" />
+                        <span>Ver Relatório</span>
+                      </router-link>
                     </div>
-                    <router-link
-                      v-if="item.status === 'Realizado'"
-                      :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
-                      class="btn-secondary"
-                    >
-                      <Eye :size="16" />
-                      <span class="btn-text">Ver Relatório</span>
-                    </router-link>
                   </li>
                 </ul>
                 <div v-else class="empty-state-card">
@@ -1169,34 +1174,69 @@ async function handleDeleteProcedure(procedure) {
   gap: 0.75rem;
   padding: 0;
 }
-.anamnesis-list li,
-.history-list li {
+.history-item-new {
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.history-item-new:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.history-item-new.realizado { border-left-color: #94a3b8; }
+.history-item-new.agendado { border-left-color: #3b82f6; }
+.history-item-new.confirmado { border-left-color: #eab308; }
+.history-item-new.cancelado { border-left-color: #ef4444; }
+.history-item-new.em-atendimento { border-left-color: #a855f7; }
+.history-item-new.iniciado { border-left-color: #22c55e; }
+
+.history-item-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.2s ease;
+  gap: 1rem;
 }
-.anamnesis-list li:hover,
-.history-list li:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
-}
-.anamnesis-info.clickable {
-  cursor: pointer;
-}
-.anamnesis-info,
-.history-info {
+
+.history-main-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 1rem;
   flex-grow: 1;
-  min-width: 0;
 }
-.anamnesis-name,
+
+.history-date-new {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 0.9375rem;
+}
+
+.history-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.history-action-btn:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
 .history-date {
   font-weight: 600;
   color: #374151;

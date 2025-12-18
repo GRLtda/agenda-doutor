@@ -6,7 +6,7 @@ import { useEmployeesStore } from '@/stores/employees'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal, AlertCircle } from 'lucide-vue-next'
-import AppPagination from '@/components/global/AppPagination.vue'
+import AppTableList from '@/components/global/AppTableList.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
 const auditStore = useAuditStore()
@@ -250,34 +250,31 @@ function formatChange(change) {
 </script>
 
 <template>
-  <div class="audit-log-container">
-    <div class="filters-header">
-      <SlidersHorizontal :size="18" class="filters-icon" />
-      <div class="filter-group">
-        <StyledSelect
-          v-model="selectedUserId"
-          :options="userOptions"
-          :loading="employeesStore.isLoading"
-        />
-        <StyledSelect v-model="selectedEntity" :options="entityOptions" />
-      </div>
+  <div style="height: calc(100vh - 300px);">
+    <AppTableList
+      :loading="auditStore.isLoading && logs.length === 0"
+      :is-empty="logs.length === 0"
+      :pagination="pagination"
+      @page-change="handlePageChange"
+    >
+      <template #filters>
+        <div class="filter-group">
+            <StyledSelect
+              v-model="selectedUserId"
+              :options="userOptions"
+              :loading="employeesStore.isLoading"
+            />
+            <StyledSelect v-model="selectedEntity" :options="entityOptions" />
+        </div>
+      </template>
 
-      <div class="retention-info" title="O sistema mantém registros dos últimos 30 dias">
-         <AlertCircle :size="14" />
-         <span>Histórico de 30 dias</span>
-      </div>
-    </div>
+      <template #header-info>
+        <div class="retention-info" title="O sistema mantém registros dos últimos 30 dias">
+            <AlertCircle :size="14" />
+            <span>Histórico de 30 dias</span>
+        </div>
+      </template>
 
-    <div v-if="auditStore.isLoading && logs.length === 0" class="loading-state">
-      Carregando histórico de auditoria...
-    </div>
-
-    <div v-else-if="logs.length === 0" class="empty-state">
-      <h3>Nenhum resultado encontrado</h3>
-      <p>Tente ajustar os filtros ou verifique mais tarde.</p>
-    </div>
-
-    <div v-else class="log-list-wrapper">
       <ul class="audit-list">
         <li v-for="log in logs" :key="log._id" class="audit-item-wrapper">
           <div
@@ -336,45 +333,13 @@ function formatChange(change) {
           </Transition>
         </li>
       </ul>
-
-      <AppPagination
-        v-if="pagination && pagination.pages > 1"
-        :current-page="pagination.page"
-        :total-pages="pagination.pages"
-        :total-items="pagination.total"
-        :limit="pagination.limit"
-        @page-change="handlePageChange"
-      />
-    </div>
+    </AppTableList>
   </div>
 </template>
-<style scoped>
-.audit-log-container {
-  height: calc(100vh - 300px);
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: white;
-}
 
-.filters-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-}
-.filters-icon {
-  color: var(--cinza-texto);
-  flex-shrink: 0;
-}
-.filters-label {
-  display: none;
-}
+<style scoped>
+/* Estilos específicos que NÃO DEVEM ir para o componente genérico */
+
 .filter-group {
   display: flex;
   flex-wrap: wrap;
@@ -395,33 +360,6 @@ function formatChange(change) {
   height: 16px;
 }
 
-.loading-state,
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: var(--cinza-texto);
-  background-color: var(--branco);
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.empty-state h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--preto);
-  margin-bottom: 0.5rem;
-}
-
-.log-list-wrapper {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .audit-list {
   list-style: none;
   padding: 0.5rem;
@@ -429,8 +367,6 @@ function formatChange(change) {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow-y: auto;
-  flex-grow: 1;
 }
 
 .audit-item-wrapper {
@@ -592,72 +528,46 @@ function formatChange(change) {
   }
 }
 
-:deep(.pagination-container) {
-  margin-top: 0;
-  border-top: 1px solid #e5e7eb;
-  background-color: var(--branco);
-  border-radius: 0;
-  padding: 0.75rem 1.25rem;
-  flex-shrink: 0;
+.retention-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  background-color: #f3f4f6;
+  padding: 0.35rem 0.75rem;
+  border-radius: 99px;
+  cursor: help;
+}
+.retention-info:hover {
+  color: #4b5563;
+  background-color: #e5e7eb;
 }
 
 @media (max-width: 768px) {
-  .audit-log-container {
-    min-height: auto;
-    height: 100%;
-    border-radius: 0;
-    border: none;
-  }
-
   .log-icon-wrapper {
     display: none;
   }
-
   .changes-list {
     padding-left: 10px !important;
   }
-
   .change-item {
     gap: 5px !important;
   }
 
-  /* ✨ INÍCIO DAS ALTERAÇÕES NO FILTRO ✨ */
-  .filters-header {
-    flex-direction: column; /* ✨ ALTERADO: Empilha os itens */
-    align-items: stretch; /* ✨ ALTERADO: Faz os filhos ocuparem 100% da largura */
-    gap: 0.75rem; /* ✨ ALTERADO: Ajusta o espaçamento entre os filtros */
-    padding: 1rem; /* ✨ ALTERADO: Ajusta o padding */
-    overflow-x: hidden; /* ✨ ALTERADO: Remove o scroll horizontal */
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    /* ✨ REMOVIDO: scrollbar-width: none; */
-  }
-  .filters-header::-webkit-scrollbar {
-    display: none; /* (Mantido para garantir) */
-  }
-
-  .filters-icon {
-    display: none; /* ✨ ALTERADO: Esconde o ícone de filtro */
-  }
-  .filters-label {
-    display: none;
-  }
+  /* Ajustes para o filtro dentro do card */
   .filter-group {
-    flex-direction: column; /* ✨ ALTERADO: Empilha os selects */
-    flex-grow: 1; /* ✨ ALTERADO: Deixa o grupo crescer */
-    width: 100%; /* ✨ NOVO: Garante 100% da largura */
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
   }
   .filter-group :deep(.select-button) {
-    min-width: 100%; /* ✨ ALTERADO: Ocupa 100% */
-    width: 100%; /* ✨ ALTERADO: Ocupa 100% */
-    white-space: nowrap; /* (Mantido) */
+    min-width: 100%;
+    width: 100%;
+    white-space: nowrap;
   }
-  /* ✨ FIM DAS ALTERAÇÕES NO FILTRO ✨ */
 
-  .audit-list {
-    padding: 0;
-  }
   .audit-item-wrapper {
     border-radius: 0;
     border-left: none;
@@ -757,37 +667,7 @@ function formatChange(change) {
   .change-number {
     flex-shrink: 0;
   }
-
-  :deep(.pagination-container) {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
-  :deep(.pagination-container) {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
-}
-
-.retention-info {
-  margin-left: auto; /* Empurra para a direita */
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #9ca3af;
-  background-color: #f3f4f6;
-  padding: 0.35rem 0.75rem;
-  border-radius: 99px;
-  cursor: help;
-}
-.retention-info:hover {
-  color: #4b5563;
-  background-color: #e5e7eb;
-}
-
-@media (max-width: 768px) {
+  
   .retention-info {
     margin-left: 0;
     width: fit-content;

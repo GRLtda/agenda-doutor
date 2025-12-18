@@ -154,17 +154,17 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   }
 
   async function fetchAppointmentsByPatient(patientId) {
-    this.isLoading = true
+    isLoading.value = true
     try {
       const response = await apiClient.get(`/appointments/patient/${patientId}`)
-      this.patientAppointments = response.data
+      patientAppointments.value = response.data
       return { success: true, data: response.data }
     } catch (error) {
       console.error('Erro ao buscar atendimentos do paciente:', error)
-      this.patientAppointments = []
+      patientAppointments.value = []
       return { success: false, error }
     } finally {
-      this.isLoading = false
+      isLoading.value = false
     }
   }
 
@@ -205,5 +205,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     updateLocalStatus,
     fetchAppointmentsByPatient,
     deleteAppointment,
+    patientAppointments
   }
 })
