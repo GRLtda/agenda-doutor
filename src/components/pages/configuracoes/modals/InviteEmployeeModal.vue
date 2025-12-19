@@ -21,7 +21,6 @@ const canShare = ref(false)
 
 const roleOptions = [
   { value: 'recepcionista', label: 'Recepcionista' },
-  { value: 'medico', label: 'Médico(a)' },
   { value: 'gerente', label: 'Gerente' },
 ]
 
