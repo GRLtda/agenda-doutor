@@ -47,11 +47,16 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
   }
 
   async function fetchVariables() {
-     // Não bloqueia a interface se falhar, usa o fallback
+    // Não bloqueia a interface se falhar, usa o fallback
     try {
       const response = await getTemplateVariables()
       if (response.data?.variables && Array.isArray(response.data.variables)) {
-        availableVariables.value = response.data.variables.map(v => ({ variable: v, description: 'Descrição vinda da API (exemplo)' }))
+        // A API agora retorna objetos { value, description }
+        // O componente espera { variable, description }, então fazemos o map
+        availableVariables.value = response.data.variables.map(v => ({
+          variable: v.value,
+          description: v.description
+        }))
       }
     } catch (err) {
       console.warn('Erro ao buscar variáveis da API, usando fallback:', err)
@@ -76,19 +81,19 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
     }
   }
 
-   async function getTemplateById(id) {
+  async function getTemplateById(id) {
     isLoading.value = true;
     error.value = null;
     try {
-        const response = await getMessageTemplateById(id);
-        return { success: true, data: response.data };
+      const response = await getMessageTemplateById(id);
+      return { success: true, data: response.data };
     } catch (err) {
-        error.value = 'Erro ao buscar modelo.';
-        console.error(err);
-        toast.error(error.value);
-        return { success: false, error: error.value };
+      error.value = 'Erro ao buscar modelo.';
+      console.error(err);
+      toast.error(error.value);
+      return { success: false, error: error.value };
     } finally {
-        isLoading.value = false;
+      isLoading.value = false;
     }
   }
 
