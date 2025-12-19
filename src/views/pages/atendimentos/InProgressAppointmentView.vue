@@ -610,7 +610,7 @@ const formatDate = (dateString) => {
           :loading="recordsStore.isLoading || appointmentsStore.isLoading"
           :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
         >
-          Finalizar Atendimento
+          Finalizar
           <ChevronRight :size="16" />
         </AppButton>
       </div>
@@ -628,7 +628,6 @@ const formatDate = (dateString) => {
           </div>
         </div>
         <div class="header-center">
-          <div class="mobile-patient-name">{{ patient?.name }}</div>
           <div v-if="!isViewMode" class="appointment-timer desktop-only">
             <Clock :size="18" />
             <span>{{ formattedElapsedTime }}</span>
@@ -654,7 +653,7 @@ const formatDate = (dateString) => {
             :loading="recordsStore.isLoading || appointmentsStore.isLoading"
             :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
           >
-            Finalizar Atendimento
+            <span class="desktop-only">Finalizar</span>
             <ChevronRight :size="16" />
           </AppButton>
         </div>
