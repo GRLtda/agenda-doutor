@@ -381,7 +381,7 @@ onUnmounted(() => {
          
          <!-- Se não confirmado, mostra Confirmar -->
          <AppButton
-            v-if="appointment.status !== 'Confirmado' && appointment.status !== 'Cancelado' && appointment.status !== 'Realizado' && appointment.status !== 'Em Atendimento'"
+            v-if="appointment.status !== 'Confirmado' && appointment.status !== 'Cancelado' && appointment.status !== 'Realizado' && appointment.status !== 'Em Atendimento' && appointment.status !== 'Iniciado'"
             @click="handleApprove"
             variant="secondary"
          >

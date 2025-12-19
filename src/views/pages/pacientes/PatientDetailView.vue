@@ -198,10 +198,35 @@ function formatSimpleDate(dateString) {
 }
 
 function handleCopyLink(token) {
+  if (!token) {
+    toast.error('Token inválido ou não encontrado.');
+    return;
+  }
   const link = `${window.location.origin}/anamnese/${token}`
-  navigator.clipboard.writeText(link).then(() => {
-    toast.info('Link de resposta copiado!')
-  })
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(() => {
+      toast.info('Link de resposta copiado!')
+    }).catch(err => {
+      console.error('Falha ao copiar: ', err)
+      toast.error('Erro ao copiar link.')
+    })
+  } else {
+     // Fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        toast.info('Link de resposta copiado!')
+      } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+        toast.error('Erro ao copiar link.')
+      }
+      document.body.removeChild(textArea);
+  }
 }
 
 async function handleGeneratePdf(anamnesis) {
@@ -571,7 +596,7 @@ async function handleDeleteProcedure(procedure) {
               <div class="anamnesis-section">
                 <h3 class="title-respondidas"><CheckSquare :size="20" /> Respondidas</h3>
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
-                  <li v-for="item in answeredAnamneses" :key="item._id">
+                  <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
                       <span class="anamnesis-name">{{
                         item.template?.name || 'Modelo não encontrado'
@@ -604,7 +629,7 @@ async function handleDeleteProcedure(procedure) {
               <div class="anamnesis-section">
                 <h3 class="title-pendentes"><FileText :size="20" /> Pendentes</h3>
                 <ul v-if="pendingAnamneses.length > 0" class="anamnesis-list">
-                  <li v-for="item in pendingAnamneses" :key="item._id">
+                  <li v-for="item in pendingAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info">
                       <span class="anamnesis-name">{{
                         item.template?.name || 'Modelo não encontrado'
@@ -1264,6 +1289,40 @@ async function handleDeleteProcedure(procedure) {
   background-color: #f3f4f6;
   color: var(--preto);
 }
+
+.anamnesis-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.anamnesis-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.anamnesis-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-grow: 1;
+}
+
+.anamnesis-info.clickable {
+  cursor: pointer;
+}
+
+.anamnesis-name {
+  font-weight: 600;
+  color: #111827;
+  font-size: 1rem;
+}
+
 .status-badge {
   font-weight: 600;
   padding: 0.25rem 0.75rem;

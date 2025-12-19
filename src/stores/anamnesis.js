@@ -22,6 +22,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
   const publicTemplate = ref(null) // Para o formulário público
   const patientAnamneses = ref([]) // ✨ Sempre inicializado como um array
   const isLoading = ref(false)
+  const isFetchingTemplates = ref(false) // Estado específico para carregamento da lista
 
   // Estado para anamneses pendentes da clínica
   const pendingAnamnesesList = ref([])
@@ -33,7 +34,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
   // --- Ações para Templates de Anamnese ---
 
   async function fetchTemplates() {
-    isLoading.value = true
+    isFetchingTemplates.value = true
     try {
       const response = await apiGetTemplates()
       templates.value = response.data
@@ -44,7 +45,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       toast.error(`Erro ao buscar modelos: ${errorMessage}`)
       templates.value = []
     } finally {
-      isLoading.value = false
+      isFetchingTemplates.value = false
     }
   }
 
@@ -329,5 +330,6 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     fetchAnamnesisForPatient,
     updateAnamnesisResponse,
     fetchPendingAnamneses,
+    isFetchingTemplates,
   }
 })

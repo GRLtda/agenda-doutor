@@ -209,6 +209,7 @@ onUnmounted(() => {
     position: fixed;
     left: 0;
     top: 0;
+    border-radius: 0;
     bottom: 0;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);

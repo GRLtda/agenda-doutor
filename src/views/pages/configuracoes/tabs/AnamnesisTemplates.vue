@@ -69,7 +69,7 @@ async function handleDelete(templateId) {
       @close="closeModal"
     />
 
-    <div v-if="!anamnesisStore.isLoading && templates.length > 0" class="header-actions">
+    <div v-if="!anamnesisStore.isFetchingTemplates && templates.length > 0" class="header-actions">
       <div>
         <h2>Modelos de Anamnese</h2>
         <p class="header-subtitle">Você tem {{ templates.length }} modelo(s) cadastrado(s).</p>
@@ -80,7 +80,7 @@ async function handleDelete(templateId) {
       </AppButton>
     </div>
 
-    <div v-if="anamnesisStore.isLoading" class="templates-grid">
+    <div v-if="anamnesisStore.isFetchingTemplates" class="templates-grid">
       <div v-for="n in 6" :key="n" class="template-card">
         <div class="template-info">
           <div class="skeleton skeleton-text" style="width: 70%; height: 1.5rem; margin-bottom: 0.5rem;"></div>

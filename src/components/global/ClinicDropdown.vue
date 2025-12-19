@@ -39,7 +39,7 @@ function navigateTo(path, query = {}) {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
   width: 220px;
-  z-index: 10;
+  z-index: 100;
   animation: fade-in 0.2s ease-out;
 }
 

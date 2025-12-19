@@ -1,10 +1,11 @@
 <script setup>
-import { formatPhone } from '@/directives/phone-mask.js' // ✨ 1. Importa a função de formatação
-import { formatCPF } from '@/directives/cpf-mask.js'     // ✨ Importa outras funções se necessário
-import { formatCNPJ } from '@/directives/cnpj-mask.js'   // ✨ Importa outras funções se necessário
+import { formatPhone } from '@/directives/phone-mask.js'
+import { formatCPF } from '@/directives/cpf-mask.js'
+import { formatCNPJ } from '@/directives/cnpj-mask.js'
+import { Check } from 'lucide-vue-next' // ✨ Importa o ícone
 
 const props = defineProps({
-  modelValue: String,
+  modelValue: [String, Boolean, Number],
   label: String,
   name: String,
   type: { type: String, default: 'text' },
@@ -19,37 +20,62 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 function handleInput(event) {
+  if (props.type === 'checkbox') {
+    emit('update:modelValue', event.target.checked)
+    return
+  }
+
   let value = event.target.value
-  // ✨ 2. Aplica a formatação ANTES de emitir, se a máscara estiver ativa
   if (props.phoneMask) {
     value = formatPhone(value)
-    // Atualiza o valor no input imediatamente para manter a consistência visual
-    // e a posição correta do cursor (embora a diretiva também faça isso depois)
     if (event.target.value !== value) {
        event.target.value = value
     }
-  } else if (props.cpfMask) { // ✨ Adiciona lógica para outras máscaras se houver
+  } else if (props.cpfMask) {
      value = formatCPF(value)
      if (event.target.value !== value) {
        event.target.value = value
     }
-  } else if (props.cnpjMask) { // ✨ Adiciona lógica para outras máscaras se houver
+  } else if (props.cnpjMask) {
      value = formatCNPJ(value)
      if (event.target.value !== value) {
        event.target.value = value
     }
   }
-  emit('update:modelValue', value) // ✨ 3. Emite o valor (potencialmente formatado)
+  emit('update:modelValue', value)
 }
 </script>
 
 <template>
-  <div class="form-group">
-    <label v-if="label" class="form-label">
+  <div class="form-group" :class="{ 'checkbox-group': type === 'checkbox' }">
+    <label v-if="label && type !== 'checkbox'" class="form-label">
       {{ label }}
       <span v-if="required" class="required-asterisk">*</span>
     </label>
+
+    <div v-if="type === 'checkbox'" class="checkbox-wrapper">
+       <label class="custom-checkbox-label">
+         <input
+          type="checkbox"
+          :name="name"
+          :checked="modelValue"
+          @change="handleInput"
+          class="hidden-native-checkbox"
+          :disabled="disabled"
+          :id="name || label"
+        />
+        <div class="custom-checkbox-box">
+          <Check :size="14" stroke-width="3" v-if="modelValue" class="check-icon" />
+        </div>
+        <span v-if="label" class="checkbox-text">
+          {{ label }}
+          <span v-if="required" class="required-asterisk">*</span>
+        </span>
+      </label>
+    </div>
+
     <input
+      v-else
       :type="type"
       :name="name"
       :placeholder="placeholder"
@@ -105,5 +131,91 @@ function handleInput(event) {
 .required-asterisk {
   color: #ef4444;
   margin-left: 0.25rem;
+}
+
+/* --- Styled Custom Checkbox --- */
+.checkbox-group {
+  margin-bottom: 1rem;
+}
+
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.custom-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Oculta o checkbox nativo mas mantém acessibilidade */
+.hidden-native-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.custom-checkbox-box {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: var(--branco);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: white; /* Cor do ícone */
+  flex-shrink: 0;
+}
+
+/* Estado Checked */
+.hidden-native-checkbox:checked + .custom-checkbox-box {
+  background-color: var(--azul-principal);
+  border-color: var(--azul-principal);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3); /* Sombra suave */
+}
+
+/* Estado Disabled */
+.hidden-native-checkbox:disabled + .custom-checkbox-box {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* Hover Effect */
+.custom-checkbox-label:hover .custom-checkbox-box {
+  border-color: var(--azul-principal);
+}
+
+.hidden-native-checkbox:checked + .custom-checkbox-box:hover {
+  background-color: var(--azul-escuro); /* Leve escurecimento ao hover no checked */
+  border-color: var(--azul-escuro);
+}
+
+/* Icon Animation */
+.check-icon {
+  animation: scale-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scale-in {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.checkbox-text {
+  font-size: 0.875rem;
+  color: #374151; /* --cinza-texto levemente mais escuro para contraste */
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.custom-checkbox-label:hover .checkbox-text {
+  color: #111827; /* Preto ao hover */
 }
 </style>

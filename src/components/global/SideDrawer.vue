@@ -1,17 +1,30 @@
 <script setup>
+import { computed } from 'vue' // Import computed
 import { X } from 'lucide-vue-next'
 
+const props = defineProps({
+  size: {
+    type: String,
+    default: 'md',
+    validator: (value) => ['sm', 'md', 'lg', 'xl'].includes(value)
+  }
+})
+
 defineEmits(['close'])
+
+const widthClass = computed(() => {
+  return `size-${props.size}`
+})
 </script>
 
 <template>
   <div class="drawer-overlay" @click.self="$emit('close')">
     <!-- Botão de fechar fora do drawer (Desktop) -->
-    <button @click="$emit('close')" class="close-btn-outside">
+    <button @click="$emit('close')" class="close-btn-outside" :class="widthClass">
       <X :size="24" />
     </button>
 
-    <div class="drawer-content">
+    <div class="drawer-content" :class="widthClass">
       <!-- Header Slot -->
       <slot name="header"></slot>
 
@@ -43,7 +56,7 @@ defineEmits(['close'])
 .close-btn-outside {
   position: absolute;
   top: 1rem;
-  right: 496px; /* 480px (width) + 16px (gap) */
+  /* right via class specific rules below */
   background: #fff;
   border: none;
   color: #6b7280;
@@ -62,9 +75,14 @@ defineEmits(['close'])
   transform: scale(1.1);
 }
 
+/* Size positioning for close button */
+.close-btn-outside.size-sm { right: 416px; }
+.close-btn-outside.size-md { right: 496px; }
+.close-btn-outside.size-lg { right: 616px; }
+.close-btn-outside.size-xl { right: 816px; }
+
 .drawer-content {
   width: 100%;
-  max-width: 480px;
   height: 100%;
   background: #fff;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
@@ -74,6 +92,12 @@ defineEmits(['close'])
   position: relative;
   z-index: 1005;
 }
+
+/* Size widths */
+.drawer-content.size-sm { max-width: 400px; }
+.drawer-content.size-md { max-width: 480px; }
+.drawer-content.size-lg { max-width: 600px; }
+.drawer-content.size-xl { max-width: 800px; }
 
 @keyframes slide-in {
   from { transform: translateX(100%); }
@@ -95,7 +119,7 @@ defineEmits(['close'])
     display: none;
   }
   .drawer-content {
-    max-width: 100%;
+    max-width: 100% !important; /* Force full width on mobile */
   }
 }
 

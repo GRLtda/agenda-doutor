@@ -7,11 +7,15 @@ import {
   ChevronRight,
   ChevronDown,
   CornerDownRight,
+  X,
+  Split,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import { useToast } from 'vue-toastification'
+import SideDrawer from '@/components/global/SideDrawer.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 
 const props = defineProps({
   templateIdToEdit: { type: String, default: null },
@@ -21,6 +25,7 @@ const emit = defineEmits(['close'])
 const anamnesisStore = useAnamnesisStore()
 const toast = useToast()
 
+const isLoading = ref(true)
 const templateName = ref('')
 const questions = ref([])
 const openConditionalGroups = ref({})
@@ -104,6 +109,7 @@ function processLoadedQuestions(questionArray) {
 }
 
 onMounted(async () => {
+  isLoading.value = true
   try {
     if (props.templateToDuplicate) {
       templateName.value = `${props.templateToDuplicate.name} (Cópia)`
@@ -129,6 +135,11 @@ onMounted(async () => {
         'Erro ao preparar o modal de anamnese.'
     )
     emit('close')
+  } finally {
+    // Small delay to ensure smooth transition if fetch is too fast
+    setTimeout(() => {
+      isLoading.value = false
+    }, 400)
   }
 })
 
@@ -319,21 +330,60 @@ async function handleSubmit() {
 </script>
 
 <template>
-<div class="modal-backdrop" @click.self="emit('close')">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div v-if="isEditMode">
-          <h3 class="modal-title">Editar Modelo de Anamnese</h3>
-          <span class="beta-badge">Beta</span>
+  <SideDrawer @close="emit('close')" size="xl">
+    <template #header>
+      <div class="drawer-header">
+        <div class="header-left">
+          <div class="title-row">
+            <h3 v-if="isEditMode" class="modal-title">Editar Modelo de Anamnese</h3>
+            <h3 v-else-if="props.templateToDuplicate" class="modal-title">
+              Duplicar Modelo de Anamnese
+            </h3>
+            <h3 v-else class="modal-title">Criar Novo Modelo de Anamnese</h3>
+          </div>
+          <p class="description-text">
+            Configure as perguntas, opções e regras do seu modelo de anamnese.
+          </p>
         </div>
-        <h3 v-else-if="props.templateToDuplicate" class="modal-title">
-          Duplicar Modelo de Anamnese
-        </h3>
-        <h3 v-else class="modal-title">Criar Novo Modelo de Anamnese</h3>
-        <button class="modal-close-btn" @click="emit('close')">&times;</button>
+        <div class="header-right">
+          <button @click="emit('close')" class="mobile-close-btn">
+            <X :size="24" />
+          </button>
+        </div>
       </div>
+    </template>
 
-      <div class="modal-body">
+      <div class="drawer-body-padded">
+        <div v-if="isLoading" class="skeleton-wrapper">
+          <!-- Nome do Modelo Skeleton -->
+           <div class="mb-6">
+              <AppSkeleton width="150px" height="1rem" class="mb-2" />
+              <AppSkeleton width="100%" height="42px" />
+           </div>
+           
+           <hr class="separator" />
+
+           <!-- Questions List Skeleton -->
+           <div class="flex flex-col gap-6">
+              <div v-for="i in 2" :key="i" class="question-card">
+                 <div class="flex items-start gap-4">
+                    <AppSkeleton width="20px" height="20px" class="mt-2" borderRadius="50%" />
+                    <div class="flex-grow flex gap-4">
+                       <div class="flex-grow">
+                          <AppSkeleton width="80px" height="0.8rem" class="mb-2" />
+                          <AppSkeleton width="100%" height="42px" />
+                       </div>
+                       <div class="w-[220px]">
+                          <AppSkeleton width="100px" height="0.8rem" class="mb-2" />
+                          <AppSkeleton width="100%" height="42px" />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <div v-else>
         <FormInput
           label="Nome do Modelo"
           v-model="templateName"
@@ -444,23 +494,30 @@ async function handleSubmit() {
                   class="conditional-group"
                 >
                   <div class="group-header">
-                    <span>
-                      Mostrar perguntas SE a resposta for:
-                    </span>
-                    <StyledSelect
-                      label="Condição"
-                      :hideLabel="true"
-                      v-model="group.showWhenAnswerIs"
-                      :options="getConditionOptions(question)"
-                      class="condition-select"
-                    />
-                    <button
-                      class="btn-icon btn-delete-option"
-                      @click="removeConditionalQuestionGroup(qIndex, gIndex)"
-                      title="Remover Grupo Condicional"
-                    >
-                      <Trash2 :size="16" />
-                    </button>
+                    <div class="condition-row">
+                      <div class="condition-label-box">
+                        <Split :size="16" class="text-blue-500" />
+                        <span>Se a resposta for:</span>
+                      </div>
+                      <StyledSelect
+                        :hideLabel="true"
+                        v-model="group.showWhenAnswerIs"
+                        :options="getConditionOptions(question)"
+                        class="condition-select"
+                      />
+                      <button
+                        class="btn-icon btn-delete-option ml-auto"
+                        @click="removeConditionalQuestionGroup(qIndex, gIndex)"
+                        title="Remover este grupo condicional"
+                      >
+                        <Trash2 :size="16" />
+                      </button>
+                    </div>
+
+                    <div class="sub-questions-divider">
+                      <span class="divider-label">Perguntas deste grupo</span>
+                      <hr />
+                    </div>
                   </div>
 
                   <div class="sub-question-list">
@@ -568,13 +625,16 @@ async function handleSubmit() {
             </div>
         </div>
 
-        <AppButton variant="secondary" @click="addNewQuestion" class="btn-add-main">
+        </div>
+
+        <AppButton variant="secondary" @click="addNewQuestion" class="btn-add-main" :disabled="isLoading">
           <Plus :size="20" />
           Adicionar Pergunta Principal
         </AppButton>
       </div>
 
-      <div class="modal-footer">
+    <template #footer>
+      <div class="drawer-footer">
         <AppButton variant="default" @click="emit('close')">
           Cancelar
         </AppButton>
@@ -583,49 +643,41 @@ async function handleSubmit() {
           <span v-else>Criar Modelo</span>
         </AppButton>
       </div>
-    </div>
-  </div>
+    </template>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.btn-add-main {
-  width: 100%;
-  margin-top: 2rem;
-  justify-content: center;
-}
-
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  overflow-y: auto;
-}
-
-.modal-content {
-  width: 100%;
-  max-width: 800px;
-  background-color: #fff;
-  border-radius: 1rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 95vh;
-}
-
-.modal-header {
-  padding: 1.5rem 2rem;
+.drawer-header {
+  padding: 1.5rem;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title-row {
+  display: flex;
   align-items: center;
+  gap: 0.5rem;
+}
+
+.description-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.header-right {
+  display: flex;
+  align-items: flex-start;
 }
 
 .modal-title {
@@ -635,37 +687,14 @@ async function handleSubmit() {
   color: var(--preto);
 }
 
-.modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  font-weight: 300;
-  color: #9ca3af;
-  cursor: pointer;
-  line-height: 1;
-  transition: all 0.2s ease;
-}
-.modal-close-btn:hover {
-  color: var(--preto);
-  transform: scale(1.1);
-}
-
-.beta-badge {
-  display: inline-block;
-  margin-top: 4px; /* Joga para baixo do título */
-  padding: 2px 8px;
-  border-radius: 12px;
-  background-color: #eff6ff; /* Azul claro */
-  color: #2563eb; /* Azul */
-  font-size: 0.75rem; /* 12px */
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.modal-body {
-  padding: 2rem;
-  overflow-y: auto;
-  flex-grow: 1;
+.drawer-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #fff;
+  width: 100%;
 }
 
 .separator {
@@ -704,7 +733,7 @@ async function handleSubmit() {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--azul-principal);
-  padding-top: 0.75rem;
+  /* padding-top: 0.75rem; */
 }
 
 .form-group-inline {
@@ -798,60 +827,11 @@ async function handleSubmit() {
   background-color: #eef2ff;
 }
 
-
-.add-question-btn:hover {
-  background: #f3f4f6;
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
-}
-
-.modal-footer {
-  padding: 1.5rem 2rem;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  background-color: #f9fafb;
-}
-
-/* --- ESTILOS DE BOTÃO ADICIONADOS --- */
-.btn {
-  font-family: var(--fonte-principal, 'Inter', sans-serif);
-  font-weight: 600;
-  font-size: 0.95rem;
-  padding: 0.65rem 1.25rem;
-  border-radius: 0.5rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
+.btn-add-main {
+  width: 100%;
+  margin-top: 2rem;
   justify-content: center;
-  gap: 0.5rem;
-  line-height: 1.2;
 }
-
-.btn-primary {
-  background-color: var(--azul-principal);
-  color: #ffffff;
-  border-color: var(--azul-principal);
-}
-.btn-primary:hover {
-  background-color: var(--azul-principal-escuro);
-  border-color: var(--azul-principal-escuro);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-}
-
-.btn-secondary {
-  background-color: #ffffff;
-  color: #374151;
-  border-color: #d1d5db;
-}
-.btn-secondary:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-/* --- FIM DOS ESTILOS DE BOTÃO ADICIONADOS --- */
 
 .btn-toggle-conditional {
   display: flex;
@@ -901,20 +881,75 @@ async function handleSubmit() {
 
 .group-header {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #374151;
+  flex-direction: column;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.condition-label-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  background-color: #eef2ff;
+  border-radius: 6px;
+  border: 1px solid #e0e7ff;
+  height: 38px;
+  padding: 0 0.75rem;
+}
+
+.text-blue-500 {
+  color: var(--azul-principal);
+}
+
+.sub-questions-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.sub-questions-divider hr {
+  flex-grow: 1;
+  border: 0;
+  border-top: 1px dashed #d1d5db;
+}
+
+.divider-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .condition-select {
-  width: 150px;
+  width: 180px;
   flex-shrink: 0;
 }
-.group-header .btn-icon {
-  margin-top: 0;
+
+/* Force height match for StyledSelect */
+.condition-select :deep(.select-button) {
+  height: 38px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.ml-auto {
   margin-left: auto;
+}
+
+.condition-row .btn-icon {
+  margin-top: 0;
 }
 
 .sub-question-list {
@@ -952,11 +987,6 @@ async function handleSubmit() {
   padding-top: 0.75rem;
 }
 
-.add-sub-question {
-  margin-top: 1rem;
-  padding-left: 0.5rem;
-}
-
 .has-error :deep(input),
 .has-error :deep(textarea) {
   border-color: #ef4444 !important;
@@ -969,68 +999,12 @@ async function handleSubmit() {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
 }
 
-.add-group-btn {
-  background: none;
-  border: 1px dashed #d1d5db;
-  color: #374151;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  align-self: flex-start;
-  transition: all 0.2s ease;
-}
-.add-group-btn:hover {
-  background: #f3f4f6;
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
-}
-
 @media (max-width: 768px) {
-  .modal-backdrop {
-    /* Permite que o modal encoste nas bordas */
-    padding: 0;
-  }
-
-  .modal-content {
-    /* O modal ocupa a tela inteira em celulares */
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .modal-header {
-    padding: 1rem 1.5rem;
-  }
-
-  .modal-body {
-    /* Reduz o padding lateral em telas menores */
-    padding: 1.5rem 1rem;
-  }
-
-  .question-card {
-    padding: 1rem;
-  }
-
   .question-header {
     gap: 0.5rem;
   }
 
-  .question-number {
-    /* Alinha o número com o topo do primeiro input empilhado */
-    padding-top: 0.5rem;
-  }
-
   .form-group-inline {
-    /* Empilha o input de Pergunta e o select de Tipo */
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
@@ -1038,35 +1012,20 @@ async function handleSubmit() {
   }
 
   .question-type-select {
-    /* O select agora ocupa 100% da largura */
     width: 100%;
-    margin-bottom: 0; /* Reseta a margem que alinhava embaixo */
+    margin-bottom: 0;
   }
 
   .btn-icon {
-    /* Alinha o botão de deletar com o topo do primeiro input empilhado */
     margin-top: 0.5rem;
   }
 
   .options-wrapper {
-    /* Reduz o recuo das opções */
     padding-left: 1rem;
     margin-top: 1rem;
   }
 
-  .option-input-wrapper {
-    gap: 0.25rem;
-  }
-  .option-input-wrapper .form-group {
-    margin-bottom: 0.75rem;
-  }
-
-  .conditional-group {
-    padding: 0.75rem;
-  }
-
   .group-header {
-    /* Empilha os controles do grupo condicional */
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
@@ -1078,53 +1037,17 @@ async function handleSubmit() {
   }
 
   .group-header .btn-icon {
-    /* Move o botão de deletar grupo para a direita da coluna */
     margin-left: 0;
     align-self: flex-end;
   }
 
   .sub-q-icon {
-    /* Alinha o ícone com o topo do input empilhado */
     margin-top: 0.5rem;
   }
-
-  .sub-question-card .btn-icon {
-    margin-top: 0.5rem;
-  }
-
-  .sub-options-wrapper {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-  }
-
-  .modal-footer {
-    padding: 1rem 1.5rem;
-    /* Empilha os botões do rodapé */
-    flex-direction: column-reverse; /* Botão primário fica por último (embaixo) */
+  
+  .drawer-footer {
+    flex-direction: column-reverse;
     gap: 0.75rem;
-  }
-
-  .modal-footer .btn {
-    /* Botões ocupam 100% da largura */
-    width: 100%;
-    margin: 0; /* Remove margens laterais se houver */
-  }
-}
-
-@media (max-width: 480px) {
-  .modal-body {
-    padding: 1rem;
-  }
-  .modal-header,
-  .modal-footer {
-    padding: 1rem;
-  }
-  .question-number {
-    font-size: 1rem;
-    padding-top: 0.6rem;
-  }
-  .sub-q-icon {
-    margin-top: 0.6rem;
   }
 }
 </style>
