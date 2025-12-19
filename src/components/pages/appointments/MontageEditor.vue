@@ -1,11 +1,25 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { LayoutGrid, Plus, Trash2, Save, X, Image as ImageIcon, Download } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const authStore = useAuthStore()
+
+onMounted(() => {
+  window.addEventListener('mousemove', handlePointerMove)
+  window.addEventListener('mouseup', handlePointerUp)
+  window.addEventListener('touchmove', handlePointerMove, { passive: false })
+  window.addEventListener('touchend', handlePointerUp)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', handlePointerMove)
+  window.removeEventListener('mouseup', handlePointerUp)
+  window.removeEventListener('touchmove', handlePointerMove)
+  window.removeEventListener('touchend', handlePointerUp)
+})
 
 const props = defineProps({
   visible: {
@@ -25,11 +39,13 @@ const layouts = [
   { id: 'layout-2-1', name: '2 + 1', slots: 3, grid: '1fr 1fr / 1fr 1fr', areas: '"a b" "c c"' },
   { id: 'cols-2', name: '2 Colunas', slots: 2, grid: '1fr / repeat(2, 1fr)' },
   { id: 'cols-3', name: '3 Colunas', slots: 3, grid: '1fr / repeat(3, 1fr)' },
+  { id: 'rows-2', name: '2 Linhas', slots: 2, grid: 'repeat(2, 1fr) / 1fr' },
 ]
 
 // Proporções disponíveis
 const aspectRatios = [
   { id: '1:1', name: '1:1', width: 1080, height: 1080 },
+  { id: '3:4', name: '3:4', width: 1080, height: 1440 },
   { id: '9:16', name: '9:16', width: 1080, height: 1920 },
 ]
 
@@ -134,10 +150,12 @@ function getDistance(touch1, touch2) {
 function handlePointerDown(event, index) {
   if (!images.value[index]) return
   
-  // Previne menu de contexto padrão do navegador mobile
-  if (event.touches) {
-    event.preventDefault()
-    
+  // Previne comportamento de drag padrão do navegador
+  event.preventDefault()
+  
+  const isTouch = !!event.touches
+  
+  if (isTouch) {
     // Detecta pinch (2 dedos)
     if (event.touches.length === 2) {
       isPinching.value = true
@@ -148,18 +166,22 @@ function handlePointerDown(event, index) {
     }
   }
   
-  const clientX = event.touches ? event.touches[0].clientX : event.clientX
-  const clientY = event.touches ? event.touches[0].clientY : event.clientY
+  const clientX = isTouch ? event.touches[0].clientX : event.clientX
+  const clientY = isTouch ? event.touches[0].clientY : event.clientY
   
   dragStartPos.value = { x: clientX, y: clientY }
   dragIndex.value = index
   
-  // Inicia timer para long press
-  longPressTimer.value = setTimeout(() => {
+  if (isTouch) {
+    // Mobile: Long press recomendado para UX
+    longPressTimer.value = setTimeout(() => {
+      isDragging.value = true
+      if (navigator.vibrate) navigator.vibrate(50)
+    }, 500)
+  } else {
+    // Desktop: Drag imediato
     isDragging.value = true
-    // Vibração haptic no mobile (se disponível)
-    if (navigator.vibrate) navigator.vibrate(50)
-  }, LONG_PRESS_DURATION)
+  }
 }
 
 function handlePointerMove(event) {
@@ -220,6 +242,42 @@ function handlePointerUp() {
   isPinching.value = false
   pinchIndex.value = null
 }
+
+// Zoom com scroll do mouse (desktop)
+const hoverIndex = ref(null)
+
+function handleMouseEnter(index) {
+  hoverIndex.value = index
+}
+
+function handleMouseLeave() {
+  hoverIndex.value = null
+}
+
+function handleWheel(event, index) {
+  if (!images.value[index]) return
+  
+  event.preventDefault()
+  
+  const img = images.value[index]
+  const currentScale = img.scale || 1
+  const delta = event.deltaY > 0 ? -0.1 : 0.1
+  const newScale = Math.max(1, Math.min(3, currentScale + delta))
+  
+  const newImages = [...images.value]
+  newImages[index] = {
+    ...img,
+    scale: newScale,
+  }
+  images.value = newImages
+}
+
+// Detectar se é mobile
+const isMobile = computed(() => {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         ('ontouchstart' in window)
+})
 
 async function generateMontage() {
   const filledImages = images.value.filter(Boolean)
@@ -327,6 +385,18 @@ async function generateMontage() {
           drawImageCover(ctx, loadedImages[i], pos.x, pos.y, cellWidth, height, img?.offsetX || 0, img?.offsetY || 0, img?.scale || 1)
         }
       })
+    } else if (layout.id === 'rows-2') {
+      const cellHeight = (height - gap) / 2
+      const positions = [
+        { x: 0, y: 0 },
+        { x: 0, y: cellHeight + gap },
+      ]
+      positions.forEach((pos, i) => {
+        if (loadedImages[i]) {
+          const img = images.value[i]
+          drawImageCover(ctx, loadedImages[i], pos.x, pos.y, width, cellHeight, img?.offsetX || 0, img?.offsetY || 0, img?.scale || 1)
+        }
+      })
     }
 
     // Desenhar marca d'água se habilitada e houver logo
@@ -378,31 +448,41 @@ function drawImageCover(ctx, img, x, y, width, height, userOffsetX = 0, userOffs
   const imgRatio = img.width / img.height
   const cellRatio = width / height
   
-  let drawWidth, drawHeight, offsetX, offsetY
+  let drawWidth, drawHeight
   
-  // Aplicar scale (zoom) - quanto maior o scale, menor a área da imagem usada
+  // Calcular dimensões de recorte base (sWidth, sHeight) baseado no cover logic + scale
+  // Basicamente: scale reduz a área da imagem original que será desenhada no slot
   const scaledWidth = img.width / scale
   const scaledHeight = img.height / scale
   
   if (imgRatio > cellRatio) {
-    // Imagem mais larga - cortar laterais
+    // Imagem mais larga (relativa ao slot)
     drawHeight = scaledHeight
     drawWidth = scaledHeight * cellRatio
-    // Offset base (centralizado) + ajuste do usuário
-    const maxOffsetX = (scaledWidth - drawWidth) / 2
-    offsetX = ((img.width - scaledWidth) / 2) + maxOffsetX + (userOffsetX / 50) * maxOffsetX
-    offsetX = Math.max(0, Math.min(img.width - drawWidth, offsetX))
-    offsetY = (img.height - scaledHeight) / 2
   } else {
-    // Imagem mais alta - cortar topo/fundo
+    // Imagem mais alta (relativa ao slot)
     drawWidth = scaledWidth
     drawHeight = scaledWidth / cellRatio
-    offsetX = (img.width - scaledWidth) / 2
-    // Offset base (centralizado) + ajuste do usuário
-    const maxOffsetY = (scaledHeight - drawHeight) / 2
-    offsetY = ((img.height - scaledHeight) / 2) + maxOffsetY + (userOffsetY / 50) * maxOffsetY
-    offsetY = Math.max(0, Math.min(img.height - drawHeight, offsetY))
   }
+
+  // Calcular "Slack" (espaço de sobra) em cada dimensão
+  // Slack = TamanhoRealImagem - TamanhoRecorte
+  // Se Slack > 0, podemos mover nessa direção
+  const slackX = img.width - drawWidth
+  const slackY = img.height - drawHeight
+  
+  // Calcular Offset Final
+  // Base = Slack / 2 (centro)
+  // Ajuste = (userOffset / 50) * (Slack / 2) -> userOffset vai de -50 a 50
+  const maxOffsetX = slackX / 2 // "Raio" de movimento X
+  const maxOffsetY = slackY / 2 // "Raio" de movimento Y
+  
+  let offsetX = maxOffsetX + (userOffsetX / 50) * maxOffsetX
+  let offsetY = maxOffsetY + (userOffsetY / 50) * maxOffsetY
+  
+  // Garantir limites (0 <= offset <= slack)
+  offsetX = Math.max(0, Math.min(slackX, offsetX))
+  offsetY = Math.max(0, Math.min(slackY, offsetY))
   
   ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight, x, y, width, height)
 }
@@ -504,7 +584,7 @@ watch(selectedLayout, (newLayout) => {
             :class="{ active: selectedAspectRatio.id === ratio.id }"
             @click="selectedAspectRatio = ratio"
           >
-            <div class="aspect-preview" :class="ratio.id === '9:16' ? 'ratio-9-16' : 'ratio-1-1'"></div>
+            <div class="aspect-preview" :class="'ratio-' + ratio.id.replace(':', '-')"></div>
             <span>{{ ratio.name }}</span>
           </button>
         </div>
@@ -562,6 +642,7 @@ watch(selectedLayout, (newLayout) => {
           @click="!img && triggerFileInput(index)"
           @mousedown="handlePointerDown($event, index)"
           @touchstart="handlePointerDown($event, index)"
+          @wheel="handleWheel($event, index)"
         >
           <template v-if="img">
             <img 
@@ -594,7 +675,9 @@ watch(selectedLayout, (newLayout) => {
           <img :src="clinicLogoUrl" alt="Logo da clínica" />
         </div>
       </div>
-      <p class="reposition-hint">Segure e arraste para mover • Use dois dedos para zoom</p>
+      <p class="reposition-hint">
+        Segure e arraste para mover • {{ isMobile ? 'Use dois dedos para zoom' : 'Use scroll para zoom' }}
+      </p>
     </div>
 
     <template #footer>
@@ -775,6 +858,11 @@ watch(selectedLayout, (newLayout) => {
   height: 32px;
 }
 
+.aspect-preview.ratio-3-4 {
+  width: 21px;
+  height: 28px;
+}
+
 .layout-options {
   display: flex;
   gap: 0.5rem;
@@ -891,6 +979,11 @@ watch(selectedLayout, (newLayout) => {
   grid-template: 1fr / repeat(3, 1fr);
 }
 
+/* 2 Linhas - 2 barras horizontais */
+.layout-preview.rows-2 {
+  grid-template: repeat(2, 1fr) / 1fr;
+}
+
 .montage-grid {
   position: relative;
   background: #f3f4f6;
@@ -928,6 +1021,7 @@ watch(selectedLayout, (newLayout) => {
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s;
+  touch-action: none;
 }
 
 .image-slot:hover {
@@ -994,18 +1088,11 @@ watch(selectedLayout, (newLayout) => {
   color: white;
   border-radius: 50%;
   cursor: pointer;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s;
-}
-
-.image-slot:hover .remove-btn {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .remove-btn:hover {
   background: rgb(239, 68, 68);
+  transform: scale(1.1);
 }
 
 /* Estilos de Drag/Reposicionamento */
