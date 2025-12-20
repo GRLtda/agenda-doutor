@@ -438,7 +438,6 @@ onMounted(() => {
 
       <nav class="footer-links">
         <RouterLink to="/termos">Termos de Uso</RouterLink>
-        <RouterLink to="/privacidade">Privacidade</RouterLink>
       </nav>
 
       <div class="footer-produced-by">

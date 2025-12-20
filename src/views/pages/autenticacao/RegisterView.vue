@@ -107,6 +107,8 @@ async function handleRegister() {
     email: email.value,
     phone: phone.value,
     password: password.value,
+    termsAccepted: true,
+    termsVersion: 'v1.0-2025-12-19'
   }
 
   if (!termsAccepted.value) {

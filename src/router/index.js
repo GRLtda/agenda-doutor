@@ -12,12 +12,10 @@ import ClinicWizardView from '../views/pages/onboarding/ClinicWizardView.vue'
 import AnswerAnamnesisView from '../views/public/AnswerAnamnesisView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import TermsView from '../views/TermsView.vue'
-import PrivacyView from '../views/PrivacyView.vue'
 
 const routes = [
   { path: '/', name: 'landing', component: LandingView, meta: { public: true, title: 'Bem-vindo' } },
   { path: '/termos', name: 'terms', component: TermsView, meta: { public: true, title: 'Termos de Uso' } },
-  { path: '/privacidade', name: 'privacy', component: PrivacyView, meta: { public: true, title: 'Política de Privacidade' } },
   { path: '/login', name: 'login', component: LoginView, meta: { public: true, title: 'Login' } },
   {
     path: '/register',

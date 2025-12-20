@@ -28,3 +28,8 @@ export const forgotPassword = (emailOrPhone) => {
 export const resetPassword = (data) => {
   return apiClient.post('/auth/reset-password', data)
 }
+
+// Função para atualizar dados do usuário
+export const updateUser = (userData) => {
+  return apiClient.put('/auth/me', userData)
+}

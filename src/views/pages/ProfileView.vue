@@ -1,13 +1,23 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { User, Mail, Briefcase, Building2, MapPin, Shield, Crown, UserCircle, Calendar } from 'lucide-vue-next'
+import { User, Mail, Briefcase, Building2, MapPin, Shield, Crown, UserCircle, Calendar, Pencil, Check, X } from 'lucide-vue-next'
+import FormInput from '@/components/global/FormInput.vue'
+import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
+const toast = useToast()
 const isLoading = ref(false)
+const isSaving = ref(false)
+const isEditing = ref(false)
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
+
+const formData = reactive({
+  name: '',
+  email: ''
+})
 
 const roleLabels = {
   owner: 'Proprietário',
@@ -40,6 +50,37 @@ const formatDate = (dateString) => {
     month: 'long', 
     year: 'numeric' 
   })
+}
+
+const startEditing = () => {
+  formData.name = user.value?.name || ''
+  formData.email = user.value?.email || ''
+  isEditing.value = true
+}
+
+const cancelEditing = () => {
+  isEditing.value = false
+}
+
+const saveProfile = async () => {
+  if (!formData.name || !formData.email) {
+    toast.error('Nome e email são obrigatórios')
+    return
+  }
+
+  isSaving.value = true
+  const result = await authStore.updateProfile({
+    name: formData.name,
+    email: formData.email
+  })
+  isSaving.value = false
+
+  if (result.success) {
+    toast.success('Perfil atualizado com sucesso!')
+    isEditing.value = false
+  } else {
+    toast.error(result.error)
+  }
 }
 
 const refreshUserData = async () => {
@@ -82,24 +123,52 @@ onMounted(() => {
       <div class="profile-body">
         <!-- Personal Information Section -->
         <section class="profile-section">
-          <h2 class="section-title">Informações Pessoais</h2>
-          <p class="section-description">Suas informações básicas de perfil.</p>
+          <div class="section-header">
+             <div>
+                <h2 class="section-title">Informações Pessoais</h2>
+                <p class="section-description">Suas informações básicas de perfil.</p>
+             </div>
+             <button v-if="!isEditing" @click="startEditing" class="btn-icon" title="Editar Perfil">
+                <Pencil :size="18" />
+             </button>
+             <div v-else class="edit-actions">
+                <button @click="cancelEditing" class="btn-icon btn-cancel" title="Cancelar">
+                  <X :size="18" />
+                </button>
+                <button @click="saveProfile" class="btn-icon btn-save" title="Salvar" :disabled="isSaving">
+                  <Check :size="18" />
+                </button>
+             </div>
+          </div>
 
           <div class="info-grid">
             <div class="info-field">
               <label class="field-label">Nome completo</label>
-              <div class="field-value">
+              <div v-if="!isEditing" class="field-value">
                 <User :size="18" class="field-icon" />
                 <span>{{ user?.name || 'Não informado' }}</span>
               </div>
+              <FormInput 
+                v-else 
+                v-model="formData.name" 
+                placeholder="Seu nome completo"
+                class="edit-input"
+              />
             </div>
 
             <div class="info-field">
               <label class="field-label">Email</label>
-              <div class="field-value">
+              <div v-if="!isEditing" class="field-value">
                 <Mail :size="18" class="field-icon" />
                 <span>{{ user?.email || 'Não informado' }}</span>
               </div>
+              <FormInput 
+                v-else 
+                v-model="formData.email" 
+                placeholder="Seu email"
+                type="email"
+                class="edit-input"
+              />
             </div>
 
             <div class="info-field">
@@ -467,5 +536,69 @@ onMounted(() => {
     flex-direction: column;
     text-align: center;
   }
+}
+
+/* Edit Mode Styles */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.section-header .section-description {
+  margin-bottom: 0;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  background: white;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: #f9fafb;
+  color: #111827;
+  border-color: #d1d5db;
+}
+
+.btn-save {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+.btn-save:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+
+.btn-save:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background: white;
+  color: #ef4444;
+  border-color: #fee2e2;
+}
+
+.btn-cancel:hover {
+  background: #fef2f2;
+  border-color: #ef4444;
 }
 </style>

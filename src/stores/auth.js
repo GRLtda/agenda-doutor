@@ -179,6 +179,29 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Atualiza o perfil do usuário
+   */
+  async function updateProfile(data) {
+    try {
+      const response = await apiClient.put('/auth/me', data)
+
+      // Merge com o estado atual para preservar a clínica se ela não vier na resposta
+      const currentUserState = user.value || {}
+      const updatedUser = {
+        ...currentUserState,
+        ...response.data,
+        clinic: response.data.clinic || currentUserState.clinic
+      }
+
+      setUser(updatedUser)
+      return { success: true, user: updatedUser }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error)
+      return { success: false, error: error.response?.data?.message || 'Erro ao atualizar.' }
+    }
+  }
+
   return {
     user,
     token,
@@ -192,5 +215,6 @@ export const useAuthStore = defineStore('auth', () => {
     requestPasswordReset,
     performPasswordReset,
     subscribe,
+    updateProfile,
   }
 })
