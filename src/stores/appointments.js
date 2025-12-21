@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import {
   createAppointment as apiCreateAppointment,
   updateAppointment as apiUpdateAppointment,
+  rescheduleAppointment as apiRescheduleAppointment,
   getAppointments as apiGetAppointments,
   getAppointmentById as apiGetAppointmentById,
   deleteAppointment as apiDeleteAppointment,
@@ -124,6 +125,24 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     }
   }
 
+  async function rescheduleAppointment(appointmentId, appointmentData) {
+    isLoading.value = true
+    try {
+      await apiRescheduleAppointment(appointmentId, appointmentData)
+
+      if (currentStartDate.value) {
+        fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao reagendar agendamento:', error)
+      return { success: false, error }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function updateLocalStatus(appointmentId, newStatus) {
     const todayIndex = todayAppointments.value.findIndex(a => a._id === appointmentId)
     if (todayIndex !== -1) {
@@ -201,6 +220,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     fetchAppointmentById,
     createAppointment,
     updateAppointment,
+    rescheduleAppointment,
     updateAppointmentStatus,
     updateLocalStatus,
     fetchAppointmentsByPatient,

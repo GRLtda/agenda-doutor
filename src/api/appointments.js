@@ -21,6 +21,10 @@ export const updateAppointment = (appointmentId, data) => {
   return apiClient.put(`/appointments/${appointmentId}`, data)
 }
 
+export const rescheduleAppointment = (appointmentId, data) => {
+  return apiClient.patch(`/appointments/${appointmentId}/reschedule`, data)
+}
+
 /**
  * ✨ Busca um agendamento específico pelo ID.
  * @param {string} appointmentId - ID do agendamento.
