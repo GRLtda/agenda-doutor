@@ -73,6 +73,7 @@ export const usePatientNotesStore = defineStore('patientNotes', () => {
         try {
             const response = await apiCreateNote(patientId, { content })
             notes.value.unshift(response.data)
+            pagination.value.totalCount++
             sortNotes()
             return { success: true, data: response.data }
         } catch (err) {
@@ -117,6 +118,7 @@ export const usePatientNotesStore = defineStore('patientNotes', () => {
         try {
             await apiDeleteNote(noteId)
             notes.value = notes.value.filter(n => n._id !== noteId)
+            pagination.value.totalCount = Math.max(0, pagination.value.totalCount - 1)
             return { success: true }
         } catch (err) {
             console.error('Falha em deleteNote:', err)

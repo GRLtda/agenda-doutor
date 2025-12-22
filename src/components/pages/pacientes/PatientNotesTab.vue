@@ -19,7 +19,8 @@ import {
   Send,
   Calendar,
   Quote,
-  Layout
+  Layout,
+  ArrowLeft
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 
@@ -35,6 +36,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const isSubmitting = ref(false)
+const showEditorMobile = ref(false) // State for mobile toggle
 
 // Tiptap Editor setup
 const editor = useEditor({
@@ -99,6 +101,7 @@ async function handleCreateNote() {
   if (success) {
     editor.value.commands.setContent('')
     toast.success('Anotação postada com sucesso!')
+    showEditorMobile.value = false // Return to list on mobile
   } else {
     toast.error('Erro ao postar anotação.')
   }
@@ -155,10 +158,15 @@ function renderContent(content) {
     <div class="notes-grid">
       
       <!-- LEFT COLUMN: EXISTING NOTES FEED -->
-      <section class="notes-column list-column">
+      <section class="notes-column list-column" :class="{ 'hidden-mobile': showEditorMobile }">
         <div class="column-header">
           <h3><MessageSquare :size="20" /> Histórico de Notas</h3>
-          <span class="count-badge">{{ sortedNotes.length }}</span>
+          <span class="count-badge">{{ notesStore.pagination.totalCount }}</span>
+          
+          <!-- Mobile Only Add Button -->
+          <button @click="showEditorMobile = true" class="mobile-add-btn md:hidden ml-auto">
+            <Plus :size="20" />
+          </button>
         </div>
 
         <div v-if="notesStore.isLoading && notesStore.notes.length === 0" class="loading-container">
@@ -166,7 +174,12 @@ function renderContent(content) {
           <p>Carregando anotações...</p>
         </div>
 
-        <div v-else-if="sortedNotes.length > 0" class="notes-feed">
+        <TransitionGroup 
+          v-else-if="sortedNotes.length > 0" 
+          name="list" 
+          tag="div" 
+          class="notes-feed"
+        >
           <div 
             v-for="note in sortedNotes" 
             :key="note._id" 
@@ -204,14 +217,32 @@ function renderContent(content) {
             <div class="note-content prose" v-html="renderContent(note.content)"></div>
           </div>
 
+          <!-- Sentinel for Infinite Scroll - needs to be inside or outside transition group? 
+               Usually better outside or as a specific item, but TransitionGroup renders a wrapper div.
+               Since 'tag="div" class="notes-feed"' effectively replaces the wrapper, we can keep the sentinel inside if we want it to scroll with items, 
+               but sentinel is not in sortedNotes. 
+               Wait, TransitionGroup only animates its direct children keyed by v-for. 
+               The sentinel is static. It's better to keep sentinel OUTSIDE the v-for or treated carefully.
+               However, to keep layout simple (flex column), the sentinel should be the last child of .notes-feed.
+               TransitionGroup renders the container .notes-feed.
+               The sentinel is just another child.
+               The v-for iterates over notes. The sentinel is static element.
+               Vue TransitionGroup allows non-v-for children but they effect moves.
+               Let's try simply placing it as the last child.
+          -->
           <!-- Sentinel for Infinite Scroll -->
-          <div ref="loadMoreSentinel" class="load-more-sentinel">
+          <div 
+            key="sentinel" 
+            ref="loadMoreSentinel" 
+            class="load-more-sentinel"
+            :class="{ 'hidden': !notesStore.pagination.hasMore }"
+          >
             <div v-if="notesStore.isFetchingMore" class="fetch-more-loader">
               <div class="mini-loader"></div>
               <span>Carregando mais notas...</span>
             </div>
           </div>
-        </div>
+        </TransitionGroup>
 
         <div v-else class="empty-notes">
           <div class="empty-icon">
@@ -223,8 +254,12 @@ function renderContent(content) {
       </section>
 
       <!-- RIGHT COLUMN: EDITOR -->
-      <section class="notes-column editor-column">
+      <section class="notes-column editor-column" :class="{ 'hidden-mobile': !showEditorMobile }">
         <div class="column-header">
+          <!-- Mobile Only Back Button -->
+          <button @click="showEditorMobile = false" class="mobile-back-btn md:hidden mr-2">
+            <ArrowLeft :size="20" />
+          </button>
           <h3><Plus :size="20" /> Nova Anotação</h3>
         </div>
 
@@ -269,6 +304,18 @@ function renderContent(content) {
 </template>
 
 <style scoped>
+/* List Transitions */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
 .patient-notes-redesign {
   padding: 0.5rem;
 }
@@ -282,25 +329,61 @@ function renderContent(content) {
 @media (min-width: 1024px) {
   .notes-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: 1fr 1fr;
     align-items: start;
   }
   
   /* On desktop, keep list on left and editor on right as per user's split request */
-  .list-column { order: 1; }
+  .list-column { order: 1; height: 600px; } /* Altura fixa na coluna */
   .editor-column { order: 2; }
 }
 
 @media (max-width: 1023px) {
+  .notes-grid {
+    display: block; /* Stack or just toggled visibility */
+  }
+
   /* On mobile, make the editor appear on top */
   .editor-column { order: 1; }
-  .list-column { order: 2; }
+  .list-column { order: 2; height: 550px; } /* Altura fixa também no mobile se desejado, ou auto */
+
+  .hidden-mobile {
+    display: none !important;
+  }
+}
+
+.mobile-add-btn, .mobile-back-btn {
+  display: none; /* Hidden by default on desktop via media query or utility */
+  background: none;
+  border: none;
+  color: var(--azul-principal);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+@media (max-width: 1023px) {
+  .mobile-add-btn, .mobile-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Push add button to right */
+  .mobile-add-btn {
+    margin-left: auto;
+    background: #e0f2fe; /* Light blue background for visibility */
+    width: 32px;
+    height: 32px;
+  }
 }
 
 .notes-column {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.5rem;
+  min-width: 0; /* Evita que o grid estoure a tela se o conteudo for largo */
 }
 
 .column-header {
@@ -309,6 +392,7 @@ function renderContent(content) {
   gap: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid #f1f5f9;
+  flex-shrink: 0; /* Header não encolhe */
 }
 
 .column-header h3 {
@@ -316,7 +400,7 @@ function renderContent(content) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #1e293b;
+  color: var(--azul-principal);
   font-size: 1.1rem;
   font-weight: 700;
 }
@@ -335,9 +419,12 @@ function renderContent(content) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 800px;
-  overflow-y: auto;
+  flex: 1; /* Ocupa o espaço restante */
+  overflow-y: auto; /* Scroll apenas aqui */
+  overflow-x: hidden; /* Evita scroll horizontal na animação */
+  min-height: 0; /* Importante para flex nested scrolling */
   padding-right: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 /* Custom scrollbar for feed */
@@ -679,6 +766,12 @@ function renderContent(content) {
   display: flex;
   justify-content: center;
   min-height: 50px;
+}
+
+.load-more-sentinel.hidden {
+  display: none;
+  padding: 0;
+  min-height: 0;
 }
 
 .fetch-more-loader {
