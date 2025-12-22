@@ -10,6 +10,7 @@ import { useCrmTemplatesStore } from '@/stores/crmTemplates'
 import WorkflowNode from './WorkflowNode.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
 import dagre from 'dagre'
 import { ArrowLeft, Save, Pause, Play, Plus, Trash2, GripVertical, X, MessageSquare, Zap, Clock, Star, User, CalendarPlus, GitBranch } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
@@ -65,18 +66,12 @@ const templateOptions = computed(() => {
   }))
 })
 
-// Procedure options for StyledSelect
+// Procedure options for StyledMultiSelect (sem opção 'todos', pois multi-select vazio = todos)
 const procedureOptions = computed(() => {
-  const options = proceduresStore.procedures.map(procedure => ({
+  return proceduresStore.procedures.map(procedure => ({
     value: procedure._id,
     label: procedure.name
   }))
-  
-  // Add "All Procedures" option at the beginning
-  return [
-    { value: '', label: 'Todos os Procedimentos' },
-    ...options
-  ]
 })
 
 onMounted(async () => {
@@ -186,9 +181,23 @@ onConnect((params) => {
 })
 
 onNodeClick(({ node }) => {
+  const config = node.data.config || {}
+  
+  // Garante que procedure_codes seja sempre um array para o multi-select
+  if (node.data.subtype === 'event_trigger' && config.eventType === 'procedure_completed') {
+    if (!Array.isArray(config.procedure_codes)) {
+      // Migra de procedureId legado para procedure_codes se necessário
+      if (config.procedureId) {
+        config.procedure_codes = [config.procedureId]
+      } else {
+        config.procedure_codes = []
+      }
+    }
+  }
+  
   selectedNode.value = { 
     ...node.data,
-    config: node.data.config || {} 
+    config
   }
   isDrawerOpen.value = true
 })
@@ -550,19 +559,21 @@ async function handleToggleStatus() {
               :required="true"
             />
 
-            <!-- Conditional Procedure Select -->
-            <StyledSelect
+            <!-- Conditional Procedure Multi-Select for Combos -->
+            <StyledMultiSelect
               v-if="selectedNode.config.eventType === 'procedure_completed'"
-              v-model="selectedNode.config.procedureId"
-              label="Procedimento Específico"
+              v-model="selectedNode.config.procedure_codes"
+              label="Procedimentos (Combo)"
               :options="procedureOptions"
               :required="false"
+              :searchable="true"
+              placeholder="Selecione um ou mais procedimentos"
               class="mt-4"
             />
             
             <div v-if="selectedNode.config.eventType === 'procedure_completed'" class="field-hint">
               <span class="hint-icon">💡</span>
-              <span>Deixe em branco para disparar em qualquer procedimento realizado, ou selecione um procedimento específico.</span>
+              <span>Deixe em branco para disparar em qualquer procedimento. Selecione múltiplos para criar uma combo (ex: Botox + Fios). O workflow só dispara quando TODOS forem realizados juntos.</span>
             </div>
           </div>
 
