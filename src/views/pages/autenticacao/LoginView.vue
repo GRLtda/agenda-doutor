@@ -29,6 +29,8 @@ const password = ref('')
 const emailOrPhone = ref('')
 const token = ref('')
 const newPassword = ref('')
+const emailInputRef = ref(null)
+const passwordInputRef = ref(null)
 
 const imageUrl = new URL('@/assets/clinic1.webp', import.meta.url).href
 const whatsappLink = 'https://wa.me/5511921923978'
@@ -49,9 +51,19 @@ function goToStep(stepName) {
 async function handleLogin() {
   errorMessage.value = null
   isLoading.value = true
+
+  // 1. Sincronização forçada para iOS Autofill
+  // Tenta ler do ref exposto pelo componente (inputRef) e depois do .value do input nativo
+  const emailValue = emailInputRef.value?.inputRef?.value || email.value
+  const passwordValue = passwordInputRef.value?.inputRef?.value || password.value
+
+  // Atualiza os v-models caso estejam desincronizados
+  if (email.value !== emailValue) email.value = emailValue
+  if (password.value !== passwordValue) password.value = passwordValue
+
   const { success, user } = await authStore.login({
-    email: email.value,
-    password: password.value,
+    email: emailValue,
+    password: passwordValue,
   })
   isLoading.value = false
 
@@ -136,15 +148,23 @@ async function handleResetPassword() {
       <div v-if="step === 'login'" key="body-login">
         <form @submit.prevent="handleLogin">
           <FormInput
+            ref="emailInputRef"
             v-model="email"
             label="Email"
             type="email"
             name="email"
             placeholder="seuemail@exemplo.com"
-            autocomplete="email"
+            autocomplete="username"
             :required="true"
           />
-          <PasswordInput v-model="password" label="Senha" :required="true" :show-validation="false" />
+          <PasswordInput 
+            ref="passwordInputRef" 
+            v-model="password" 
+            label="Senha" 
+            :required="true" 
+            :show-validation="false"
+            autocomplete="current-password"
+          />
 
           <div class="forgot-password-link">
             <a @click.prevent="goToStep('forgot')" href="#" class="link-purple">Esqueceu a senha?</a>

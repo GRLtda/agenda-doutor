@@ -3,6 +3,7 @@ import { formatPhone } from '@/directives/phone-mask.js'
 import { formatCPF } from '@/directives/cpf-mask.js'
 import { formatCNPJ } from '@/directives/cnpj-mask.js'
 import { Check } from 'lucide-vue-next' // ✨ Importa o ícone
+import { ref } from 'vue'
 
 const props = defineProps({
   modelValue: [String, Boolean, Number],
@@ -18,6 +19,11 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
+
+const inputRef = ref(null)
+
+// Expose the input element to parent components
+defineExpose({ inputRef })
 
 function handleInput(event) {
   if (props.type === 'checkbox') {
@@ -43,6 +49,12 @@ function handleInput(event) {
     }
   }
   emit('update:modelValue', value)
+}
+
+function handleBlur(event) {
+  if (props.type !== 'checkbox') {
+    emit('update:modelValue', event.target.value)
+  }
 }
 </script>
 
@@ -76,12 +88,14 @@ function handleInput(event) {
 
     <input
       v-else
+      ref="inputRef"
       :type="type"
       :name="name"
       :placeholder="placeholder"
       :value="modelValue"
       :autocomplete="autocomplete"
       @input="handleInput"
+      @blur="handleBlur"
       v-phone-mask="phoneMask"
       v-cpf-mask="cpfMask"
       v-cnpj-mask="cnpjMask"

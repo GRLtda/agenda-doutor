@@ -7,12 +7,16 @@ const props = defineProps({
   label: String,
   required: { type: Boolean, default: false },
   showValidation: { type: Boolean, default: true },
+  autocomplete: { type: String, default: 'new-password' }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const isPasswordVisible = ref(false)
 const inputType = computed(() => (isPasswordVisible.value ? 'text' : 'password'))
+
+const inputRef = ref(null)
+defineExpose({ inputRef })
 
 function toggleVisibility() {
   isPasswordVisible.value = !isPasswordVisible.value
@@ -42,6 +46,10 @@ const passwordStrength = computed(() => {
 function handleInput(event) {
   emit('update:modelValue', event.target.value)
 }
+
+function handleBlur(event) {
+  emit('update:modelValue', event.target.value)
+}
 </script>
 
 <template>
@@ -53,12 +61,14 @@ function handleInput(event) {
 
     <div class="input-wrapper">
       <input
+        ref="inputRef"
         :type="inputType"
         :value="modelValue"
         @input="handleInput"
+        @blur="handleBlur"
         :placeholder="props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha'"
         class="form-input"
-        autocomplete="new-password"
+        :autocomplete="autocomplete"
       />
       <button type="button" @click="toggleVisibility" class="visibility-toggle">
         <Eye v-if="!isPasswordVisible" :size="20" />
