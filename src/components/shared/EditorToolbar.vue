@@ -140,7 +140,9 @@ const setTextAlign = (alignment) => {
 }
 
 .editor-toolbar button.is-active {
-  background-color: #eef2ff;
-  color: var(--azul-principal);
+  background-color: #3b82f6;
+  color: white;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  transform: translateY(1px);
 }
 </style>

@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Stethoscope, // ✨ Importar ícone
   Trash2,
+  MessageSquare
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -39,6 +40,7 @@ import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswers
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
+import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -415,6 +417,10 @@ async function handleDeleteProcedure(procedure) {
           <Stethoscope :size="16" />
           Procedimentos
         </button>
+        <button @click="activeTab = 'notes'" :class="{ active: activeTab === 'notes' }">
+          <MessageSquare :size="16" />
+          Anotações
+        </button>
       </nav>
 
       <div class="tab-content">
@@ -759,6 +765,9 @@ async function handleDeleteProcedure(procedure) {
                   </AppButton>
                 </div>
               </div>
+            </div>
+            <div v-if="activeTab === 'notes'">
+              <PatientNotesTab :patient-id="patient._id" />
             </div>
           </div>
         </Transition>
