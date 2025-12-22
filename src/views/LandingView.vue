@@ -1,55 +1,103 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import AppHeader from '@/components/global/AppHeader.vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { DotLottieVue } from '@lottiefiles/dotlottie-vue'
-// 💡 Importei os ícones necessários
 import {
-  Building,
   Check,
   Zap,
   Clock,
-  LifeBuoy,
-  X,
-  KeyRound,
-  Monitor,
-  ChevronRight,
-  AlertCircle,
-  CheckCircle,
-  MessageCircle,
-  Play,
-  ArrowRight,
-  Plus,
-  Minus,
-  FileQuestion,
-  Calendar,
   ShieldCheck,
   TrendingUp,
-  Smartphone
+  MessageCircle,
+  Calendar,
+  FileText,
+  DollarSign,
+  Workflow,
+  Smartphone,
+  ChevronRight,
+  UserCheck,
+  LayoutDashboard,
+  Star,
+  Instagram,
+  Minus,
+  Plus
 } from 'lucide-vue-next'
+import AppHeader from '@/components/global/AppHeader.vue'
+import AppFooter from '@/components/global/AppFooter.vue'
+import fotoMilena from '@/assets/imgs/foto_milena.webp'
+import fotoManu from '@/assets/imgs/foto_manu.webp'
+import fotoMedica from '@/assets/imgs/foto_medica.webp'
+import imageAgenda from '@/assets/imgs/dashboard.png'
+import imageProntuario from '@/assets/imgs/Pronturario.png'
 
+onMounted(() => {
+  
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+        }
+      })
+    },
+    { threshold: 0.1 }
+  )
 
-// 🎯 Foco apenas no plano Empresarial
-const planos = ref([
+  document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+    observer.observe(el)
+  })
+})
+
+const features = [
   {
-    name: 'Empresarial',
-    icon: Building,
-    price: 'Sob Consulta', // Trocado de 'Contato' para 'Sob Consulta'
-    period: '',
-    description: 'Para clínicas com múltiplas unidades e necessidades complexas.',
-    featured: true, // Deixei como 'featured' para dar mais destaque
-    buttonText: 'Fale conosco',
-    benefits: [
-      'Gestão Completa de Pacientes',
-      'Agenda Online Avançada',
-      'Prontuário Eletrônico Personalizável',
-      'Usuários Ilimitados',
-    ],
-    limitations: [], // Sem limitações
+    title: 'Agenda Inteligente',
+    description: 'Visualização clara de dia, semana e mês. Arraste e solte para reagendar com facilidade.',
+    icon: Calendar,
+    span: 'span-2',
+    visual: 'image-agenda'
   },
-])
+  {
+    title: 'Prontuário Digital',
+    description: 'Histórico completo e acessível em um clique.',
+    icon: FileText,
+    span: 'span-1',
+    visual: 'image-prontuario'
+  },
+  {
+    title: 'Financeiro',
+    description: 'Controle total de fluxo de caixa e repasses médicos.',
+    icon: DollarSign,
+    span: 'span-1',
+    visual: 'chart'
+  },
+  {
+    title: 'Confirmação via WhatsApp',
+    description: 'Reduza faltas em até 40% com lembretes automáticos e confirmação direta.',
+    icon: MessageCircle,
+    span: 'span-2',
+    visual: 'chat'
+  },
+  {
+    title: 'Anamnese Online',
+    description: 'O paciente preenche em casa, você recebe pronto.',
+    icon: UserCheck,
+    span: 'span-1',
+    visual: 'list'
+  },
+  {
+    title: 'Automação de Marketing',
+    description: 'Fidelize pacientes com mensagens de aniversário e retorno.',
+    icon: Workflow,
+    span: 'span-2',
+    visual: 'marketing'
+  }
+]
 
-
+const stats = [
+  { value: '+40%', label: 'Menos faltas com lembretes' },
+  { value: '+60%', label: 'Mais organização na rotina' },
+  { value: '2h', label: 'Horas economizadas por dia' },
+  { value: '+100', label: 'Profissionais Ativos' }
+]
 
 const faqItems = ref([
   {
@@ -67,7 +115,7 @@ const faqItems = ref([
   {
     question: 'O sistema envia lembretes automáticos?',
     answer:
-      'Com certeza! O sistema envia confirmações via WhatsApp e E-mail automaticamente, reduzindo drasticamente as faltas.',
+      'Com certeza! O sistema envia confirmações via WhatsApp automaticamente, reduzindo drasticamente as faltas.',
     open: false,
   },
   {
@@ -85,7 +133,7 @@ const faqItems = ref([
   {
     question: 'Como funciona o suporte em caso de dúvidas?',
     answer:
-      'Oferecemos suporte humanizado e prioritário via WhatsApp e E-mail. Nossa equipe está pronta para te ajudar a extrair o máximo do sistema.',
+      'Oferecemos suporte humanizado e prioritário via WhatsApp. Nossa equipe está pronta para te ajudar a extrair o máximo do sistema.',
     open: false,
   },
   {
@@ -103,287 +151,205 @@ function toggleFaq(index) {
   faqItems.value[index].open = !faqItems.value[index].open
 }
 
-
-const companyLogos = ref([
-  { id: 1, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Clínica+Vida', alt: 'Clínica Vida' },
-  { id: 2, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Saúde+Mais', alt: 'Saúde Mais' },
-  { id: 3, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Odonto+Prime', alt: 'Odonto Prime' },
-  { id: 4, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Derma+Care', alt: 'Derma Care' },
-  { id: 5, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Cardio+Center', alt: 'Cardio Center' },
-  { id: 6, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Orto+Fisio', alt: 'Orto Fisio' },
-  { id: 7, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Neuro+Lab', alt: 'Neuro Lab' },
-  { id: 8, src: 'https://placehold.co/150x50/e5e7eb/1f2937?text=Pediatria+Kids', alt: 'Pediatria Kids' },
-])
-
-onMounted(() => {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible')
-        }
-      })
-    },
-    { threshold: 0.1 },
-  )
-
-  document.querySelectorAll('.animate-on-scroll').forEach((el) => {
-    observer.observe(el)
-  })
-})
-
 </script>
 
 <template>
-  <AppHeader class="header-slide-down" />
-  <main>
-    <section class="hero">
-      <div class="container hero-container">
-        <div class="hero-content">
-          <h1 class="hero-title animate-slide-up">Sua clínica no piloto automático</h1>
-          <p class="hero-subtitle animate-slide-up">
-            Impulsione o sucesso da sua clínica com uma solução que elimina tarefas manuais e acelera
-            o seu faturamento.
-          </p>
-          <div class="hero-actions animate-slide-up">
-            <router-link to="/app" class="btn-primary"> Entrar <KeyRound :size="20" /> </router-link>
-          </div>
-        </div>
-        <div class="hero-visual animate-slide-up">
-          <!-- Substitua o src pela URL do seu arquivo .lottie -->
-            <DotLottieVue
-            style="height: 500px; width: 500px"
-            autoplay
-            loop
-            src="https://lottie.host/b97ec318-9530-4c49-997d-fb14b7481de2/K56IuKLrQ2.json"
-          />
+  <div class="landing-page">
+    <AppHeader />
 
-        </div>
-      </div>
-    </section>
-
-
-    <section class="trusted-section" v-if="false">
-      <div class="container">
-        <p class="trusted-title">Mais de 500 clínicas confiam no Agenda Doutor</p>
-        <div class="marquee-wrapper">
-          <div class="marquee-content">
-            <!-- Duplicado para efeito infinito -->
-            <div v-for="i in 2" :key="i" class="marquee-group">
-              <div v-for="logo in companyLogos" :key="logo.id" class="company-logo">
-                <img :src="logo.src" :alt="logo.alt" />
-              </div>
+    <main>
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-bg-blobs"></div>
+        <div class="container hero-container">
+          <div class="hero-content">
+            
+            <!-- Top Trust Badge -->
+            <div class="trust-badge-top animate-slide-up">
+                <div class="avatars-sm">
+                  <img :src="fotoMilena" alt="Milena" class="avatar-sm"/>
+                  <img :src="fotoManu" alt="Manu" class="avatar-sm"/>
+                  <img :src="fotoMedica" alt="Manu" class="avatar-sm"/>
+                </div>
+                <span>Mais de <strong>100 Profissionais</strong> confiam</span>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="comparison-section">
-      <div class="container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title">Transforme a realidade da sua clínica</h2>
-          <p class="section-subtitle">
-            Veja como o Agenda Doutor organiza sua rotina e potencializa seus resultados.
-          </p>
-        </div>
-
-        <div class="comparison-grid">
-          <!-- CARD ANTES (VERMELHO) -->
-          <div class="comparison-card before animate-on-scroll">
-            <div class="card-header">
-              <div class="icon-wrapper">
-                <AlertCircle :size="32" />
-              </div>
-              <h3>Antes do Agenda Doutor</h3>
-            </div>
-            <ul class="comparison-list">
-              <li>
-                <FileQuestion :size="20" />
-                <span>Agenda desorganizada e horários conflituosos</span>
-              </li>
-              <li>
-                <X :size="20" />
-                <span>Equipe perdida com tarefas manuais</span>
-              </li>
-              <li>
-                <X :size="20" />
-                <span>Falta de confirmação e alto índice de faltas</span>
-              </li>
-              <li>
-                <X :size="20" />
-                <span>Prontuários de papel difíceis de encontrar</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- CARD DEPOIS (VERDE/BRAND) -->
-          <div class="comparison-card after animate-on-scroll">
-            <div class="card-header">
-              <div class="icon-wrapper">
-                <CheckCircle :size="32" />
-              </div>
-              <h3>Depois do Agenda Doutor</h3>
-            </div>
-            <ul class="comparison-list">
-              <li>
-                <Clock :size="20" />
-                <span>Sua equipe entende e otimiza seu tempo</span>
-              </li>
-              <li>
-                <MessageCircle :size="20" />
-                <span>Integração total com WhatsApp para confirmações</span>
-              </li>
-              <li>
-                <Zap :size="20" />
-                <span>Processos automatizados e eficientes</span>
-              </li>
-              <li>
-                <Monitor :size="20" />
-                <span>Prontuário digital acessível de qualquer lugar</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-
-
-
-    <!-- 🌟 SEÇÃO DE TUTORIAIS / RECURSOS 🌟 -->
-    <section class="tutorials-section" v-if="false">
-      <div class="container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title">Veja o sistema em ação</h2>
-          <p class="section-subtitle">
-            Interface intuitiva projetada para facilitar o dia a dia de médicos e secretárias.
-          </p>
-        </div>
-
-        <div class="tutorials-grid">
-          <div class="tutorial-item animate-on-scroll">
-            <div class="tutorial-content">
-              <h3>Agendamento Inteligente</h3>
-              <p>Visualize sua agenda por dia, semana ou mês com facilidade.</p>
-              <a href="#" class="tutorial-link">Ver detalhes <ArrowRight :size="16" /></a>
-            </div>
-            <div class="tutorial-visual">
-              <div class="placeholder-overlay">
-                <Play :size="48" />
-                <span>Ver Demonstração</span>
-              </div>
-              <img src="https://placehold.co/600x400/f1f5f9/94a3b8?text=Agenda+View" alt="Tutorial Agenda" />
-            </div>
-          </div>
-
-          <div class="tutorial-item reverse animate-on-scroll">
-            <div class="tutorial-content">
-              <h3>Prontuário Eletrônico</h3>
-              <p>Histórico completo do paciente a um clique de distância.</p>
-              <a href="#" class="tutorial-link">Ver detalhes <ArrowRight :size="16" /></a>
-            </div>
-            <div class="tutorial-visual">
-              <div class="placeholder-overlay">
-                <Play :size="48" />
-                <span>Ver Demonstração</span>
-              </div>
-              <img src="https://placehold.co/600x400/f1f5f9/94a3b8?text=Prontuario+View" alt="Tutorial Prontuário" />
-            </div>
-          </div>
-
-          <div class="tutorial-item animate-on-scroll">
-            <div class="tutorial-content">
-              <h3>Financeiro Integrado</h3>
-              <p>Controle total do fluxo de caixa e faturamento da clínica.</p>
-              <a href="#" class="tutorial-link">Ver detalhes <ArrowRight :size="16" /></a>
-            </div>
-            <div class="tutorial-visual">
-              <div class="placeholder-overlay">
-                <Play :size="48" />
-                <span>Ver Demonstração</span>
-              </div>
-              <img src="https://placehold.co/600x400/f1f5f9/94a3b8?text=Financeiro+View" alt="Tutorial Financeiro" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="plans-section">
-      <div class="container-plans">
-        <h2 class="section-title">Uma solução sob medida para sua clínica</h2>
-        <p class="section-subtitle">
-          Para clínicas que exigem o máximo de performance, personalização e um suporte dedicado.
-        </p>
-
-        <div class="plans-grid">
-          <div
-            v-for="plano in planos"
-            :key="plano.name"
-            class="plan-card"
-            :class="{ featured: plano.featured }"
-          >
-            <h3 class="plan-name">
-              <component :is="plano.icon" :size="20" />
-              <span>{{ plano.name }}</span>
-            </h3>
-            <p class="plan-price">
-              {{ plano.price }}<span class="plan-period">{{ plano.period }}</span>
+            <h1 class="hero-title animate-slide-up delay-100">
+              Organize sua agenda e <span class="text-highlight" style="white-space: nowrap;">Reduza&nbsp;Faltas</span> em um só lugar.
+            </h1>
+            <p class="hero-subtitle animate-slide-up delay-200">
+              O sistema completo para modernizar seu atendimento. Agenda inteligente, prontuário digital e confirmação automática para você focar no que importa: o paciente.
             </p>
-            <p class="plan-description">{{ plano.description }}</p>
+            
+            <div class="cta-group-centered animate-slide-up delay-300">
+              <router-link to="/login" class="btn-primary btn-lg">
+                Entrar na Conta
+              </router-link>
+              <a href="https://wa.me/5511921923978" target="_blank" class="btn-secondary btn-lg">
+                 Fale com nossa equipe
+              </a>
+            </div>
+          </div>
+          
 
-            <ul class="plan-features">
-              <li v-for="benefit in plano.benefits" :key="benefit" class="benefit">
-                <Check :size="16" /> {{ benefit }}
-              </li>
-            </ul>
+        </div>
+      </section>
 
-            <ul v-if="plano.limitations.length > 0" class="plan-features">
-              <li v-for="limitation in plano.limitations" :key="limitation" class="limitation">
-                <X :size="16" /> {{ limitation }}
-              </li>
-            </ul>
+      <!-- Prova de Valor / Stats
+      <section class="stats-section">
+        <div class="container animate-on-scroll">
+          <div class="stats-grid">
+            <div v-for="(stat, index) in stats" :key="index" class="stat-card glass-panel">
+               <h3 class="stat-value">{{ stat.value }}</h3>
+               <p class="stat-label">{{ stat.label }}</p>
+            </div>
+          </div>
+        </div>
+      </section> -->
 
-            <a
-              href="https://wa.me/5511921923978"
-              target="_blank"
-              :class="plano.featured ? 'btn-primary-featured' : 'btn-outline'"
+      <!-- Funcionalidades Bento Grid -->
+      <section id="funcionalidades" class="features-section">
+        <div class="container">
+          <div class="section-header center animate-on-scroll">
+            <h2 class="section-title">Tudo o que sua agenda precisa</h2>
+            <p class="section-subtitle">Poderoso, simples e visual. Do agendamento ao financeiro.</p>
+          </div>
+          
+          <div class="bento-grid">
+            <div 
+              v-for="(feature, idx) in features" 
+              :key="idx" 
+              class="bento-card glass-panel animate-on-scroll"
+              :class="feature.span"
             >
-              {{ plano.buttonText }}
-            </a>
+              <div class="bento-content">
+                <div class="bento-header">
+                  <div class="icon-box">
+                    <component :is="feature.icon" :size="20" />
+                  </div>
+                  <h3>{{ feature.title }}</h3>
+                </div>
+                <p>{{ feature.description }}</p>
+              </div>
 
-            <div class="plan-footer-support">
-              <h4 class="footer-support-title">Um Atendimento que Realmente Funciona</h4>
-              <div class="footer-features-grid">
-                <div class="footer-feature-item">
-                  <Zap :size="20" class="feature-icon" />
-                  <div class="feature-text">
-                    <h5>Suporte Rápido</h5>
-                    <p>Respostas ágeis via chat e vídeo.</p>
-                  </div>
-                </div>
-                <div class="footer-feature-item">
-                  <Clock :size="20" class="feature-icon" />
-                  <div class="feature-text">
-                    <h5>24/7 Disponível</h5>
-                    <p>Plataforma e suporte sempre prontos.</p>
-                  </div>
-                </div>
-                <div class="footer-feature-item">
-                  <LifeBuoy :size="20" class="feature-icon" />
-                  <div class="feature-text">
-                    <h5>Atendimento Humano</h5>
-                    <p>Especialistas que entendem sua clínica.</p>
-                  </div>
-                </div>
+              <!-- Abstract Visuals based on feature.visual -->
+              <div class="bento-visual" :class="{'no-bg': feature.visual.startsWith('image')}">
+                 <!-- Image Agenda Visual -->
+                 <div v-if="feature.visual === 'image-agenda'" class="visual-image-container">
+                    <img :src="imageAgenda" alt="Agenda UI" class="bleeding-image agenda-img" />
+                 </div>
+
+                 <!-- Image Prontuário Visual -->
+                 <div v-if="feature.visual === 'image-prontuario'" class="visual-image-container">
+                    <img :src="imageProntuario" alt="Prontuário UI" class="bleeding-image prontuario-img" />
+                 </div>
+
+                 <!-- Chat Visual -->
+                 <div v-if="feature.visual === 'chat'" class="visual-chat">
+                    <div class="chat-bubble left">Olá, confirma sua consulta?</div>
+                    <div class="chat-bubble right">Sim, confirmo! 👍</div>
+                 </div>
+
+                 <!-- Chart Visual -->
+                 <div v-if="feature.visual === 'chart'" class="visual-chart">
+                    <div class="chart-bar" style="height: 40%"></div>
+                    <div class="chart-bar" style="height: 60%"></div>
+                    <div class="chart-bar active" style="height: 80%"></div>
+                    <div class="chart-bar" style="height: 100%"></div>
+                 </div>
+
+                 <!-- List Visual -->
+                 <div v-if="feature.visual === 'list'" class="visual-list">
+                    <div class="list-row"><div class="list-check"></div><div class="list-line w-80"></div></div>
+                    <div class="list-row"><div class="list-check"></div><div class="list-line w-60"></div></div>
+                    <div class="list-row"><div class="list-check"></div><div class="list-line w-40"></div></div>
+                 </div>
+                 
+                 <!-- Marketing Visual -->
+                 <div v-if="feature.visual === 'marketing'" class="visual-marketing">
+                    <div class="mail-card card-1">
+                       <div class="mail-icon"><Star size="12" fill="currentColor"/></div>
+                       <span>Feliz Aniversário! 🎉</span>
+                    </div>
+                    <div class="mail-card card-2">
+                       <div class="mail-icon"><Clock size="12" /></div>
+                       <span>Retorno em 6 meses</span>
+                    </div>
+                    <div class="mail-card card-3">
+                       <div class="mail-icon"><Check size="12" /></div>
+                       <span>Confirmação enviada</span>
+                    </div>
+                     <div class="mail-card card-4">
+                       <div class="mail-icon"><MessageCircle size="12" /></div>
+                       <span>Olá, tudo bem?</span>
+                    </div>
+                     <div class="mail-card card-5">
+                       <div class="mail-icon"><TrendingUp size="12" /></div>
+                       <span>Campanha Ativa</span>
+                    </div>
+                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
-    <section class="faq-section">
+      </section>
+
+      <section id="beneficios" class="benefits-section">
+
+        <div class="container">
+           <div class="benefits-layout">
+              <div class="benefits-text animate-on-scroll">
+                 <h2 class="section-title">Por que escolher o Agenda Doutor?</h2>
+                 <p class="benefit-description">
+                   Mais do que um software, somos parceiros no seu crescimento.
+                 </p>
+                 <ul class="benefits-list">
+                    <li>
+                       <Check class="check-icon" />
+                       <span><strong>Mais Tempo:</strong> Automatize tarefas repetitivas.</span>
+                    </li>
+                    <li>
+                       <Check class="check-icon" />
+                       <span><strong>Menos Faltas:</strong> Lembretes automáticos via WhatsApp.</span>
+                    </li>
+                    <li>
+                       <Check class="check-icon" />
+                       <span><strong>Controle Total:</strong> Faturamento e gestão na palma da mão.</span>
+                    </li>
+                    <li>
+                       <Check class="check-icon" />
+                       <span><strong>Segurança:</strong> Dados criptografados e backup diário.</span>
+                    </li>
+                 </ul>
+                 <a href="https://wa.me/5511921923978" target="_blank" class="btn-secondary mt-6">
+                    Quero modernizar minha agenda <ChevronRight size="18"/>
+                 </a>
+              </div>
+              <div class="benefits-visual animate-on-scroll delay-200">
+                  <div class="visual-card-stack">
+                     <div class="card-layer confirm-card">
+                        <div class="card-icon"><Smartphone size="20"/></div>
+                        <div class="card-text">
+                           <strong>Olá!</strong> Lembra da sua consulta amanhã às 14h?
+                           <span class="status">Enviada via WhatsApp</span>
+                        </div>
+                     </div>
+                     <div class="card-layer revenue-card">
+                        <div class="card-icon"><TrendingUp size="20"/></div>
+                        <div class="card-text">
+                           <strong>Receita Mensal</strong>
+                           <span class="value">R$ 45.280,00</span>
+                           <span class="growth text-highlight">+12% vs mês anterior</span>
+                        </div>
+                     </div>
+                  </div>
+              </div>
+           </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+    <section class="faq-section" id="faq">
       <div class="container faq-container">
         <div class="faq-header animate-on-scroll">
           <h2 class="section-title">
@@ -400,7 +366,6 @@ onMounted(() => {
         </div>
 
         <div class="faq-list-wrapper">
-          <div class="fade-overlay top"></div>
           <div class="faq-scroll-area">
             <div class="faq-grid">
               <div
@@ -424,829 +389,575 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <div class="fade-overlay bottom"></div>
         </div>
       </div>
     </section>
-  </main>
 
-  <footer class="app-footer">
-    <div class="footer-container">
-      <div class="footer-copyright">
-        © {{ new Date().getFullYear() }}. Todos os direitos reservados.
-      </div>
+      <!-- CTA Final -->
+      <!-- <section class="final-cta-section">
+         <div class="container">
+            <div class="cta-box glass-panel animate-on-scroll">
+               <div class="cta-content-left">
+                  <div class="cta-badge-sm">
+                     ⚡ SEJA AGENDA DOUTOR
+                  </div>
+                  <h2 class="cta-title">A segurança que você precisa para crescer mais.</h2>
+               </div>
+               <div class="cta-content-right">
+                  <p class="cta-text">
+                     Transações rápidas, seguras e sem surpresas. 
+                     Aqui você aprova mais consultas, recebe rápido e tem total transparência.
+                  </p>
+                  <router-link to="/register" class="btn-primary-inverse btn-lg">
+                     Criar minha conta >
+                  </router-link>
+               </div>
+            </div>
+         </div>
+      </section> -->
+    </main>
 
-      <nav class="footer-links">
-        <RouterLink to="/termos">Termos de Uso</RouterLink>
-      </nav>
 
-      <div class="footer-produced-by">
-        <span>Produzido por</span>
-        <a href="https://grltda.vercel.app" target="_blank" rel="noopener noreferrer" class="gr-logo">
-          <img src="@/assets/imgs/gr.svg" alt="Logo GR" class="gr-logo-svg" />
-        </a>
-      </div>
-    </div>
-  </footer>
+
+    <AppFooter />
+  </div>
 </template>
 
 <style scoped>
-/* ANIMAÇÕES DE ENTRADA */
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+@font-face {
+  font-family: 'Oakes';
+  src: url('@/assets/fonts/OakesLight.ttf') format('ttf');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
 }
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+@font-face {
+  font-family: 'Oakes';
+  src: url('@/assets/fonts/OakesRegular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-:global(.header-slide-down) {
-  animation: slideDown 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-}
-
-.animate-slide-up {
-  opacity: 0;
-  animation: slideUp 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-}
-.hero-title {
-  animation-delay: 0.2s;
-}
-.hero-subtitle {
-  animation-delay: 0.4s;
-}
-.hero-actions {
-  animation-delay: 0.6s;
-}
-.hero-visual {
-  animation-delay: 0.8s;
-}
-
-/* ESTILOS GERAIS */
-main {
-  position: relative;
-  overflow: hidden;
-  /* 💡 Fundo quadriculado com pontos de luz 💡 */
-  background-color: #ffffff;
-  background-image:
-    /* Pontos de luz (Radial Gradients) */
-    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(147, 51, 234, 0.08) 0%, transparent 25%),
-    /* Grid (Linear Gradients) */
-    linear-gradient(to right, rgba(229, 231, 235, 0.5) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(229, 231, 235, 0.5) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-  min-height: calc(100vh - 100px);
-}
-.hero,
-.plans-section,
-.platform-section {
-  position: relative;
-  z-index: 2;
-}
-.hero {
-  padding: 8rem 0 6rem;
-  display: flex;
-  align-items: center;
-  min-height: 80vh; /* Garante altura mínima para centralizar verticalmente */
-}
-.hero-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4rem;
-  max-width: 1280px; /* Aumentei um pouco para telas maiores */
-  margin: 0 auto;
-  padding: 0 2rem;
-  width: 100%;
-}
-.hero-content {
-  flex: 1;
-  text-align: left;
-  max-width: 640px;
-}
-.hero-visual {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-
-/* Adiciona um brilho sutil atrás do Lottie */
-.hero-visual::before {
-  content: '';
-  position: absolute;
-  width: 80%;
-  height: 80%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-  z-index: -1;
-  border-radius: 50%;
-  filter: blur(40px);
-}
-
-.hero-title {
-  font-family: var(--fonte-titulo);
-  font-size: clamp(2rem, 4vw, 3.5rem); /* Tipografia responsiva reduzida */
-  font-weight: 700;
-  line-height: 1.1;
-  margin-bottom: 1.5rem;
-  letter-spacing: -0.03em;
-  color: var(--preto);
-}
-.hero-subtitle {
-  font-family: var(--fonte-principal);
-  font-size: 1.25rem;
-  color: var(--cinza-texto);
-  margin-bottom: 3rem;
-  line-height: 1.6;
-  max-width: 90%;
-}
-.hero-actions {
-  display: flex;
-  gap: 1.5rem; /* Mais espaço entre os botões */
-}
-.hero-actions .btn-primary,
-.hero-actions .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem 2.5rem; /* Botões mais largos */
-  font-size: 1.125rem;
-  font-weight: 600;
-  border-radius: 9999px; /* Pill shape completo */
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-decoration: none;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-.btn-primary {
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  border: 2px solid transparent;
-}
-.btn-primary:hover {
-  background-color: var(--azul-escuro);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
-}
-.btn-secondary {
-  background-color: var(--cinza-claro);
-  color: var(--preto);
-  border: 2px solid transparent;
-}
-.btn-secondary:hover {
-  background-color: #e5e7eb;
-  transform: translateY(-2px);
-}
-
-@media (max-width: 900px) {
-  .hero {
-    padding: 6rem 0 4rem;
-    min-height: auto;
-    text-align: center;
-  }
-  .hero-container {
-    flex-direction: column;
-    gap: 3rem;
-  }
-  .hero-content {
-    text-align: center;
-    max-width: 100%;
-  }
-  .hero-actions {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .hero-visual {
-    width: 100%;
-    max-width: 400px;
-  }
-}
-
-/* SEÇÃO DE EMPRESAS (CARROSSEL) */
-.trusted-section {
-  padding: 4rem 0;
-  background-color: transparent;
-  border-bottom: 1px solid #f3f4f6;
-  overflow: hidden;
-}
-.trusted-title {
-  text-align: center;
-  font-size: 1rem;
+@font-face {
+  font-family: 'Oakes';
+  src: url('@/assets/fonts/OakesMedium.woff2') format('woff2');
   font-weight: 500;
-  color: var(--cinza-texto);
-  margin-bottom: 2.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-style: normal;
+  font-display: swap;
 }
-.marquee-wrapper {
-  position: relative;
+@font-face {
+  font-family: 'Oakes';
+  src: url('@/assets/fonts/OakesSemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Variáveis de Cores e Fontes */
+.landing-page {
+  font-family: 'Oakes', sans-serif;
+  color: #1e293b;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+  --primary: #2563eb;
+  --primary-dark: #1e40af;
+  --secondary: #3b82f6;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.7);
   width: 100%;
-  overflow: hidden;
-  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-}
-.marquee-content {
-  display: flex;
-  width: max-content;
-  animation: scroll 40s linear infinite;
-}
-.marquee-group {
-  display: flex;
-  align-items: center;
-  gap: 4rem;
-  padding-right: 4rem; /* Espaço para conectar com o próximo grupo */
-}
-.company-logo img {
-  height: 40px;
-  width: auto;
-  opacity: 0.5;
-  transition: opacity 0.3s ease;
-  filter: grayscale(100%);
-}
-.company-logo img:hover {
-  opacity: 1;
-  filter: grayscale(0%);
 }
 
-@keyframes scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
+ul { list-style: none; padding: 0; margin: 0; }
+a { text-decoration: none; color: inherit; transition: 0.3s; }
 
-/* SEÇÃO PLATAFORMA (NOVO DESIGN) */
-
-
-/* SEÇÃO DE PLANOS */
-.plans-section {
-  padding: 8rem 0;
-  position: relative;
-}
-
-/* Fundo decorativo para a seção de planos */
-.plans-section::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
-  z-index: -1;
-  pointer-events: none;
-}
-
-.container-plans {
+/* Utilitários */
+.container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem;
-  text-align: center;
-}
-.section-title {
-  font-family: var(--fonte-titulo);
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: var(--preto);
-}
-.section-subtitle {
-  font-family: var(--fonte-principal);
-  font-size: 1.125rem;
-  color: var(--cinza-texto);
-  margin-bottom: 4rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
-}
-.plans-grid {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  text-align: left;
-  flex-wrap: wrap; /* Permite quebrar linha se necessário */
-}
-
-@media (max-width: 768px) {
-  .plans-grid {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
-/* Card Moderno */
-.plan-card {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 1.5rem; /* Bordas mais arredondadas */
-  padding: 3rem;
-  display: flex;
-  flex-direction: column;
-  background-color: #ffffff;
-  width: 100%;
-  max-width: 500px; /* Limite de largura para ficar elegante */
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.plan-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
-}
-
-/* Estilo Featured (Dark Premium) */
-.plan-card.featured {
-  background-color: #0f172a; /* Azul muito escuro/Preto */
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-/* Efeito de brilho no topo do card featured */
-.plan-card.featured::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
-}
-
-.plan-name {
-  font-family: var(--fonte-titulo);
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: inherit;
-}
-
-.plan-price {
-  font-family: var(--fonte-titulo);
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.plan-period {
-  font-family: var(--fonte-principal);
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--cinza-texto);
-  margin-left: 0.5rem;
-}
-.featured .plan-period {
-  color: #94a3b8;
-}
-
-.plan-description {
-  font-size: 1rem;
-  line-height: 1.6;
-  margin-bottom: 2.5rem;
-  color: var(--cinza-texto);
-}
-.featured .plan-description {
-  color: #cbd5e1;
-}
-
-.plan-features {
-  list-style: none;
-  margin-bottom: 2.5rem;
-  padding: 0;
-  flex-grow: 1;
-}
-.plan-features li {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-}
-
-.benefit svg {
-  color: var(--azul-principal);
-  flex-shrink: 0;
-}
-.featured .benefit svg {
-  color: #60a5fa; /* Azul mais claro no escuro */
-}
-
-.limitation svg {
-  color: #ef4444;
-  flex-shrink: 0;
-}
-.featured .limitation {
-  color: #94a3b8;
-}
-.btn-outline {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--preto);
-  color: var(--preto);
-  background-color: transparent;
-  font-weight: 600;
-  border-radius: 2rem;
-  cursor: pointer;
-  display: block;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-.btn-outline:hover {
-  background-color: var(--preto);
-  color: var(--branco);
-}
-.btn-primary-featured {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--azul-principal);
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-weight: 600;
-  border-radius: 2rem;
-  cursor: pointer;
-  display: block;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-.btn-primary-featured:hover {
-  background-color: var(--azul-escuro);
-}
-
-.carousel-dots {
-  display: none;
-}
-
-/* RODAPÉ DENTRO DO CARD */
-.plan-footer-support {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e5e7eb;
-}
-.featured .plan-footer-support {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-.footer-support-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--cinza-texto);
-  margin-bottom: 1.5rem;
-}
-.featured .footer-support-title {
-  color: #94a3b8;
-}
-.footer-features-grid {
-  display: grid;
-  gap: 1.5rem;
-}
-.footer-feature-item {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-.feature-icon {
-  color: var(--azul-principal);
-  margin-top: 0.125rem;
-}
-.featured .feature-icon {
-  color: #60a5fa;
-}
-.feature-text h5 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: var(--preto);
-}
-.featured .feature-text h5 {
-  color: #fff;
-}
-.feature-text p {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
-  line-height: 1.4;
-}
-.featured .feature-text p {
-  color: #cbd5e1;
-}
-
-/* 💡 --- NOVOS ESTILOS PARA SEÇÕES E ANIMAÇÕES --- 💡 */
-
-/* Animação ao Scroll */
-.animate-on-scroll {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-.animate-on-scroll.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Seção de Comparação */
-.comparison-section {
-  padding: 6rem 0;
-  background-color: #fff;
-}
-.section-header {
-  text-align: center;
-  margin-bottom: 4rem;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.comparison-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-@media (max-width: 768px) {
-  .comparison-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  .comparison-card {
-    padding: 2rem; /* Reduz padding no mobile */
-  }
-  .card-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  .comparison-card h3 {
-    font-size: 1.25rem;
-  }
-}
-.comparison-card {
-  padding: 3rem;
-  border-radius: 1.5rem;
-  border: 1px solid transparent;
-  transition: transform 0.3s ease;
-}
-.comparison-card:hover {
-  transform: translateY(-5px);
-}
-
-/* Card Antes */
-.comparison-card.before {
-  background-color: #fef2f2; /* Vermelho bem claro */
-  border-color: #fee2e2;
-}
-.comparison-card.before .icon-wrapper {
-  background-color: #fee2e2;
-  color: #ef4444;
-}
-.comparison-card.before h3 {
-  color: #991b1b;
-}
-.comparison-card.before .comparison-list li svg {
-  color: #ef4444;
-}
-
-/* Card Depois */
-.comparison-card.after {
-  background-color: #f0fdf4; /* Verde bem claro (ou azul brand se preferir) */
-  border-color: #dcfce7;
-  box-shadow: 0 10px 30px -10px rgba(22, 163, 74, 0.1);
-}
-.comparison-card.after .icon-wrapper {
-  background-color: #dcfce7;
-  color: #16a34a;
-}
-.comparison-card.after h3 {
-  color: #166534;
-}
-.comparison-card.after .comparison-list li svg {
-  color: #16a34a;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-.icon-wrapper {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.comparison-card h3 {
-  font-family: var(--fonte-titulo);
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-}
-.comparison-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.comparison-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 1.05rem;
-  color: #4b5563;
-  line-height: 1.5;
-}
-.comparison-list li svg {
-  flex-shrink: 0;
-  margin-top: 0.2rem;
-}
-
-/* Seção de Tutoriais */
-.tutorials-section {
-  padding: 6rem 0;
-  background-color: #f8fafc;
-}
-.tutorials-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6rem;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-.tutorial-item {
-  display: flex;
-  align-items: center;
-  gap: 4rem;
-}
-.tutorial-item.reverse {
-  flex-direction: row-reverse;
-}
-.tutorial-content {
-  flex: 1;
-}
-.tutorial-content h3 {
-  font-family: var(--fonte-titulo);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--preto);
-  margin-bottom: 1rem;
-}
-.tutorial-content p {
-  font-size: 1.125rem;
-  color: var(--cinza-texto);
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-
-/* SEÇÃO FAQ */
-.faq-section {
-  padding: 6rem 0;
-  background-color: #fff;
-}
-.faq-grid {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.faq-item {
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  background-color: #fff;
-}
-.faq-item:hover {
-  border-color: var(--azul-principal);
-}
-.faq-item.active {
-  border-color: var(--azul-principal);
-  background-color: #eff6ff;
-}
-.faq-question {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.faq-question h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--preto);
-  margin: 0;
-}
-.faq-icon {
-  color: var(--azul-principal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.3s ease;
-}
-.faq-item.active .faq-icon {
-  transform: rotate(180deg);
-}
-.faq-answer {
   padding: 0 1.5rem;
-  overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.faq-answer p {
-  padding-bottom: 1.5rem;
-  color: var(--cinza-texto);
-  line-height: 1.6;
-  margin: 0;
 }
 
-.tutorial-link {
+.section-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.section-subtitle {
+  font-size: 1.125rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: auto;
+  line-height: 1.6;
+}
+
+.center { text-align: center; margin-left: auto; margin-right: auto; }
+
+.btn-primary, .btn-primary-sm, .btn-secondary, .btn-login {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   font-weight: 600;
-  color: var(--azul-principal);
-  text-decoration: none;
-  transition: gap 0.3s ease;
-}
-.tutorial-link:hover {
-  gap: 0.75rem;
-}
-
-.tutorial-visual {
-  flex: 1;
-  position: relative;
-  border-radius: 1rem;
-  overflow: hidden;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+  border-radius: 99px;
+  transition: all 0.3s ease;
   cursor: pointer;
+}
 
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  padding: 0.875rem 2rem;
+  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3);
 }
-.tutorial-visual img {
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+
+.btn-primary-sm {
+  background: var(--primary);
+  color: white;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+}
+.btn-primary-sm:hover { background: var(--primary-dark); }
+
+.btn-secondary {
+  background: white;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 0.875rem 2rem;
+}
+.btn-secondary:hover { background: #eff6ff; }
+
+.btn-login {
+  color: var(--text-main);
+  padding: 0.6rem 1.25rem;
+  font-weight: 500;
+}
+.btn-login:hover { color: var(--primary); }
+
+.text-highlight {
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0 0.2em;
+  border-radius: 4px;
+}
+
+/* Glassmorphism Panel */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  border-radius: 1.5rem;
+}
+
+/* Header styles moved to AppHeader.vue */
+
+/* Hero Section */
+/* Hero Section */
+.hero-section {
+  padding-top: 140px;
+  padding-bottom: 6rem;
+  position: relative;
+  overflow: visible;
+  text-align: center;
+}
+.hero-bg-blobs {
+  position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(255,255,255,0) 60%);
+  border-radius: 50%; z-index: -1; pointer-events: none;
+}
+.hero-container {
+  display: flex; flex-direction: column; align-items: center; gap: 3rem;
+}
+.hero-content {
+  max-width: 1000px;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+/* Updated Trust Badge Top */
+.trust-badge-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f0fdf4; /* Light green/mint tint like reference */
+  padding: 0.4rem 1rem 0.4rem 0.5rem;
+  border-radius: 99px;
+  border: 1px solid #dcfce7;
+  color: #166534;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+.avatars-sm { display: flex; }
+.avatar-sm {
+  width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; margin-left: -8px;
+}
+.avatar-sm:first-child { margin-left: 0; }
+
+.hero-title {
+  font-family: 'Oakes', sans-serif;
+  font-size: clamp(3rem, 6vw, 4rem); /* Larger */
+  line-height: 1.1;
+  font-weight: 300;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.03em;
+}
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: #475569;
+  margin-bottom: 1.5rem;
+  max-width: 800px;
+}
+
+.cta-group-centered {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Visual - Centered */
+.hero-visual {
   width: 100%;
-  display: block;
-  transition: transform 0.5s ease;
+  max-width: 1000px;
+  margin-top: 1rem;
+  position: relative;
 }
-.tutorial-visual:hover img {
-  transform: scale(1.05);
+.dashboard-mockup {
+  width: 100%; aspect-ratio: 16/9; /* Wider for centered view */
+  background: white; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); /* Stronger shadow */
+  border: 1px solid rgba(0,0,0,0.08);
+  display: flex; flex-direction: column;
 }
-.placeholder-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
+.mockup-header {
+  height: 48px; background: #fff; border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;
+}
+.dots { display: flex; gap: 8px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.red { background: #ef4444; } .yellow { background: #eab308; } .green { background: #22c55e; }
+.browser-bar {
+  font-size: 0.8rem; color: #94a3b8; background: #f8fafc;
+  padding: 6px 16px; border-radius: 6px; flex: 1; text-align: center; max-width: 400px; margin: 0 auto;
+}
+.mockup-content { flex: 1; padding: 2rem; background: #f8fafc; position: relative; }
+
+/* Abstract Dashboard */
+.dash-grid { display: flex; gap: 1.5rem; height: 100%; }
+.dash-sidebar { width: 60px; background: white; border-radius: 10px; height: 80%; }
+.dash-main { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; }
+.dash-top-card { height: 50px; background: white; border-radius: 10px; width: 100%; opacity: 0.8; }
+.dash-row { display: flex; gap: 1.5rem; flex: 1; }
+.dash-card-lg { flex: 2; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+.dash-card-sm { flex: 1; background: #e0f2fe; border-radius: 10px; }
+
+.floating-badge {
+  position: absolute; bottom: 8%; right: -2%;
+  background: white; padding: 0.75rem 1.5rem; border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  display: flex; align-items: center; gap: 0.75rem;
+  font-weight: 600; color: #0f172a; font-size: 0.95rem;
+  animation: float 4s ease-in-out infinite; z-index: 10;
+}
+.badge-icon { color: #22c55e; }
+
+.beta-tag {
+  background: white;
+  color: var(--primary);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+@keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+
+@media(max-width: 900px) {
+  .hero-container { gap: 2rem; }
+  .cta-group-centered { flex-direction: column; width: 100%; }
+  .btn-lg { width: 100%; }
+  .floating-badge { right: 0; bottom: -10%; }
+}
+
+
+/* Stats Section */
+.stats-section { padding: 4rem 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+.stat-card { padding: 2rem; text-align: center; transition: transform 0.3s; }
+.stat-card:hover { transform: translateY(-5px); }
+.stat-value { font-size: 2.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; }
+.stat-label { font-size: 1rem; color: #64748b; }
+
+/* Features Section (Bento Grid) */
+.features-section { padding: 6rem 0; background: #f8fafc; } /* Light gray bg */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 4rem;
+}
+.bento-card {
+  background: white;
+  border-radius: 24px;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  min-height: 280px;
+}
+.bento-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+.bento-card.span-2 { grid-column: span 2; }
+
+.bento-content { position: relative; z-index: 2; margin-bottom: 2rem; }
+.bento-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; }
+.icon-box {
+  width: 40px; height: 40px;
+  background: #eff6ff;
+  color: var(--primary);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bento-card h3 { font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 0; }
+.bento-card p { font-size: 0.95rem; color: #64748b; line-height: 1.5; }
+
+/* Visual Abstractions */
+.bento-visual {
+  flex-grow: 1;
+  background: #f1f5f9;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 2;
 }
-.tutorial-visual:hover .placeholder-overlay {
-  opacity: 1;
+.bento-visual.no-bg { background: transparent; }
+
+/* Bleeding Images */
+.visual-image-container {
+  width: 100%; height: 100%; position: relative;
 }
-.placeholder-overlay span {
-  margin-top: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+.bleeding-image {
+  position: absolute;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+.agenda-img {
+  width: 90%;
+  height: auto;
+  bottom: -180px;
+  right: -20px;
+  transform: rotate(-2deg);
+}
+.prontuario-img {
+  width: 180%;
+  height: auto;
+  bottom: -170px;
+  right: -240px;
+  transform: rotate(2deg);
 }
 
-/* SEÇÃO FAQ */
+/* Chat Visual */
+/* Chat Visual */
+.visual-chat {
+  width: 100%;
+  height: 100%; /* Fill parent */
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+  justify-content: center; 
+}
+
+/* Background "Zap" Style */
+.visual-chat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('@/assets/imgs/whatsapp_bg.jpg');
+  background-size: 280px; /* Adjust scale of pattern */
+  background-repeat: repeat;
+  opacity: 0.5; /* Subtle transparency */
+  z-index: -1;
+}
+
+.chat-bubble {
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  max-width: 80%;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Add shadow to pop against bg */
+}
+.chat-bubble.left { background: white; align-self: flex-start; border-bottom-left-radius: 2px; color: #475569; }
+.chat-bubble.right { background: #dcf8c6; color: #0f172a; align-self: flex-end; border-bottom-right-radius: 2px; } /* Updated color to match Zap light green */
+
+/* Chart Visual */
+.visual-chart { display: flex; align-items: flex-end; gap: 8px; height: 60px; }
+.chart-bar {
+  width: 12px;
+  background: #cbd5e1;
+  border-radius: 4px;
+  transform-origin: bottom;
+  transform: scaleY(0); /* Start hidden */
+  transition: transform 0.3s ease;
+}
+.chart-bar.active { background: var(--primary); }
+
+/* Animation when parent is visible */
+.is-visible .chart-bar {
+  animation: chartRise 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes chartRise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.chart-bar:nth-child(1) { animation-delay: 0.2s; }
+.chart-bar:nth-child(2) { animation-delay: 0.3s; }
+.chart-bar:nth-child(3) { animation-delay: 0.4s; }
+.chart-bar:nth-child(4) { animation-delay: 0.5s; }
+
+/* List Visual */
+.visual-list { width: 80%; display: flex; flex-direction: column; gap: 8px; }
+.list-row { display: flex; align-items: center; gap: 8px; background: white; padding: 6px; border-radius: 6px; }
+.list-check { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #cbd5e1; }
+.list-line { height: 4px; background: #f1f5f9; border-radius: 2px; }
+.w-80 { width: 80%; } .w-60 { width: 60%; } .w-40 { width: 40%; }
+
+/* Marketing Visual */
+.visual-marketing { width: 100%; height: 100%; position: relative; background: #eff6ff; overflow: hidden; }
+.mail-card {
+  position: absolute;
+  background: white;
+  padding: 8px 14px; /* Slightly smaller padding for density */
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem; /* Slightly smaller font */
+  font-weight: 600;
+  color: #1e293b;
+  border: 1px solid rgba(255,255,255,0.8);
+  white-space: nowrap;
+  transition: transform 0.3s ease;
+}
+
+.card-1 {
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  z-index: 3;
+  color: var(--primary);
+  box-shadow: 0 15px 30px rgba(37, 99, 235, 0.15);
+}
+.card-2 {
+  top: 15%; left: 80%;
+  transform: translate(-50%, -50%) rotate(6deg) scale(0.9);
+  z-index: 2;
+  opacity: 0.9;
+}
+.card-3 {
+  top: 80%; left: 30%;
+  transform: translate(-50%, -50%) rotate(-6deg) scale(0.9);
+  z-index: 2;
+  opacity: 0.9;
+}
+.card-4 {
+  top: 20%; left: 20%;
+  transform: translate(-50%, -50%) rotate(-12deg) scale(0.85);
+  z-index: 1;
+  opacity: 0.7;
+}
+.card-5 {
+  top: 75%; left: 75%;
+  transform: translate(-50%, -50%) rotate(8deg) scale(0.85);
+  z-index: 1;
+  opacity: 0.7;
+}
+
+.mail-icon { width: 22px; height: 22px; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
+
+@media(max-width: 900px) {
+  .bento-grid { grid-template-columns: 1fr; }
+  .bento-card.span-2 { grid-column: span 1; }
+  
+  /* Fix Dashboard Image */
+  .agenda-img {
+    bottom: -30px; /* Pull up to be visible */
+    width: 100%; /* Ensure full width */
+    max-width: 350px;
+    right: -10px;
+  }
+}
+
+/* Benefits Section */
+.benefits-section { padding: 6rem 0; }
+.benefits-layout {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center;
+}
+.benefit-description { font-size: 1.2rem; color: #475569; margin: 1.5rem 0 2.5rem; }
+.benefits-list li {
+  display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; color: #334155; font-size: 1.1rem;
+}
+.check-icon { color: var(--primary); flex-shrink: 0; }
+.benefits-visual { position: relative; display: flex; justify-content: center; }
+.visual-card-stack { position: relative; width: 100%; max-width: 400px; height: 300px; }
+.card-layer {
+  position: absolute; width: 100%; background: white;
+  padding: 1.5rem; border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  display: flex; gap: 1rem; align-items: center;
+  border: 1px solid rgba(255,255,255,0.8);
+  backdrop-filter: blur(4px);
+}
+.confirm-card { top: 0; left: 0; z-index: 1; transform: rotate(-3deg); }
+.revenue-card { bottom: 0; right: 0; z-index: 2; transform: rotate(3deg); }
+.card-icon { width: 40px; height: 40px; border-radius: 50%; background: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center; }
+.revenue-card .card-icon { background: #eff6ff; color: var(--primary); }
+.card-text { font-size: 0.95rem; display: flex; flex-direction: column; gap: 4px; }
+.status { font-size: 0.8rem; color: #94a3b8; }
+.value { font-size: 1.2rem; font-weight: 800; color: #0f172a; }
+.growth { font-size: 0.8rem; font-weight: 600; }
+
+@media(max-width: 900px) {
+  .benefits-layout { grid-template-columns: 1fr; }
+  .visual-card-stack { margin: 0 auto; }
+}
+
+/* FAQ Section */
 .faq-section {
   padding: 6rem 0;
-  background-color: #f9fafb; /* Fundo levemente cinza para contraste */
+  background-color: #eff6ff; /* Light Blue for differentiation */
 }
 
 .faq-container {
   display: grid;
-  grid-template-columns: 1fr 1.5fr; /* Esquerda menor, Direita maior */
+  grid-template-columns: 1fr 1.5fr;
   gap: 4rem;
   align-items: start;
   max-width: 1200px;
@@ -1268,7 +979,7 @@ main {
     justify-content: center;
   }
   .faq-list-wrapper {
-    height: auto; /* Remove altura fixa no mobile se desejar, ou mantém */
+    height: auto;
     max-height: 500px;
   }
 }
@@ -1276,15 +987,15 @@ main {
 .faq-header {
   text-align: left;
   position: sticky;
-  top: 2rem; /* Mantém o título visível ao rolar */
+  top: 2rem;
 }
 
 .faq-header .section-title {
   font-size: 3rem;
   line-height: 1.1;
   margin-bottom: 1.5rem;
-  position: relative; /* Para posicionar o emoji */
-  display: inline-block; /* Para o tamanho ajustar ao texto */
+  position: relative;
+  display: inline-block;
 }
 
 .faq-emoji {
@@ -1308,7 +1019,7 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  background-color: #25D366; /* WhatsApp Green */
+  background-color: #25D366;
   color: #fff;
   padding: 1rem 2rem;
   border-radius: 9999px;
@@ -1324,24 +1035,19 @@ main {
   box-shadow: 0 10px 15px -3px rgba(37, 211, 102, 0.3);
 }
 
-
-
-/* Wrapper da lista para posicionar os degrades */
 .faq-list-wrapper {
   position: relative;
-  height: 600px; /* Altura fixa para permitir o scroll */
+  height: 600px;
   display: flex;
   flex-direction: column;
 }
 
-/* Área de scroll */
 .faq-scroll-area {
   height: 100%;
   overflow-y: auto;
-  padding-right: 1rem; /* Espaço para a barra de rolagem não colar */
+  padding-right: 1rem;
   padding-top: 1rem;
   padding-bottom: 1rem;
-  /* Estilização da barra de rolagem (opcional, mas elegante) */
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
@@ -1357,7 +1063,6 @@ main {
   border-radius: 20px;
 }
 
-/* Overlays de Degrade */
 .fade-overlay {
   position: absolute;
   left: 0;
@@ -1384,10 +1089,11 @@ main {
 }
 
 .faq-item {
-  border-bottom: 1px solid #e5e7eb; /* Apenas borda inferior para visual clean */
+  border-bottom: 1px solid #e5e7eb;
   background-color: transparent;
   transition: all 0.3s ease;
   cursor: pointer;
+  border-radius: 0;
 }
 
 .faq-item:last-child {
@@ -1401,6 +1107,9 @@ main {
 
 .faq-item.active {
   background-color: transparent;
+  box-shadow: none;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .faq-question {
@@ -1413,12 +1122,12 @@ main {
 .faq-question h3 {
   font-size: 1.125rem;
   font-weight: 500;
-  color: var(--preto);
+  color: #0f172a;
   margin: 0;
 }
 
 .faq-icon {
-  color: var(--preto); /* Ícone preto para contraste */
+  color: #0f172a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1426,7 +1135,7 @@ main {
 }
 
 .faq-item.active .faq-icon {
-  transform: rotate(45deg); /* Vira um X ou apenas rotaciona */
+  transform: rotate(45deg);
 }
 
 .faq-answer-wrapper {
@@ -1441,270 +1150,133 @@ main {
 
 .faq-answer {
   overflow: hidden;
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 .faq-answer p {
   padding: 0 1rem 1.5rem 1rem;
-  color: var(--cinza-texto);
+  color: #64748b;
   line-height: 1.6;
   margin: 0;
 }
 
-/* Responsividade */
-@media (max-width: 900px) {
-  .faq-container {
-    grid-template-columns: 1fr;
-    gap: 3rem;
-  }
-  .faq-header {
-    text-align: center;
-    position: static;
-  }
-  .faq-header .section-title {
-    justify-content: center;
-    font-size: 2.5rem;
-  }
-  .faq-header .section-subtitle {
-    margin: 0 auto;
-    text-align: center;
-  }
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-  .comparison-grid {
-    grid-template-columns: 1fr;
-  }
-  .tutorial-item,
-  .tutorial-item.reverse {
-    flex-direction: column;
-    gap: 2rem;
-    text-align: center;
-  }
-  .tutorial-content {
-    order: 1; /* Texto primeiro no mobile */
-  }
-  .tutorial-visual {
-    order: 2;
-  }
-  .tutorial-link {
-    justify-content: center;
-  }
-}
-
-.footer-support-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-.featured .footer-support-title {
-  color: var(--branco);
-}
-.footer-features-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-.footer-feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  text-align: left;
-}
-.footer-feature-item .feature-icon {
-  color: var(--azul-principal);
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-.featured .footer-feature-item .feature-icon {
-  color: var(--azul-principal);
-}
-.footer-feature-item h5 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0;
-}
-.featured .footer-feature-item h5 {
-  color: var(--branco);
-}
-.footer-feature-item p {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
-  line-height: 1.5;
-  margin: 0;
-}
-.featured .footer-feature-item p {
-  color: #a1a1aa;
-}
-
-/* --- AJUSTES DE RESPONSIVIDADE --- */
-
-/* CELULARES (até 768px) */
-@media (max-width: 768px) {
-  .hero {
-    padding: 8rem 0 5rem 0;
-    text-align: center;
-  }
-  .hero-container {
-    flex-direction: column;
-    gap: 3rem;
-  }
-  .hero-content {
-    text-align: center;
-    max-width: 100%;
-  }
-  .hero-title {
-    font-size: 2.5rem;
-  }
-  .hero-subtitle {
-    font-size: 1.125rem;
-  }
-  .hero-actions {
-    flex-direction: column;
-    align-items: center;
-  }
-  .hero-actions .btn-primary,
-  .hero-actions .btn-secondary {
-    width: 100%;
-    max-width: 300px;
-    justify-content: center;
-  }
-  .hero-visual {
-    width: 100%;
-    overflow: hidden;
-  }
-  .hero-visual > * {
-    max-width: 100%;
-    height: auto !important;
-  }
-
-  .platform-section {
-    padding: 4rem 0;
-  }
-  .platform-container {
-    flex-direction: column;
-    text-align: center;
-  }
-  .platform-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .plans-section {
-    padding: 4rem 0;
-  }
-  .section-title {
-    font-size: 2rem;
-  }
-
-  /* Ajuste de responsividade para o novo grid do footer */
-  .footer-features-grid {
-    grid-template-columns: 1fr; /* Stacks na vertical */
-    gap: 1.5rem;
-  }
-  .footer-feature-item {
-    gap: 1rem; /* Um pouco mais de espaço no mobile */
-  }
-
-  .plans-grid {
-    display: flex;
-    justify-content: center;
-    padding-bottom: 0;
-    margin: 0;
-    max-width: none;
-    grid-template-columns: none;
-  }
-  .plan-card {
-    width: 100%;
-    max-width: 400px;
-  }
-}
-
-/* 🌟 ESTILOS DO FOOTER 🌟 */
-.app-footer {
-  width: 100%;
-  padding: 2rem 1.5rem;
-  background-color: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+/* Final CTA */
+.final-cta-section {
+  padding: 0;
   position: relative;
-  z-index: 10;
+  z-index: 50; /* Above everything */
+  margin-top: -5rem; /* Pull up to overlap FAQ */
+  margin-bottom: -5rem; /* Visual Overlap onto Footer */
 }
 
-.footer-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
+.cta-box {
+  background: #0f172a; /* Dark Slate / Deep Blue */
+  padding: 4rem 3rem;
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.4);
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 3rem;
   align-items: center;
-  gap: 1.5rem;
-  text-align: center;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #1e293b;
 }
 
-.footer-copyright {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
+/* Add a subtle glow/blob */
+.cta-box::before {
+  content: ''; position: absolute; top: -50%; left: -20%; width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(15,23,42,0) 70%);
+  pointer-events: none;
 }
 
-.footer-links {
-  display: flex;
-  gap: 1.5rem;
+.cta-content-left {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1rem;
 }
 
-.footer-links a {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--cinza-texto);
-  text-decoration: none;
-  transition: color 0.3s ease;
+.cta-badge-sm {
+  background: #1e293b;
+  color: #fbbf24; /* Amber/Yellow for 'Lightning' contrast */
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.8rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border: 1px solid #334155;
 }
 
-.footer-links a:hover {
-  color: var(--azul-principal);
+.cta-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1.1;
+  margin: 0;
+  text-align: left;
+  letter-spacing: -0.02em;
 }
 
-/* 💡 ESTILO ATUALIZADO (MAIS VISÍVEL) 💡 */
-.footer-produced-by {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--cinza-texto); /* 🎨 Cor mais visível */
-  font-size: 0.875rem;
-  /* 🎨 Opacidade removida */
+.cta-content-right {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2rem;
 }
 
-.gr-logo {
-  display: inline-flex;
-  align-items: center;
-  color: inherit;
-  text-decoration: none;
+.cta-text {
+  font-size: 1.1rem;
+  color: #94a3b8; /* Light gray text */
+  margin: 0;
+  text-align: left;
+  line-height: 1.6;
 }
 
-/* Estilo para o seu SVG/IMG */
-.gr-logo .gr-logo-svg {
-  height: 20px; /* Ajuste a altura conforme necessário */
-  width: auto;
-  margin-left: 0.25rem;
+.btn-primary-inverse {
+  background: #ffffff; /* White button */
+  color: var(--primary); /* Blue text */
+  padding: 1rem 2.5rem;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 1rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+}
+.btn-primary-inverse:hover {
+  background: #f1f5f9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
 }
 
-/* Responsividade do Novo Footer */
-@media (min-width: 768px) {
-  .footer-container {
-    flex-direction: row;
-    justify-content: space-between;
+@media(max-width: 900px) {
+  .cta-box {
+    grid-template-columns: 1fr;
+    text-align: center;
+    padding: 3rem 1.5rem;
+    gap: 2rem;
   }
-
-  .footer-copyright {
-    order: 2; /* Copyright no meio */
-  }
-
-  .footer-links {
-    order: 1; /* Links na esquerda */
-  }
-
-  .footer-produced-by {
-    order: 3; /* Logo na direita */
-  }
+  .cta-content-left, .cta-content-right { align-items: center; }
+  .cta-title, .cta-text { text-align: center; }
+  .btn-primary-inverse { width: 100%; }
 }
+
+/* FooterStyles moved to AppFooter.vue */
+
+/* Animations Helper */
+.animate-slide-up { animation: slideUp 0.8s ease forwards; opacity: 0; transform: translateY(20px); }
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+@keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+.is-visible { animation: fadeIn 0.8s ease forwards; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-on-scroll { opacity: 0; }
 </style>

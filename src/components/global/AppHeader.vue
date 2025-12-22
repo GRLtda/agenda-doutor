@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { Menu, X } from 'lucide-vue-next'
 
+const router = useRouter()
+const route = useRoute()
 const isMobileMenuOpen = ref(false)
 const isScrolled = ref(false)
 
@@ -14,6 +17,20 @@ function handleScroll() {
   isScrolled.value = window.scrollY > 20
 }
 
+function scrollToSection(id) {
+  // Se não estiver na home, vai para a home primeiro
+  if (route.path !== '/') {
+    router.push({ path: '/', hash: `#${id}` })
+    return
+  }
+
+  const element = document.getElementById(id)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' })
+    if (isMobileMenuOpen.value) toggleMobileMenu()
+  }
+}
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
 })
@@ -24,253 +41,145 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'is-scrolled': isScrolled }">
-    <div class="app-header-content">
-      
-      <!-- ESQUERDA: Menu Mobile (apenas mobile) ou Espaço vazio (desktop) -->
-      <div class="nav-left">
-        <button @click="toggleMobileMenu" class="mobile-menu-toggle">
-          <Menu :size="24" />
+  <header class="landing-header" :class="{ 'is-scrolled': isScrolled }">
+      <div class="header-container">
+        <div class="logo">
+          <router-link to="/">
+            <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" style="height: 32px;" />
+          </router-link>
+        </div>
+
+        <nav class="desktop-nav">
+          <a href="#funcionalidades" @click.prevent="scrollToSection('funcionalidades')">Funcionalidades</a>
+          <a href="#beneficios" @click.prevent="scrollToSection('beneficios')">Benefícios</a>
+          <a href="#faq" @click.prevent="scrollToSection('faq')">FAQ</a>
+          <a href="#contato" @click.prevent="scrollToSection('footer')">Contato</a>
+        </nav>
+
+        <div class="header-actions">
+          <router-link to="/login" class="btn-login">Login</router-link>
+          <router-link to="/register" class="btn-primary-sm">Começar agora</router-link>
+        </div>
+
+        <!-- Mobile Toggle -->
+        <button class="mobile-toggle" @click="toggleMobileMenu">
+          <Menu v-if="!isMobileMenuOpen" />
+          <X v-else />
         </button>
       </div>
 
-      <!-- CENTRO: Logo -->
-      <div class="logo-wrapper">
-        <router-link to="/" class="logo">
-          <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
-        </router-link>
-      </div>
-
-      <!-- DIREITA: Login -->
-      <div class="nav-right">
-        <router-link to="/login" class="btn-login">Entrar</router-link>
-      </div>
-
-    </div>
-
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="isMobileMenuOpen" class="mobile-nav-overlay" @click.self="toggleMobileMenu">
-          <div class="mobile-nav-content">
-            <div class="mobile-nav-header">
-              <span class="logo">
-                <img src="@/assets/logo_dark.svg" alt="Agenda Doutor" class="logo-img" />
-              </span>
-              <button @click="toggleMobileMenu" class="close-btn">
-                <X :size="24" />
-              </button>
-            </div>
-            
-            <div class="mobile-actions">
-              <router-link to="/login" class="btn-login-mobile" @click="toggleMobileMenu">Entrar</router-link>
-            </div>
+      <!-- Mobile Menu -->
+      <div v-if="isMobileMenuOpen" class="mobile-menu">
+        <nav>
+          <a href="#funcionalidades" @click="toggleMobileMenu()">Funcionalidades</a>
+          <a href="#beneficios" @click="toggleMobileMenu()">Benefícios</a>
+          <a href="#faq" @click="toggleMobileMenu()">FAQ</a>
+          <div class="mobile-actions-list">
+            <router-link to="/login" class="btn-login-mobile">Login</router-link>
+            <router-link to="/register" class="btn-primary mobile-full">Começar agora</router-link>
           </div>
-        </div>
-      </Transition>
-    </Teleport>
-  </header>
+        </nav>
+      </div>
+    </header>
 </template>
 
 <style scoped>
-.app-header {
+/* Header Styles moved from LandingView.vue */
+.landing-header {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.8); /* Fundo sempre visível, mas levemente transparente */
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  top: 0; left: 0; right: 0;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  z-index: 100;
   transition: all 0.3s ease;
-  height: 80px; /* Altura fixa para evitar pulos */
-  display: flex;
-  align-items: center;
+  background: rgba(255, 255, 255, 0.1); 
+  backdrop-filter: blur(0px);
 }
-
-.app-header.is-scrolled {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  height: 70px; /* Leve redução ao rolar */
+.landing-header.is-scrolled {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  height: 60px;
 }
-
-.app-header-content {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr; /* Grid de 3 colunas: 1fr (nav-left) | auto (logo) | 1fr (nav-right) */
-  align-items: center;
-}
-
-/* LEFT AREA */
-.nav-left {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-}
-
-/* CENTER AREA */
-.logo-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-}
-
-.logo-img {
-  height: 48px;
-  width: auto;
-  transition: height 0.3s ease;
-}
-
-.is-scrolled .logo-img {
-  height: 40px;
-}
-
-/* RIGHT AREA */
-.nav-right {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.btn-login {
-  color: #0f172a;
-  font-weight: 600;
-  font-size: 1rem;
-  text-decoration: none;
-  border: 1px solid #e2e8f0;
-  padding: 0.6rem 1.5rem;
-  border-radius: 99px;
-  transition: all 0.2s ease;
-  background-color: transparent;
-}
-
-.btn-login:hover {
-  background-color: #0f172a;
-  color: #fff;
-  border-color: #0f172a;
-}
-
-/* MOBILE AREA */
-.mobile-menu-toggle {
-  display: none; /* Escondido no desktop */
-  background: none;
-  border: none;
-  color: #0f172a;
-  cursor: pointer;
-  padding: 0.5rem;
-  margin-left: -0.5rem; /* Alinhamento visual */
-}
-
-/* Mobile Menu Styles */
-.mobile-nav-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
-  z-index: 2000;
-  display: flex;
-  justify-content: flex-start; /* Menu saindo da esquerda é mais comum, mas mantive o padrão anterior layout */
-  pointer-events: auto;
-}
-
-.mobile-nav-content {
-  width: 100%;
-  max-width: 320px;
-  background: white;
-  height: 100%;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
-}
-
-.mobile-nav-header {
+.header-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  position: relative; /* Context for absolute nav */
 }
+.logo { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; font-size: 1.25rem; color: #0f172a; }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 0.5rem;
+.desktop-nav { 
+  display: flex; 
+  gap: 2rem; 
+  align-items: center; 
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
+.desktop-nav a { font-weight: 500; font-size: 0.95rem; color: #475569; position: relative; cursor: pointer; text-decoration: none; }
+.desktop-nav a:hover { color: var(--primary); }
 
-.mobile-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+.header-actions { display: flex; align-items: center; gap: 1rem; }
 
-.btn-login-mobile {
-  text-align: center;
-  padding: 1rem;
+.btn-primary-sm {
+  background: var(--primary);
+  color: white;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
-  color: #0f172a;
+  transition: all 0.3s ease;
   text-decoration: none;
-  background: #f1f5f9;
-  border-radius: 12px;
+}
+.btn-primary-sm:hover { background: var(--primary-dark); }
+
+.btn-login {
+  color: var(--text-main);
+  padding: 0.6rem 1.25rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.btn-login:hover { color: var(--primary); }
+
+.mobile-toggle { display: none; background: none; border: none; cursor: pointer; color: #0f172a; }
+
+/* Mobile Menu */
+.mobile-menu {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: white; padding: 2rem;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.mobile-menu a { font-size: 1.1rem; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; display: block; text-decoration: none; color: #1e293b; }
+.mobile-actions-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+.mobile-full { width: 100%; text-align: center; }
+.btn-login-mobile { text-align: center; padding: 0.8rem; background: #f8fafc; border-radius: 8px; font-weight: 600; text-decoration: none; color: #1e293b; }
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  padding: 0.875rem 2rem;
+  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3);
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-decoration: none;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-@media (max-width: 900px) {
-  .app-header-content {
-    display: flex; /* Flex no mobile para facilitar espaçamento */
-    justify-content: space-between;
-    padding: 0 1rem;
-  }
-  
-  /* No mobile, o grid 1fr auto 1fr pode não funcionar tão bem se o logo crescer demais, 
-     mas vamos manter o flex space-between clássico */
-   
-   .nav-left {
-     order: 1;
-     flex: 0 0 auto;
-   }
-   
-   .logo-wrapper {
-     order: 2;
-     flex: 1; /* Ocupa o espaço */
-     /* Logo no centro apenas se houver espaço, mas geralmente no mobile fica logo ao lado do menu ou centro absoluto */
-     /* Vamos forçar centro absoluto usando position ou margens se quiser */
-     position: absolute;
-     left: 50%;
-     transform: translateX(-50%);
-   }
-  
-  .nav-right {
-    order: 3;
-    flex: 0 0 auto;
-    /* Esconder o botão de login no header mobile se desejar, e mostrar só no menu hambúrguer? 
-       Geralmente botão de login fica visível ou vai pro menu. Vou manter visível SE couber, ou esconder.
-       O design anterior escondia 'desktop-only'. Vamos esconder o botão de login do header no mobile
-       e deixar só no menu hambúrguer para limpar a interface.
-    */
-    display: none;
-  }
-
-  .mobile-menu-toggle {
-    display: block;
-  }
+@media(max-width: 900px) {
+  .desktop-nav, .header-actions { display: none; }
+  .mobile-toggle { display: block; }
 }
 </style>

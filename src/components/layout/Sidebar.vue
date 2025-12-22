@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { version } from '../../../package.json'
 import { useAuthStore } from '@/stores/auth'
 import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute } from 'vue-router'
@@ -262,6 +263,14 @@ const sidebarSections = computed(() => {
         </ul>
       </div>
     </nav>
+
+    <div class="sidebar-branding" :class="{ 'is-collapsed': isCollapsed }">
+      <img src="@/assets/logo_brand.svg" alt="Agenda Doutor" class="branding-logo" />
+      <div v-show="!isCollapsed" class="branding-info">
+        <span class="brand-name">Agenda Doutor</span>
+        <span class="version-text">v{{ version }}</span>
+      </div>
+    </div>
 
     <div class="sidebar-footer">
       <div
@@ -628,6 +637,48 @@ const sidebarSections = computed(() => {
 }
 .sidebar.is-collapsed .options-icon {
   opacity: 0;
+}
+
+/* Branding */
+.sidebar-branding {
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: flex-start; /* Alinhado ao início */
+  align-items: center;
+  gap: 0.75rem;
+  transition: opacity 0.25s ease;
+}
+
+.branding-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.branding-logo {
+  height: 24px;
+  width: auto;
+  opacity: 1;
+  filter: none;
+  transition: opacity 0.2s ease;
+}
+
+.branding-logo:hover {
+  opacity: 0.9;
+}
+
+.brand-name {
+  font-weight: 700;
+  color: #334155;
+  font-size: 0.85rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.version-text {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 @media (max-width: 1024px) {

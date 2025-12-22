@@ -464,14 +464,12 @@ async function handleSubmit() {
     const payload = {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      // status: 'Agendado'
-      // 👇 CORREÇÃO: Adicionando lembretes ao payload de update
       sendReminder: appointmentData.value.sendReminder,
       reminderEnabled: appointmentData.value.remindersSent,
     }
 
-    // Chama a nova ação 'updateAppointment' da store
-    const { success } = await appointmentsStore.updateAppointment(appointmentId, payload)
+    // Chama a nova ação 'rescheduleAppointment' da store
+    const { success } = await appointmentsStore.rescheduleAppointment(appointmentId, payload)
     if (success) {
       toast.success('Agendamento remarcado com sucesso!')
       emit('saved')

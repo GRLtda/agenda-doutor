@@ -3,92 +3,82 @@ import { marked } from 'marked'
 import AppHeader from '@/components/global/AppHeader.vue'
 import AppFooter from '@/components/global/AppFooter.vue'
 
-const markdownContent = `# Termos de Uso  
+const markdownContent = `# Informações sobre a LGPD  
 **Agenda Doutor**  
 Última atualização: 20 de dezembro de 2025
 
 ---
 
-## 1. Aceitação dos Termos
-Ao acessar, criar uma conta ou utilizar a plataforma **Agenda Doutor**, o usuário declara que leu, compreendeu e concorda integralmente com estes Termos de Uso. Caso não concorde com qualquer disposição aqui prevista, o uso da plataforma deve ser imediatamente interrompido.
-
-Estes Termos constituem um contrato legalmente vinculante entre o usuário e o Agenda Doutor.
+## 1. Conformidade com a LGPD
+O Agenda Doutor atua em conformidade com a **Lei Geral de Proteção de Dados (Lei nº 13.709/2018)**, adotando medidas técnicas e organizacionais para garantir a proteção dos dados pessoais tratados.
 
 ---
 
-## 2. Descrição da Plataforma
-O Agenda Doutor é uma plataforma digital destinada à gestão de clínicas e consultórios, oferecendo funcionalidades como:
-- agendamento de atendimentos;
-- prontuário eletrônico;
-- gestão administrativa e financeira;
-- organização de dados de pacientes;
-- comunicação interna e operacional.
+## 2. Papéis no Tratamento de Dados
+- **Controlador**: Agenda Doutor, em relação aos dados de usuários da plataforma.
+- **Operador**: Agenda Doutor, em relação aos dados inseridos por clínicas sobre pacientes e terceiros.
 
 ---
 
-## 3. Elegibilidade e Cadastro
-Para utilizar a plataforma, o usuário declara que:
-- possui capacidade legal para contratar;
-- fornece informações verdadeiras, completas e atualizadas;
-- é responsável por manter seus dados corretos.
-
-O Agenda Doutor poderá suspender ou cancelar contas que contenham informações falsas ou incompletas.
-
----
-
-## 4. Responsabilidades do Usuário
-O usuário é integralmente responsável por:
-- manter a confidencialidade de suas credenciais de acesso;
-- todas as atividades realizadas em sua conta;
-- garantir que o uso da plataforma esteja em conformidade com a legislação vigente.
-
-O Agenda Doutor não se responsabiliza por acessos não autorizados decorrentes de negligência do usuário.
+## 3. Base Legal para Tratamento
+O tratamento de dados ocorre com base em:
+- execução de contrato;
+- cumprimento de obrigação legal;
+- exercício regular de direitos;
+- legítimo interesse;
+- tutela da saúde, quando aplicável.
 
 ---
 
-## 5. Uso Proibido
-É expressamente proibido:
-- utilizar a plataforma para fins ilegais;
-- violar direitos de terceiros;
-- tentar acessar áreas restritas sem autorização;
-- inserir códigos maliciosos ou realizar engenharia reversa;
-- comprometer a segurança, integridade ou disponibilidade do sistema.
+## 4. Dados Sensíveis
+A plataforma pode armazenar dados sensíveis relacionados à saúde, inseridos pelo usuário controlador.
 
-O descumprimento poderá resultar em suspensão imediata da conta, sem prejuízo de medidas legais.
+O tratamento desses dados ocorre exclusivamente para viabilizar as funcionalidades da plataforma, observando sigilo, segurança e confidencialidade.
 
 ---
 
-## 6. Planos, Pagamentos e Cancelamento
-Algumas funcionalidades podem estar sujeitas à contratação de planos pagos.
+## 5. Registro de Consentimento
+O Agenda Doutor mantém registros técnicos de:
+- aceite dos Termos de Uso;
+- data e hora do aceite;
+- versão vigente do documento.
 
-- Valores, condições e funcionalidades poderão ser alterados mediante aviso prévio;
-- o cancelamento poderá ser solicitado conforme as regras do plano contratado;
-- tributos eventualmente incidentes são de responsabilidade do usuário.
-
----
-
-## 7. Propriedade Intelectual
-Todo o conteúdo da plataforma, incluindo software, marcas, layout, textos e funcionalidades, é de propriedade exclusiva do **Agenda Doutor**, sendo protegido pela legislação brasileira e internacional.
-
-Nenhuma licença é concedida, exceto para uso regular da plataforma.
+Esses registros podem incluir informações técnicas como IP e dispositivo, para fins de segurança e comprovação legal.
 
 ---
 
-## 8. Limitação de Responsabilidade
-O Agenda Doutor não se responsabiliza por:
-- danos indiretos, lucros cessantes ou perda de dados;
-- falhas decorrentes de fatores externos;
-- uso inadequado da plataforma pelo usuário.
+## 6. Medidas de Segurança
+Adotamos medidas como:
+- controle de acesso;
+- criptografia;
+- monitoramento de incidentes;
+- boas práticas de desenvolvimento seguro.
 
 ---
 
-## 9. Alterações dos Termos
-Os Termos poderão ser atualizados periodicamente. O uso contínuo da plataforma após alterações indica aceitação automática das novas condições.
+## 7. Incidentes de Segurança
+Em caso de incidente que possa acarretar risco aos titulares, o Agenda Doutor adotará as medidas necessárias, incluindo comunicação aos envolvidos e às autoridades competentes, quando exigido por lei.
+
+---
+
+## 8. Direitos dos Titulares
+Nos termos da LGPD, o titular poderá solicitar:
+- confirmação da existência de tratamento;
+- acesso aos dados;
+- correção;
+- anonimização ou exclusão, quando aplicável;
+- informações sobre compartilhamento.
+
+---
+
+## 9. Atualizações
+Este documento poderá ser atualizado para refletir mudanças legais ou operacionais.
 
 ---
 
 ## 10. Contato
-Dúvidas relacionadas a estes Termos poderão ser encaminhadas pelos canais oficiais de suporte da plataforma.`
+Solicitações relacionadas à LGPD poderão ser realizadas pelos canais oficiais da plataforma.
+`
 
 const compiledMarkdown = marked(markdownContent)
 </script>

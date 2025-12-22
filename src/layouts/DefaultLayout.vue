@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/layout/Sidebar.vue'
@@ -19,60 +19,8 @@ const toast = useToast()
 const isMobileSidebarOpen = ref(false)
 const isAppointmentModalOpen = ref(false) // ✨ 3. Estado para o modal global
 
-function removeManifest() {
-  const manifestLink = document.querySelector('link[rel="manifest"]')
-  if (manifestLink) {
-    document.head.removeChild(manifestLink)
-  }
-}
 
-watch(
-  () => authStore.user,
-  (newUser) => {
-    removeManifest()
 
-    if (newUser && newUser.clinic) {
-      const clinic = newUser.clinic
-      const clinicName = clinic.name
-      const clinicIcon = clinic.logoUrl || '/activity.svg'
-      const baseUrl = window.location.origin
-
-      const manifest = {
-        name: clinicName,
-        short_name: clinicName,
-        description: `Dashboard de gestão para a ${clinicName}.`,
-        start_url: `${baseUrl}/app`,
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: clinicIcon.startsWith('http') ? clinicIcon : `${baseUrl}${clinicIcon}`,
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-          {
-            src: clinicIcon.startsWith('http') ? clinicIcon : `${baseUrl}${clinicIcon}`,
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-        ],
-      }
-
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' })
-      const manifestUrl = URL.createObjectURL(manifestBlob)
-
-      const manifestLink = document.createElement('link')
-      manifestLink.id = 'manifest'
-      manifestLink.rel = 'manifest'
-      manifestLink.href = manifestUrl
-      document.head.appendChild(manifestLink)
-    }
-  },
-  { immediate: true },
-)
 
 watch(
   () => route.query,
@@ -89,9 +37,7 @@ watch(
   { immediate: true }
 )
 
-onUnmounted(() => {
-  removeManifest()
-})
+
 </script>
 
 <template>

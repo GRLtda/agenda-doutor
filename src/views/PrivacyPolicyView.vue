@@ -3,92 +3,105 @@ import { marked } from 'marked'
 import AppHeader from '@/components/global/AppHeader.vue'
 import AppFooter from '@/components/global/AppFooter.vue'
 
-const markdownContent = `# Termos de Uso  
+const markdownContent = `# Política de Privacidade  
 **Agenda Doutor**  
 Última atualização: 20 de dezembro de 2025
 
 ---
 
-## 1. Aceitação dos Termos
-Ao acessar, criar uma conta ou utilizar a plataforma **Agenda Doutor**, o usuário declara que leu, compreendeu e concorda integralmente com estes Termos de Uso. Caso não concorde com qualquer disposição aqui prevista, o uso da plataforma deve ser imediatamente interrompido.
-
-Estes Termos constituem um contrato legalmente vinculante entre o usuário e o Agenda Doutor.
+## 1. Introdução
+Esta Política de Privacidade descreve como o **Agenda Doutor** coleta, utiliza, armazena e protege os dados pessoais de seus usuários, em conformidade com a legislação aplicável.
 
 ---
 
-## 2. Descrição da Plataforma
-O Agenda Doutor é uma plataforma digital destinada à gestão de clínicas e consultórios, oferecendo funcionalidades como:
-- agendamento de atendimentos;
-- prontuário eletrônico;
-- gestão administrativa e financeira;
-- organização de dados de pacientes;
-- comunicação interna e operacional.
+## 2. Dados Coletados
+
+### 2.1 Dados fornecidos pelo usuário
+- nome completo;
+- e-mail;
+- telefone;
+- dados da clínica ou consultório;
+- CPF ou CNPJ;
+- dados de pagamento, quando aplicável.
+
+### 2.2 Dados coletados automaticamente
+- endereço IP;
+- data e hora de acesso;
+- informações do navegador e dispositivo;
+- idioma;
+- cookies e identificadores similares;
+- histórico de navegação e uso da plataforma.
 
 ---
 
-## 3. Elegibilidade e Cadastro
-Para utilizar a plataforma, o usuário declara que:
-- possui capacidade legal para contratar;
-- fornece informações verdadeiras, completas e atualizadas;
-- é responsável por manter seus dados corretos.
+## 3. Finalidade do Tratamento
+Os dados são utilizados para:
+- viabilizar a prestação dos serviços;
+- aprimorar funcionalidades e experiência do usuário;
+- processar pagamentos e cobranças;
+- prestar suporte e comunicação operacional;
+- cumprir obrigações legais e regulatórias;
+- garantir segurança e prevenção a fraudes.
 
-O Agenda Doutor poderá suspender ou cancelar contas que contenham informações falsas ou incompletas.
-
----
-
-## 4. Responsabilidades do Usuário
-O usuário é integralmente responsável por:
-- manter a confidencialidade de suas credenciais de acesso;
-- todas as atividades realizadas em sua conta;
-- garantir que o uso da plataforma esteja em conformidade com a legislação vigente.
-
-O Agenda Doutor não se responsabiliza por acessos não autorizados decorrentes de negligência do usuário.
+Os dados nunca serão comercializados.
 
 ---
 
-## 5. Uso Proibido
-É expressamente proibido:
-- utilizar a plataforma para fins ilegais;
-- violar direitos de terceiros;
-- tentar acessar áreas restritas sem autorização;
-- inserir códigos maliciosos ou realizar engenharia reversa;
-- comprometer a segurança, integridade ou disponibilidade do sistema.
+## 4. Compartilhamento de Dados
+Os dados poderão ser compartilhados:
+- com fornecedores essenciais à operação da plataforma;
+- com autoridades públicas, quando exigido por lei ou ordem judicial.
 
-O descumprimento poderá resultar em suspensão imediata da conta, sem prejuízo de medidas legais.
+Todos os terceiros seguem padrões adequados de segurança da informação.
 
 ---
 
-## 6. Planos, Pagamentos e Cancelamento
-Algumas funcionalidades podem estar sujeitas à contratação de planos pagos.
+## 5. Armazenamento e Segurança
+Os dados são armazenados em ambientes seguros, com medidas técnicas e administrativas adequadas.
 
-- Valores, condições e funcionalidades poderão ser alterados mediante aviso prévio;
-- o cancelamento poderá ser solicitado conforme as regras do plano contratado;
-- tributos eventualmente incidentes são de responsabilidade do usuário.
+O Agenda Doutor adota boas práticas de segurança para prevenir acessos não autorizados, vazamentos ou uso indevido.
 
 ---
 
-## 7. Propriedade Intelectual
-Todo o conteúdo da plataforma, incluindo software, marcas, layout, textos e funcionalidades, é de propriedade exclusiva do **Agenda Doutor**, sendo protegido pela legislação brasileira e internacional.
+## 6. Retenção dos Dados
+Os dados pessoais serão mantidos pelo período necessário para:
+- cumprimento de obrigações legais;
+- execução do contrato;
+- exercício regular de direitos.
 
-Nenhuma licença é concedida, exceto para uso regular da plataforma.
-
----
-
-## 8. Limitação de Responsabilidade
-O Agenda Doutor não se responsabiliza por:
-- danos indiretos, lucros cessantes ou perda de dados;
-- falhas decorrentes de fatores externos;
-- uso inadequado da plataforma pelo usuário.
+Após esse período, poderão ser anonimizados ou excluídos.
 
 ---
 
-## 9. Alterações dos Termos
-Os Termos poderão ser atualizados periodicamente. O uso contínuo da plataforma após alterações indica aceitação automática das novas condições.
+## 7. Direitos do Titular
+O usuário poderá:
+- acessar seus dados;
+- solicitar correção;
+- solicitar exclusão, quando aplicável;
+- obter informações sobre o tratamento.
+
+As solicitações serão atendidas dentro dos prazos legais.
+
+---
+
+## 8. Cookies
+Utilizamos cookies para:
+- funcionamento da plataforma;
+- análise de desempenho;
+- personalização da experiência.
+
+O usuário pode gerenciar cookies diretamente em seu navegador.
+
+---
+
+## 9. Alterações
+Esta Política poderá ser atualizada periodicamente. O uso contínuo da plataforma indica concordância com as alterações.
 
 ---
 
 ## 10. Contato
-Dúvidas relacionadas a estes Termos poderão ser encaminhadas pelos canais oficiais de suporte da plataforma.`
+Questões relacionadas à privacidade podem ser encaminhadas pelos canais oficiais da plataforma.
+`
 
 const compiledMarkdown = marked(markdownContent)
 </script>
