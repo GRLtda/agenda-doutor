@@ -1,4 +1,5 @@
 import axios from 'axios'
+import * as Sentry from '@sentry/vue'
 import { ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout'
 
@@ -19,6 +20,7 @@ apiClient.interceptors.response.use(
     return response
   },
   (error) => {
+    Sentry.captureException(error)
     if (error.code === 'ERR_NETWORK' || !error.response) {
       console.error('⚠️ Conexão perdida com a API.')
       isGlobalOffline.value = true
