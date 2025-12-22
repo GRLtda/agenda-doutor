@@ -76,16 +76,16 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = authStore.isAuthenticated
   const hasClinic = authStore.hasClinic
 
+  if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
+    return next({ name: 'resumo-dashboard' })
+  }
+
   if (to.meta.public) {
     return next()
   }
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next({ name: 'login', query: { redirect: to.fullPath } })
-  }
-
-  if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
-    return next()
   }
 
   if (to.meta.requiresAuth && !to.meta.public) {

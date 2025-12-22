@@ -10,6 +10,7 @@ import {
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
 import apiClient from '@/api/index'
 import { useClinicStore } from './clinic'
+import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
   const storedUser = localStorage.getItem('user')
@@ -48,13 +49,11 @@ export const useAuthStore = defineStore('auth', () => {
       return response.data
     } catch (error) {
       if (error.response && error.response.status === 403) {
-        // Para novos usuários sem clínica, a API pode retornar 403.
-        // Retornamos o usuário atual que pode ser o 'basicUser' do registro.
         return user.value
       } else {
-        // Para outros erros (ex: token inválido), limpamos tudo.
         logout()
         console.error('Erro ao buscar usuário, token pode ser inválido:', error)
+        router.push({ name: 'login' })
         return null
       }
     }
