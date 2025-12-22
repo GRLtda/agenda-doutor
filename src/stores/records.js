@@ -143,6 +143,21 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  // ✨ Fetch records by patient
+  async function fetchRecordsByPatient(patientId) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await apiClient.get(`/records/patient/${patientId}?limit=100`);
+      return { success: true, data: response.data };
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Erro ao buscar prontuários.';
+      return { success: false, error: error.value };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   return {
     currentRecord,
     isLoading,
@@ -154,5 +169,6 @@ export const useRecordsStore = defineStore('records', () => {
     deleteAttachment,
     addProcedureToRecord, // ✨ Export new function
     removeProcedureFromRecord, // ✨ Export remove function
+    fetchRecordsByPatient, // ✨ Export new function
   }
 })

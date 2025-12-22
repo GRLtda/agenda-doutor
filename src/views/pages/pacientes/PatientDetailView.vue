@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   Stethoscope, // ✨ Importar ícone
   Trash2,
-  MessageSquare
+  MessageSquare,
+  Image as Image // ✨ Import Image icon
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -41,6 +42,7 @@ import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointme
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
+import PatientMediaTab from '@/components/pages/pacientes/PatientMediaTab.vue' // ✨ Import Media Tab
 
 const route = useRoute()
 const router = useRouter()
@@ -421,7 +423,12 @@ async function handleDeleteProcedure(procedure) {
           <MessageSquare :size="16" />
           Anotações
         </button>
+        <button @click="activeTab = 'media'" :class="{ active: activeTab === 'media' }">
+          <Image :size="16" />
+          Mídia
+        </button>
       </nav>
+
 
       <div class="tab-content">
         <Transition name="fade" mode="out-in">
@@ -768,6 +775,10 @@ async function handleDeleteProcedure(procedure) {
             </div>
             <div v-if="activeTab === 'notes'">
               <PatientNotesTab :patient-id="patient._id" />
+            </div>
+            
+            <div v-if="activeTab === 'media'">
+              <PatientMediaTab :patient-id="patient._id" />
             </div>
           </div>
         </Transition>
