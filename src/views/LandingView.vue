@@ -753,27 +753,34 @@ a { text-decoration: none; color: inherit; transition: 0.3s; }
 
 /* Bleeding Images */
 .visual-image-container {
-  width: 100%; height: 100%; position: relative;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  /* padding removed to allow full bleed */
 }
 .bleeding-image {
-  position: absolute;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: 100%;
+  height: auto;
+  border-radius: 12px 12px 0 0; /* Radius on top only if cropped at bottom */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08); /* Softer shadow */
   border: 1px solid rgba(0,0,0,0.05);
+  
+  /* Absolute position to not affect card height */
+  position: absolute;
+  top: 0;
+  left: 0;
+  
+  /* Aligned (no rotation) */
+  transform: none;
 }
 .agenda-img {
-  width: 90%;
-  height: auto;
-  bottom: -180px;
-  right: -20px;
-  transform: rotate(-2deg);
+  /* Agenda image fits perfectly at 100% */
+  width: 100%;
 }
 .prontuario-img {
-  width: 180%;
-  height: auto;
-  bottom: -170px;
-  right: -240px;
-  transform: rotate(2deg);
+  /* Make prontuario image larger to crop distinctively */
+  width: 230%;
+  max-width: none; /* Override absolute max-width if necessary */
 }
 
 /* Chat Visual */
