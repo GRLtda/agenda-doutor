@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import * as Sentry from '@sentry/vue'
 import { useAuthStore } from './stores/auth'
 import { clickOutside } from './directives/click-outside'
 import { phoneMask } from './directives/phone-mask'
@@ -18,6 +19,18 @@ import './assets/css/global.css'
 import './assets/css/custom-toast.css'
 
 const app = createApp(App)
+
+Sentry.init({
+  app,
+  dsn: import.meta.env.VITE_SENTRY_DSN, // Ler do .env
+  integrations: [
+    Sentry.browserTracingIntegration({ router }),
+    Sentry.replayIntegration(),
+  ],
+  tracesSampleRate: 1.0, 
+  replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
+  replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
+})
 
 // --- DIRETIVAS ---
 app.directive('click-outside', clickOutside)
