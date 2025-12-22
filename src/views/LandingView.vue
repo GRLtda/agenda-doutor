@@ -916,8 +916,7 @@ a { text-decoration: none; color: inherit; transition: 0.3s; }
   /* Fix Dashboard Image */
   .agenda-img {
     bottom: -30px; /* Pull up to be visible */
-    width: 100%; /* Ensure full width */
-    max-width: 350px;
+    width: 200%; /* Ensure full width */
     right: -10px;
   }
 }
