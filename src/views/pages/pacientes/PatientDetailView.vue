@@ -30,7 +30,7 @@ import {
   Stethoscope,
   Trash2,
   MessageSquare,
-  Receipt
+  Receipt,
   FileSignature
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
@@ -428,6 +428,7 @@ async function handleDeleteProcedure(procedure) {
         <button @click="activeTab = 'budgets'" :class="{ active: activeTab === 'budgets' }">
           <Receipt :size="16" />
           Orçamentos
+        </button>
         <button @click="activeTab = 'termos'" :class="{ active: activeTab === 'termos' }">
           <FileSignature :size="16" />
           Termos
@@ -782,6 +783,7 @@ async function handleDeleteProcedure(procedure) {
             </div>
             <div v-if="activeTab === 'budgets'">
               <PatientBudgetsTab :patient-id="patient._id" />
+            </div>
             <div v-if="activeTab === 'termos'">
               <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
