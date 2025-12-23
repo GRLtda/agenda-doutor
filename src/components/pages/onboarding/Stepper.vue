@@ -72,7 +72,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 0 1rem;
 }
 
 .step-item {
@@ -151,38 +150,54 @@ onBeforeUnmount(() => {
 /* ✨ INÍCIO DAS MUDANÇAS PARA RESPONSIVO ✨ */
 @media (max-width: 768px) {
   .stepper {
-    flex-direction: column; /* 1. Empilha verticalmente */
-    align-items: flex-start; /* 2. Alinha à esquerda */
-    gap: 0.75rem; /* 3. Adiciona espaço entre os itens */
+    flex-direction: row; /* Horizontal layout */
+    align-items: center;
+    overflow: -moz-hidden-unscrollable;
+    gap: 0; /* Remove gap, use line for spacing */
     width: 100%;
-    padding: 0; /* 4. Remove padding lateral */
+    overflow-x: auto; /* Enable horizontal scrolling */
+    scroll-snap-type: x mandatory; /* Snap to elements */
+    padding: 0.5rem 15%; /* (100% - 70%) / 2 = 15% padding to center items */
+    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
+    scrollbar-width: none; /* Hide scrollbar Firefox */
   }
 
+  .stepper::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
+  }
+
+  /* Restore line but style for carousel */
   .step-line {
-    display: none; /* 5. Esconde as linhas horizontais */
+    display: block;
+    min-width: 2rem;
+    flex-grow: 0;
+    margin: 0 0.5rem;
+    height: 2px;
+    background-color: #e5e7eb;
   }
 
   .step-item {
-    width: 100%; /* 6. Ocupa 100% da largura */
-    padding: 0.75rem 1rem; /* 7. Adiciona padding interno */
-    border-radius: 0.75rem;
-    border: 2px solid transparent; /* 8. Prepara borda para estado ativo */
-    background-color: #f9fafb; /* 9. Fundo claro para itens */
+    min-width: 70%; /* Shows part of the next item */
+    scroll-snap-align: center; /* Snap to center */
+    /* Removed box styling (border, padding, bg) to match PC aesthetic */
+    display: flex;
+    justify-content: center; /* Center content within the item width */
     transition: all 0.3s ease;
+    opacity: 0.5; /* Dim inactive items */
+    transform: scale(0.9); /* Slightly smaller inactive items */
   }
 
   .step-item.active {
-    background-color: var(--branco);
-    border-color: var(--azul-principal); /* 10. Destaca o passo ativo */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    opacity: 1;
+    transform: scale(1);
+    /* Removed box-shadow and border-color */
   }
 
   .step-item.completed {
-    background-color: #f9fafb;
-    opacity: 0.7; /* 11. Suaviza os passos completos */
+   opacity: 1; 
   }
 
-  .step-item.active .step-name {
+  .step-item.completed .step-name {
     color: var(--preto);
   }
 }

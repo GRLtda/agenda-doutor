@@ -30,6 +30,7 @@ import {
   Stethoscope,
   Trash2,
   MessageSquare,
+  Receipt
   FileSignature
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
@@ -42,6 +43,7 @@ import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointme
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
+import PatientBudgetsTab from '@/components/pages/pacientes/PatientBudgetsTab.vue'
 import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
 
 const route = useRoute()
@@ -423,6 +425,9 @@ async function handleDeleteProcedure(procedure) {
           <MessageSquare :size="16" />
           Anotações
         </button>
+        <button @click="activeTab = 'budgets'" :class="{ active: activeTab === 'budgets' }">
+          <Receipt :size="16" />
+          Orçamentos
         <button @click="activeTab = 'termos'" :class="{ active: activeTab === 'termos' }">
           <FileSignature :size="16" />
           Termos
@@ -775,6 +780,8 @@ async function handleDeleteProcedure(procedure) {
             <div v-if="activeTab === 'notes'">
               <PatientNotesTab :patient-id="patient._id" />
             </div>
+            <div v-if="activeTab === 'budgets'">
+              <PatientBudgetsTab :patient-id="patient._id" />
             <div v-if="activeTab === 'termos'">
               <PatientConsentTermsTab :patient-id="patient._id" />
             </div>

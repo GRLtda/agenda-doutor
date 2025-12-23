@@ -92,9 +92,9 @@ const clinicWorkingHours = computed(() => {
 })
 
 const steps = [
-  { name: 'Paciente', icon: User },
-  { name: 'Horário', icon: Calendar },
-  { name: 'Lembretes', icon: Bell },
+  { name: 'Paciente', icon: User, subtitle: 'Identificação' },
+  { name: 'Horário', icon: Calendar, subtitle: 'Data e Hora' },
+  { name: 'Lembretes', icon: Bell, subtitle: 'Notificações' },
 ]
 
 const appointmentData = ref({
@@ -510,29 +510,34 @@ async function handleSubmit() {
     <template #header>
       <header class="drawer-header">
         <div class="header-top">
-          <div class="header-left">
-            <h2>
-              {{
-                isRebookMode
-                  ? 'Reagendar Horário'
-                  : isRescheduleMode
-                    ? 'Agendar Retorno'
-                    : 'Novo Agendamento'
-              }}
-            </h2>
-            <p>
-              {{
-                isRebookMode
-                  ? 'Escolha o novo horário para o agendamento existente.'
-                  : isRescheduleMode
-                    ? 'Escolha uma nova data e horário para o paciente.'
-                    : 'Preencha os dados para criar um novo atendimento.'
-              }}
-            </p>
+          <div class="header-left-group">
+            <button @click="$emit('close')" class="mobile-close-btn">
+              <X :size="24" />
+            </button>
+            <div class="header-texts">
+              <h2 class="header-title">
+                <div class="header-icon-wrapper">
+                  <Calendar :size="24" />
+                </div>
+                {{
+                  isRebookMode
+                    ? 'Reagendar Horário'
+                    : isRescheduleMode
+                      ? 'Agendar Retorno'
+                      : 'Novo Agendamento'
+                }}
+              </h2>
+              <p class="header-subtitle">
+                {{
+                  isRebookMode
+                    ? 'Escolha o novo horário para o agendamento existente.'
+                    : isRescheduleMode
+                      ? 'Escolha uma nova data e horário para o paciente.'
+                      : 'Preencha os dados para criar um novo atendimento.'
+                }}
+              </p>
+            </div>
           </div>
-          <button @click="$emit('close')" class="mobile-close-btn">
-            <X :size="24" />
-          </button>
         </div>
         <Stepper :steps="steps" :currentStep="currentStep" class="stepper-component" />
       </header>
@@ -708,37 +713,60 @@ async function handleSubmit() {
 /* Header */
 .drawer-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #e5e7eb; /* Updated color for better visibility */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-/* Footer */
-.drawer-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e5e7eb;
+.header-top {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  background-color: #f9fafb;
+  align-items: flex-start;
 }
 
-.footer-actions {
+.header-texts {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-/* Mobile Close Button */
+.header-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  margin-left: 2rem; /* Indent subtitle to align with text start (icon width approx) */
+}
+
+.header-icon-wrapper {
+  color: var(--azul-principal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Close Button (Right side) */
 .mobile-close-btn {
-  display: none;
   background: transparent;
   border: none;
   color: #6b7280;
-  padding: 0.25rem;
+  padding: 0.5rem; /* Larger touch target */
   cursor: pointer;
   border-radius: 0.375rem;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mobile-close-btn:hover {
