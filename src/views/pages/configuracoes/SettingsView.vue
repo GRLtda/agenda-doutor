@@ -4,10 +4,11 @@ import { useRoute } from 'vue-router'
 import GeneralSettings from '@/views/pages/configuracoes/tabs/GeneralSettings.vue'
 import WorkingHoursSettings from '@/views/pages/configuracoes/tabs/WorkingHoursSettings.vue'
 import AnamnesisTemplates from '@/views/pages/configuracoes/tabs/AnamnesisTemplates.vue'
+import ConsentTermsTemplates from '@/views/pages/configuracoes/tabs/ConsentTermsTemplates.vue'
 import EmployeesSettings from '@/views/pages/configuracoes/tabs/EmployeesSettings.vue'
-import AuditLog from '@/views/pages/configuracoes/tabs/AuditLog.vue' // 📋 1. Importar o novo componente
+import AuditLog from '@/views/pages/configuracoes/tabs/AuditLog.vue'
 
-import { SlidersHorizontal, Clock, FileText, Users, History } from 'lucide-vue-next' // 📋 2. Importar o ícone History
+import { SlidersHorizontal, Clock, FileText, FileSignature, Users, History } from 'lucide-vue-next'
 
 const activeTab = ref('geral')
 const route = useRoute()
@@ -19,8 +20,9 @@ const tabs = [
   { id: 'geral', label: 'Geral', icon: SlidersHorizontal },
   { id: 'horario', label: 'Horário de Funcionamento', icon: Clock },
   { id: 'anamnese', label: 'Modelos de Anamnese', icon: FileText },
+  { id: 'termos', label: 'Termos de Consentimento', icon: FileSignature },
   { id: 'funcionarios', label: 'Usuários e Convites', icon: Users },
-  { id: 'auditoria', label: 'Histórico de Atividades', icon: History }, // 📋 3. Adicionar nova aba
+  { id: 'auditoria', label: 'Histórico de Atividades', icon: History },
 ]
 
 // ✨ 4. Função para verificar a posição do scroll
@@ -82,6 +84,7 @@ onUnmounted(() => {
       <GeneralSettings v-if="activeTab === 'geral'" />
       <WorkingHoursSettings v-if="activeTab === 'horario'" />
       <AnamnesisTemplates v-if="activeTab === 'anamnese'" />
+      <ConsentTermsTemplates v-if="activeTab === 'termos'" />
       <EmployeesSettings v-if="activeTab === 'funcionarios'" />
       <AuditLog v-if="activeTab === 'auditoria'" />
       </div>

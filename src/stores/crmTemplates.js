@@ -23,6 +23,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
     { variable: '{data_consulta}', description: 'Data do próximo agendamento.' },
     { variable: '{hora_consulta}', description: 'Hora do próximo agendamento.' },
     { variable: '{link_anamnese}', description: 'Link para preenchimento da anamnese.' },
+    { variable: '{link_termos}', description: 'Link para assinatura do termo de consentimento.' },
   ])
   const isLoading = ref(false)
   const error = ref(null)

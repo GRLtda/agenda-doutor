@@ -17,6 +17,7 @@ const triggerTypeDescriptions = {
   APPOINTMENT_2_HOURS_BEFORE: 'Lembrete 2 Horas Antes',
   PATIENT_BIRTHDAY: 'Mensagem de Aniversário',
   ANAMNESIS_ASSIGNMENT: 'Envio de Anamnese',
+  CONSENT_TERM_ASSIGNMENT: 'Envio de Termo de Consentimento',
   APPOINTMENT_CONFIRMATION: 'Confirmação de Agendamento'
 }
 

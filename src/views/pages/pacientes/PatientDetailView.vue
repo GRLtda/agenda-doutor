@@ -27,9 +27,10 @@ import {
   ClipboardPlus,
   CalendarPlus,
   AlertTriangle,
-  Stethoscope, // ✨ Importar ícone
+  Stethoscope,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  FileSignature
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -39,8 +40,9 @@ import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnam
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
-import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
+import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -421,6 +423,10 @@ async function handleDeleteProcedure(procedure) {
           <MessageSquare :size="16" />
           Anotações
         </button>
+        <button @click="activeTab = 'termos'" :class="{ active: activeTab === 'termos' }">
+          <FileSignature :size="16" />
+          Termos
+        </button>
       </nav>
 
       <div class="tab-content">
@@ -768,6 +774,9 @@ async function handleDeleteProcedure(procedure) {
             </div>
             <div v-if="activeTab === 'notes'">
               <PatientNotesTab :patient-id="patient._id" />
+            </div>
+            <div v-if="activeTab === 'termos'">
+              <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
           </div>
         </Transition>
