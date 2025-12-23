@@ -51,6 +51,7 @@ import { useToast } from 'vue-toastification'
 
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
 import CheckoutModal from '@/components/modals/CheckoutModal.vue' // ✨ Import Checkout Modal
+import ImportBudgetModal from '@/components/modals/ImportBudgetModal.vue' // ✨ Import Budget Modal
 
 const route = useRoute()
 const router = useRouter()
@@ -156,6 +157,9 @@ const isAddingProcedure = ref(false)
 const showCheckoutModal = ref(false)
 const isProcessingCheckout = ref(false)
 
+// ✨ Import Budget State
+const showImportBudgetModal = ref(false)
+
 async function handleDeleteProcedure(procedure) {
   if (!confirm('Tem certeza que deseja remover este procedimento?')) {
     return
@@ -192,6 +196,13 @@ async function handleAddProcedure(payload) {
   } finally {
     isAddingProcedure.value = false
   }
+}
+
+// ✨ Handle Budget Import
+async function handleBudgetImported() {
+  // Refresh record to get updated procedures from imported budget
+  await recordsStore.fetchRecordByAppointmentId(appointmentId)
+  toast.success('Procedimentos do orçamento adicionados!')
 }
 
 // Cronômetro
@@ -529,6 +540,14 @@ const formatDate = (dateString) => {
       @confirm="handleCheckoutConfirm"
     />
 
+    <ImportBudgetModal
+      v-if="showImportBudgetModal"
+      :patient-id="patientId"
+      :appointment-id="appointmentId"
+      @close="showImportBudgetModal = false"
+      @imported="handleBudgetImported"
+    />
+
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
 
     <aside class="left-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
@@ -796,6 +815,27 @@ const formatDate = (dateString) => {
                       </div>
                     </li>
                   </ul>
+                </div>
+              </div>
+
+              <!-- ✨ Budgets Section -->
+              <div class="budgets-section mt-6" v-if="!isViewMode">
+                <div class="section-header">
+                  <h3 class="column-title mb-0">Orçamentos</h3>
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    @click="showImportBudgetModal = true"
+                    class="btn-import-budget"
+                  >
+                    <Plus :size="16" />
+                    Importar Orçamento
+                  </AppButton>
+                </div>
+                <div class="info-card mt-2">
+                  <p class="import-hint">
+                    Importe um orçamento existente para adicionar todos os procedimentos automaticamente.
+                  </p>
                 </div>
               </div>
             </div>
