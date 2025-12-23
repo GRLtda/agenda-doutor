@@ -27,10 +27,11 @@ import {
   ClipboardPlus,
   CalendarPlus,
   AlertTriangle,
-  Stethoscope, // ✨ Importar ícone
+  Stethoscope,
   Trash2,
   MessageSquare,
   Receipt
+  FileSignature
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -40,9 +41,10 @@ import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnam
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
-import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Importar Modal Atualizado
+import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
 import PatientBudgetsTab from '@/components/pages/pacientes/PatientBudgetsTab.vue'
+import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -426,6 +428,9 @@ async function handleDeleteProcedure(procedure) {
         <button @click="activeTab = 'budgets'" :class="{ active: activeTab === 'budgets' }">
           <Receipt :size="16" />
           Orçamentos
+        <button @click="activeTab = 'termos'" :class="{ active: activeTab === 'termos' }">
+          <FileSignature :size="16" />
+          Termos
         </button>
       </nav>
 
@@ -777,6 +782,8 @@ async function handleDeleteProcedure(procedure) {
             </div>
             <div v-if="activeTab === 'budgets'">
               <PatientBudgetsTab :patient-id="patient._id" />
+            <div v-if="activeTab === 'termos'">
+              <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
           </div>
         </Transition>

@@ -49,6 +49,12 @@ const routes = [
     meta: { public: true, title: 'Responder Anamnese' },
   },
   {
+    path: '/termo/:token',
+    name: 'sign-consent-term',
+    component: () => import('../views/public/SignConsentTermView.vue'),
+    meta: { public: true, title: 'Assinar Termo' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFoundView,
