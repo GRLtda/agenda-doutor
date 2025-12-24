@@ -82,10 +82,6 @@ function formatDate(date) {
         <FileSignature :size="20" class="header-icon" />
         <h3>Termos de Consentimento</h3>
       </div>
-      <AppButton @click="openAssignModal" variant="primary" size="sm">
-        <Plus :size="16" />
-        Adicionar Termo
-      </AppButton>
     </div>
 
     <!-- Loading -->

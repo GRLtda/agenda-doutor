@@ -47,6 +47,7 @@ import {
   Plus, // ✨ Import Plus icon
   Syringe, // ✨ Import Syringe icon for procedures
   FileSignature, // ✨ Import FileSignature icon for consent terms
+  Send, // ✨ Import Send icon for anamnesis
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -54,6 +55,8 @@ import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨
 import CheckoutModal from '@/components/modals/CheckoutModal.vue' // ✨ Import Checkout Modal
 import ImportBudgetModal from '@/components/modals/ImportBudgetModal.vue' // ✨ Import Budget Modal
 import AttendanceConsentTermsTab from '@/components/pages/atendimentos/AttendanceConsentTermsTab.vue' // ✨ Import Consent Terms Tab
+import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue' // ✨ Import Anamnesis Modal
+import AttendanceProceduresTab from '@/components/pages/atendimentos/AttendanceProceduresTab.vue' // ✨ Import Procedures Tab
 
 const route = useRoute()
 const router = useRouter()
@@ -161,6 +164,15 @@ const isProcessingCheckout = ref(false)
 
 // ✨ Import Budget State
 const showImportBudgetModal = ref(false)
+
+// ✨ Send Anamnesis Modal State
+const showAssignAnamnesisModal = ref(false)
+
+function handleAnamnesisAssigned() {
+  showAssignAnamnesisModal.value = false
+  // Recarregar anamneses do paciente
+  anamnesisStore.fetchPatientAnamneses(patientId)
+}
 
 async function handleDeleteProcedure(procedure) {
   if (!confirm('Tem certeza que deseja remover este procedimento?')) {
@@ -496,9 +508,7 @@ async function handleCheckoutConfirm(checkoutData) {
 const menuItems = [
   { id: 'record', label: 'Prontuario', icon: FileText },
   { id: 'patient-info', label: 'Informações', icon: User },
-  { id: 'exams', label: 'Exames', icon: Stethoscope },
-  { id: 'prescriptions', label: 'Prescrições', icon: Calendar },
-  { id: 'documents', label: 'Documentos', icon: Paperclip },
+  { id: 'procedures', label: 'Procedimentos', icon: Syringe },
   { id: 'consent-terms', label: 'Termos', icon: FileSignature },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
 ]
@@ -786,35 +796,32 @@ const formatDate = (dateString) => {
                   <div v-if="currentAppointmentProcedures.length === 0" class="empty-list">
                     Nenhum procedimento registrado neste atendimento.
                   </div>
-                  <ul v-else class="procedure-items">
-                    <li v-for="(proc, index) in currentAppointmentProcedures" :key="index" class="procedure-item">
-                      <div class="proc-icon">
-                        <Syringe :size="18" />
-                      </div>
-                      <div class="proc-info">
-                        <span class="proc-name">{{ proc.name }}</span>
-                        <span class="proc-details">
-                          {{ formatDate(proc.assignedAt) }}
-                        </span>
-                      </div>
-                      <div class="proc-values">
-                        <div v-if="proc.originalValue > proc.finalValue" class="original-price">
-                          {{ formatCurrency(proc.originalValue) }}
+                  <ul v-else class="procedure-items-new">
+                    <li v-for="(proc, index) in currentAppointmentProcedures" :key="index" class="procedure-item-new">
+                      <div class="procedure-info-new">
+                        <div class="proc-main-new">
+                          <span class="proc-name-new">{{ proc.name }}</span>
                         </div>
-                        <div class="final-price-row">
-                          <span v-if="proc.originalValue > proc.finalValue" class="discount-badge">-{{ Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%</span>
-                          <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
+                        <span class="proc-date-new">{{ formatDate(proc.assignedAt) }}</span>
+                      </div>
+                      <div class="procedure-values-new">
+                        <div v-if="proc.discountPercentage > 0 || proc.originalValue > proc.finalValue" class="discount-tag-new">
+                          -{{ proc.discountPercentage || Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%
                         </div>
-                        <AppButton 
+                        <div class="price-wrapper-new">
+                          <span v-if="proc.discountPercentage > 0 || proc.originalValue > proc.finalValue" class="original-price-new">
+                            {{ formatCurrency(proc.originalValue) }}
+                          </span>
+                          <span class="final-price-new">{{ formatCurrency(proc.finalValue) }}</span>
+                        </div>
+                        <button 
                           v-if="!isViewMode" 
                           @click="handleDeleteProcedure(proc)" 
-                          variant="ghost" 
-                          size="sm" 
-                          class="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          class="btn-icon-new delete-btn-new" 
                           title="Remover Procedimento"
                         >
-                              <Trash2 :size="14" />
-                        </AppButton>
+                          <Trash2 :size="16" />
+                        </button>
                       </div>
                     </li>
                   </ul>
@@ -845,7 +852,18 @@ const formatDate = (dateString) => {
 
             <!-- Right Column: Anamneses (Scrollable) -->
             <div class="anamnesis-column">
-              <h3 class="column-title">Anamneses</h3>
+              <div class="anamnesis-header">
+                <h3 class="column-title">Anamneses</h3>
+                <AppButton 
+                  v-if="!isViewMode" 
+                  @click="showAssignAnamnesisModal = true" 
+                  variant="primary" 
+                  size="sm"
+                >
+                  <Send :size="14" />
+                  Aplicar Anamnese
+                </AppButton>
+              </div>
               
               <div class="anamnesis-scroll-area info-card">
                 <!-- Tabs Header -->
@@ -935,6 +953,16 @@ const formatDate = (dateString) => {
           </div>
         </div>
 
+        <!-- ✨ Procedures Tab -->
+        <div v-else-if="activeTab === 'procedures'" class="tab-content tab-content-padded">
+          <AttendanceProceduresTab
+            :patient-id="patientId"
+            :appointment-id="appointmentId"
+            :record="currentRecord"
+            :disabled="isViewMode"
+          />
+        </div>
+
         <div v-else-if="activeTab === 'exams'" class="tab-content tab-content-padded">
           <div class="empty-state-container">
             <div class="empty-state">
@@ -986,6 +1014,7 @@ const formatDate = (dateString) => {
           <AttendanceConsentTermsTab
             :patient-id="patientId"
             :appointment-id="appointmentId"
+            :disabled="isViewMode"
           />
         </div>
 
@@ -1007,6 +1036,12 @@ const formatDate = (dateString) => {
       :is-editing="isEditingAnamnesis"
       @close="showAnamnesisModal = false"
       @saved="handleAnamnesisSaved"
+    />
+
+    <AssignAnamnesisModal
+      v-if="showAssignAnamnesisModal"
+      :patient-id="patientId"
+      @close="handleAnamnesisAssigned"
     />
 
 
@@ -1069,6 +1104,17 @@ const formatDate = (dateString) => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.anamnesis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.anamnesis-header .column-title {
+  margin-bottom: 0;
 }
 
 
@@ -1187,6 +1233,109 @@ const formatDate = (dateString) => {
   background-color: #fef2f2;
   padding: 0.1rem 0.3rem;
   border-radius: 0.25rem;
+}
+
+/* Novos estilos de procedimentos - igual ao PatientDetailView */
+.procedure-items-new {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.procedure-item-new {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  transition: box-shadow 0.2s;
+}
+
+.procedure-item-new:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.procedure-info-new {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.proc-main-new {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.proc-name-new {
+  font-weight: 600;
+  color: #111827;
+}
+
+.proc-date-new {
+  font-size: 0.875rem;
+  color: var(--cinza-texto);
+}
+
+.procedure-values-new {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.discount-tag-new {
+  font-size: 0.75rem;
+  color: #ef4444;
+  background-color: #fef2f2;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+
+.price-wrapper-new {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.original-price-new {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  text-decoration: line-through;
+}
+
+.final-price-new {
+  font-weight: 600;
+  color: #059669;
+  font-size: 1rem;
+}
+
+.btn-icon-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-btn-new {
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+.delete-btn-new:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+  opacity: 1;
 }
 
 /* ✨ Modal Styles */

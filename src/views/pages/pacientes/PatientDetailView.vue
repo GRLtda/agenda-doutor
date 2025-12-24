@@ -612,7 +612,7 @@ async function handleDeleteProcedure(procedure) {
 
             <div v-if="activeTab === 'anamneses'">
               <div class="anamnesis-section">
-                <h3 class="title-respondidas"><CheckSquare :size="20" /> Respondidas</h3>
+                <h3 class="section-title"><CheckSquare :size="18" /> Respondidas</h3>
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
@@ -645,7 +645,7 @@ async function handleDeleteProcedure(procedure) {
               </div>
 
               <div class="anamnesis-section">
-                <h3 class="title-pendentes"><FileText :size="20" /> Pendentes</h3>
+                <h3 class="section-title"><FileText :size="18" /> Pendentes</h3>
                 <ul v-if="pendingAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in pendingAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info">
@@ -732,10 +732,6 @@ async function handleDeleteProcedure(procedure) {
               <div class="procedures-section">
                 <div class="section-header-row">
                   <h3 class="title-procedures"><Stethoscope :size="20" /> Procedimentos Realizados</h3>
-                  <AppButton @click="isAddProcedureModalOpen = true" variant="primary" class="btn-sm">
-                    <CalendarPlus :size="16" />
-                    Adicionar
-                  </AppButton>
                 </div>
 
                 <ul v-if="patient.procedures && patient.procedures.length > 0" class="procedures-list">
@@ -756,9 +752,7 @@ async function handleDeleteProcedure(procedure) {
                         </span>
                         <span class="final-price">{{ formatCurrency(proc.finalValue) }}</span>
                       </div>
-                      <button @click="handleDeleteProcedure(proc)" class="btn-icon delete-btn" title="Remover Procedimento">
-                          <Trash2 :size="16" />
-                      </button>
+
                     </div>
                   </li>
                 </ul>

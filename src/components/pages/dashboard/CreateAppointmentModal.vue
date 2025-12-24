@@ -995,6 +995,21 @@ async function handleSubmit() {
   color: var(--azul-principal);
 }
 
+/* Footer */
+.drawer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
 @media (max-width: 768px) {
   .close-btn-outside {
     display: none;

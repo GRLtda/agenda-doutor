@@ -10,6 +10,7 @@ import ViewConsentTermModal from '@/components/pages/pacientes/modals/ViewConsen
 const props = defineProps({
   patientId: { type: String, required: true },
   appointmentId: { type: String, required: true },
+  disabled: { type: Boolean, default: false },
 })
 
 const consentTermsStore = useConsentTermsStore()
@@ -86,9 +87,9 @@ function formatDate(date) {
         <FileSignature :size="20" class="header-icon" />
         <h3>Termos de Consentimento</h3>
       </div>
-      <AppButton @click="openAssignModal" variant="primary" size="sm">
+      <AppButton v-if="!disabled" @click="openAssignModal" variant="primary" size="sm">
         <Plus :size="16" />
-        Adicionar Termo
+        Enviar Termo
       </AppButton>
     </div>
 
@@ -148,9 +149,9 @@ function formatDate(date) {
     <div v-else class="empty-state">
       <FileSignature :size="40" class="empty-icon" />
       <p>Nenhum termo de consentimento neste atendimento</p>
-      <AppButton @click="openAssignModal" variant="primary" size="sm">
+      <AppButton v-if="!disabled" @click="openAssignModal" variant="primary" size="sm">
         <Plus :size="14" />
-        Adicionar Termo
+        Enviar Termo
       </AppButton>
     </div>
   </div>
