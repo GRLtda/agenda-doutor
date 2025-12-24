@@ -10,6 +10,7 @@ import { Copy } from 'lucide-vue-next'
 
 const props = defineProps({
   patientId: { type: String, required: true },
+  appointmentId: { type: String, default: null },
 })
 const emit = defineEmits(['close'])
 
@@ -37,7 +38,8 @@ async function handleGenerateLink() {
   const payload = {
     templateId: selectedTemplateId.value,
     tokenTtlDays: 30,
-    sendNotification: sendNotification.value
+    sendNotification: sendNotification.value,
+    ...(props.appointmentId && { appointmentId: props.appointmentId }),
   }
 
   const { success, data } = await consentTermsStore.assignTermToPatient(props.patientId, payload)

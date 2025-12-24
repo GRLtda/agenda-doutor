@@ -57,11 +57,21 @@ export const getPendingConsentTerms = (page = 1, limit = 20) => {
     })
 }
 
+// Busca termos de um atendimento específico
+export const getConsentTermsForAppointment = (appointmentId, params = {}) => {
+    return apiClient.get(`/appointments/${appointmentId}/consent-terms`, { params })
+}
+
 // Download do PDF do termo assinado
 export const downloadConsentTermPdf = (patientId, termId) => {
     return apiClient.get(`/patients/${patientId}/consent-terms/${termId}/pdf`, {
         responseType: 'blob'
     })
+}
+
+// Enviar PDF do termo para o paciente via WhatsApp
+export const sendConsentTermPdf = (patientId, termId) => {
+    return apiClient.post(`/patients/${patientId}/consent-terms/${termId}/send-pdf`)
 }
 
 // --- PÚBLICAS (PACIENTE COM LINK) ---

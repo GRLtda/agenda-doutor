@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useConsentTermsStore } from '@/stores/consent-terms'
-import { downloadConsentTermPdf } from '@/api/consent-terms'
+import { downloadConsentTermPdf, sendConsentTermPdf } from '@/api/consent-terms'
 import { useToast } from 'vue-toastification'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -13,6 +13,7 @@ import {
   Monitor, 
   Calendar,
   Download,
+  Send,
   X 
 } from 'lucide-vue-next'
 import { marked } from 'marked'
@@ -62,6 +63,7 @@ function formatDate(date) {
 }
 
 const isDownloading = ref(false)
+const isSending = ref(false)
 
 async function handleDownloadPdf() {
   if (!isSigned.value) return
@@ -84,6 +86,22 @@ async function handleDownloadPdf() {
     toast.error('Erro ao gerar PDF do termo.')
   } finally {
     isDownloading.value = false
+  }
+}
+
+async function handleSendPdf() {
+  if (!isSigned.value) return
+  
+  isSending.value = true
+  try {
+    await sendConsentTermPdf(props.patientId, props.termId)
+    toast.success('PDF enviado para o paciente via WhatsApp!')
+  } catch (err) {
+    console.error('Erro ao enviar PDF:', err)
+    const message = err.response?.data?.message || 'Erro ao enviar PDF.'
+    toast.error(message)
+  } finally {
+    isSending.value = false
   }
 }
 </script>
@@ -175,6 +193,16 @@ async function handleDownloadPdf() {
         >
           <Download :size="18" />
           Baixar PDF
+        </AppButton>
+        <AppButton 
+          v-if="isSigned" 
+          @click="handleSendPdf" 
+          variant="success" 
+          :loading="isSending"
+          style="width: 100%"
+        >
+          <Send :size="18" />
+          Enviar ao Paciente
         </AppButton>
         <AppButton @click="emit('close')" variant="default" style="width: 100%">
           Fechar

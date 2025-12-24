@@ -46,12 +46,14 @@ import {
   Pencil,
   Plus, // ✨ Import Plus icon
   Syringe, // ✨ Import Syringe icon for procedures
+  FileSignature, // ✨ Import FileSignature icon for consent terms
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
 import CheckoutModal from '@/components/modals/CheckoutModal.vue' // ✨ Import Checkout Modal
 import ImportBudgetModal from '@/components/modals/ImportBudgetModal.vue' // ✨ Import Budget Modal
+import AttendanceConsentTermsTab from '@/components/pages/atendimentos/AttendanceConsentTermsTab.vue' // ✨ Import Consent Terms Tab
 
 const route = useRoute()
 const router = useRouter()
@@ -497,6 +499,7 @@ const menuItems = [
   { id: 'exams', label: 'Exames', icon: Stethoscope },
   { id: 'prescriptions', label: 'Prescrições', icon: Calendar },
   { id: 'documents', label: 'Documentos', icon: Paperclip },
+  { id: 'consent-terms', label: 'Termos', icon: FileSignature },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
 ]
 
@@ -976,6 +979,14 @@ const formatDate = (dateString) => {
               <AppButton variant="primary" :disabled="true">Gerar Documento</AppButton>
             </div>
           </div>
+        </div>
+
+        <!-- ✨ Consent Terms Tab -->
+        <div v-else-if="activeTab === 'consent-terms'" class="tab-content tab-content-padded">
+          <AttendanceConsentTermsTab
+            :patient-id="patientId"
+            :appointment-id="appointmentId"
+          />
         </div>
 
         <div v-else-if="activeTab === 'images'" class="tab-content tab-content-padded">

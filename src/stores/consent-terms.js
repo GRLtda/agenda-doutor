@@ -9,6 +9,7 @@ import {
     duplicateConsentTermTemplate as apiDuplicateTemplate,
     assignConsentTerm as apiAssignTerm,
     getConsentTermsForPatient as apiGetForPatient,
+    getConsentTermsForAppointment as apiGetForAppointment,
     getConsentTermById as apiGetTermById,
     getPendingConsentTerms as apiGetPending,
     getPublicConsentTerm as apiGetPublic,
@@ -35,6 +36,9 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
     const pendingTotal = ref(0)
     const pendingPage = ref(1)
     const pendingPages = ref(1)
+
+    // Estado para termos do atendimento
+    const appointmentTerms = ref([])
 
     // --- Ações para Templates ---
 
@@ -207,6 +211,28 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         }
     }
 
+    // --- Ações para Termos do Atendimento ---
+
+    async function fetchTermsForAppointment(appointmentId) {
+        isLoading.value = true
+        appointmentTerms.value = []
+        try {
+            const response = await apiGetForAppointment(appointmentId)
+            if (Array.isArray(response.data)) {
+                appointmentTerms.value = response.data
+            } else if (response.data?.data) {
+                appointmentTerms.value = response.data.data
+            }
+        } catch (error) {
+            console.error('Erro ao buscar termos do atendimento:', error)
+            const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido'
+            toast.error(`Erro ao buscar termos: ${errorMessage}`)
+            appointmentTerms.value = []
+        } finally {
+            isLoading.value = false
+        }
+    }
+
     // --- Ações Públicas (Paciente com link) ---
 
     async function fetchPublicTerm(token) {
@@ -255,6 +281,7 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         pendingTotal,
         pendingPage,
         pendingPages,
+        appointmentTerms,
 
         // Computed
         signedTerms,
@@ -273,6 +300,7 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         fetchTermsForPatient,
         fetchTermById,
         fetchPendingTerms,
+        fetchTermsForAppointment,
 
         // Ações Públicas
         fetchPublicTerm,
