@@ -1,11 +1,17 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useConsentTermsStore } from '@/stores/consent-terms'
 import { useToast } from 'vue-toastification'
-import { X, Tag, FileSignature } from 'lucide-vue-next'
+import { X, FileSignature } from 'lucide-vue-next'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import FormInput from '@/components/global/FormInput.vue'
+import EditorToolbar from '@/components/shared/EditorToolbar.vue'
+
+// TipTap imports
+import { useEditor, EditorContent } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 
 const props = defineProps({
   templateIdToEdit: { type: String, default: null },
@@ -19,7 +25,6 @@ const toast = useToast()
 
 const isLoading = ref(false)
 const templateName = ref('')
-const templateContent = ref('')
 const activeTab = ref('variables') // 'variables' ou 'formatting'
 
 const isEditMode = computed(() => !!props.templateIdToEdit)
@@ -35,35 +40,69 @@ const availableTags = [
   { tag: '{nome_medico}', label: 'Nome do Médico' },
 ]
 
+// Formato de tag para exibir no editor (estilizado como highlight)
+function insertTag(tag) {
+  if (editor.value) {
+    editor.value.chain().focus().insertContent(tag).run()
+  }
+}
+
+// Setup TipTap Editor
+const editor = useEditor({
+  content: '',
+  extensions: [
+    StarterKit,
+    Underline,
+  ],
+  editorProps: {
+    attributes: {
+      class: 'prose focus:outline-none max-w-none consent-editor-content',
+    },
+  },
+})
+
 onMounted(async () => {
   isLoading.value = true
   try {
     if (props.templateToDuplicate) {
       templateName.value = `${props.templateToDuplicate.name} (Cópia)`
-      templateContent.value = props.templateToDuplicate.content || ''
+      // Aguarda o editor estar pronto
+      setTimeout(() => {
+        if (editor.value) {
+          editor.value.commands.setContent(props.templateToDuplicate.content || '')
+        }
+      }, 100)
     } else if (props.templateIdToEdit) {
       const template = await consentTermsStore.fetchTemplateById(props.templateIdToEdit)
       if (template) {
         templateName.value = template.name
-        templateContent.value = template.content || ''
+        setTimeout(() => {
+          if (editor.value) {
+            editor.value.commands.setContent(template.content || '')
+          }
+        }, 100)
       } else {
         toast.error('Erro ao carregar modelo.')
         emit('close')
       }
     } else {
-      // Novo template - conteúdo padrão
-      templateContent.value = `# Termo de Consentimento
-
-Eu, **{paciente}**, portador(a) do CPF **{cpf}**, declaro que:
-
-1. Fui devidamente informado(a) sobre os procedimentos a serem realizados.
-2. Tive a oportunidade de esclarecer todas as minhas dúvidas.
-3. Autorizo a realização do(s) procedimento(s) proposto(s).
-
-**Local:** {clinica}
-**Data:** {data_atual}
-
-{assinatura}`
+      // Novo template - conteúdo padrão em HTML
+      const defaultContent = `
+        <h1>Termo de Consentimento</h1>
+        <p>Eu, <strong>{paciente}</strong>, portador(a) do CPF <strong>{cpf}</strong>, declaro que:</p>
+        <ol>
+          <li>Fui devidamente informado(a) sobre os procedimentos a serem realizados.</li>
+          <li>Tive a oportunidade de esclarecer todas as minhas dúvidas.</li>
+          <li>Autorizo a realização do(s) procedimento(s) proposto(s).</li>
+        </ol>
+        <p><strong>Local:</strong> {clinica}</p>
+        <p><strong>Data:</strong> {data_atual}</p>
+      `
+      setTimeout(() => {
+        if (editor.value) {
+          editor.value.commands.setContent(defaultContent)
+        }
+      }, 100)
     }
   } finally {
     setTimeout(() => {
@@ -72,16 +111,18 @@ Eu, **{paciente}**, portador(a) do CPF **{cpf}**, declaro que:
   }
 })
 
-function insertTag(tag) {
-  templateContent.value += tag
-}
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+})
 
 async function handleSubmit() {
   if (!templateName.value.trim()) {
     toast.error('O nome do modelo é obrigatório.')
     return
   }
-  if (!templateContent.value.trim()) {
+  
+  const content = editor.value?.getHTML() || ''
+  if (!content.trim() || content === '<p></p>') {
     toast.error('O conteúdo do modelo é obrigatório.')
     return
   }
@@ -90,7 +131,7 @@ async function handleSubmit() {
   try {
     const payload = {
       name: templateName.value.trim(),
-      content: templateContent.value,
+      content: content,
     }
 
     if (isEditMode.value) {
@@ -120,7 +161,7 @@ async function handleSubmit() {
             <h2>{{ isEditMode ? 'Editar Modelo' : 'Novo Modelo de Termo' }}</h2>
           </div>
           <p class="subtitle">
-            Crie um modelo de termo de consentimento com texto e tags dinâmicas.
+            Crie um modelo de termo de consentimento com texto formatado e variáveis dinâmicas.
           </p>
         </div>
         <div class="header-right">
@@ -148,75 +189,29 @@ async function handleSubmit() {
 
       <div class="editor-section">
         <div class="editor-container">
-          <label class="editor-label">Conteúdo do Termo (Markdown)</label>
-          <textarea
-            v-model="templateContent"
-            class="markdown-editor"
-            placeholder="Digite o conteúdo do termo aqui..."
-          ></textarea>
+          <label class="editor-label">Conteúdo do Termo</label>
+          <div class="rich-editor-wrapper">
+            <EditorToolbar v-if="editor" :editor="editor" />
+            <EditorContent v-if="editor" :editor="editor" class="rich-editor-content" />
+          </div>
         </div>
 
+        <!-- Painel de Variáveis - Agora embaixo -->
         <div class="tags-panel">
-          <div class="panel-tabs">
-            <button 
-              :class="['panel-tab', { active: activeTab === 'variables' }]"
-              @click="activeTab = 'variables'"
-            >
-              Variáveis
-            </button>
-            <button 
-              :class="['panel-tab', { active: activeTab === 'formatting' }]"
-              @click="activeTab = 'formatting'"
-            >
-              Formatação
-            </button>
+          <div class="tags-panel-header">
+            <span class="tags-panel-title">Variáveis Dinâmicas</span>
+            <span class="tags-panel-hint">Clique para inserir no texto</span>
           </div>
-
-          <!-- Tab Variáveis -->
-          <div v-if="activeTab === 'variables'" class="tab-content">
-            <p class="panel-description">Clique para inserir no texto</p>
-            <div class="tags-list">
-              <button
-                v-for="item in availableTags"
-                :key="item.tag"
-                @click="insertTag(item.tag)"
-                class="tag-button"
-              >
-                <span class="tag-code">{{ item.tag }}</span>
-                <span class="tag-label">{{ item.label }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Tab Formatação -->
-          <div v-if="activeTab === 'formatting'" class="tab-content">
-            <p class="panel-description">Use os seguintes caracteres para formatar:</p>
-            <div class="format-list">
-              <div class="format-item">
-                <code class="format-code">**texto**</code>
-                <span class="format-result">para <strong>negrito</strong></span>
-              </div>
-              <div class="format-item">
-                <code class="format-code">_texto_</code>
-                <span class="format-result">para <em>itálico</em></span>
-              </div>
-              <div class="format-item">
-                <code class="format-code"># Título</code>
-                <span class="format-result">para título grande</span>
-              </div>
-              <div class="format-item">
-                <code class="format-code">## Subtítulo</code>
-                <span class="format-result">para subtítulo</span>
-              </div>
-              <div class="format-item">
-                <code class="format-code">1. Item</code>
-                <span class="format-result">para lista numerada</span>
-              </div>
-              <div class="format-item">
-                <code class="format-code">- Item</code>
-                <span class="format-result">para lista com bullet</span>
-              </div>
-            </div>
+          <div class="tags-list-horizontal">
+            <button
+              v-for="item in availableTags"
+              :key="item.tag"
+              @click="insertTag(item.tag)"
+              class="tag-button-compact"
+              :title="item.label"
+            >
+              <span class="tag-code">{{ item.tag }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -294,9 +289,9 @@ h2 {
 }
 
 .editor-section {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   flex: 1;
   min-height: 400px;
 }
@@ -304,6 +299,7 @@ h2 {
 .editor-container {
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .editor-label {
@@ -314,105 +310,128 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
-.markdown-editor {
+.rich-editor-wrapper {
   flex: 1;
-  width: 100%;
-  min-height: 350px;
-  padding: 1rem;
+  display: flex;
+  flex-direction: column;
   border: 1px solid #d1d5db;
   border-radius: 0.75rem;
-  font-family: 'Fira Code', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  resize: none;
-  background-color: #fafafa;
+  overflow: hidden;
+  background-color: var(--branco);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.markdown-editor:focus {
-  outline: none;
+.rich-editor-wrapper:focus-within {
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+.rich-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  min-height: 300px;
+}
+
+.rich-editor-content :deep(.ProseMirror) {
+  min-height: 100%;
+  outline: none;
+}
+
+.rich-editor-content :deep(.ProseMirror p) {
+  margin: 0 0 0.75rem 0;
+}
+
+.rich-editor-content :deep(.ProseMirror h1) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--preto);
+}
+
+.rich-editor-content :deep(.ProseMirror h2) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: var(--preto);
+}
+
+.rich-editor-content :deep(.ProseMirror h3) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--preto);
+}
+
+.rich-editor-content :deep(.ProseMirror ul),
+.rich-editor-content :deep(.ProseMirror ol) {
+  padding-left: 1.5rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.rich-editor-content :deep(.ProseMirror li) {
+  margin-bottom: 0.25rem;
+}
+
+.rich-editor-content :deep(.ProseMirror blockquote) {
+  border-left: 3px solid var(--azul-principal);
+  padding-left: 1rem;
+  margin: 0 0 0.75rem 0;
+  color: var(--cinza-texto);
+}
+
+/* Tags Panel - Layout Horizontal */
 .tags-panel {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  padding: 0;
-  height: fit-content;
-  overflow: hidden;
-}
-
-.panel-tabs {
-  display: flex;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.panel-tab {
-  flex: 1;
   padding: 0.75rem 1rem;
-  background: none;
-  border: none;
+}
+
+.tags-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.tags-panel-title {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--cinza-texto);
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
-  border-bottom: 2px solid transparent;
+  color: var(--preto);
 }
 
-.panel-tab:hover {
-  color: var(--azul-principal);
-}
-
-.panel-tab.active {
-  color: var(--azul-principal);
-  border-bottom-color: var(--azul-principal);
-}
-
-.tab-content {
-  padding: 1rem;
-}
-
-.panel-description {
+.tags-panel-hint {
   font-size: 0.75rem;
   color: var(--cinza-texto);
-  margin: 0 0 1rem 0;
 }
 
-.tags-list {
+.tags-list-horizontal {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.tag-button {
+.tag-button-compact {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 0.75rem;
+  align-items: center;
+  padding: 0.375rem 0.625rem;
   background: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   cursor: pointer;
-  text-align: left;
   transition: border-color 0.2s, background-color 0.2s;
 }
 
-.tag-button:hover {
+.tag-button-compact:hover {
   border-color: var(--azul-principal);
   background-color: #eef2ff;
 }
 
-.tag-button.tag-signature {
-  border-color: #10b981;
-  background-color: #ecfdf5;
-}
-
-.tag-button.tag-signature:hover {
-  background-color: #d1fae5;
+.tag-button-compact .tag-code {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.75rem;
+  color: var(--azul-principal);
 }
 
 .tag-code {
@@ -424,39 +443,7 @@ h2 {
   border-radius: 0.25rem;
 }
 
-.tag-signature .tag-code {
-  color: #059669;
-  background: #d1fae5;
-}
-
 .tag-label {
-  font-size: 0.75rem;
-  color: var(--cinza-texto);
-}
-
-.format-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.format-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.format-code {
-  font-family: 'Fira Code', 'Consolas', monospace;
-  font-size: 0.8rem;
-  color: #c026d3;
-  background: #fdf4ff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  width: fit-content;
-}
-
-.format-result {
   font-size: 0.75rem;
   color: var(--cinza-texto);
 }
@@ -518,7 +505,7 @@ h2 {
     order: 2;
   }
 
-  .markdown-editor {
+  .rich-editor-content {
     min-height: 250px;
   }
 }

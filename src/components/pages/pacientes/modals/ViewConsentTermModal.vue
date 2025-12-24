@@ -42,16 +42,29 @@ onMounted(async () => {
   isLoading.value = false
 })
 
-// Configurar marked para quebras de linha
+// Configurar marked para quebras de linha (para conteúdo markdown legado)
 marked.setOptions({
   breaks: true,
   gfm: true
 })
 
+// Função para detectar se o conteúdo já é HTML
+function isHtml(content) {
+  // Verifica se começa com tag HTML típica
+  return /<[a-z][\s\S]*>/i.test(content?.trim() || '')
+}
+
 const renderedContent = computed(() => {
   if (!term.value?.renderedContent) return ''
   // Remove a tag {assinatura} do conteúdo para visualização
   const content = term.value.renderedContent.replace(/\{ ?assinatura ?\}/gi, '')
+  
+  // Se já é HTML (novo formato TipTap), retorna direto
+  if (isHtml(content)) {
+    return content
+  }
+  
+  // Caso contrário, processa como markdown (termos antigos)
   return marked.parse(content)
 })
 
