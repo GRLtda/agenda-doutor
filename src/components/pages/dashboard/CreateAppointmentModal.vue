@@ -509,11 +509,8 @@ async function handleSubmit() {
   <SideDrawer @close="$emit('close')">
     <template #header>
       <header class="drawer-header">
-        <div class="header-top">
+      <div class="header-top">
           <div class="header-left-group">
-            <button @click="$emit('close')" class="mobile-close-btn">
-              <X :size="24" />
-            </button>
             <div class="header-texts">
               <h2 class="header-title">
                 <div class="header-icon-wrapper">
@@ -538,6 +535,10 @@ async function handleSubmit() {
               </p>
             </div>
           </div>
+
+          <button @click="$emit('close')" class="mobile-close-btn">
+            <X :size="24" />
+          </button>
         </div>
         <Stepper :steps="steps" :currentStep="currentStep" class="stepper-component" />
       </header>
@@ -671,7 +672,6 @@ async function handleSubmit() {
 
     <template #footer>
       <footer class="drawer-footer">
-        <AppButton @click="$emit('close')" variant="default">Cancelar</AppButton>
         <div class="footer-actions">
           <AppButton
             v-if="currentStep === 3 || (currentStep === 2 && !isEditMode)"
@@ -764,9 +764,15 @@ async function handleSubmit() {
   cursor: pointer;
   border-radius: 0.375rem;
   transition: all 0.2s;
-  display: flex;
+  display: none; /* Hide by default on desktop */
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .mobile-close-btn {
+    display: flex; /* Show on mobile */
+  }
 }
 
 .mobile-close-btn:hover {
@@ -1027,20 +1033,19 @@ async function handleSubmit() {
 
   .drawer-footer {
     padding: 1rem;
-    flex-direction: column-reverse;
-    gap: 0.75rem;
+    flex-direction: row;
+    gap: 0.5rem;
   }
   .footer-actions {
-    width: 100%;
-    flex-direction: column;
+    display: contents; /* Allows children to be direct flex items of drawer-footer */
   }
-  .footer-actions .app-button {
-    width: 100%;
-    justify-content: center;
-  }
+  .footer-actions .app-button,
   .drawer-footer > .app-button:first-child {
-    width: 100%;
+    width: auto;
+    flex: 1; /* Distribute space equally */
     justify-content: center;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
   }
   
   .drawer-header {
