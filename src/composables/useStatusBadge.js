@@ -7,7 +7,7 @@ export function useStatusBadge(status) {
       class: 'realizado',
       style: {
         backgroundColor: '#f1f5f9',
-        color: '#475569',
+        color: '#2670d7ff',
       },
     },
     // 📅 Agendado - Azul (agendado, futuro)

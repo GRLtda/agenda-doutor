@@ -15,7 +15,17 @@ import {
   Bell,
   AlertCircle,
   Ban,
+  LayoutGrid, // ✨ New Icon
+  List, // ✨ New Icon
+  Filter, // ✨ New Icon
+  User,
+  Phone,
+  Activity,
+  Calendar,
+  Settings,
+  MoreHorizontal
 } from 'lucide-vue-next'
+import { formatPhone } from '@/directives/phone-mask'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
 import { useToast } from 'vue-toastification'
@@ -23,6 +33,9 @@ import { format } from 'date-fns'
 import { useStatusBadge } from '@/composables/useStatusBadge'
 import AppButton from '@/components/global/AppButton.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
+import AppTableList from '@/components/global/AppTableList.vue'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 const appointmentsStore = useAppointmentsStore()
 const router = useRouter()
@@ -33,6 +46,12 @@ const modalInitialData = ref(null)
 const isDetailsModalOpen = ref(false)
 const selectedAppointment = ref(null)
 const searchQuery = ref('')
+const viewMode = ref('kanban') // 'kanban' | 'list'
+const activeActionMenu = ref(null) // ID of appointment with open menu
+
+// Data Inicial: Hoje
+const today = new Date()
+const dateRange = ref([today, today])
 
 // Definição das colunas do Kanban
 const kanbanColumns = [
@@ -56,13 +75,19 @@ function getStatusIcon(status) {
   }
 }
 
-// Filtra appointments pela busca
+// Filtra appointments pela busca e usa a lista genérica
 const filteredAppointments = computed(() => {
-  if (!appointmentsStore.todayAppointments || appointmentsStore.todayAppointments.length === 0) return []
+  // ✨ Switch to generic appointments list
+  const source = appointmentsStore.appointments
+  if (!source || source.length === 0) return []
   
-  return appointmentsStore.todayAppointments.filter((appt) =>
-    appt.patient.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
+  const query = searchQuery.value.toLowerCase()
+  const filtered = source.filter((appt) =>
+    appt.patient?.name?.toLowerCase().includes(query)
   )
+
+  // Sort by Date (Newest > Oldest)
+  return filtered.sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
 })
 
 // Agrupa appointments por status para o Kanban
@@ -88,6 +113,22 @@ const appointmentsByStatus = computed(() => {
 
 // Contagem total
 const totalAppointments = computed(() => filteredAppointments.value.length)
+
+// ✨ Fetch appointments based on date range
+async function fetchAppointments() {
+  if (!dateRange.value || !dateRange.value[0]) return
+  
+  const start = dateRange.value[0].toISOString().split('T')[0]
+  const end = dateRange.value[1] ? dateRange.value[1].toISOString().split('T')[0] : start
+  
+  await appointmentsStore.fetchAppointmentsByDate(start, end)
+}
+
+function formatDateDisplay(dateInput) {
+  if (!dateInput) return ''
+  const date = new Date(dateInput)
+  return date.toLocaleDateString('pt-BR')
+}
 
 function formatTime(dateTimeString) {
   return format(new Date(dateTimeString), 'HH:mm')
@@ -180,39 +221,98 @@ function handleReturn(event) {
   isModalOpen.value = true
 }
 
+// Watch dates to refetch
+import { watch } from 'vue'
+watch(dateRange, () => {
+  fetchAppointments()
+}, { deep: true })
+
 onMounted(() => {
-  appointmentsStore.fetchTodayAppointments()
+  fetchAppointments()
+  document.addEventListener('click', closeActionMenu)
 })
+
+function toggleActionMenu(id, event) {
+  event.stopPropagation()
+  if (activeActionMenu.value === id) {
+    activeActionMenu.value = null
+  } else {
+    activeActionMenu.value = id
+  }
+}
+
+function closeActionMenu(event) {
+    // Basic click outside check
+    activeActionMenu.value = null
+}
 </script>
 
 <template>
   <div class="appointments-page">
     <header class="page-header">
       <div>
-        <h1 class="title">Atendimentos de Hoje</h1>
+        <h1 class="title">Atendimentos</h1>
         <p class="subtitle">Confirme a chegada e inicie os atendimentos dos seus pacientes.</p>
       </div>
       <div class="header-actions">
-        <div class="search-wrapper">
-          <Search :size="18" class="search-icon" />
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Buscar por paciente..."
-            class="search-input"
-          />
+
+
+        <!-- ✨ Date Range Picker (VueDatePicker) -->
+        <div class="date-picker-wrapper">
+          <VueDatePicker
+            v-model="dateRange"
+            range
+            :enable-time-picker="false"
+            locale="pt-BR"
+            format="dd/MM/yyyy"
+            auto-apply
+            :clearable="false"
+            placeholder="Selecione o período"
+          >
+            <template #trigger>
+               <div class="custom-date-trigger">
+                  <div class="date-value">
+                     {{ formatDateDisplay(dateRange[0]) }}
+                     <CalendarDays :size="14" class="text-slate-400" />
+                  </div>
+                  <span class="separator">até</span>
+                  <div class="date-value">
+                     {{ formatDateDisplay(dateRange[1]) }}
+                     <CalendarDays :size="14" class="text-slate-400" />
+                  </div>
+               </div>
+            </template>
+          </VueDatePicker>
         </div>
-        <AppButton variant="primary" @click="openCreateModal">
-          <Plus :size="16" />
-          Marcar Atendimento
-        </AppButton>
+
+        <!-- ✨ View Switcher -->
+        <div class="view-switcher">
+          <button 
+            @click="viewMode = 'kanban'" 
+            class="view-btn" 
+            :class="{ active: viewMode === 'kanban' }"
+            title="Visualização Kanban"
+          >
+            <LayoutGrid :size="18" />
+          </button>
+          <button 
+            @click="viewMode = 'list'" 
+            class="view-btn" 
+            :class="{ active: viewMode === 'list' }"
+            title="Visualização em Lista"
+          >
+            <List :size="18" />
+          </button>
+        </div>
+
+
       </div>
     </header>
 
     <div class="content-wrapper">
       <!-- Empty State -->
       <div
-        v-if="!appointmentsStore.isTodayLoading && totalAppointments === 0"
+        v-if="!appointmentsStore.isLoading && totalAppointments === 0"
         class="empty-state"
       >
         <div class="empty-state-icon">
@@ -229,7 +329,7 @@ onMounted(() => {
       </div>
 
       <!-- Kanban Board -->
-      <div v-else class="kanban-container">
+      <div v-else-if="viewMode === 'kanban'" class="kanban-container">
         <div class="kanban-board">
           <div
             v-for="column in kanbanColumns"
@@ -248,7 +348,7 @@ onMounted(() => {
             <!-- Column Content -->
             <div class="column-content">
               <!-- Skeleton Loading -->
-              <template v-if="appointmentsStore.isTodayLoading">
+              <template v-if="appointmentsStore.isLoading">
                 <div v-for="n in 2" :key="`skel-${column.key}-${n}`" class="skeleton-card">
                   <div class="skeleton-header">
                     <AppSkeleton width="40px" height="40px" borderRadius="10px" />
@@ -365,6 +465,118 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      <!-- ✨ List View -->
+      <div v-else-if="viewMode === 'list'" class="list-container">
+        <AppTableList
+          :loading="appointmentsStore.isLoading"
+          :is-empty="!appointmentsStore.isLoading && filteredAppointments.length === 0"
+          empty-title="Nenhum atendimento encontrado"
+          empty-message="Tente ajustar os filtros ou busque por outro termo."
+          :hide-header="true"
+        >
+          <div class="appointments-table-wrapper">
+            <table class="appointments-table">
+              <thead>
+                <tr>
+                  <th>
+                     <div class="th-content">
+                        <User :size="16" class="icon-slate" />
+                        Paciente
+                     </div>
+                  </th>
+                  <th>
+                     <div class="th-content centered">
+                        <Activity :size="16" class="icon-slate" />
+                        Status
+                     </div>
+                  </th>
+                  <th>
+                     <div class="th-content centered">
+                         <Calendar :size="16" class="icon-slate" />
+                         Data e Hora
+                     </div>
+                  </th>
+                  <th class="centered-header">
+                     <div class="th-content centered">
+                        <Settings :size="16" class="icon-slate" />
+                        Ações
+                     </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="appt in filteredAppointments" :key="appt._id" class="appointment-row" @click="openDetailsModal(appt)">
+                  <td>
+                    <div class="mobile-label">
+                      <User :size="16" class="icon-slate" />
+                      <span>Paciente</span>
+                    </div>
+                    <div class="patient-cell">
+                      <div class="patient-avatar-sm" :style="{ '--avatar-color': '#3b82f6' }">
+                        {{ appt.patient?.name?.charAt(0) || '?' }}
+                      </div>
+                      <div class="patient-info-col">
+                         <span class="patient-name-list">{{ appt.patient?.name || 'Sem nome' }}</span>
+                         <span class="patient-phone-list">{{ formatPhone(appt.patient?.phone) || 'Sem telefone' }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="cell-center">
+                    <div class="mobile-label">
+                      <Activity :size="16" class="icon-slate" />
+                      <span>Status</span>
+                    </div>
+                    <span
+                      :class="['status-badge-list', useStatusBadge(appt.status).badgeClass]"
+                      :style="useStatusBadge(appt.status).badgeStyle"
+                    >
+                      <component :is="getStatusIcon(appt.status)" :size="14" />
+                      {{ useStatusBadge(appt.status).displayText }}
+                    </span>
+                  </td>
+                  <td class="cell-center">
+                    <div class="mobile-label">
+                      <Calendar :size="16" class="icon-slate" />
+                      <span>Data e Hora</span>
+                    </div>
+                    <div class="datetime-cell centered">
+                      <span class="date">{{ formatDateDisplay(appt.startTime) }}</span>
+                      <span class="time">{{ formatTime(appt.startTime) }} - {{ formatTime(appt.endTime) }}</span>
+                    </div>
+                  </td>
+                  <td class="actions-cell">
+                    <div class="mobile-label">
+                      <Settings :size="16" class="icon-slate" />
+                      <span>Ações</span>
+                    </div>
+                    <div class="action-menu-container centered">
+                       <button @click="(e) => toggleActionMenu(appt._id, e)" class="action-dots-btn">
+                          <MoreHorizontal :size="20" />
+                       </button>
+                       
+                       <div v-if="activeActionMenu === appt._id" class="action-dropdown">
+                          <template v-if="appt.status === 'Agendado'">
+                              <button @click.stop="handleStatusChange(appt, 'Confirmado')" class="dropdown-item success">
+                                 <Check :size="16" /> Confirmar
+                              </button>
+                          </template>
+                          <template v-if="appt.status === 'Confirmado' || appt.status === 'Iniciado'">
+                              <button @click.stop="goToAppointmentPage(appt)" class="dropdown-item primary">
+                                 <Play :size="16" /> Atender
+                              </button>
+                          </template>
+                          <button @click.stop="openDetailsModal(appt)" class="dropdown-item">
+                            <Search :size="16" /> Detalhes
+                          </button>
+                       </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </AppTableList>
+      </div>
     </div>
   </div>
 
@@ -411,39 +623,47 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.search-wrapper {
-  position: relative;
+
+
+.content-wrapper {
+  min-height: calc(100vh - 280px);
 }
 
-.search-icon {
-  position: absolute;
-  top: 50%;
-  left: 1rem;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
+.date-picker-wrapper {
+  width: 290px;
 }
 
-.search-input {
-  width: 280px;
-  height: 38px;
-  padding: 0.75rem 1rem 0.75rem 2.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+.custom-date-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background-color: var(--branco);
-  font-size: 0.95rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  height: 42px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--azul-principal);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.custom-date-trigger:hover {
+  border-color: #cbd5e1;
 }
 
-.content-wrapper {
-  min-height: calc(100vh - 280px);
+.date-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.separator {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 /* Kanban Container */
@@ -793,7 +1013,174 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 1024px) {
+/* ✨ Header Controls Styles */
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.date-input {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+.date-separator {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.view-switcher {
+  display: flex;
+  background: #f1f5f9;
+  padding: 0.2rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-btn:hover {
+  background: rgba(255,255,255,0.5);
+  color: #334155;
+}
+
+.view-btn.active {
+  background: white;
+  color: var(--azul-principal);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ✨ List View Styles */
+.list-container {
+  width: 100%;
+  background: white;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  /* Make container fill remaining space but with a safe bottom margin */
+  height: calc(100vh - 220px); 
+  display: flex;
+  flex-direction: column;
+}
+
+.appointments-table-wrapper {
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: auto;
+  flex: 1; /* Allow wrapper to fill container */
+}
+
+
+/* Fix table header */
+.appointments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointments-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-align: left;
+  padding: 1rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow for sticky header */
+}
+
+.appointments-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.appointment-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.appointment-row:hover {
+  background: #f8fafc;
+}
+
+.status-badge-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.patient-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patient-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.datetime-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.datetime-cell .date {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.datetime-cell .time {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.text-right {
+  text-align: right;
+}
+
+
+
+
+
+@media (max-width: 1400px) {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -802,7 +1189,7 @@ onMounted(() => {
 
   .header-actions {
     width: 100%;
-    flex-direction: column;
+    flex-direction: row;
     align-items: stretch;
   }
 
@@ -833,6 +1220,220 @@ onMounted(() => {
     height: auto;
     min-height: 200px;
     max-height: 50vh;
+  }
+}
+
+/* Centered Alignment Helpers */
+.datetime-cell.centered {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.action-menu-container.centered {
+  justify-content: center;
+}
+
+/* Updated Patient and Action Styles */
+.patient-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patient-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.patient-name-list {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.patient-phone-list {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.actions-cell {
+  position: relative; /* Ensure dropdown positioning context */
+}
+
+/* Action Menu */
+.action-menu-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.action-dots-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-dots-btn:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  width: 160px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: #475569;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: all 0.1s;
+}
+
+.dropdown-item:hover {
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+.dropdown-item.success {
+  color: #16a34a;
+}
+.dropdown-item.success:hover {
+  background-color: #f0fdf4;
+}
+
+.dropdown-item.primary {
+  color: #2563eb;
+}
+.dropdown-item.primary:hover {
+  background-color: #eff6ff;
+}
+/* Custom Alignment Classes (No Tailwind) */
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.th-content.centered {
+  justify-content: center;
+}
+
+.icon-slate {
+  color: #94a3b8; /* slate-400 equivalent */
+}
+
+.centered-header {
+  text-align: center;
+}
+
+.cell-center {
+  text-align: center;
+}
+
+/* Ensure flex parents in cells center their content if needed */
+.cell-center .status-badge-list {
+  margin: 0 auto;
+  width: fit-content;
+}
+
+/* Mobile Label (Hidden on Desktop) */
+.mobile-label {
+  display: none;
+}
+
+/* Responsive Table (Card View) */
+@media screen and (max-width: 768px) {
+  .appointments-table thead {
+    display: none;
+  }
+
+  .appointments-table, 
+  .appointments-table tbody, 
+  .appointments-table tr, 
+  .appointments-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .appointments-table tr {
+    margin-bottom: 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    padding: 0.5rem;
+  }
+
+  .appointments-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: right;
+  }
+
+  .appointments-table td:last-child {
+    border-bottom: none;
+  }
+
+  /* Reveal Mobile Label */
+  .mobile-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+
+  /* Reset alignment for mobile card view */
+  .cell-center,
+  .appointments-table td.cell-center {
+    text-align: right !important;
+  }
+
+  /* Override center margin on badge to allow space-between to work */
+  .cell-center .status-badge-list {
+    margin: 0 !important;
+  }
+
+  .datetime-cell.centered {
+    align-items: flex-end !important;
+    text-align: right !important;
+    margin: 0 !important;
   }
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="app-table-list-container">
-    <div class="filters-header">
+    <div v-if="!hideHeader" class="filters-header">
       <div v-if="$slots.filters" class="filters-content">
         <slot name="filters"></slot>
       </div>
@@ -58,6 +58,10 @@ defineProps({
   pagination: {
     type: Object,
     default: () => ({}),
+  },
+  hideHeader: {
+    type: Boolean,
+    default: false,
   },
 })
 
