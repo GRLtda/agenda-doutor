@@ -507,8 +507,8 @@ async function handleCheckoutConfirm(checkoutData) {
 
 
 const menuItems = [
-  { id: 'record', label: 'Prontuario', icon: FileText },
   { id: 'patient-info', label: 'Informações', icon: User },
+  { id: 'record', label: 'Prontuario', icon: FileText },
   { id: 'procedures', label: 'Procedimentos', icon: Syringe },
   { id: 'consent-terms', label: 'Termos', icon: FileSignature },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
@@ -731,7 +731,7 @@ const formatDate = (dateString) => {
           <div class="patient-info-layout">
             <!-- Left Column: General Info -->
             <div class="info-column">
-              <h3 class="column-title"><User :size="20" /> Dados do Paciente</h3>
+              <h3 class="column-title"><User class="title-icon" :size="20" /> Dados do Paciente</h3>
               
               <!-- Patient Card -->
               <div class="patient-profile-card">
@@ -786,7 +786,7 @@ const formatDate = (dateString) => {
             <!-- Right Column: Anamneses (Scrollable) -->
             <div class="anamnesis-column">
               <div class="anamnesis-header">
-                <h3 class="column-title"><FileText :size="20" /> Anamneses</h3>
+                <h3 class="column-title"><FileText class="title-icon" :size="20" /> Anamneses</h3>
                 <AppButton 
                   v-if="!isViewMode" 
                   @click="showAssignAnamnesisModal = true" 
@@ -1017,9 +1017,8 @@ const formatDate = (dateString) => {
 }
 
 .column-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--azul-principal);
+  font-size: 1rem;
+  font-weight: 600;
   margin-bottom: 1.7rem;
   display: flex;
   align-items: center;
@@ -1272,6 +1271,10 @@ const formatDate = (dateString) => {
   background-color: #fef2f2;
   color: #dc2626;
   opacity: 1;
+}
+
+.title-icon {
+  color: var(--azul-principal);
 }
 
 /* ✨ Modal Styles */

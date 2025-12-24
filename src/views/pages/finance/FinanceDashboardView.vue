@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useFinanceStore } from '@/stores/finance'
 import AppPagination from '@/components/global/AppPagination.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
+import FormInput from '@/components/global/FormInput.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,8 +28,12 @@ import {
   Calendar,
   Search,
   Filter,
-  MoreHorizontal
+  MoreHorizontal,
+  CalendarDays, // Import CalendarDays
+  ArrowLeft     // Import ArrowLeft
 } from 'lucide-vue-next'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 // Register ChartJS components
 ChartJS.register(
@@ -55,8 +60,18 @@ const periods = [
   { label: 'Hoje', value: 'day' },
   { label: 'Semana', value: 'week' },
   { label: 'Mês', value: 'month' },
-  { label: 'Ano', value: 'year' }
+  { label: 'Ano', value: 'year' },
+  { label: 'Personalizado', value: 'custom' }
 ]
+
+const customDateRange = ref(null)
+const previousPeriod = ref('month') // Store previous period to restore on back
+
+const formatDateDisplay = (dateInput) => {
+  if (!dateInput) return ''
+  const date = new Date(dateInput)
+  return date.toLocaleDateString('pt-BR')
+}
 
 onMounted(async () => {
   await Promise.all([
@@ -67,6 +82,14 @@ onMounted(async () => {
 })
 
 const handlePeriodChange = async (period) => {
+  if (period === 'custom') {
+    previousPeriod.value = selectedPeriod.value === 'custom' ? 'month' : selectedPeriod.value
+    selectedPeriod.value = period
+    // Reset range when switching to custom
+    customDateRange.value = null
+    return
+  }
+
   selectedPeriod.value = period
   await Promise.all([
     financeStore.fetchDashboardData(period),
@@ -75,17 +98,68 @@ const handlePeriodChange = async (period) => {
   ])
 }
 
+const cancelCustomMode = () => {
+    handlePeriodChange(previousPeriod.value)
+}
+
+const applyCustomFilter = async () => {
+  if (!customDateRange.value || !customDateRange.value[0] || !customDateRange.value[1]) return
+  
+  const startDate = customDateRange.value[0].toISOString().split('T')[0]
+  const endDate = customDateRange.value[1].toISOString().split('T')[0]
+
+  isLoadingCustom.value = true
+  await Promise.all([
+    financeStore.fetchDashboardData('custom', startDate, endDate),
+    financeStore.fetchTopClients({ 
+      period: 'custom', 
+      startDate, 
+      endDate, 
+      search: clientSearch.value 
+    }),
+    financeStore.fetchTopProcedures({ 
+      period: 'custom', 
+      startDate, 
+      endDate, 
+      search: procedureSearch.value 
+    })
+  ])
+  isLoadingCustom.value = false
+}
+
+const isLoadingCustom = ref(false)
+
 const handlePageChange = async (page) => {
+    let startDate = null
+    let endDate = null
+    
+    if (selectedPeriod.value === 'custom' && customDateRange.value) {
+        startDate = customDateRange.value[0].toISOString().split('T')[0]
+        endDate = customDateRange.value[1].toISOString().split('T')[0]
+    }
+
     await financeStore.fetchTopClients({ 
         period: selectedPeriod.value, 
+        startDate,
+        endDate,
         page, 
         search: clientSearch.value 
     })
 }
 
 const handleProcedurePageChange = async (page) => {
+    let startDate = null
+    let endDate = null
+    
+    if (selectedPeriod.value === 'custom' && customDateRange.value) {
+        startDate = customDateRange.value[0].toISOString().split('T')[0]
+        endDate = customDateRange.value[1].toISOString().split('T')[0]
+    }
+
     await financeStore.fetchTopProcedures({ 
         period: selectedPeriod.value, 
+        startDate,
+        endDate,
         page, 
         search: procedureSearch.value 
     })
@@ -97,8 +171,18 @@ const handleSearch = (event) => {
     
     clearTimeout(searchTimeout)
     searchTimeout = setTimeout(async () => {
+        let startDate = null
+        let endDate = null
+        
+        if (selectedPeriod.value === 'custom' && customDateRange.value) {
+            startDate = customDateRange.value[0].toISOString().split('T')[0]
+            endDate = customDateRange.value[1].toISOString().split('T')[0]
+        }
+
         await financeStore.fetchTopClients({ 
-            period: selectedPeriod.value, 
+            period: selectedPeriod.value,
+            startDate,
+            endDate, 
             page: 1, 
             search: query 
         })
@@ -111,8 +195,18 @@ const handleProcedureSearch = (event) => {
     
     clearTimeout(procedureSearchTimeout)
     procedureSearchTimeout = setTimeout(async () => {
+        let startDate = null
+        let endDate = null
+        
+        if (selectedPeriod.value === 'custom' && customDateRange.value) {
+            startDate = customDateRange.value[0].toISOString().split('T')[0]
+            endDate = customDateRange.value[1].toISOString().split('T')[0]
+        }
+
         await financeStore.fetchTopProcedures({ 
-            period: selectedPeriod.value, 
+            period: selectedPeriod.value,
+            startDate,
+            endDate, 
             page: 1, 
             search: query 
         })
@@ -328,16 +422,63 @@ const getComparisonPercent = (current, previous) => {
         <p class="subtitle">Visão geral do desempenho da sua clínica.</p>
       </div>
       
-      <div class="period-tabs">
-        <button 
-          v-for="period in periods" 
-          :key="period.value"
-          @click="handlePeriodChange(period.value)"
-          class="tab-btn"
-          :class="{ 'active': selectedPeriod === period.value }"
-        >
-          {{ period.label }}
-        </button>
+      <div class="header-right">
+        <Transition name="slide-fade" mode="out-in">
+            <!-- Normal Tabs -->
+            <div v-if="selectedPeriod !== 'custom'" class="period-tabs" key="tabs">
+                <button 
+                v-for="period in periods" 
+                :key="period.value"
+                @click="handlePeriodChange(period.value)"
+                class="tab-btn"
+                :class="{ 'active': selectedPeriod === period.value }"
+                >
+                {{ period.label }}
+                </button>
+            </div>
+
+            <!-- Custom Mode Controls -->
+            <div v-else class="custom-controls" key="custom">
+                <button class="back-btn" @click="cancelCustomMode" title="Voltar">
+                    <ArrowLeft :size="18" />
+                </button>
+                
+                <div class="date-picker-wrapper-inline">
+                    <VueDatePicker
+                        v-model="customDateRange"
+                        range
+                        :enable-time-picker="false"
+                        locale="pt-BR"
+                        format="dd/MM/yyyy"
+                        auto-apply
+                        :clearable="false"
+                        placeholder="Selecione o período"
+                    >
+                        <template #trigger>
+                        <div class="custom-date-trigger-inline">
+                            <div class="date-value">
+                                {{ customDateRange && customDateRange[0] ? formatDateDisplay(customDateRange[0]) : 'Data Inicial' }}
+                            </div>
+                            <span class="separator-inline">até</span>
+                            <div class="date-value">
+                                {{ customDateRange && customDateRange[1] ? formatDateDisplay(customDateRange[1]) : 'Data Final' }}
+                                <CalendarDays :size="14" class="text-slate-400" />
+                            </div>
+                        </div>
+                        </template>
+                    </VueDatePicker>
+                </div>
+
+                <button 
+                    class="apply-btn-inline" 
+                    @click="applyCustomFilter"
+                    :disabled="!customDateRange || !customDateRange[0] || !customDateRange[1] || isLoadingCustom"
+                >
+                    <span v-if="isLoadingCustom">...</span>
+                    <span v-else>Filtrar</span>
+                </button>
+            </div>
+        </Transition>
       </div>
     </header>
 
@@ -666,7 +807,13 @@ const getComparisonPercent = (current, previous) => {
   align-items: center; /* Changed to center to match PatientsListView */
   margin-bottom: 2rem;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    min-height: 52px; /* Prevent layout shift */
 }
 
 .title {
@@ -710,6 +857,98 @@ const getComparisonPercent = (current, previous) => {
 .tab-btn:hover:not(.active) {
   color: var(--preto);
 }
+
+/* Custom Controls Inline */
+.custom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--branco);
+    padding: 0.25rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e5e7eb;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    border-radius: 0.5rem;
+    color: var(--cinza-texto);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.back-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--preto);
+}
+
+.date-picker-wrapper-inline {
+    width: 260px;
+}
+
+.custom-date-trigger-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.75rem;
+  background-color: transparent;
+  cursor: pointer;
+  height: 36px;
+  gap: 0.5rem;
+}
+
+.separator-inline {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    padding: 0 0.25rem;
+}
+
+.apply-btn-inline {
+    padding: 0 1rem;
+    height: 36px;
+    background-color: var(--azul-principal);
+    color: var(--branco);
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.apply-btn-inline:hover {
+    background-color: var(--azul-escuro);
+}
+
+.apply-btn-inline:disabled {
+    background-color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* Animations */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Original Custom Filter Bar Styles Removed */
 
 /* Grid Layouts */
 .top-grid {

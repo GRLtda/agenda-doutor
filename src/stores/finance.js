@@ -25,11 +25,14 @@ export const useFinanceStore = defineStore('finance', () => {
   })
 
   // Actions
-  async function fetchDashboardData(period = 'month') {
+  async function fetchDashboardData(period = 'month', startDate = null, endDate = null) {
     isLoading.value = true
     error.value = null
     try {
-      const response = await apiClient.get('/finance/dashboard', { params: { period } })
+      const p = period === 'custom' ? 'custom' : period
+      const response = await apiClient.get('/finance/dashboard', {
+        params: { period: p, startDate, endDate }
+      })
       const data = response.data
 
       revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
@@ -62,11 +65,11 @@ export const useFinanceStore = defineStore('finance', () => {
     isLoading: false
   })
 
-  async function fetchTopClients({ period = 'month', page = 1, search = '' } = {}) {
+  async function fetchTopClients({ period = 'month', startDate = null, endDate = null, page = 1, search = '' } = {}) {
     topClientsPaginated.value.isLoading = true
     try {
       const response = await apiClient.get('/finance/top-clients', {
-        params: { period, page, search }
+        params: { period, startDate, endDate, page, search }
       })
       topClientsPaginated.value.data = response.data.data
       topClientsPaginated.value.pagination = response.data.pagination
@@ -88,11 +91,11 @@ export const useFinanceStore = defineStore('finance', () => {
     isLoading: false
   })
 
-  async function fetchTopProcedures({ period = 'month', page = 1, search = '' } = {}) {
+  async function fetchTopProcedures({ period = 'month', startDate = null, endDate = null, page = 1, search = '' } = {}) {
     topProceduresPaginated.value.isLoading = true
     try {
       const response = await apiClient.get('/finance/top-procedures', {
-        params: { period, page, search }
+        params: { period, startDate, endDate, page, search }
       })
       topProceduresPaginated.value.data = response.data.data
       topProceduresPaginated.value.pagination = response.data.pagination
