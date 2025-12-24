@@ -442,7 +442,7 @@ async function handleDeleteProcedure(procedure) {
               <div v-if="isEditing && editablePatient" class="unified-card">
                 <form @submit.prevent="handleSaveChanges">
                   <section class="card-section">
-                    <h3 class="section-title"><ClipboardList :size="18" /> Dados Pessoais</h3>
+                    <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                     <div class="section-content grid-2-cols">
                       <FormInput
                         v-model="editablePatient.name"
@@ -486,7 +486,7 @@ async function handleDeleteProcedure(procedure) {
                   <div class="divider"></div>
 
                   <section class="card-section">
-                    <h3 class="section-title"><MapPin :size="18" /> Endereço</h3>
+                    <h3 class="section-title"><MapPin class="title-icon" :size="18" /> Endereço</h3>
                     <div class="section-content grid-2-cols">
                       <FormInput v-model="editablePatient.address.cep" label="CEP" />
                       <FormInput
@@ -514,7 +514,7 @@ async function handleDeleteProcedure(procedure) {
               </div>
               <div v-else class="unified-card">
                 <section class="card-section">
-                  <h3 class="section-title"><ClipboardList :size="18" /> Dados Pessoais</h3>
+                  <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                   <div class="section-content grid-2-cols">
                     <div class="detail-item">
                       <span class="label">Data de Nasc.</span>
@@ -534,7 +534,7 @@ async function handleDeleteProcedure(procedure) {
                       <strong class="value" :class="{ 'text-red-500 flex items-center gap-1': patient.isInvalidWhatsapp }">
                           {{ formatPhone(patient.phone) }}
                           <div v-if="patient.isInvalidWhatsapp" class="invalid-whatsapp-badge" title="Este número não possui WhatsApp ou é inválido.">
-                             <AlertTriangle :size="14" />
+                             <AlertTriangle class="title-icon" :size="14" />
                              <span class="text-xs">Inválido</span>
                           </div>
                       </strong>
@@ -550,7 +550,7 @@ async function handleDeleteProcedure(procedure) {
                 <div class="divider"></div>
 
                 <section class="card-section">
-                  <h3 class="section-title"><MapPin :size="18" /> Endereço</h3>
+                  <h3 class="section-title"><MapPin class="title-icon" :size="18" /> Endereço</h3>
                   <div
                     v-if="patient.address && patient.address.street"
                     class="section-content grid-2-cols"
@@ -591,7 +591,7 @@ async function handleDeleteProcedure(procedure) {
                 <div class="divider"></div>
 
                 <section class="card-section">
-                  <h3 class="section-title"><History :size="18" /> Histórico Recente</h3>
+                  <h3 class="section-title"><History class="title-icon" :size="18" /> Histórico Recente</h3>
                   <div class="section-content">
                     <div v-if="lastAppointment" class="last-appointment-item">
                       <span class="label">Último Atendimento</span>
@@ -612,7 +612,7 @@ async function handleDeleteProcedure(procedure) {
 
             <div v-if="activeTab === 'anamneses'">
               <div class="anamnesis-section">
-                <h3 class="section-title"><CheckSquare :size="18" /> Respondidas</h3>
+                <h3 class="section-title"><CheckSquare class="title-icon" :size="18" /> Respondidas</h3>
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
@@ -628,7 +628,7 @@ async function handleDeleteProcedure(procedure) {
                       class="btn-icon"
                       title="Visualizar PDF"
                     >
-                      <FileDown :size="16" />
+                      <FileDown class="title-icon" :size="16" />
                     </button>
                   </li>
                 </ul>
@@ -645,7 +645,7 @@ async function handleDeleteProcedure(procedure) {
               </div>
 
               <div class="anamnesis-section">
-                <h3 class="section-title"><FileText :size="18" /> Pendentes</h3>
+                <h3 class="section-title"><FileText class="title-icon" :size="18" /> Pendentes</h3>
                 <ul v-if="pendingAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in pendingAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info">
@@ -684,7 +684,7 @@ async function handleDeleteProcedure(procedure) {
 
             <div v-if="activeTab === 'history'">
               <div class="history-section">
-                <h3 class="title-historico"><History :size="20" /> Histórico de Atendimentos</h3>
+                <h3 class="title-historico"><History class="title-icon" :size="20" /> Histórico de Atendimentos</h3>
                 <div v-if="appointmentsStore.isLoading" class="loading-state">
                   Carregando histórico...
                 </div>
@@ -731,7 +731,7 @@ async function handleDeleteProcedure(procedure) {
             <div v-if="activeTab === 'procedures'">
               <div class="procedures-section">
                 <div class="section-header-row">
-                  <h3 class="title-procedures"><Stethoscope :size="20" /> Procedimentos Realizados</h3>
+                  <h3 class="title-procedures"><Stethoscope class="title-icon" :size="20" /> Procedimentos Realizados</h3>
                 </div>
 
                 <ul v-if="patient.procedures && patient.procedures.length > 0" class="procedures-list">
@@ -839,6 +839,10 @@ async function handleDeleteProcedure(procedure) {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra mais suave */
 
   max-width: calc(100vw - 40px);
+}
+
+.title-icon {
+  color: var(--azul-principal);
 }
 
 .missing-info-tooltip::after {
@@ -980,7 +984,6 @@ async function handleDeleteProcedure(procedure) {
   overflow-x: auto; /* Permitir scroll em telas pequenas */
 }
 
-/* ... (estilos anteriores) ... */
 
 /* ESTILOS DA ABA DE PROCEDIMENTOS */
 .procedures-section {
@@ -997,9 +1000,9 @@ async function handleDeleteProcedure(procedure) {
 }
 
 .title-procedures {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--preto);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1130,9 +1133,9 @@ async function handleDeleteProcedure(procedure) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--azul-principal);
+  color: var(--preto);
   margin: 0 0 1.5rem 0;
 }
 .divider {
@@ -1204,13 +1207,13 @@ async function handleDeleteProcedure(procedure) {
 }
 .anamnesis-section h3,
 .history-section h3 {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--azul-principal);
+  color: var(--preto);
 }
 .anamnesis-list,
 .history-list {

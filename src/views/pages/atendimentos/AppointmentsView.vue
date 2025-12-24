@@ -508,10 +508,14 @@ function closeActionMenu(event) {
                 <tr v-for="appt in filteredAppointments" :key="appt._id" class="appointment-row" @click="openDetailsModal(appt)">
                   <td>
                     <div class="mobile-label">
-                      <User :size="16" class="icon-slate" />
+                      <!-- Responsive Avatar in Label -->
+                      <div class="patient-avatar-sm" :style="{ '--avatar-color': '#3b82f6' }">
+                        {{ appt.patient?.name?.charAt(0) || '?' }}
+                      </div>
                       <span>Paciente</span>
                     </div>
                     <div class="patient-cell">
+                      <!-- Content Avatar (Hidden on mobile via CSS) -->
                       <div class="patient-avatar-sm" :style="{ '--avatar-color': '#3b82f6' }">
                         {{ appt.patient?.name?.charAt(0) || '?' }}
                       </div>
@@ -1246,17 +1250,26 @@ function closeActionMenu(event) {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+  overflow: hidden; /* Ensure container clips content */
+  min-width: 0; /* Flexbox ellipsis fix */
+  flex: 1;
 }
 
 .patient-name-list {
   font-weight: 600;
   color: #1e293b;
   font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .patient-phone-list {
   font-size: 0.8rem;
   color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actions-cell {
@@ -1434,6 +1447,20 @@ function closeActionMenu(event) {
     align-items: flex-end !important;
     text-align: right !important;
     margin: 0 !important;
+  }
+
+  /* Hide the original avatar in the content cell on mobile since it's in the label now */
+  .patient-cell .patient-avatar-sm {
+    display: none;
+  }
+  
+  .patient-cell {
+     justify-content: flex-end; /* Align text to right on mobile */
+  }
+  
+  .patient-info-col {
+     align-items: stretch; /* Align text stack to right on mobile */
+     max-width: 160px; /* Fixed width to force ellipsis on long names */
   }
 }
 </style>

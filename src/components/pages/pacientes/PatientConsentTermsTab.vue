@@ -150,7 +150,6 @@ function formatDate(date) {
 
 <style scoped>
 .consent-terms-tab {
-  padding: 1rem 0;
 }
 
 .tab-header {

@@ -98,7 +98,13 @@ function selectOption(option) {
       <Teleport to="body">
         <Transition name="fade">
           <ul v-if="isOpen" ref="optionsListRef" class="options-list" :style="dropdownStyle">
+            <li v-if="options.length === 0" class="no-options">
+              <slot name="empty">
+                Nenhum registro encontrado
+              </slot>
+            </li>
             <li
+              v-else
               v-for="option in options"
               :key="option.value"
               @mousedown.prevent="selectOption(option)"
@@ -184,6 +190,12 @@ function selectOption(option) {
 }
 .option-item:hover {
   background-color: #f3f4f6;
+}
+.no-options {
+  padding: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  font-size: 0.875rem;
 }
 .fade-enter-active,
 .fade-leave-active {

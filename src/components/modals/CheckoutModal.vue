@@ -470,12 +470,6 @@ displayAmount.value = '0,00'
   gap: 0.75rem;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .section-title {
   font-size: 0.875rem;
   font-weight: 600;

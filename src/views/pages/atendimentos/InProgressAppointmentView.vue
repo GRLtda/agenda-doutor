@@ -1009,7 +1009,7 @@ const formatDate = (dateString) => {
 
 .patient-info-layout {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   padding: 2rem;
   height: 100%;
   overflow: hidden;
@@ -1020,7 +1020,7 @@ const formatDate = (dateString) => {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--azul-principal);
-  margin-bottom: 1rem;
+  margin-bottom: 1.7rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1746,7 +1746,7 @@ const formatDate = (dateString) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  height: 100dvh; /* Garante altura total */
+  height: 99.70dvh; /* Garante altura total */
 }
 .patient-card {
   display: flex;
@@ -2242,6 +2242,7 @@ const formatDate = (dateString) => {
     left: 0;
     bottom: 0;
     height: 100dvh;
+    border-radius: 0;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
     z-index: 4999;

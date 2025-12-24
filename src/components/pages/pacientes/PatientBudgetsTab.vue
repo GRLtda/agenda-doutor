@@ -143,7 +143,7 @@ function handleClickOutside(event) {
 
     <div class="section-header-row">
       <h3 class="title-budgets">
-        <Receipt :size="20" />
+        <Receipt class="title-icon" :size="20" />
         Orçamentos
       </h3>
       <AppButton @click="handleCreateBudget" variant="primary" class="btn-sm">
@@ -290,18 +290,22 @@ function handleClickOutside(event) {
 .section-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: self-start;
   margin-bottom: 0.5rem;
 }
 
 .title-budgets {
   font-size: 1rem;
-  font-weight: 700;
-  color: #111827;
+  font-weight: 600;
+  color: var(--preto);
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin: 0;
+}
+
+.title-icon {
+  color: var(--azul-principal);
 }
 
 .btn-sm {

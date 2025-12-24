@@ -5,14 +5,14 @@ import { ChevronDown } from 'lucide-vue-next'
 const props = defineProps({
   modelValue: [String, Number],
   options: { type: Array, required: true },
-  placeholder: { type: String, default: 'Selecione' },
+  emptyLabel: { type: String, default: 'Selecione' },
 })
 const emit = defineEmits(['update:modelValue'])
 
 const isOpen = ref(false)
 
 const selectedLabel = computed(() => {
-  return props.modelValue || props.placeholder
+  return props.modelValue || props.emptyLabel
 })
 
 function toggleDropdown() {

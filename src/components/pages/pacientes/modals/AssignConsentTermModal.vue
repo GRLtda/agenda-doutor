@@ -6,7 +6,7 @@ import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
-import { Copy } from 'lucide-vue-next'
+import { Copy, FilePlus } from 'lucide-vue-next'
 
 const props = defineProps({
   patientId: { type: String, required: true },
@@ -99,11 +99,14 @@ function copyLink() {
 
     <div class="drawer-body-content">
       <div v-if="!generatedLink">
-        <StyledSelect 
-          v-model="selectedTemplateId" 
-          :options="templates" 
-          label="Selecione o Modelo" 
-        />
+        <StyledSelect v-model="selectedTemplateId" :options="templates" label="Selecione o Modelo">
+          <template #empty>
+            <div class="empty-state-custom">
+              <FilePlus :size="32" class="empty-icon" />
+              <p>Nenhum modelo encontrado</p>
+            </div>
+          </template>
+        </StyledSelect>
 
         <FormInput
           type="checkbox"
@@ -162,7 +165,6 @@ function copyLink() {
 h2 { font-size: 1.25rem; font-weight: 600; color: #111827; margin: 0; }
 .subtitle { color: var(--cinza-texto); margin-top: 0.25rem; font-size: 0.875rem; }
 
-.drawer-body-content { padding: 1.5rem; }
 
 .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; }
 .link-wrapper { position: relative; }
@@ -189,5 +191,31 @@ h2 { font-size: 1.25rem; font-weight: 600; color: #111827; margin: 0; }
 
 .notification-checkbox {
   margin-top: 1.5rem;
+}
+
+.empty-state-custom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  gap: 0.75rem;
+  text-align: center;
+}
+.empty-icon {
+  color: var(--cinza-texto);
+  opacity: 0.7;
+}
+.empty-state-custom p {
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
+  margin: 0;
+}
+.btn-create-term {
+  margin-top: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.875rem;
+  height: 38px;
 }
 </style>

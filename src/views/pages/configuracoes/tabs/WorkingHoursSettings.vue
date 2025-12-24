@@ -93,9 +93,9 @@ async function handleUpdateHours() {
         </div>
         <div class="card-body">
           <div class="time-inputs" v-if="day.isOpen">
-            <CustomSelect v-model="day.startTime" :options="timeOptions" />
+            <CustomSelect v-model="day.startTime" :options="timeOptions" empty-label="Selecione" />
             <span class="separator">às</span>
-            <CustomSelect v-model="day.endTime" :options="timeOptions" />
+            <CustomSelect v-model="day.endTime" :options="timeOptions" empty-label="Selecione" />
           </div>
           <div v-else class="closed-text">Fechado</div>
         </div>

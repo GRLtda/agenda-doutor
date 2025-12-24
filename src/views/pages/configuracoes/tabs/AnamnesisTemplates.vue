@@ -189,7 +189,7 @@ async function handleDelete(templateId) {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 .header-subtitle {
   margin-top: 0.25rem;

@@ -107,7 +107,7 @@ const formatCPF = (cpf) => {
           :options="patientSearchOptions"
           :loading="patientsStore.isLoading"
           @search="handlePatientSearch"
-          placeholder="Buscar paciente por nome..."
+          empty-label="Buscar paciente por nome..."
           class="patient-search"
         />
         <AppButton variant="primary" to="/app/pacientes/novo" class="add-patient-btn">

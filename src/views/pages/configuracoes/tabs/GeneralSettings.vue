@@ -151,7 +151,7 @@ onBeforeRouteLeave((to, from, next) => {
 
         <div class="info-card basic-info-card">
             <div class="section-header">
-                <LayoutList :size="20" />
+                <LayoutList class="title-icon" :size="20" />
                 <h3>Informações Básicas</h3>
             </div>
 
@@ -191,7 +191,7 @@ onBeforeRouteLeave((to, from, next) => {
 
         <div class="info-card address-card">
             <div class="section-header">
-                <MapPin :size="20" />
+                <MapPin class="title-icon" :size="20" />
                 <h3>Endereço da Clínica</h3>
             </div>
 
@@ -286,15 +286,18 @@ onBeforeRouteLeave((to, from, next) => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--azul-principal);
     margin-bottom: 1.5rem;
     font-weight: 600;
     border-bottom: 1px solid #f3f4f6;
     padding-bottom: 0.75rem;
 }
 .section-header h3 {
-    font-size: 1.125rem;
+    font-size: 1rem;
     margin: 0;
+}
+
+.title-icon {
+  color: var(--azul-principal);
 }
 
 /* GRID DE CAMPOS INTERNA */

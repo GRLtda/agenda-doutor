@@ -119,7 +119,7 @@ function showFullError(message) {
                  label="Paciente"
                  :loading="patientsStore.isLoading"
                  @search="handlePatientSearch"
-                 placeholder="Buscar por nome..."
+                 empty-label="Buscar por nome..."
                />
              </div>
     </Transition>

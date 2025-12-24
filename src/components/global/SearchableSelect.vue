@@ -6,7 +6,7 @@ const props = defineProps({
   modelValue: [String, Number, null],
   options: { type: Array, default: () => [] },
   label: { type: String, default: '' },
-  placeholder: { type: String, default: 'Selecione' },
+  emptyLabel: { type: String, default: 'Selecione' },
   loading: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   error: { type: Boolean, default: false },
@@ -59,7 +59,7 @@ function handleSearch() {
           type="text"
           v-model="searchQuery"
           @input="handleSearch"
-          :placeholder="placeholder"
+          :placeholder="emptyLabel"
           class="select-input"
         />
         <LoaderCircle v-if="loading" :size="18" class="spinner" />

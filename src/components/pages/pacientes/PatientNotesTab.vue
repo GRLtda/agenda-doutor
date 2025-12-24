@@ -164,7 +164,7 @@ function renderContent(content) {
       <!-- LEFT COLUMN: EXISTING NOTES FEED -->
       <section class="notes-column list-column" :class="{ 'hidden-mobile': showEditorMobile }">
         <div class="column-header">
-          <h3><MessageSquare :size="20" /> Histórico de Notas</h3>
+          <h3><MessageSquare class="title-icon" :size="20" /> Histórico de Notas</h3>
           <span class="count-badge">{{ notesStore.pagination.totalCount }}</span>
           
           
@@ -250,7 +250,7 @@ function renderContent(content) {
           <button @click="showEditorMobile = false" class="mobile-back-btn mr-2" :class="{ 'md:hidden': !compactMode }">
             <ArrowLeft :size="20" />
           </button>
-          <h3><Plus :size="20" /> Nova Anotação</h3>
+          <h3><Plus class="title-icon" :size="20" /> Nova Anotação</h3>
         </div>
 
         <div class="editor-container-card">
@@ -306,9 +306,6 @@ function renderContent(content) {
   transform: translateX(30px);
 }
 
-.patient-notes-redesign {
-  padding: 0.5rem;
-}
 
 .patient-notes-redesign.is-compact {
   padding: 1rem 0.5rem 0.5rem 0.5rem;
@@ -421,9 +418,8 @@ function renderContent(content) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--azul-principal);
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .count-badge {
@@ -556,6 +552,10 @@ function renderContent(content) {
   color: #94a3b8;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.title-icon {
+  color: var(--azul-principal);
 }
 
 .action-btn:hover {
@@ -751,7 +751,8 @@ function renderContent(content) {
 
 .empty-icon {
   margin-bottom: 1rem;
-  color: #cbd5e1;
+  color: var(--azul-principal);
+  opacity: 0.2;
 }
 
 .empty-notes h4 {
