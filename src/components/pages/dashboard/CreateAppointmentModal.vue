@@ -676,7 +676,7 @@ async function handleSubmit() {
           <AppButton
             v-if="currentStep === 3 || (currentStep === 2 && !isEditMode)"
             @click="currentStep--"
-            variant="default"
+            class="flex-1"
           >
             Voltar
           </AppButton>
@@ -685,6 +685,7 @@ async function handleSubmit() {
             @click="nextStep"
             variant="primary"
             :disabled="isCheckingConflict"
+            class="flex-1"
           >
             Avançar
           </AppButton>
@@ -694,6 +695,7 @@ async function handleSubmit() {
             variant="primary"
             :loading="appointmentsStore.isLoading"
             :disabled="appointmentsStore.isLoading"
+            class="flex-1"
           >
             {{
               isRebookMode
@@ -1004,7 +1006,6 @@ async function handleSubmit() {
 /* Footer */
 .drawer-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
   border-top: 1px solid #e5e7eb;
@@ -1037,15 +1038,9 @@ async function handleSubmit() {
     gap: 0.5rem;
   }
   .footer-actions {
-    display: contents; /* Allows children to be direct flex items of drawer-footer */
-  }
-  .footer-actions .app-button,
-  .drawer-footer > .app-button:first-child {
-    width: auto;
-    flex: 1; /* Distribute space equally */
-    justify-content: center;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
+    display: flex;
+    width: 100%;
+    gap: 0.5rem;
   }
   
   .drawer-header {

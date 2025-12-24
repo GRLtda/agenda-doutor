@@ -189,6 +189,25 @@ async function handleStartService() {
     }
 }
 
+async function handleContinueService() {
+  const appointmentId = props.event.originalEvent._id
+  
+    toast.success('Retomando atendimento...')
+    emit('close')
+    
+    if (patient.value && patient.value._id) {
+      router.push({ 
+        name: 'atendimento-em-andamento', 
+        params: { 
+          appointmentId: appointmentId,
+          patientId: patient.value._id 
+        } 
+      })
+    } else {
+      toast.warning('Não foi possível redirecionar: Paciente não identificado.')
+    }
+}
+
 function handleFinishService() {
   updateStatus('Realizado')
 }
@@ -370,6 +389,15 @@ onUnmounted(() => {
 
     <template #footer>
       <footer class="drawer-footer">
+
+         <AppButton
+            v-if="appointment.status === 'Iniciado'"
+            @click="handleContinueService"
+            variant="primary"
+         >
+            <Play :size="18" />
+            Continuar
+         </AppButton>
          <AppButton
             v-if="appointment.status !== 'Cancelado' && appointment.status !== 'Realizado'"
             @click="handleCancelClick"
@@ -399,15 +427,6 @@ onUnmounted(() => {
             Iniciar Atendimento
          </AppButton>
 
-         <!-- Se Em Atendimento, mostra Finalizar -->
-         <AppButton
-            v-if="appointment.status === 'Em Atendimento'"
-            @click="handleFinishService"
-            variant="secondary"
-         >
-            <Check :size="18" />
-            Finalizar Atendimento
-         </AppButton>
 
          <!-- ✨ Delete Button -->
          <button 

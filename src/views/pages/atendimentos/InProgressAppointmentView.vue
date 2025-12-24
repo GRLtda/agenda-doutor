@@ -57,6 +57,7 @@ import ImportBudgetModal from '@/components/modals/ImportBudgetModal.vue' // ✨
 import AttendanceConsentTermsTab from '@/components/pages/atendimentos/AttendanceConsentTermsTab.vue' // ✨ Import Consent Terms Tab
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue' // ✨ Import Anamnesis Modal
 import AttendanceProceduresTab from '@/components/pages/atendimentos/AttendanceProceduresTab.vue' // ✨ Import Procedures Tab
+import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue' // ✨ Import Patient Notes Tab
 
 const route = useRoute()
 const router = useRouter()
@@ -730,7 +731,7 @@ const formatDate = (dateString) => {
           <div class="patient-info-layout">
             <!-- Left Column: General Info -->
             <div class="info-column">
-              <h3 class="column-title">Dados do Paciente</h3>
+              <h3 class="column-title"><User :size="20" /> Dados do Paciente</h3>
               
               <!-- Patient Card -->
               <div class="patient-profile-card">
@@ -776,84 +777,16 @@ const formatDate = (dateString) => {
                 </div>
               </div>
 
-              <!-- ✨ Procedures Section -->
-              <div class="procedures-section mt-6">
-                <div class="section-header">
-                  <h3 class="column-title mb-0">Procedimentos</h3>
-                  <AppButton
-                    v-if="!isViewMode"
-                    variant="ghost"
-                    size="sm"
-                    @click="showAddProcedureModal = true"
-                    class="btn-add-procedure"
-                  >
-                    <Plus :size="16" />
-                    Adicionar
-                  </AppButton>
-                </div>
-
-                <div class="procedures-list info-card mt-2">
-                  <div v-if="currentAppointmentProcedures.length === 0" class="empty-list">
-                    Nenhum procedimento registrado neste atendimento.
-                  </div>
-                  <ul v-else class="procedure-items-new">
-                    <li v-for="(proc, index) in currentAppointmentProcedures" :key="index" class="procedure-item-new">
-                      <div class="procedure-info-new">
-                        <div class="proc-main-new">
-                          <span class="proc-name-new">{{ proc.name }}</span>
-                        </div>
-                        <span class="proc-date-new">{{ formatDate(proc.assignedAt) }}</span>
-                      </div>
-                      <div class="procedure-values-new">
-                        <div v-if="proc.discountPercentage > 0 || proc.originalValue > proc.finalValue" class="discount-tag-new">
-                          -{{ proc.discountPercentage || Math.round(((proc.originalValue - proc.finalValue) / proc.originalValue) * 100) }}%
-                        </div>
-                        <div class="price-wrapper-new">
-                          <span v-if="proc.discountPercentage > 0 || proc.originalValue > proc.finalValue" class="original-price-new">
-                            {{ formatCurrency(proc.originalValue) }}
-                          </span>
-                          <span class="final-price-new">{{ formatCurrency(proc.finalValue) }}</span>
-                        </div>
-                        <button 
-                          v-if="!isViewMode" 
-                          @click="handleDeleteProcedure(proc)" 
-                          class="btn-icon-new delete-btn-new" 
-                          title="Remover Procedimento"
-                        >
-                          <Trash2 :size="16" />
-                        </button>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <!-- ✨ Budgets Section -->
-              <div class="budgets-section mt-6" v-if="!isViewMode">
-                <div class="section-header">
-                  <h3 class="column-title mb-0">Orçamentos</h3>
-                  <AppButton
-                    variant="ghost"
-                    size="sm"
-                    @click="showImportBudgetModal = true"
-                    class="btn-import-budget"
-                  >
-                    <Plus :size="16" />
-                    Importar Orçamento
-                  </AppButton>
-                </div>
-                <div class="info-card mt-2">
-                  <p class="import-hint">
-                    Importe um orçamento existente para adicionar todos os procedimentos automaticamente.
-                  </p>
-                </div>
+              <!-- ✨ Patient Notes Section (Replaces Procedures & Budgets) -->
+              <div class="patient-notes-section mt-6">
+                <PatientNotesTab :patientId="patientId" :compactMode="true" />
               </div>
             </div>
 
             <!-- Right Column: Anamneses (Scrollable) -->
             <div class="anamnesis-column">
               <div class="anamnesis-header">
-                <h3 class="column-title">Anamneses</h3>
+                <h3 class="column-title"><FileText :size="20" /> Anamneses</h3>
                 <AppButton 
                   v-if="!isViewMode" 
                   @click="showAssignAnamnesisModal = true" 
@@ -1085,9 +1018,12 @@ const formatDate = (dateString) => {
 
 .column-title {
   font-size: 1.1rem;
-  font-weight: 600;
-  color: #111827;
+  font-weight: 700;
+  color: var(--azul-principal);
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .info-column {
@@ -1893,7 +1829,8 @@ const formatDate = (dateString) => {
   overflow-y: auto;
   display: flex;
   border-radius: 1rem 0 0 0rem;
-  border: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
   flex-direction: column;
 }
 .tab-content {
@@ -2211,6 +2148,7 @@ const formatDate = (dateString) => {
   .editor-main-content {
     height: auto;
     overflow: visible;
+    border-radius: 0;
   }
 
   .tab-content {

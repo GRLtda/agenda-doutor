@@ -28,6 +28,10 @@ const props = defineProps({
   patientId: {
     type: String,
     required: true
+  },
+  compactMode: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -153,7 +157,7 @@ function renderContent(content) {
 </script>
 
 <template>
-  <div class="patient-notes-redesign">
+  <div class="patient-notes-redesign" :class="{ 'is-compact': compactMode }">
     <!-- Main Content Grid -->
     <div class="notes-grid">
       
@@ -163,8 +167,9 @@ function renderContent(content) {
           <h3><MessageSquare :size="20" /> Histórico de Notas</h3>
           <span class="count-badge">{{ notesStore.pagination.totalCount }}</span>
           
+          
           <!-- Mobile Only Add Button -->
-          <button @click="showEditorMobile = true" class="mobile-add-btn md:hidden ml-auto">
+          <button @click="showEditorMobile = true" class="mobile-add-btn ml-auto" :class="{ 'md:hidden': !compactMode }">
             <Plus :size="20" />
           </button>
         </div>
@@ -216,21 +221,6 @@ function renderContent(content) {
 
             <div class="note-content prose" v-html="renderContent(note.content)"></div>
           </div>
-
-          <!-- Sentinel for Infinite Scroll - needs to be inside or outside transition group? 
-               Usually better outside or as a specific item, but TransitionGroup renders a wrapper div.
-               Since 'tag="div" class="notes-feed"' effectively replaces the wrapper, we can keep the sentinel inside if we want it to scroll with items, 
-               but sentinel is not in sortedNotes. 
-               Wait, TransitionGroup only animates its direct children keyed by v-for. 
-               The sentinel is static. It's better to keep sentinel OUTSIDE the v-for or treated carefully.
-               However, to keep layout simple (flex column), the sentinel should be the last child of .notes-feed.
-               TransitionGroup renders the container .notes-feed.
-               The sentinel is just another child.
-               The v-for iterates over notes. The sentinel is static element.
-               Vue TransitionGroup allows non-v-for children but they effect moves.
-               Let's try simply placing it as the last child.
-          -->
-          <!-- Sentinel for Infinite Scroll -->
           <div 
             key="sentinel" 
             ref="loadMoreSentinel" 
@@ -257,7 +247,7 @@ function renderContent(content) {
       <section class="notes-column editor-column" :class="{ 'hidden-mobile': !showEditorMobile }">
         <div class="column-header">
           <!-- Mobile Only Back Button -->
-          <button @click="showEditorMobile = false" class="mobile-back-btn md:hidden mr-2">
+          <button @click="showEditorMobile = false" class="mobile-back-btn mr-2" :class="{ 'md:hidden': !compactMode }">
             <ArrowLeft :size="20" />
           </button>
           <h3><Plus :size="20" /> Nova Anotação</h3>
@@ -290,7 +280,7 @@ function renderContent(content) {
         </div>
 
         <!-- Tip Card -->
-        <div class="tips-card">
+        <div class="tips-card" v-if="!compactMode">
           <div class="tip-icon"><Layout :size="18" /></div>
           <div class="tip-content">
             <h4>Dica Organizacional</h4>
@@ -320,6 +310,10 @@ function renderContent(content) {
   padding: 0.5rem;
 }
 
+.patient-notes-redesign.is-compact {
+  padding: 1rem 0.5rem 0.5rem 0.5rem;
+}
+
 .notes-grid {
   display: flex;
   flex-direction: column; /* Mobile first: stacking */
@@ -327,15 +321,42 @@ function renderContent(content) {
 }
 
 @media (min-width: 1024px) {
-  .notes-grid {
+  /* Apply desktop grid layout ONLY if NOT in compact mode */
+  .patient-notes-redesign:not(.is-compact) .notes-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: start;
   }
   
   /* On desktop, keep list on left and editor on right as per user's split request */
-  .list-column { order: 1; height: 600px; } /* Altura fixa na coluna */
-  .editor-column { order: 2; }
+  .patient-notes-redesign:not(.is-compact) .list-column { order: 1; height: 600px; } /* Altura fixa na coluna */
+  .patient-notes-redesign:not(.is-compact) .editor-column { order: 2; }
+}
+
+/* Force Mobile Styles when in Compact Mode (overriding desktop) */
+.patient-notes-redesign.is-compact .notes-grid {
+    display: block; /* Stack */
+}
+
+.patient-notes-redesign.is-compact .editor-column { order: 1; }
+.patient-notes-redesign.is-compact .list-column { order: 2; height: 550px; }
+
+.patient-notes-redesign.is-compact .hidden-mobile {
+    display: none !important;
+}
+
+.patient-notes-redesign.is-compact .mobile-add-btn, 
+.patient-notes-redesign.is-compact .mobile-back-btn {
+    display: flex;
+}
+
+.patient-notes-redesign.is-compact .mobile-add-btn {
+    margin-left: auto;
+    background: #e0f2fe;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
 }
 
 @media (max-width: 1023px) {

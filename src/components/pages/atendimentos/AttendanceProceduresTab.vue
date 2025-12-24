@@ -139,16 +139,6 @@ function formatDate(date) {
     <div v-if="procedures.length === 0" class="empty-state">
       <Syringe :size="40" class="empty-icon" />
       <p>Nenhum procedimento registrado neste atendimento</p>
-      <div class="empty-actions" v-if="!disabled">
-        <AppButton @click="showImportBudgetModal = true" variant="default" size="sm">
-          <FileDown :size="14" />
-          Importar Orçamento
-        </AppButton>
-        <AppButton @click="showAddProcedureModal = true" variant="primary" size="sm">
-          <Plus :size="14" />
-          Adicionar Procedimento
-        </AppButton>
-      </div>
     </div>
 
     <!-- Modals -->
@@ -351,9 +341,30 @@ h3 {
   font-size: 0.875rem;
 }
 
-.empty-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+@media (max-width: 640px) {
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .header-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .procedure-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .procedure-info {
+    width: 100%;
+  }
+
+  .procedure-values {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>
