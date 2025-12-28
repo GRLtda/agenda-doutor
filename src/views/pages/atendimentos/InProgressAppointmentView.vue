@@ -525,6 +525,12 @@ const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleDateString('pt-BR')
 }
+
+const focusEditor = () => {
+  if (editor.value && !editor.value.isFocused) {
+    editor.value.commands.focus()
+  }
+}
 </script>
 
 <template>
@@ -715,7 +721,7 @@ const formatDate = (dateString) => {
               <FileText :size="22" stroke-width="2.5" />
               <h3>Anotações do Atendimento</h3>
             </div>
-            <EditorContent v-if="editor" :editor="editor" class="editor-content" />
+            <EditorContent v-if="editor" :editor="editor" class="editor-content" @click="focusEditor" />
 
             <div
               v-if="editor && isMobile"
@@ -2287,6 +2293,10 @@ const formatDate = (dateString) => {
     width: 100%;
     justify-content: center;
   }
+
+  .editor-content {
+    min-height: 85.7vh;
+  }
 }
 
 @media (max-width: 768px) {
@@ -2294,6 +2304,10 @@ const formatDate = (dateString) => {
 
   .editor-main-content.keyboard-open-padding .editor-content {
     padding-bottom: 80px;
+  }
+
+  .tab-content-padded {
+    padding: 1.5rem 1rem;
   }
 
   /* ✨ Responsive Patient Info Layout ✨ */

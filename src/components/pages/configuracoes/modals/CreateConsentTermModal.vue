@@ -12,6 +12,52 @@ import EditorToolbar from '@/components/shared/EditorToolbar.vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
+import { Node, mergeAttributes, InputRule } from '@tiptap/core'
+
+const VariableNode = Node.create({
+  name: 'variable',
+  group: 'inline',
+  inline: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      label: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-label'),
+        renderHTML: attributes => {
+          return {
+            'data-label': attributes.label,
+          }
+        },
+      },
+    }
+  },
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /({[a-zA-Z0-9_]+})$/,
+        handler: ({ state, range, match }) => {
+          const { tr } = state
+          tr.replaceWith(range.from, range.to, this.type.create({ label: match[1] }))
+        },
+      }),
+    ]
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-type="variable"]',
+      },
+    ]
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes, { class: 'variable-tag', 'data-type': 'variable' }), node.attrs.label]
+  },
+})
 
 const props = defineProps({
   templateIdToEdit: { type: String, default: null },
@@ -43,8 +89,19 @@ const availableTags = [
 // Formato de tag para exibir no editor (estilizado como highlight)
 function insertTag(tag) {
   if (editor.value) {
-    editor.value.chain().focus().insertContent(tag).run()
+    editor.value.chain().focus().insertContent({
+      type: 'variable',
+      attrs: { label: tag }
+    }).insertContent(' ').run() // Adiciona espaço após a tag
   }
+}
+
+function processContent(content) {
+  if (!content) return ''
+  // Substitui variáveis no formato {texto} por spans compatíveis com o Node
+  return content.replace(/({[a-zA-Z0-9_]+})/g, (match) => {
+    return `<span data-type="variable" data-label="${match}">${match}</span>`
+  })
 }
 
 // Setup TipTap Editor
@@ -53,6 +110,7 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Underline,
+    VariableNode,
   ],
   editorProps: {
     attributes: {
@@ -69,7 +127,7 @@ onMounted(async () => {
       // Aguarda o editor estar pronto
       setTimeout(() => {
         if (editor.value) {
-          editor.value.commands.setContent(props.templateToDuplicate.content || '')
+          editor.value.commands.setContent(processContent(props.templateToDuplicate.content) || '')
         }
       }, 100)
     } else if (props.templateIdToEdit) {
@@ -78,7 +136,7 @@ onMounted(async () => {
         templateName.value = template.name
         setTimeout(() => {
           if (editor.value) {
-            editor.value.commands.setContent(template.content || '')
+            editor.value.commands.setContent(processContent(template.content) || '')
           }
         }, 100)
       } else {
@@ -100,7 +158,7 @@ onMounted(async () => {
       `
       setTimeout(() => {
         if (editor.value) {
-          editor.value.commands.setContent(defaultContent)
+          editor.value.commands.setContent(processContent(defaultContent))
         }
       }, 100)
     }
@@ -114,6 +172,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   editor.value?.destroy()
 })
+
+function focusEditor() {
+  if (editor.value && !editor.value.isFocused) {
+    editor.value.chain().focus().run()
+  }
+}
 
 async function handleSubmit() {
   if (!templateName.value.trim()) {
@@ -184,7 +248,6 @@ async function handleSubmit() {
         v-model="templateName"
         label="Nome do Modelo"
         placeholder="Ex: Termo de Consentimento para Procedimentos Estéticos"
-        class="mb-4"
       />
 
       <div class="editor-section">
@@ -192,7 +255,9 @@ async function handleSubmit() {
           <label class="editor-label">Conteúdo do Termo</label>
           <div class="rich-editor-wrapper">
             <EditorToolbar v-if="editor" :editor="editor" />
-            <EditorContent v-if="editor" :editor="editor" class="rich-editor-content" />
+            <div class="rich-editor-content" @click="focusEditor">
+              <EditorContent v-if="editor" :editor="editor" style="height: 100%; outline: none;" />
+            </div>
           </div>
         </div>
 
@@ -277,13 +342,6 @@ h2 {
   color: var(--cinza-texto);
 }
 
-.drawer-content {
-  padding: 1.5rem;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
 .mb-4 {
   margin-bottom: 1rem;
 }
@@ -331,6 +389,7 @@ h2 {
   overflow-y: auto;
   padding: 1rem;
   min-height: 300px;
+  cursor: text;
 }
 
 .rich-editor-content :deep(.ProseMirror) {
@@ -356,6 +415,25 @@ h2 {
   color: var(--preto);
 }
 
+.rich-editor-content :deep(.variable-tag) {
+  background-color: #eef2ff;
+  color: var(--azul-principal);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-block;
+  margin: 0 0.1rem;
+  user-select: all; /* Facilita selecionar a tag inteira */
+}
+
+.rich-editor-content :deep(.variable-tag.ProseMirror-selectednode) {
+  background-color: #dbeafe; /* Azul um pouco mais escuro para indicar seleção */
+  color: var(--azul-principal) !important; /* Força a cor do texto */
+  outline: 1px solid var(--azul-principal);
+}
+
 .rich-editor-content :deep(.ProseMirror h3) {
   font-size: 1.1rem;
   font-weight: 600;
@@ -378,6 +456,32 @@ h2 {
   padding-left: 1rem;
   margin: 0 0 0.75rem 0;
   color: var(--cinza-texto);
+}
+
+.rich-editor-content :deep(.ProseMirror strong),
+.rich-editor-content :deep(.ProseMirror b) {
+  font-weight: 700;
+  color: var(--preto);
+}
+
+.rich-editor-content :deep(.ProseMirror em),
+.rich-editor-content :deep(.ProseMirror i) {
+  font-style: italic;
+}
+
+.rich-editor-content :deep(.ProseMirror s),
+.rich-editor-content :deep(.ProseMirror strike),
+.rich-editor-content :deep(.ProseMirror del) {
+  text-decoration: line-through;
+}
+
+.rich-editor-content :deep(.ProseMirror code) {
+  background-color: #f3f4f6;
+  color: #c026d3; /* Roxo para destacar código */
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.875em;
 }
 
 /* Tags Panel - Layout Horizontal */

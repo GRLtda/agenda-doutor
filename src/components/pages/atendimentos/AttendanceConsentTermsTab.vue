@@ -50,12 +50,31 @@ function closeViewModal() {
   viewingTermId.value = null
 }
 
-function copyLink(token) {
+async function copyLink(token) {
   const link = `${window.location.origin}/termo/${token}`
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(link).then(() => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(link)
       toast.info('Link copiado!')
-    })
+    } else {
+      const textArea = document.createElement('textarea')
+      textArea.value = link
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      if (successful) {
+        toast.info('Link copiado!')
+      } else {
+        throw new Error('Fallback copy failed')
+      }
+    }
+  } catch (err) {
+    toast.error('Não foi possível copiar o link')
   }
 }
 
@@ -130,7 +149,7 @@ function formatDate(date) {
             title="Copiar Link"
           >
             <Copy :size="14" />
-            Copiar Link
+            <span class="btn-text">Copiar Link</span>
           </AppButton>
           <AppButton
             @click="openViewModal(term._id)"
@@ -139,7 +158,7 @@ function formatDate(date) {
             title="Visualizar"
           >
             <Eye :size="14" />
-            Ver
+            <span class="btn-text">Ver</span>
           </AppButton>
         </div>
       </div>
@@ -293,5 +312,23 @@ h3 {
 .empty-state p {
   margin: 0;
   font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .term-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .term-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .term-actions :deep(button) {
+    flex: 1;
+    justify-content: center;
+  }
 }
 </style>

@@ -439,7 +439,7 @@ function handleRefresh() {
   border: 1px solid #f1f5f9; background: #ffffff; transition: all 0.2s;
 }
 .feed-item:hover { background: #f8fafc; border-color: #e2e8f0; }
-.feed-item.highlight-item { border-left: 3px solid var(--azul-principal); background: #f8fafc; }
+.feed-item.highlight-item { background: #f8fafc; }
 
 .feed-icon-wrapper {
   width: 40px; height: 40px; border-radius: 10px;

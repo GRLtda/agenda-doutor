@@ -286,9 +286,6 @@ h2 {
   padding: 0.25rem;
 }
 
-.drawer-content {
-  padding: 1.5rem;
-}
 
 .term-content {
   background: #fafafa;

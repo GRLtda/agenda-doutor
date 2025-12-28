@@ -5,6 +5,8 @@ import { useToast } from 'vue-toastification'
 import { FilePlus2, Pencil, Trash2, Copy } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import CreateConsentTermModal from '@/components/pages/configuracoes/modals/CreateConsentTermModal.vue'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const consentTermsStore = useConsentTermsStore()
 const toast = useToast()
@@ -54,6 +56,15 @@ async function handleDelete(templateId) {
     templateIdToDelete.value = null
   }
 }
+
+function formatDate(dateString) {
+  if (!dateString) return '-'
+  try {
+    return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+  } catch (error) {
+    return dateString
+  }
+}
 </script>
 
 <template>
@@ -91,10 +102,20 @@ async function handleDelete(templateId) {
     <div v-else-if="templates.length > 0" class="templates-grid">
       <div v-for="template in templates" :key="template._id" class="template-card">
         <div class="template-info">
-          <span class="template-name">{{ template.name }}</span>
-          <span class="template-status" :class="{ inactive: !template.isActive }">
-            {{ template.isActive ? 'Ativo' : 'Inativo' }}
-          </span>
+          <div class="template-header-row">
+            <span class="template-name">{{ template.name }}</span>
+            <span class="template-status" :class="{ inactive: !template.isActive }">
+              {{ template.isActive ? 'Ativo' : 'Inativo' }}
+            </span>
+          </div>
+          <div class="template-dates">
+            <span v-if="template.createdAt" title="Data de criação">
+              Criado em: {{ formatDate(template.createdAt) }}
+            </span>
+            <span v-if="template.updatedAt" title="Última edição">
+              Atualizado em: {{ formatDate(template.updatedAt) }}
+            </span>
+          </div>
         </div>
 
         <div class="template-actions" v-click-outside="() => (templateIdToDelete = null)">
@@ -224,10 +245,25 @@ async function handleDelete(templateId) {
   gap: 0.5rem;
 }
 
+.template-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .template-name {
   font-weight: 600;
   font-size: 1.125rem;
   color: var(--preto);
+}
+
+.template-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
 }
 
 .template-status {

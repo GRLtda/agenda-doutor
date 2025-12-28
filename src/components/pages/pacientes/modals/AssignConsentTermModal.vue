@@ -139,7 +139,7 @@ function copyLink() {
           :loading="isLoading" 
           :disabled="isLoading"
         >
-          Gerar Link
+          Enviar Termo
         </AppButton>
         <AppButton v-else @click="copyLink" variant="primary">Copiar Link</AppButton>
       </div>

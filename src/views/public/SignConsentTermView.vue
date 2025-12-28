@@ -70,22 +70,41 @@ onMounted(async () => {
 })
 
 // -- Canvas Functions --
+let lastPoint = { x: 0, y: 0 }
+
+function getPoint(e, canvas) {
+  const rect = canvas.getBoundingClientRect()
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  }
+}
+
 function initCanvas() {
   const canvas = signatureCanvas.value
   if (!canvas) return
 
   ctx = canvas.getContext('2d')
   
-  // Set canvas size
+  // Set canvas size (High DPI support)
   const container = canvas.parentElement
-  canvas.width = container.clientWidth
-  canvas.height = 150
+  const ratio = Math.max(window.devicePixelRatio || 1, 1)
+  
+  canvas.width = container.clientWidth * ratio
+  canvas.height = 150 * ratio
+  
+  ctx.scale(ratio, ratio)
 
   // Style
   ctx.strokeStyle = '#1f2937'
-  ctx.lineWidth = 2
+  ctx.lineWidth = 2.5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
+  // Slight shadow to assist with antialiasing effect
+  ctx.shadowBlur = 0.5
+  ctx.shadowColor = '#1f2937'
 
   // Event listeners
   canvas.addEventListener('mousedown', startDrawing)
@@ -94,53 +113,61 @@ function initCanvas() {
   canvas.addEventListener('mouseleave', stopDrawing)
 
   // Touch events
-  canvas.addEventListener('touchstart', handleTouchStart)
-  canvas.addEventListener('touchmove', handleTouchMove)
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
+  canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
   canvas.addEventListener('touchend', stopDrawing)
 }
 
 function startDrawing(e) {
   isDrawing.value = true
-  const rect = signatureCanvas.value.getBoundingClientRect()
+  const point = getPoint(e, signatureCanvas.value)
+  lastPoint = point
+  
   ctx.beginPath()
-  ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
+  ctx.moveTo(point.x, point.y)
+  ctx.lineTo(point.x, point.y)
+  ctx.stroke()
 }
 
 function draw(e) {
   if (!isDrawing.value) return
-  const rect = signatureCanvas.value.getBoundingClientRect()
-  ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
+  if (e.type === 'touchmove') e.preventDefault()
+  
+  const point = getPoint(e, signatureCanvas.value)
+  
+  ctx.beginPath()
+  ctx.moveTo(lastPoint.x, lastPoint.y)
+  ctx.lineTo(point.x, point.y)
   ctx.stroke()
+  
+  lastPoint = point
   hasSignature.value = true
 }
 
 function stopDrawing() {
   isDrawing.value = false
+  ctx.beginPath()
 }
 
 function handleTouchStart(e) {
   e.preventDefault()
-  const touch = e.touches[0]
-  const rect = signatureCanvas.value.getBoundingClientRect()
-  isDrawing.value = true
-  ctx.beginPath()
-  ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top)
+  if (e.touches.length > 1) return
+  startDrawing(e)
 }
 
 function handleTouchMove(e) {
-  e.preventDefault()
   if (!isDrawing.value) return
-  const touch = e.touches[0]
-  const rect = signatureCanvas.value.getBoundingClientRect()
-  ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top)
-  ctx.stroke()
-  hasSignature.value = true
+  e.preventDefault()
+  draw(e)
 }
 
 function clearSignature() {
   if (signatureMethod.value === 'draw') {
     if (ctx && signatureCanvas.value) {
+      ctx.save()
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, signatureCanvas.value.width, signatureCanvas.value.height)
+      ctx.restore()
     }
   } else if (signatureMethod.value === 'type') {
     typedName.value = ''

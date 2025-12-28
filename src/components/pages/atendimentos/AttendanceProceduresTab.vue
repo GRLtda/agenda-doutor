@@ -184,7 +184,7 @@ function formatDate(date) {
 }
 
 h3 {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #111827;
   margin: 0;
