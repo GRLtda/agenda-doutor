@@ -61,7 +61,7 @@ async function handleLogin() {
   if (email.value !== emailValue) email.value = emailValue
   if (password.value !== passwordValue) password.value = passwordValue
 
-  const { success, user } = await authStore.login({
+  const { success, error } = await authStore.login({
     email: emailValue,
     password: passwordValue,
   })
@@ -71,7 +71,7 @@ async function handleLogin() {
     const redirectPath = router.currentRoute.value.query.redirect || '/app'
     router.push(redirectPath)
   } else {
-    errorMessage.value = 'Email ou senha inválidos. Verifique seus dados.'
+    errorMessage.value = error || 'Email ou senha inválidos.'
   }
 }
 

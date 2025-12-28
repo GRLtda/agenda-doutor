@@ -21,6 +21,7 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     Sentry.captureException(error)
+    console.error('Capturou erro')
     if (error.code === 'ERR_NETWORK' || !error.response) {
       console.error('⚠️ Conexão perdida com a API.')
       isGlobalOffline.value = true

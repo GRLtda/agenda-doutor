@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import * as Sentry from '@sentry/vue'
 import {
   register as apiRegister,
   login as apiLogin,
@@ -31,8 +32,14 @@ export const useAuthStore = defineStore('auth', () => {
     // Apenas salva no localStorage se o usuário não for nulo
     if (newUser) {
       localStorage.setItem('user', JSON.stringify(newUser))
+      Sentry.setUser({
+        id: newUser.id,
+        email: newUser.email,
+        username: newUser.name,
+      })
     } else {
       localStorage.removeItem('user')
+      Sentry.setUser(null)
     }
 
     if (newUser?.clinic) {
@@ -73,7 +80,8 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true, user: fullUserData }
     } catch (error) {
       console.error('Erro no login:', error)
-      return { success: false, error }
+      const message = error.response?.data?.message || 'Erro ao realizar login. Tente novamente.'
+      return { success: false, error: message }
     }
   }
 
@@ -91,7 +99,8 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true, user: newUser }
     } catch (error) {
       console.error('Erro no registro:', error)
-      return { success: false, error }
+      const message = error.response?.data?.message || 'Erro ao realizar cadastro.'
+      return { success: false, error: message }
     }
   }
 
@@ -103,7 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
     // Limpa o localStorage
     localStorage.removeItem('user')
     localStorage.removeItem('token')
-
+    Sentry.setUser(null)
+    
     // Limpa o cabeçalho da API e a store da clínica
     delete apiClient.defaults.headers.common['Authorization']
     const clinicStore = useClinicStore()
