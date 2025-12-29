@@ -65,6 +65,7 @@
     "prettier": "3.6.2",
     "rollup": "^4.52.4",
     "vite": "^7.0.6",
+    "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-vue-devtools": "^8.0.0"
   }
 }
