@@ -40,7 +40,7 @@ const dashboardRoutes = [
         path: '',
         name: 'resumo-dashboard',
         component: ResumoView,
-        meta: { title: 'Visão Geral', layout: { noPadding: true } },
+        meta: { title: 'Visão Geral'},
       },
       {
         path: 'configuracoes',

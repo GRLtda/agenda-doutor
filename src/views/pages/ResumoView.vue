@@ -119,245 +119,277 @@ function handleRefresh() {
 </script>
 
 <template>
-  <div class="dashboard-container">
+  <div class="resumo-dashboard">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="header-left">
+        <div class="clinic-logo-wrapper">
+            <img v-if="clinicLogo" :src="clinicLogo" alt="Logo" class="clinic-logo" />
+            <div v-else class="clinic-logo-placeholder">
+            {{ clinicName.charAt(0) }}
+            </div>
+        </div>
+        <div class="header-text">
+            <h1 class="title">{{ clinicName }}</h1>
+            <p class="subtitle">Painel de Controle &bull; Visão Geral</p>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <div class="status-capsule">
+           <div class="status-item">
+             <CalendarDays :size="16" class="text-slate-500" />
+             <span>{{ currentDate }}</span>
+           </div>
+           <div class="divider"></div>
+           <div class="status-item status-hours" :class="{ 'closed': isClosed, 'warning': isClosingSoon }">
+             <span class="status-dot" :class="{ 'pulse': !isClosed && !isClosingSoon }"></span>
+             <span>{{ todayWorkingHours }}</span>
+           </div>
+        </div>
+      </div>
+    </header>
 
-    <div v-if="isLoading && !summary.stats" class="loading-overlay">
-      <LoaderCircle :size="40" class="animate-spin" />
-      <p>Carregando...</p>
+    <!-- Stats Row (Top Grid) -->
+    <div class="top-grid">
+      <!-- Anamneses -->
+      <div class="kpi-card" @click="$router.push({ name: 'anamneses-pendentes' })" style="cursor: pointer">
+        <div class="kpi-header">
+          <span class="kpi-label">Anamneses Pendentes</span>
+          <div class="icon-bg bg-orange-50">
+            <ClipboardList :size="18" class="text-orange-500" />
+          </div>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value">{{ summary.stats.pendingAnamnesis }}</span>
+          <span class="kpi-sub hover-trigger">Ver detalhes <ArrowRight :size="12" class="inline ml-1" /></span>
+        </div>
+      </div>
+
+      <!-- Atendimentos -->
+      <div class="kpi-card" @click="$router.push({ name: 'atendimentos' })" style="cursor: pointer">
+        <div class="kpi-header">
+          <span class="kpi-label">Atendimentos Hoje</span>
+          <div class="icon-bg bg-blue-50">
+            <Calendar :size="18" class="text-blue-500" />
+          </div>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value">{{ summary.stats.appointmentsToday }}</span>
+          <span class="kpi-sub hover-trigger">Acessar agenda <ArrowRight :size="12" class="inline ml-1" /></span>
+        </div>
+      </div>
+
+      <!-- Pacientes -->
+      <div class="kpi-card" @click="$router.push({ name: 'pacientes' })" style="cursor: pointer">
+        <div class="kpi-header">
+          <span class="kpi-label">Total Pacientes</span>
+          <div class="icon-bg bg-emerald-50">
+            <Users :size="18" class="text-emerald-500" />
+          </div>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value">{{ summary.stats.totalPatients }}</span>
+          <span class="kpi-sub hover-trigger">Gerenciar Pacientes <ArrowRight :size="12" class="inline ml-1" /></span>
+        </div>
+      </div>
+
+      <!-- Aniversariantes -->
+      <div class="kpi-card" @click="$router.push({ name: 'aniversariantes' })" style="cursor: pointer">
+        <div class="kpi-header">
+          <span class="kpi-label">Aniversariantes Mês</span>
+          <div class="icon-bg bg-pink-50">
+            <Cake :size="18" class="text-pink-500" />
+          </div>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value">{{ summary.stats.birthdaysMonth }}</span>
+          <span class="kpi-sub hover-trigger">Ver Detalhes<ArrowRight :size="12" class="inline ml-1" /></span>
+        </div>
+      </div>
     </div>
 
-    <div v-else class="dashboard-layout">
-
-      <header class="dashboard-header">
-        <div class="header-content">
-          <div class="identity-wrapper">
-            <div class="clinic-logo-wrapper">
-              <img v-if="clinicLogo" :src="clinicLogo" alt="Logo" class="clinic-logo" />
-              <div v-else class="clinic-logo-placeholder">
-                {{ clinicName.charAt(0) }}
-              </div>
-            </div>
-            <div class="text-content">
-              <h1 class="clinic-title">{{ clinicName }}</h1>
-              <div class="subtitle-wrapper">
-                <span class="page-subtitle">Painel de Controle</span>
-                <span class="divider-dot">•</span>
-                <span class="user-role">Visão Geral</span>
-              </div>
-            </div>
+    <!-- Main Content Split -->
+    <div class="lists-grid">
+      <!-- Atividades Recentes -->
+      <div class="table-card">
+        <div class="card-header">
+          <div class="card-header-text">
+            <h3 class="card-title">Atividades Recentes</h3>
+            <p class="card-subtitle">Acompanhe as últimas ações da clínica.</p>
           </div>
-
-          <div class="status-bar-capsule">
-            <div class="status-item date-item">
-              <CalendarDays :size="16" class="icon-dimmed" />
-              <span>{{ currentDate }}</span>
-            </div>
-
-            <div class="vertical-divider"></div>
-
-            <div class="status-item hours-item" :class="{ 'text-warning': isClosingSoon, 'text-closed': isClosed }">
-              <span class="status-dot" :class="{ 'dot-pulse': !isClosed && !isClosingSoon, 'dot-warning': isClosingSoon, 'dot-closed': isClosed }"></span>
-              <span class="hours-text">{{ todayWorkingHours }}</span>
-            </div>
-          </div>
+          <button 
+            class="refresh-btn" 
+            @click="handleRefresh" 
+            :disabled="isLoading"
+            title="Atualizar"
+          >
+            <RefreshCw :size="16" :class="{ 'animate-spin': isLoading }" />
+          </button>
         </div>
-      </header>
-
-      <section class="stats-row">
-        <div class="stat-card clickable" @click="$router.push({ name: 'anamneses-pendentes' })">
-          <div class="stat-icon-mini bg-orange">
-            <ClipboardList :size="22" />
-          </div>
-          <div class="stat-text">
-            <span class="stat-value">{{ summary.stats.pendingAnamnesis }}</span>
-            <span class="stat-label">Anamneses Pendentes</span>
-          </div>
-          <div class="stat-nav-icon">
-            <ArrowRight :size="18" />
-          </div>
-        </div>
-
-        <div class="stat-card clickable" @click="$router.push({ name: 'atendimentos' })">
-          <div class="stat-icon-mini bg-blue">
-            <Calendar :size="22" />
-          </div>
-          <div class="stat-text">
-            <span class="stat-value">{{ summary.stats.appointmentsToday }}</span>
-            <span class="stat-label">Atendimentos Hoje</span>
-          </div>
-          <div class="stat-nav-icon">
-            <ArrowRight :size="18" />
-          </div>
-        </div>
-
-        <div class="stat-card clickable" @click="$router.push({ name: 'pacientes' })">
-          <div class="stat-icon-mini bg-green">
-            <Users :size="22" />
-          </div>
-          <div class="stat-text">
-            <span class="stat-value">{{ summary.stats.totalPatients }}</span>
-            <span class="stat-label">Total de Pacientes</span>
-          </div>
-          <div class="stat-nav-icon">
-            <ArrowRight :size="18" />
-          </div>
-        </div>
-
-        <div class="stat-card clickable" @click="$router.push({ name: 'aniversariantes' })">
-          <div class="stat-icon-mini bg-pink">
-            <Cake :size="22" />
-          </div>
-          <div class="stat-text">
-            <span class="stat-value">{{ summary.stats.birthdaysMonth }}</span>
-            <span class="stat-label">Aniversariantes do Mês</span>
-          </div>
-          <div class="stat-nav-icon">
-            <ArrowRight :size="18" />
-          </div>
-        </div>
-      </section>
-
-      <div class="main-split">
-
-        <div class="panel-column">
-          <div class="panel-header">
-            <h3>Atividades Recentes</h3>
-            <button
-              class="btn-refresh"
-              @click="handleRefresh"
-              :disabled="isLoading"
-              title="Atualizar dados"
-            >
-              <RefreshCw :size="14" :class="{ 'spin-animation': isLoading }" />
-              <span>Atualizar</span>
-            </button>
+        
+        <div class="feed-list scrollable-content">
+          <div v-if="!summary.feed || summary.feed.length === 0" class="empty-state">
+            <Activity :size="32" class="text-slate-300 mb-2" />
+            <p>Nenhuma atividade recente.</p>
           </div>
 
-          <div class="panel-content scrollable">
-            <div v-if="!summary.feed || summary.feed.length === 0" class="empty-state">
-              <p>Nenhuma atividade recente registrada.</p>
+          <div 
+             v-else 
+             v-for="item in summary.feed" 
+             :key="item.id" 
+             class="feed-item"
+             :class="{ 'highlight': item.highlight }"
+          >
+            <div class="feed-icon" :class="getFeedIconColorClass(item.type)">
+                <component :is="getFeedIcon(item.type)" :size="18" />
             </div>
-
-            <div class="feed-list" v-else>
-              <div
-                v-for="item in summary.feed"
-                :key="item.id"
-                class="feed-item"
-                :class="{ 'highlight-item': item.highlight }"
-              >
-                <div class="feed-icon-wrapper" :class="getFeedIconColorClass(item.type)">
-                  <component :is="getFeedIcon(item.type)" :size="18" />
-                </div>
-                <div class="feed-text">
-                  <div class="feed-top">
+            <div class="feed-content">
+                <div class="feed-header">
                     <span class="feed-title">{{ item.title }}</span>
                     <span class="feed-time">{{ formatRelativeTime(item.date) }}</span>
-                  </div>
-                  <p class="feed-desc">{{ item.description }}</p>
                 </div>
-              </div>
+                <p class="feed-desc">{{ item.description }}</p>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="panel-column alerts-panel">
-          <div class="panel-header">
-            <h3>Avisos do Sistema</h3>
-          </div>
-
-          <div class="panel-content scrollable">
-            <div v-if="!summary.alerts || summary.alerts.length === 0" class="empty-state">
-              <p>Tudo certo! Nenhum aviso importante.</p>
-            </div>
-
-            <div class="alerts-list" v-else>
-              <div
-                v-for="(alert, index) in summary.alerts"
-                :key="index"
-                class="alert-card"
-                :class="`alert-${alert.level || 'default'}`"
-              >
-                <div class="alert-icon">
-                  <AlertTriangle v-if="alert.level === 'warning' || alert.level === 'danger'" :size="18" />
-                  <Info v-else :size="18" />
-                </div>
-                <p class="alert-message">{{ alert.message }}</p>
-              </div>
-            </div>
+      <!-- Avisos do Sistema -->
+      <div class="table-card">
+        <div class="card-header">
+          <div class="card-header-text">
+            <h3 class="card-title">Avisos do Sistema</h3>
+            <p class="card-subtitle">Alertas e notificações importantes.</p>
           </div>
         </div>
 
+        <div class="alerts-list scrollable-content">
+           <div v-if="!summary.alerts || summary.alerts.length === 0" class="empty-state">
+               <ClipboardCheck :size="32" class="text-slate-300 mb-2" />
+               <p>Tudo certo! Sem avisos.</p>
+           </div>
+           
+           <div 
+             v-else 
+             v-for="(alert, index) in summary.alerts" 
+             :key="index"
+             class="alert-item"
+             :class="`alert-${alert.level || 'default'}`"
+           >
+              <div class="alert-icon-wrapper">
+                  <AlertTriangle v-if="alert.level === 'warning' || alert.level === 'danger'" :size="16" />
+                  <Info v-else :size="16" />
+              </div>
+              <span class="alert-text">{{ alert.message }}</span>
+           </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* --- Layout Geral --- */
-.dashboard-container {
-  width: 100%;
-  height: calc(100vh - 30px);
-  max-height: 100%;
+.resumo-dashboard {
+  font-family: var(--fonte-principal);
+  color: var(--preto);
+}
+
+/* Header */
+.page-header {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0.5rem 1rem 1rem 1rem;
-  /* Background removido conforme solicitado */
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.dashboard-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 1.25rem;
-  /* max-width e margin removidos para ocupar a tela toda */
-  width: 100%;
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
-.loading-overlay {
-  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; gap: 1rem;
-}
-.animate-spin { animation: spin 1s linear infinite; color: var(--azul-principal); }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* --- Header --- */
-.dashboard-header {
-  flex-shrink: 0;
-  background-color: var(--branco);
-  border-radius: 1rem;
-  padding: 1rem 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f1f5f9;
-}
-
-.header-content { display: flex; justify-content: space-between; align-items: center; }
-.identity-wrapper { display: flex; align-items: center; gap: 1rem; }
 .clinic-logo-wrapper {
-  width: 52px; height: 52px; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0;
-  display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  flex-shrink: 0;
 }
+
 .clinic-logo { width: 100%; height: 100%; object-fit: cover; }
 .clinic-logo-placeholder { font-weight: 700; color: var(--azul-principal); font-size: 1.5rem; }
 
-.text-content { display: flex; flex-direction: column; }
-.clinic-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0; line-height: 1.2; letter-spacing: -0.01em; }
-.subtitle-wrapper { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #64748b; margin-top: 0.1rem; }
-.divider-dot { color: #cbd5e1; font-size: 0.6rem; }
-
-.status-bar-capsule {
-  display: flex; align-items: center; background-color: #f8fafc; border: 1px solid #e2e8f0;
-  padding: 0.5rem 1rem; border-radius: 99px; gap: 1rem;
+.header-text {
+  display: flex;
+  flex-direction: column;
 }
-.status-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: 500; color: #475569; }
-.icon-dimmed { color: #94a3b8; }
-.vertical-divider { width: 1px; height: 20px; background-color: #cbd5e1; }
 
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #22c55e; display: inline-block; }
-.dot-pulse { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); animation: pulse-green 2s infinite; }
-.dot-warning { background-color: #f59e0b; }
-.dot-closed { background-color: #ef4444; }
-.text-warning { color: #d97706; font-weight: 600; }
-.text-closed { color: #ef4444; }
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+  color: var(--preto);
+  line-height: 1.2;
+}
+
+.subtitle {
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.status-capsule {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background-color: #f8fafc; /* Light gray background */
+    padding: 0.6rem 1rem;
+    border-radius: 99px; /* Pill shape */
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.status-hours {
+    color: #475569;
+}
+.status-hours.closed { color: #ef4444; }
+.status-hours.warning { color: #d97706; }
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #22c55e;
+}
+.status-hours.closed .status-dot { background-color: #ef4444; }
+.status-hours.warning .status-dot { background-color: #f59e0b; }
+
+.status-dot.pulse {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    animation: pulse-green 2s infinite;
+}
 
 @keyframes pulse-green {
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
@@ -365,122 +397,413 @@ function handleRefresh() {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
-/* --- Stats Row --- */
-.stats-row { flex-shrink: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
-.stat-card {
-  background: var(--branco); border: 1px solid #f1f5f9; border-radius: 1rem; padding: 1rem 1.25rem;
-  display: flex; align-items: center; gap: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-  transition: transform 0.2s, box-shadow 0.2s;
-  position: relative;
+.divider {
+    width: 1px;
+    height: 20px;
+    background-color: #cbd5e1;
 }
-.stat-card.clickable { cursor: pointer; }
-.stat-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 6px 12px -2px rgba(0,0,0,0.1); }
-.stat-card.clickable:hover .stat-nav-icon { opacity: 1; transform: translateX(0); }
-.stat-icon-mini { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.bg-orange { background: #fff7ed; color: #f97316; }
-.bg-blue { background: #eff6ff; color: #3b82f6; }
-.bg-green { background: #f0fdf4; color: #22c55e; }
-.bg-pink { background: #fdf2f8; color: #ec4899; }
 
-.stat-text { display: flex; flex-direction: column; flex-grow: 1; }
-.stat-value { font-size: 1.5rem; font-weight: 700; color: #1e293b; line-height: 1.1; margin-bottom: 2px; }
-.stat-label { font-size: 0.75rem; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
+/* Grid Layouts */
+.top-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 equal columns */
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
 
-/* ✨ Ícone de navegação no card */
-.stat-nav-icon {
+@media (max-width: 1024px) {
+  .top-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* KPI Cards */
+.kpi-card {
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem; /* Ensure consistent spacing */
+}
+
+.kpi-label {
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1; /* Take available space */
+  min-width: 0; /* Enable truncation in flex item */
+}
+
+.icon-bg {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Colors for icon backgrounds */
+.bg-orange-50 { background-color: #fff7ed; }
+.bg-blue-50 { background-color: #eff6ff; }
+.bg-emerald-50 { background-color: #ecfdf5; }
+.bg-pink-50 { background-color: #fdf2f8; }
+
+.text-orange-500 { color: #f97316; }
+.text-blue-500 { color: #3b82f6; }
+.text-emerald-500 { color: #10b981; }
+.text-pink-500 { color: #ec4899; }
+
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--preto);
+  line-height: 1.2;
+}
+
+.kpi-sub {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  margin-top: 0.25rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background-color: #edfbff;
-  color: #3b82f6;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.kpi-card:hover .kpi-sub {
+    opacity: 1;
+    color: var(--azul-principal);
+}
+
+/* Layout Split */
+.lists-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+  /* height: 500px; Remove fixed height */
+}
+
+@media (max-width: 1024px) {
+  .lists-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table Card / Panels */
+.table-card {
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Fill available space */
+  max-height: 550px; /* Constrain max height */
+  overflow: hidden; /* Ensure no leak */
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* Align for subtitle */
+  margin-bottom: 1.25rem;
   flex-shrink: 0;
-  opacity: 0.7;
-  transform: translateX(-4px);
-  transition: all 0.2s ease;
 }
 
-/* --- Main Split --- */
-.main-split { flex-grow: 1; min-height: 0; display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.25rem; }
-
-.panel-column {
-  background: var(--branco); border: 1px solid #f1f5f9; border-radius: 1rem;
-  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+.card-header-text {
+  display: flex;
+  flex-direction: column;
 }
-.panel-header {
-  padding: 0.75rem 1.25rem; border-bottom: 1px solid #f1f5f9; flex-shrink: 0;
-  display: flex; justify-content: space-between; align-items: center; background-color: #ffffff;
+
+.card-title {
+  font-size: 1rem; /* 1rem size requested */
+  font-weight: 700;
+  color: var(--preto);
+  margin: 0;
+  line-height: 1.2;
 }
-.panel-header h3 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #334155; }
 
-/* ✨ Botão Refresh Estilizado */
-.btn-refresh {
-  display: flex; align-items: center; gap: 0.5rem;
-  background-color: #ffffff; border: 1px solid #e2e8f0; padding: 0.4rem 0.8rem;
-  border-radius: 0.5rem; font-size: 0.8rem; font-weight: 500; color: #475569; cursor: pointer;
-  transition: all 0.2s;
+.card-subtitle {
+  font-size: 0.8rem;
+  color: var(--cinza-texto);
+  margin-top: 0.25rem;
+  line-height: 1.2;
 }
-.btn-refresh:hover:not(:disabled) { background-color: #f8fafc; color: var(--azul-principal); border-color: #cbd5e1; }
-.btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
-.spin-animation { animation: spin 1s linear infinite; }
 
-.panel-content.scrollable { flex-grow: 1; overflow-y: auto; padding: 1rem; background-color: #ffffff; }
-.panel-content.scrollable::-webkit-scrollbar { width: 6px; }
-.panel-content.scrollable::-webkit-scrollbar-track { background: transparent; }
-.panel-content.scrollable::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-.panel-content.scrollable::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+.refresh-btn {
+    border: 1px solid #e5e7eb;
+    background: transparent;
+    border-radius: 0.5rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cinza-texto);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.refresh-btn:hover:not(:disabled) {
+    background-color: #f8fafc;
+    color: var(--azul-principal);
+}
 
-/* Feed com Cores de Fundo e Ícones */
-.feed-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Custom Scrollbar */
+.scrollable-content::-webkit-scrollbar { width: 4px; }
+.scrollable-content::-webkit-scrollbar-track { background: transparent; }
+.scrollable-content::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 2px; }
+
+/* Feed Styling */
+.feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
 .feed-item {
-  display: flex; gap: 1rem; padding: 0.875rem; border-radius: 0.75rem;
-  border: 1px solid #f1f5f9; background: #ffffff; transition: all 0.2s;
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background-color: #f8fafc; /* Card look */
+    transition: background 0.2s;
 }
-.feed-item:hover { background: #f8fafc; border-color: #e2e8f0; }
-.feed-item.highlight-item { background: #f8fafc; }
 
-.feed-icon-wrapper {
-  width: 40px; height: 40px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+.feed-item:hover {
+    background-color: #f1f5f9;
 }
-/* Classes específicas para cores de fundo do ícone */
+
+.feed-item.highlight {
+    background-color: #eff6ff; 
+    border: 1px solid #dbeafe;
+}
+
+.feed-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Icon Colors */
 .icon-purple { background: #f3e8ff; color: #a855f7; }
 .icon-blue { background: #e0f2fe; color: #0ea5e9; }
 .icon-green { background: #dcfce7; color: #22c55e; }
 .icon-gray { background: #f3f4f6; color: #6b7280; }
 
-.feed-text { flex-grow: 1; }
-.feed-top { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
-.feed-title { font-size: 0.9rem; font-weight: 600; color: #1e293b; }
-.feed-time { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
-.feed-desc { font-size: 0.85rem; color: #475569; margin: 0; line-height: 1.5; }
-
-/* Alertas */
-.alerts-list { display: flex; flex-direction: column; gap: 0.75rem; }
-.alert-card {
-  padding: 0.875rem; border-radius: 0.75rem; display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.85rem;
+.feed-content {
+    flex: 1;
 }
+
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.125rem;
+}
+
+.feed-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--preto);
+}
+
+.feed-time {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.feed-desc {
+    font-size: 0.85rem;
+    color: var(--cinza-texto);
+    line-height: 1.4;
+}
+
+/* Alerts Styling */
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.alert-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    align-items: flex-start;
+}
+
 .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
 .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 .alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
 .alert-default { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-.alert-icon { margin-top: 2px; flex-shrink: 0; }
-.alert-message { margin: 0; line-height: 1.4; font-weight: 500; }
 
-.empty-state { text-align: center; padding: 3rem 1rem; color: #94a3b8; font-size: 0.9rem; background: #f8fafc; border-radius: 0.75rem; border: 1px dashed #e2e8f0; }
+.alert-text {
+    flex: 1;
+    font-weight: 500;
+}
 
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+/* Responsive */
 @media (max-width: 1024px) {
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
-  .main-split { grid-template-columns: 1fr; }
+  .top-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .lists-grid {
+    grid-template-columns: 1fr;
+    /* Remove constrained height on tablet/mobile so it flows naturally */
+    height: auto; 
+  }
+  
+  .table-card {
+      /* Allow cards to expand on mobile/tablet */
+      height: auto; 
+      max-height: 600px;
+  }
 }
 
 @media (max-width: 768px) {
-  .dashboard-container { height: auto; overflow: auto; padding: 0.5rem; }
-  .header-content { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  .status-bar-capsule { width: 100%; justify-content: space-between; }
-  .stats-row { grid-template-columns: 1fr; }
-  .panel-content.scrollable { overflow: visible; height: auto; }
+  .dashboard-container {
+      height: auto;
+      overflow-y: auto;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch; /* Stretch to fill width */
+    gap: 1.5rem;
+  }
+  
+  .header-left {
+      flex-direction: row;
+      align-items: center;
+      text-align: left;
+      gap: 1rem;
+      width: 100%;
+  }
+  
+  .header-text {
+      align-items: flex-start;
+  }
+  
+  .clinic-logo-wrapper {
+      margin-bottom: 0;
+      width: 48px; /* Slightly smaller on mobile */
+      height: 48px;
+  }
+  
+  .header-right {
+      width: 100%;
+  }
+  
+  .status-capsule {
+      width: 100%;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      border-radius: 0;
+  }
+
+  .status-item {
+      width: 100%;
+      justify-content: center;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+  }
+
+  .divider {
+      display: none;
+  }
+  
+  .top-grid {
+      grid-template-columns: repeat(2, 1fr); /* 2 columns for better density */
+      gap: 0.75rem;
+  }
+  
+  .kpi-card {
+      padding: 1rem; /* Compact padding */
+  }
+
+  .kpi-value {
+      font-size: 1.5rem; /* Slightly smaller number */
+  }
+
+  .kpi-label {
+      font-size: 0.8rem;
+      white-space: normal; /* Allow text to wrap on small screens */
+      line-height: 1.2;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; /* Limit to 2 lines */
+      -webkit-box-orient: vertical;
+      overflow: hidden; /* Hide overflow if > 2 lines */
+      text-overflow: ellipsis; 
+  }
+  
+  .lists-grid {
+    gap: 1.5rem;
+  }
+
+  .table-card {
+      max-height: none; /* Let it grow if needed, or keep constrained if preferred */
+      height: auto;
+  }
 }
 </style>
