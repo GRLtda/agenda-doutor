@@ -6,25 +6,13 @@ import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute } from 'vue-router'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import ClinicDropdown from '@/components/global/ClinicDropdown.vue'
+import AppIcon from '@/components/global/AppIcon.vue'
 import {
-  LayoutDashboard,
-  CalendarSearch,
-  Calendar,
-  Users,
-  Stethoscope,
-  LifeBuoy,
-  Settings,
+  Check,
   MoreHorizontal,
   X,
-  Megaphone,
   ChevronDown,
-  MessageSquare,
-  LayoutTemplate,
-  Link,
-  History,
   ChevronsUpDown,
-  DollarSign,
-  Workflow
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -108,21 +96,21 @@ const sidebarSections = computed(() => {
   const principalSection = {
     title: null, // Sem título para a primeira seção
     links: [
-      { icon: LayoutDashboard, text: 'Resumo', to: '/app' },
-      { icon: CalendarSearch, text: 'Calendário', to: '/app/calendario' },
-      { icon: Calendar, text: 'Atendimentos', to: '/app/atendimentos' },
+      { icon: 'dashboard', text: 'Resumo', to: '/app' },
+      { icon: 'calendar-search', text: 'Calendário', to: '/app/calendario' },
+      { icon: 'calendar', text: 'Atendimentos', to: '/app/atendimentos' },
     ]
   }
 
   // Seção Gestão
   const gestaoLinks = [
-    { icon: Users, text: 'Pacientes', to: '/app/pacientes' },
-    { icon: Stethoscope, text: 'Procedimentos', to: '/app/procedimentos' },
+    { icon: 'users', text: 'Pacientes', to: '/app/pacientes' },
+    { icon: 'stethoscope', text: 'Procedimentos', to: '/app/procedimentos' },
   ]
   
   // Adiciona Financeiro apenas se tiver acesso
   if (hasAccess('finance')) {
-    gestaoLinks.push({ icon: DollarSign, text: 'Financeiro', to: '/app/financeiro' })
+    gestaoLinks.push({ icon: 'dollar', text: 'Financeiro', to: '/app/financeiro' })
   }
   
   const gestaoSection = {
@@ -132,18 +120,18 @@ const sidebarSections = computed(() => {
 
   // Seção Marketing - com subitens
   const allMarketingChildren = [
-    { text: 'Visão Geral', to: '/app/marketing', icon: LayoutDashboard, feature: 'marketing_overview' },
-    { text: 'Mensagens', to: '/app/marketing/mensagens', icon: MessageSquare, feature: 'marketing_messages' },
-    { text: 'Modelos', to: '/app/marketing/modelos', icon: LayoutTemplate, feature: 'marketing_templates' },
-    { text: 'Conexão', to: '/app/marketing/conexao', icon: Link, feature: 'marketing_connection' },
-    { text: 'Histórico', to: '/app/marketing/logs', icon: History, feature: 'marketing_logs' },
+    { text: 'Visão Geral', to: '/app/marketing', icon: 'dashboard', feature: 'marketing_overview' },
+    { text: 'Mensagens', to: '/app/marketing/mensagens', icon: 'message', feature: 'marketing_messages' },
+    { text: 'Modelos', to: '/app/marketing/modelos', icon: 'template', feature: 'marketing_templates' },
+    { text: 'Conexão', to: '/app/marketing/conexao', icon: 'link', feature: 'marketing_connection' },
+    { text: 'Histórico', to: '/app/marketing/logs', icon: 'history', feature: 'marketing_logs' },
   ]
   
   const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))
   
   const marketingLinks = [
     {
-      icon: Megaphone,
+      icon: 'megaphone',
       text: 'Marketing',
       key: 'marketing',
       children: filteredMarketingChildren
@@ -152,7 +140,7 @@ const sidebarSections = computed(() => {
   
   // Adiciona Workflows se tiver acesso
   if (hasAccess('workflows')) {
-    marketingLinks.push({ icon: Workflow, text: 'Workflows', to: '/app/workflows' })
+    marketingLinks.push({ icon: 'workflow', text: 'Workflows', to: '/app/workflows' })
   }
   
   const marketingSection = {
@@ -164,8 +152,8 @@ const sidebarSections = computed(() => {
   const configSection = {
     title: 'Sistema',
     links: [
-      { icon: Settings, text: 'Configurações', to: '/app/configuracoes' },
-      { icon: LifeBuoy, text: 'Suporte', to: '/app/suporte' },
+      { icon: 'settings', text: 'Configurações', to: '/app/configuracoes' },
+      { icon: 'support', text: 'Suporte', to: '/app/suporte' },
     ]
   }
 
@@ -221,7 +209,7 @@ const sidebarSections = computed(() => {
                 @click="toggleExpand(link.key)"
                 :title="isCollapsed ? link.text : ''"
               >
-                <component :is="link.icon" :size="20" stroke-width="2" />
+                <AppIcon :name="link.icon" :size="20" />
                 <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
                 <ChevronDown
                   v-show="!isCollapsed"
@@ -239,7 +227,7 @@ const sidebarSections = computed(() => {
                 <ul class="submenu">
                   <li v-for="child in link.children" :key="child.text">
                     <RouterLink :to="child.to" class="submenu-link" active-class="active-child">
-                      <component :is="child.icon" :size="18" stroke-width="2" class="submenu-icon" />
+                      <AppIcon :name="child.icon" :size="18" class="submenu-icon" />
                       <span class="submenu-text">{{ child.text }}</span>
                     </RouterLink>
                   </li>
@@ -256,7 +244,7 @@ const sidebarSections = computed(() => {
               :active-class="link.to === '/app' ? '' : 'active-link'"
               :exact-active-class="link.to === '/app' ? 'active-link' : ''"
             >
-              <component :is="link.icon" :size="20" stroke-width="2" />
+              <AppIcon :name="link.icon" :size="20" />
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
             </RouterLink>
           </li>
