@@ -100,321 +100,331 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="profile-container">
+  <div class="profile-page">
+    <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
+      <p>Carregando informações...</p>
     </div>
 
-    <div v-else class="profile-content">
-      <!-- Header Section -->
-      <div class="profile-header">
-        <div class="avatar-section">
+    <div v-else>
+      <!-- Header with Avatar - ResumoView Style -->
+      <header class="page-header">
+        <div class="header-left">
           <div class="avatar-wrapper">
             <div class="avatar">
               {{ getInitials(user?.name) }}
             </div>
           </div>
-          <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
-          <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
+          <div class="header-text">
+            <h1 class="title">{{ user?.name || 'Usuário' }}</h1>
+            <p class="subtitle">{{ user?.email || 'email@exemplo.com' }}</p>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <!-- Main Content -->
-      <div class="profile-body">
+      <!-- Main Content Grid - ResumoView lists-grid Style -->
+      <div class="lists-grid">
         <!-- Personal Information Section -->
-        <section class="profile-section">
-          <div class="section-header">
-             <div>
-                <h2 class="section-title">Informações Pessoais</h2>
-                <p class="section-description">Suas informações básicas de perfil.</p>
-             </div>
-             <button v-if="!isEditing" @click="startEditing" class="btn-icon" title="Editar Perfil">
-                <Pencil :size="18" />
-             </button>
-             <div v-else class="edit-actions">
-                <button @click="cancelEditing" class="btn-icon btn-cancel" title="Cancelar">
-                  <X :size="18" />
-                </button>
-                <button @click="saveProfile" class="btn-icon btn-save" title="Salvar" :disabled="isSaving">
-                  <Check :size="18" />
-                </button>
-             </div>
-          </div>
-
-          <div class="info-grid">
-            <div class="info-field">
-              <label class="field-label">Nome completo</label>
-              <div v-if="!isEditing" class="field-value">
-                <User :size="18" class="field-icon" />
-                <span>{{ user?.name || 'Não informado' }}</span>
-              </div>
-              <FormInput 
-                v-else 
-                v-model="formData.name" 
-                placeholder="Seu nome completo"
-                class="edit-input"
-              />
+        <div class="table-card">
+          <div class="card-header">
+            <div class="card-header-text">
+              <h3 class="card-title">Informações Pessoais</h3>
+              <p class="card-subtitle">Suas informações básicas de perfil.</p>
             </div>
-
-            <div class="info-field">
-              <label class="field-label">Email</label>
-              <div v-if="!isEditing" class="field-value">
-                <Mail :size="18" class="field-icon" />
-                <span>{{ user?.email || 'Não informado' }}</span>
-              </div>
-              <FormInput 
-                v-else 
-                v-model="formData.email" 
-                placeholder="Seu email"
-                type="email"
-                class="edit-input"
-              />
-            </div>
-
-            <div class="info-field">
-              <label class="field-label">Função</label>
-              <div class="field-value">
-                <Briefcase :size="18" class="field-icon" />
-                <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
-              </div>
-            </div>
-
-            <div class="info-field">
-              <label class="field-label">Membro desde</label>
-              <div class="field-value">
-                <Calendar :size="18" class="field-icon" />
-                <span>{{ formatDate(clinic?.createdAt) }}</span>
-              </div>
+            <button v-if="!isEditing" @click="startEditing" class="btn-icon" title="Editar Perfil">
+              <Pencil :size="18" />
+            </button>
+            <div v-else class="edit-actions">
+              <button @click="cancelEditing" class="btn-icon btn-cancel" title="Cancelar">
+                <X :size="18" />
+              </button>
+              <button @click="saveProfile" class="btn-icon btn-save" title="Salvar" :disabled="isSaving">
+                <Check :size="18" />
+              </button>
             </div>
           </div>
-        </section>
+
+          <div class="card-content">
+            <div class="info-grid">
+              <div class="info-field">
+                <label class="field-label">Nome completo</label>
+                <div v-if="!isEditing" class="field-value">
+                  <User :size="18" class="field-icon" />
+                  <span>{{ user?.name || 'Não informado' }}</span>
+                </div>
+                <FormInput 
+                  v-else 
+                  v-model="formData.name" 
+                  placeholder="Seu nome completo"
+                  class="edit-input"
+                />
+              </div>
+
+              <div class="info-field">
+                <label class="field-label">Email</label>
+                <div v-if="!isEditing" class="field-value">
+                  <Mail :size="18" class="field-icon" />
+                  <span>{{ user?.email || 'Não informado' }}</span>
+                </div>
+                <FormInput 
+                  v-else 
+                  v-model="formData.email" 
+                  placeholder="Seu email"
+                  type="email"
+                  class="edit-input"
+                />
+              </div>
+
+              <div class="info-field">
+                <label class="field-label">Função</label>
+                <div class="field-value">
+                  <Briefcase :size="18" class="field-icon" />
+                  <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
+                </div>
+              </div>
+
+              <div class="info-field">
+                <label class="field-label">Membro desde</label>
+                <div class="field-value">
+                  <Calendar :size="18" class="field-icon" />
+                  <span>{{ formatDate(clinic?.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Clinic Information Section -->
-        <section v-if="clinic" class="profile-section">
-          <h2 class="section-title">Informações da Clínica</h2>
-          <p class="section-description">Detalhes da instituição vinculada ao seu perfil.</p>
-
-          <div class="clinic-header">
-            <div class="clinic-logo-container">
-              <img 
-                v-if="clinic.logoUrl" 
-                :src="clinic.logoUrl" 
-                :alt="clinic.name"
-                class="clinic-logo"
-              />
-              <div v-else class="clinic-logo-placeholder">
-                <Building2 :size="28" />
-              </div>
-            </div>
-            <div class="clinic-info">
-              <h3 class="clinic-name">{{ clinic.name }}</h3>
-              <span class="clinic-plan" :class="`plan-${clinic.plan}`">
-                {{ planLabels[clinic.plan] || clinic.plan }}
-              </span>
+        <div v-if="clinic" class="table-card">
+          <div class="card-header">
+            <div class="card-header-text">
+              <h3 class="card-title">Informações da Clínica</h3>
+              <p class="card-subtitle">Detalhes da instituição vinculada ao seu perfil.</p>
             </div>
           </div>
 
-          <div class="info-grid">
-            <div class="info-field">
-              <label class="field-label">CNPJ</label>
-              <div class="field-value">
-                <Building2 :size="18" class="field-icon" />
-                <span>{{ clinic.cnpj || 'Não informado' }}</span>
+          <div class="card-content">
+            <!-- Clinic Header -->
+            <div class="clinic-header">
+              <div class="clinic-logo-wrapper">
+                <img 
+                  v-if="clinic.logoUrl" 
+                  :src="clinic.logoUrl" 
+                  :alt="clinic.name"
+                  class="clinic-logo"
+                />
+                <div v-else class="clinic-logo-placeholder">
+                  <Building2 :size="24" />
+                </div>
+              </div>
+              <div class="clinic-info">
+                <h3 class="clinic-name">{{ clinic.name }}</h3>
+                <span class="clinic-plan" :class="`plan-${clinic.plan}`">
+                  {{ planLabels[clinic.plan] || clinic.plan }}
+                </span>
               </div>
             </div>
 
-            <div class="info-field">
-              <label class="field-label">Responsável</label>
-              <div class="field-value">
-                <User :size="18" class="field-icon" />
-                <span>{{ clinic.responsibleName || 'Não informado' }}</span>
+            <div class="info-grid">
+              <div class="info-field">
+                <label class="field-label">CNPJ</label>
+                <div class="field-value">
+                  <Building2 :size="18" class="field-icon" />
+                  <span>{{ clinic.cnpj || 'Não informado' }}</span>
+                </div>
               </div>
-            </div>
 
-            <div v-if="clinic.address?.city" class="info-field">
-              <label class="field-label">Localização</label>
-              <div class="field-value">
-                <MapPin :size="18" class="field-icon" />
-                <span>{{ clinic.address.city }}{{ clinic.address.state ? `, ${clinic.address.state}` : '' }}</span>
+              <div class="info-field">
+                <label class="field-label">Responsável</label>
+                <div class="field-value">
+                  <User :size="18" class="field-icon" />
+                  <span>{{ clinic.responsibleName || 'Não informado' }}</span>
+                </div>
               </div>
-            </div>
 
-            <div class="info-field">
-              <label class="field-label">Membros da equipe</label>
-              <div class="field-value">
-                <UserCircle :size="18" class="field-icon" />
-                <span>{{ clinic.staff?.length || 0 }} membro(s)</span>
+              <div v-if="clinic.address?.city" class="info-field">
+                <label class="field-label">Localização</label>
+                <div class="field-value">
+                  <MapPin :size="18" class="field-icon" />
+                  <span>{{ clinic.address.city }}{{ clinic.address.state ? `, ${clinic.address.state}` : '' }}</span>
+                </div>
+              </div>
+
+              <div class="info-field">
+                <label class="field-label">Membros da equipe</label>
+                <div class="field-value">
+                  <UserCircle :size="18" class="field-icon" />
+                  <span>{{ clinic.staff?.length || 0 }} membro(s)</span>
+                </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.profile-container {
-  min-height: 100vh;
-  background: #f9fafb;
-  padding: 2rem 0;
+.profile-page {
+  font-family: var(--fonte-principal);
+  color: var(--preto);
 }
 
-.loading-state {
+/* Header - ResumoView Style */
+.page-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  min-height: 400px;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.profile-content {
-  width: 100%;
-}
-
-/* Header Section */
-.profile-header {
-  background: white;
-  border-radius: 12px;
-  padding: 3rem 2rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.avatar-section {
+.header-left {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 1rem;
 }
 
 .avatar-wrapper {
-  position: relative;
+  flex-shrink: 0;
 }
 
 .avatar {
-  width: 120px;
-  height: 120px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
+.header-text {
+  display: flex;
+  flex-direction: column;
+}
 
-.user-name {
-  font-size: 2rem;
+.title {
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
-  margin: 0;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  margin-bottom: 0.1rem;
+  color: var(--preto);
+  line-height: 1.2;
 }
 
-.user-email {
-  font-size: 1rem;
-  color: #6b7280;
-  margin: 0;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+.subtitle {
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
 }
 
-/* Body Section */
-.profile-body {
+/* Grid Layout - ResumoView Style */
+.lists-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  align-items: start;
 }
 
-.profile-section {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  min-width: 0; /* Prevents grid blowout */
+@media (max-width: 1024px) {
+  .lists-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.section-title {
-  font-size: 1.25rem;
+/* Table Card / Panels - ResumoView Style */
+.table-card {
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.3rem;
+  flex-shrink: 0;
+}
+
+.card-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 1rem;
   font-weight: 700;
-  color: #111827;
-  margin: 0 0 0.5rem 0;
+  color: var(--preto);
+  margin: 0;
+  line-height: 1.2;
 }
 
-.section-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0 0 2rem 0;
+.card-subtitle {
+  font-size: 0.8rem;
+  color: var(--cinza-texto);
+  margin-top: 0.25rem;
+  line-height: 1.2;
+}
+
+.card-content {
+  padding: 0 1.3rem 1.3rem;
+  flex: 1;
 }
 
 /* Clinic Header */
 .clinic-header {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid #e5e7eb;
-  min-width: 0; /* Allows children to truncate */
+  min-width: 0;
 }
 
-.clinic-logo-container {
+.clinic-logo-wrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   flex-shrink: 0;
 }
 
 .clinic-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .clinic-logo-placeholder {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  color: var(--azul-principal);
 }
 
 .clinic-info {
   flex: 1;
-  min-width: 0; /* Allows truncation */
+  min-width: 0;
 }
 
 .clinic-name {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--preto);
   margin: 0 0 0.5rem 0;
   white-space: nowrap;
   overflow: hidden;
@@ -450,21 +460,21 @@ onMounted(() => {
 /* Info Grid */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .info-field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 0; /* Allows children to truncate */
+  min-width: 0;
 }
 
 .field-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--cinza-texto);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
@@ -473,14 +483,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  background: #f9fafb;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 0.9375rem;
-  color: #111827;
+  font-size: 0.875rem;
+  color: var(--preto);
   transition: all 0.2s ease;
-  min-width: 0; /* Allows children to truncate */
+  min-width: 0;
 }
 
 .field-value span {
@@ -491,7 +501,7 @@ onMounted(() => {
 }
 
 .field-value:hover {
-  background: #f3f4f6;
+  background: #f1f5f9;
   border-color: #d1d5db;
 }
 
@@ -500,56 +510,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 1rem;
-  }
-
-  .profile-header {
-    padding: 2rem 1.5rem;
-  }
-
-  .avatar {
-    width: 100px;
-    height: 100px;
-    font-size: 2.5rem;
-  }
-
-  .user-name {
-    font-size: 1.5rem;
-  }
-  
-  .profile-body {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-section {
-    padding: 1.5rem;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .clinic-header {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
 /* Edit Mode Styles */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.section-header .section-description {
-  margin-bottom: 0;
-}
-
 .edit-actions {
   display: flex;
   gap: 0.5rem;
@@ -600,5 +561,73 @@ onMounted(() => {
 .btn-cancel:hover {
   background: #fef2f2;
   border-color: #ef4444;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  background: var(--branco);
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  gap: 1rem;
+  color: var(--cinza-texto);
+}
+
+.spinner {
+  border: 3px solid #f1f5f9;
+  border-top: 3px solid var(--azul-principal);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+  }
+
+  .lists-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
+    padding: 1rem;
+  }
+
+  .card-content {
+    padding: 0 1rem 1rem;
+  }
+
+  .clinic-header {
+    flex-direction: column;
+    text-align: center;
+  }
 }
 </style>

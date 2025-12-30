@@ -302,7 +302,7 @@ const sidebarSections = computed(() => {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   border-top-right-radius: 1rem;
-  height: 100dvh;
+  height: 100%; /* Adapta ao espaço disponível no container */
 }
 
 .sidebar.is-collapsed {

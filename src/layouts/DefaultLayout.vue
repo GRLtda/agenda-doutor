@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import TopBar from '@/components/layout/TopBar.vue' // ✨ 1. Importar a TopBar
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue' // ✨ 2. Importar o Modal
 import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
+import PaymentWarningBanner from '@/components/global/PaymentWarningBanner.vue'
 
 import { useLayoutStore } from '@/stores/layout'
 import { useToast } from 'vue-toastification'
@@ -42,6 +43,9 @@ watch(
 
 <template>
   <div class="app-layout">
+    <!-- Banner fixo no topo, full width -->
+    <PaymentWarningBanner />
+    
     <div class="unified-container">
       <Sidebar
         v-if="!route.meta.layout?.fullscreen"
@@ -85,6 +89,7 @@ watch(
 <style scoped>
 .app-layout {
   display: flex;
+  flex-direction: column;
   background-color: var(--branco);
   height: 100dvh;
 }
