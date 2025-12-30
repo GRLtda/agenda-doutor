@@ -104,6 +104,11 @@ function processContent(content) {
   })
 }
 
+function cleanContentForSave(html) {
+  if (!html) return ''
+  return html.replace(/<span[^>]*data-type="variable"[^>]*>([^<]+)<\/span>/g, '$1')
+}
+
 // Setup TipTap Editor
 const editor = useEditor({
   content: '',
@@ -195,7 +200,7 @@ async function handleSubmit() {
   try {
     const payload = {
       name: templateName.value.trim(),
-      content: content,
+      content: cleanContentForSave(content),
     }
 
     if (isEditMode.value) {

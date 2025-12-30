@@ -3,7 +3,7 @@ import { ref, watch, nextTick, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
-import { UploadCloud, Building, LayoutList, MapPin } from 'lucide-vue-next'
+import { UploadCloud, Building, MapPin, Save } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import { fetchAddressByCEP } from '@/api/external'
@@ -147,339 +147,510 @@ onBeforeRouteLeave((to, from, next) => {
 <template>
   <div class="general-settings">
     <form v-if="isDataLoaded" @submit.prevent="handleUpdate">
-      <div class="page-content-grid">
-
-        <div class="info-card basic-info-card">
-            <div class="section-header">
-                <LayoutList class="title-icon" :size="20" />
-                <h3>Informações Básicas</h3>
+      <!-- Grid de duas colunas -->
+      <div class="settings-grid">
+        <!-- Coluna: Identidade da Clínica -->
+        <section class="settings-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <Building :size="20" />
             </div>
-
-            <div class="fields-grid grid-logo-and-fields">
-                <div class="logo-col-wrapper">
-                    <div class="logo-uploader">
-                        <img
-                            v-if="logoPreviewUrl"
-                            :src="logoPreviewUrl"
-                            alt="Logo da Clínica"
-                            class="logo-preview"
-                        />
-                        <div v-else class="logo-placeholder">
-                            <Building :size="40" />
-                        </div>
-                        <p>Envie uma imagem quadrada (PNG ou JPG)</p>
-                        <input
-                            type="file"
-                            @change="handleFileSelect"
-                            accept="image/png, image/jpeg"
-                            ref="logoInput"
-                            hidden
-                        />
-                        <AppButton type="button" @click="logoInput.click()" variant="secondary">
-                            <UploadCloud :size="16" />
-                            Trocar Imagem
-                        </AppButton>
-                    </div>
-                </div>
-
-                <div class="text-fields-wrapper">
-                    <FormInput v-model="clinicData.name" label="Nome da Clínica" required />
-                    <FormInput v-model="clinicData.cnpj" label="CNPJ" cnpj-mask required />
-                </div>
+            <div class="section-title">
+              <h3>Identidade da Clínica</h3>
+              <p>Logo e informações principais</p>
             </div>
-        </div>
+          </div>
 
-        <div class="info-card address-card">
-            <div class="section-header">
-                <MapPin class="title-icon" :size="20" />
-                <h3>Endereço da Clínica</h3>
-            </div>
-
-            <div class="fields-grid grid-address">
-                <FormInput v-model="clinicData.address.cep" label="CEP" placeholder="00000-000" class="col-small-uniform" required />
-                <FormInput v-model="clinicData.address.street" label="Rua / Logradouro" placeholder="Ex: Rua das Flores" class="span-2-uniform" required />
-
-                <FormInput v-model="clinicData.address.number" label="Número" placeholder="Ex: 123 ou S/N" class="col-small-uniform" required />
-                <FormInput
-                    v-model="clinicData.address.complement"
-                    label="Complemento (Opcional)"
-                    placeholder="Ex: Sala 101, Fundos"
-                    class="col-small-uniform"
+          <div class="identity-content">
+            <!-- Logo Uploader -->
+            <div class="logo-area">
+              <span class="logo-label">Logo</span>
+              <div class="logo-container">
+                <img
+                  v-if="logoPreviewUrl"
+                  :src="logoPreviewUrl"
+                  alt="Logo da Clínica"
+                  class="logo-image"
                 />
-                <FormInput v-model="clinicData.address.district" label="Bairro" placeholder="Ex: Centro" class="col-small-uniform" />
-
-                <FormInput v-model="clinicData.address.city" label="Cidade" placeholder="Ex: São Paulo" class="span-2-uniform" />
-                <FormInput v-model="clinicData.address.state" label="Estado" placeholder="Ex: SP" class="col-small-uniform" />
+                <div v-else class="logo-placeholder">
+                  <Building :size="32" />
+                </div>
+              </div>
+              <input
+                type="file"
+                @change="handleFileSelect"
+                accept="image/png, image/jpeg"
+                ref="logoInput"
+                hidden
+              />
+              <button type="button" @click="logoInput.click()" class="upload-btn">
+                <UploadCloud :size="16" />
+                <span>Alterar logo</span>
+              </button>
+              <span class="logo-hint">PNG ou JPG, máx 2MB</span>
+              <span class="logo-usage-hint">Usada na impressão de PDFs e documentos</span>
             </div>
-        </div>
 
+            <!-- Campos de Texto -->
+            <div class="identity-fields">
+              <FormInput 
+                v-model="clinicData.name" 
+                label="Nome da Clínica" 
+                placeholder="Digite o nome da clínica"
+                required 
+              />
+              <FormInput 
+                v-model="clinicData.cnpj" 
+                label="CNPJ" 
+                placeholder="00.000.000/0000-00"
+                cnpj-mask 
+                required 
+              />
+            </div>
+          </div>
+        </section>
+
+        <!-- Coluna: Endereço -->
+        <section class="settings-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <MapPin :size="20" />
+            </div>
+            <div class="section-title">
+              <h3>Endereço</h3>
+              <p>Localização da clínica</p>
+            </div>
+          </div>
+
+          <div class="address-grid">
+            <div class="field-row field-row-cep">
+              <FormInput 
+                v-model="clinicData.address.cep" 
+                label="CEP" 
+                placeholder="00000-000"
+                required 
+              />
+              <FormInput 
+                v-model="clinicData.address.street" 
+                label="Logradouro" 
+                placeholder="Rua, Avenida, etc."
+                required 
+              />
+            </div>
+
+            <div class="field-row field-row-address">
+              <FormInput 
+                v-model="clinicData.address.number" 
+                label="Número" 
+                placeholder="123"
+                required 
+              />
+              <FormInput
+                v-model="clinicData.address.complement"
+                label="Complemento"
+                placeholder="Sala, Andar"
+              />
+              <FormInput 
+                v-model="clinicData.address.district" 
+                label="Bairro" 
+                placeholder="Centro"
+              />
+              <FormInput 
+                v-model="clinicData.address.state" 
+                label="UF" 
+                placeholder="SP"
+              />
+            </div>
+
+            <div class="field-row field-row-city">
+              <FormInput 
+                v-model="clinicData.address.city" 
+                label="Cidade" 
+                placeholder="São Paulo"
+              />
+            </div>
+          </div>
+        </section>
       </div>
 
+      <!-- Footer Actions -->
       <div class="footer-actions">
-        <span v-if="hasUnsavedChanges" class="unsaved-changes-alert">
-            Você tem alterações não salvas.
+        <span v-if="hasUnsavedChanges" class="unsaved-indicator">
+          <span class="dot"></span>
+          Alterações não salvas
         </span>
-        <AppButton type="submit" variant="primary">Salvar Alterações</AppButton>
+        <AppButton type="submit" variant="primary" class="save-btn">
+          <Save :size="18" />
+          Salvar Alterações
+        </AppButton>
       </div>
     </form>
-    <div v-else class="loading-state-placeholder">
+
+    <!-- Loading State -->
+    <div v-else class="loading-state">
+      <div class="spinner"></div>
       <p>Carregando dados da clínica...</p>
     </div>
   </div>
 </template>
+
 <style scoped>
-/* CORES */
-:root {
-    --cinza-texto: #6b7280;
-    --azul-principal: #3b82f6;
-    --branco: #ffffff;
-    --cinza-claro: #f9fafb;
-    --borda: #e5e7eb;
-    --azul-escuro: #2563eb;
-    --laranja-alerta: #f59e0b;
-    --input-uniform-width: 200px;
-}
-
-/* ------------------------------------------- */
-/* CLASSES AUXILIARES PARA LARGURA E SPAN      */
-/* ------------------------------------------- */
-/* Classes para o novo layout uniforme */
-.col-small-uniform { max-width: var(--input-uniform-width); grid-column: span 1; }
-.span-2-uniform { max-width: calc(2 * var(--input-uniform-width) + 1.5rem); grid-column: span 2; }
-
-/* ------------------------------------------- */
-/* ESTILOS DE LARGURA DO FORMINPUT INTERNO     */
-/* ------------------------------------------- */
-/* Garante que os inputs internos sigam a largura do elemento pai */
-:deep(.form-group) {
-    max-width: var(--input-uniform-width);
-}
-:deep(.form-group.span-2) {
-    max-width: 100%;
-}
-/* SOBRESCREVENDO: Inputs de endereço usam as novas classes uniformes */
-:deep(.form-group.col-small-uniform) {
-    max-width: var(--input-uniform-width);
-}
-:deep(.form-group.span-2-uniform) {
-    max-width: 100%;
-}
-/* FIM DOS ESTILOS DE LARGURA */
-
-
-/* ------------------------------------------- */
-/* LAYOUT PRINCIPAL (DOIS CARDS LADO A LADO)   */
-/* ------------------------------------------- */
-.page-content-grid {
-    display: grid;
-    /* ✨ ALTERAÇÃO CRÍTICA: 0.7fr para Básicas, 1.3fr para Endereço */
-    grid-template-columns: 0.7fr 1.3fr;
-    gap: 1.5rem;
-    align-items: start;
-    margin-bottom: 1.5rem;
-}
-
-/* ------------------------------------------- */
-/* ESTILOS DOS CARDS E SEÇÕES                  */
-/* ------------------------------------------- */
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    font-weight: 600;
-    border-bottom: 1px solid #f3f4f6;
-    padding-bottom: 0.75rem;
-}
-.section-header h3 {
-    font-size: 1rem;
-    margin: 0;
-}
-
-.title-icon {
-  color: var(--azul-principal);
-}
-
-/* GRID DE CAMPOS INTERNA */
-.fields-grid {
-    display: grid;
-    gap: 1rem 1.5rem;
-    align-items: start;
-}
-
-/* Grid de Endereço (3 colunas uniformes) */
-.grid-address {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
-
-/* Grid Básico */
-.grid-logo-and-fields {
-    grid-template-columns: 200px 1fr;
-    gap: 1.5rem;
-}
-
-.text-fields-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-.text-fields-wrapper > :deep(.form-group) {
-    margin-bottom: 0;
-}
-
-/* ------------------------------------------- */
-/* UPLOADER DE LOGO                            */
-/* ------------------------------------------- */
-.logo-col-wrapper {
-    align-self: start;
-    border-right: 1px solid #f3f4f6;
-    padding-right: 1.5rem;
-}
-.logo-uploader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--cinza-claro);
-  border-radius: 0.75rem;
-  border: 1px dashed var(--borda);
-  text-align: center;
+.general-settings {
   width: 100%;
 }
-.logo-preview, .logo-placeholder {
-  width: 100px;
-  height: 100px;
-  border-radius: 0.75rem;
-  flex-shrink: 0;
+
+/* Grid Principal */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1.5rem;
+  align-items: stretch;
 }
-.logo-preview { object-fit: cover; border: 1px solid var(--borda); }
-.logo-placeholder {
+
+/* Seções */
+.settings-section {
+  background: var(--branco);
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border-radius: 0.625rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #eef2ff;
   color: var(--azul-principal);
-  border: 2px dashed #c7d2fe;
+  flex-shrink: 0;
 }
-.logo-uploader p {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
-  margin: 0;
+
+.section-title h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.125rem 0;
 }
-.logo-uploader p {
-  font-size: 0.875rem;
-  color: var(--cinza-texto);
+
+.section-title p {
+  font-size: 0.8rem;
+  color: #6b7280;
   margin: 0;
 }
 
-/* ------------------------------------------- */
-/* RODAPÉ E AÇÕES                              */
-/* ------------------------------------------- */
+/* Identidade da Clínica */
+.identity-content {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 120px;
+}
+
+.logo-container {
+  width: 80px;
+  height: 80px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  flex-shrink: 0;
+}
+
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-btn:hover {
+  border-color: var(--azul-principal);
+  color: var(--azul-principal);
+  background: #eef2ff;
+}
+
+.logo-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.logo-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.logo-usage-hint {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.375rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.identity-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Grid de Endereço */
+.address-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-row {
+  display: grid;
+  gap: 1rem;
+}
+
+.field-row-cep {
+  grid-template-columns: 130px 1fr;
+}
+
+.field-row-address {
+  grid-template-columns: 80px 1fr 1fr 60px;
+}
+
+.field-row-city {
+  grid-template-columns: 200px;
+}
+
+/* Footer */
 .footer-actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 1.5rem;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--borda);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
 }
-.unsaved-changes-alert {
-    color: var(--laranja-alerta);
-    font-size: 0.875rem;
-    font-weight: 600;
+
+.unsaved-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #f59e0b;
+  font-weight: 500;
 }
-.unsaved-changes-alert {
-    color: var(--laranja-alerta);
-    font-size: 0.875rem;
-    font-weight: 600;
+
+.unsaved-indicator .dot {
+  width: 8px;
+  height: 8px;
+  background: #f59e0b;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
 }
-.loading-state-placeholder {
-    display: flex;
-    justify-content: center;
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Loading */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  gap: 1rem;
+  color: #6b7280;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--azul-principal);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsividade */
+@media (max-width: 900px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-content {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .logo-area {
+    width: 100%;
+    flex-shrink: 1;
+  }
+
+  .identity-fields {
+    width: 100%;
+  }
+
+  .identity-fields :deep(.form-group),
+  .identity-fields :deep(input) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-section {
+    padding: 1.25rem;
+  }
+
+  .identity-content {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .logo-area {
+    flex-direction: row;
     align-items: center;
-    height: 300px;
-    color: var(--cinza-texto);
+    gap: 1rem;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    width: 100%;
+  }
+
+  .logo-label {
+    width: 100%;
+  }
+
+  .logo-usage-hint {
+    flex: 1;
+    min-width: 100%;
+  }
+
+  .field-row-cep,
+  .field-row-city {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row-address {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .identity-fields {
+    width: 100%;
+  }
+
+  .identity-fields :deep(.form-group),
+  .identity-fields :deep(input) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .footer-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .unsaved-indicator {
+    justify-content: center;
+  }
 }
 
-/* ------------------------------------------- */
-/* RESPONSIVIDADE                              */
-/* ------------------------------------------- */
-@media (max-width: 1000px) {
-    /* Em telas menores, os dois cards principais empilham */
-    .page-content-grid {
-        grid-template-columns: 1fr;
-    }
-    .info-card {
-        padding: 1rem 1.5rem;
-    }
+@media (max-width: 480px) {
+  .settings-section {
+    padding: 1rem;
+  }
 
-    /* Logo e campos de texto empilham */
-    .grid-logo-and-fields {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    .logo-col-wrapper {
-        border-right: none;
-        padding-right: 0;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #f3f4f6;
-        align-self: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    .text-fields-wrapper {
-        padding-top: 0;
-    }
+  .section-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-    /* Campos de endereço em 2 colunas */
-    .grid-address {
-        grid-template-columns: 1fr 1fr;
-    }
-    .grid-address > .span-2-uniform {
-        grid-column: span 2;
-    }
-}
+  .identity-content {
+    gap: 1rem;
+  }
 
-@media (max-width: 600px) {
-    /* 📱 Mobile: Tudo em coluna única */
-    .logo-col-wrapper {
-        flex-direction: column;
-        text-align: center;
-        gap: 1rem;
-    }
-    .logo-uploader {
-        flex-direction: column;
-        justify-content: center;
-        width: 100%;
-    }
-    .logo-uploader p { text-align: center; }
+  .logo-area {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
 
-    .grid-address {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
+  .logo-label {
+    width: auto;
+  }
 
-    .span-2-uniform,
-    .col-small-uniform {
-        grid-column: span 1;
-        max-width: 100% !important;
-        width: 100%;
-    }
+  .identity-fields {
+    width: 100%;
+  }
 
-    :deep(.form-group.col-small-uniform),
-    :deep(.form-group.span-2-uniform),
-    :deep(.form-group) {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
+  .identity-fields :deep(.form-group),
+  .identity-fields :deep(input) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 
-    .footer-actions {
-        flex-direction: column-reverse;
-        align-items: stretch;
-    }
+  .address-grid :deep(.form-group),
+  .address-grid :deep(input) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .field-row-address {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

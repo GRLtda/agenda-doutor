@@ -346,8 +346,7 @@ h2 {
 }
 
 .term-content :deep(li) {
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   color: #374151;
   line-height: 1.6;
 }

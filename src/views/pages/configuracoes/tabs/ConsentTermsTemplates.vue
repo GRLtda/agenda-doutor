@@ -76,7 +76,11 @@ function formatDate(dateString) {
       @close="closeModal"
     />
 
-    <div class="header-actions">
+    <div v-if="!isFetchingTemplates && templates.length > 0" class="header-actions">
+      <div>
+        <h2>Modelos de Termo de Consentimento</h2>
+        <p class="header-subtitle">Você tem {{ templates.length }} modelo(s) cadastrado(s).</p>
+      </div>
       <AppButton @click="openCreateModal" variant="primary">
         <FilePlus2 :size="16" />
         Criar Novo Modelo
@@ -212,8 +216,13 @@ function formatDate(dateString) {
 /* Header */
 .header-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
+}
+.header-subtitle {
+  margin-top: 0.25rem;
+  color: var(--cinza-texto);
 }
 
 /* Grid */
