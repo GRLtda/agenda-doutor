@@ -142,7 +142,7 @@ function formatDate(dateString) {
 
           <div class="delete-wrapper">
             <AppButton
-              @click="templateIdToDelete = template._id"
+              @click.stop="templateIdToDelete = template._id"
               variant="default"
               size="sm"
               title="Excluir"
