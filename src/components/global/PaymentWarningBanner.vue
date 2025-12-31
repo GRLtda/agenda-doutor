@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { AlertTriangle, Loader2 } from 'lucide-vue-next';
+import { AlertTriangle, Loader2, X } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useClinicStore } from '@/stores/clinic';
 
@@ -10,11 +10,12 @@ const clinicStore = useClinicStore();
 const paymentError = ref(null);
 const loading = ref(true);
 const portalLoading = ref(false);
+const isDismissed = ref(false);
 
 const isOwner = computed(() => authStore.user?.role === 'owner');
 
 const showBanner = computed(() => {
-  return isOwner.value && paymentError.value?.inGracePeriod;
+  return isOwner.value && paymentError.value?.inGracePeriod && !isDismissed.value;
 });
 
 const daysRemaining = computed(() => {
@@ -54,6 +55,10 @@ const handleManagePayment = async () => {
   }
 };
 
+const dismissBanner = () => {
+  isDismissed.value = true;
+};
+
 onMounted(() => {
   fetchSubscriptionStatus();
 });
@@ -62,34 +67,41 @@ onMounted(() => {
 <template>
   <div v-if="showBanner" class="payment-warning-banner">
     <div class="banner-content">
-      <AlertTriangle :size="18" class="icon pulse-icon" />
-      <span class="message">
-        Erro no pagamento! Você tem <strong>{{ daysRemaining }}</strong> dia(s) para regularizar.
-      </span>
-      <button 
-        @click="handleManagePayment" 
-        class="action-button"
-        :disabled="portalLoading"
-      >
-        <Loader2 v-if="portalLoading" :size="14" class="spinner" />
-        <span>{{ portalLoading ? 'Abrindo portal...' : 'Atualizar pagamento' }}</span>
-      </button>
+      <div class="banner-left">
+        <div class="icon-container">
+          <AlertTriangle :size="20" class="icon" />
+        </div>
+        <div class="text-content">
+          <span class="title">Problema com o pagamento</span>
+          <span class="message">
+            Regularize em <strong>{{ daysRemaining }}</strong> dia(s) para evitar interrupção do serviço
+          </span>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <button 
+          @click="handleManagePayment" 
+          class="action-button"
+          :disabled="portalLoading"
+        >
+          <Loader2 v-if="portalLoading" :size="16" class="spinner" />
+          <span>{{ portalLoading ? 'Abrindo...' : 'Atualizar pagamento' }}</span>
+        </button>
+        <button @click="dismissBanner" class="close-button" title="Fechar aviso">
+          <X :size="18" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .payment-warning-banner {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0.65rem 1rem;
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   color: white;
-  font-size: 0.875rem;
-  font-weight: 500;
-  animation: slideDown 0.4s ease-out, pulseBackground 2s ease-in-out infinite;
-  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+  padding: 0.875rem 0.5rem;
+  animation: slideDown 0.4s ease-out;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
 @keyframes slideDown {
@@ -103,72 +115,102 @@ onMounted(() => {
   }
 }
 
-@keyframes pulseBackground {
-  0%, 100% {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  }
-  50% {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  }
-}
-
 .banner-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: 1rem;
 }
 
-.icon {
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
   flex-shrink: 0;
 }
 
-.pulse-icon {
-  animation: pulseIcon 1.5s ease-in-out infinite;
+.icon {
+  animation: pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulseIcon {
+@keyframes pulse {
   0%, 100% {
-    transform: scale(1);
     opacity: 1;
   }
   50% {
-    transform: scale(1.15);
-    opacity: 0.8;
+    opacity: 0.6;
   }
 }
 
+.text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .message {
-  white-space: nowrap;
+  font-size: 0.8rem;
+  opacity: 0.95;
 }
 
 .message strong {
   font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin: 0 0.125rem;
 }
 
 .action-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 0.5rem;
-  color: white;
-  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .action-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.02);
+  background: #fef2f2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .action-button:disabled {
   cursor: wait;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .spinner {
@@ -176,23 +218,83 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .payment-warning-banner {
+    padding: 0.5rem 0.75rem;
   }
-  to {
-    transform: rotate(360deg);
+
+  .banner-content {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .banner-left {
+    flex-direction: row;
+    text-align: left;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .icon-container {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .text-content {
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .title {
+    font-size: 0.8rem;
+  }
+
+  .message {
+    font-size: 0.7rem;
+  }
+
+  .banner-actions {
+    width: 100%;
+  }
+
+  .action-button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .close-button {
+    width: 28px;
+    height: 28px;
   }
 }
 
-@media (max-width: 640px) {
-  .banner-content {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  
-  .message {
-    text-align: center;
-  }
+.close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 </style>
+

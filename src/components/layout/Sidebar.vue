@@ -302,7 +302,7 @@ const sidebarSections = computed(() => {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   border-top-right-radius: 1rem;
-  height: 100%; /* Adapta ao espaço disponível no container */
+  height: 100%;
 }
 
 .sidebar.is-collapsed {
@@ -684,6 +684,9 @@ const sidebarSections = computed(() => {
 @media (max-width: 1024px) {
   .desktop-only {
     display: none;
+  }
+  .sidebar{
+    height: 100dvh;
   }
   .sidebar-footer {
     display: block;

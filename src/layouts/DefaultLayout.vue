@@ -43,9 +43,7 @@ watch(
 
 <template>
   <div class="app-layout">
-    <!-- Banner fixo no topo, full width -->
-    <PaymentWarningBanner />
-    
+    <PaymentWarningBanner/>
     <div class="unified-container">
       <Sidebar
         v-if="!route.meta.layout?.fullscreen"
