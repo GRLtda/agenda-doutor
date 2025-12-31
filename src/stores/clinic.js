@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import {
   createClinic as apiCreateClinic,
   updateClinic as apiUpdateClinic,
+  updateDoctorSignature as apiUpdateDoctorSignature,
 } from '@/api/clinics'
 import { uploadImage as apiUploadImage } from '@/api/uploads'
 import { useAuthStore } from './auth'
@@ -109,5 +110,25 @@ export const useClinicStore = defineStore('clinic', () => {
     }
   }
 
-  return { currentClinic, createClinic, updateClinicDetails, setClinic, uploadLogo, getSubscriptionStatus, cancelSubscription, createPortalSession, getLatestInvoice }
+  async function updateDoctorSignature({ signatureData, cro, crm, uf }) {
+    try {
+      const response = await apiUpdateDoctorSignature({ signatureData, cro, crm, uf })
+
+      // Atualiza a store local
+      if (currentClinic.value) {
+        currentClinic.value.doctorSignature = response.data.doctorSignature
+      }
+
+      // Atualiza os dados do usuário para refletir no auth store
+      const authStore = useAuthStore()
+      await authStore.fetchUser()
+
+      return { success: true, data: response.data }
+    } catch (error) {
+      console.error('Erro ao atualizar assinatura do médico:', error)
+      return { success: false, error: error.response?.data?.message || 'Erro ao atualizar assinatura' }
+    }
+  }
+
+  return { currentClinic, createClinic, updateClinicDetails, setClinic, uploadLogo, getSubscriptionStatus, cancelSubscription, createPortalSession, getLatestInvoice, updateDoctorSignature }
 })

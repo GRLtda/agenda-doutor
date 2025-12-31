@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, nextTick, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { User, Mail, Briefcase, Building2, MapPin, Shield, Crown, UserCircle, Calendar, Pencil, Check, X } from 'lucide-vue-next'
+import { useClinicStore } from '@/stores/clinic'
+import { User, Mail, Briefcase, Building2, MapPin, Shield, Crown, UserCircle, Calendar, Pencil, Check, X, Eraser, Save, FileSignature } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
+const clinicStore = useClinicStore()
 const toast = useToast()
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -13,11 +15,22 @@ const isEditing = ref(false)
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
+const isOwner = computed(() => user.value?.role === 'owner')
 
 const formData = reactive({
   name: '',
   email: ''
 })
+
+// Assinatura do Médico
+const signatureCanvas = ref(null)
+const croInput = ref('')
+const crmInput = ref('')
+const ufInput = ref('')
+const isDrawing = ref(false)
+const hasSignature = ref(false)
+const isSavingSignature = ref(false)
+let lastPoint = { x: 0, y: 0 }
 
 const roleLabels = {
   owner: 'Proprietário',
@@ -94,8 +107,158 @@ const refreshUserData = async () => {
   }
 }
 
-onMounted(() => {
-  refreshUserData()
+// ========== Funções do Canvas de Assinatura ==========
+const CANVAS_WIDTH = 422
+const CANVAS_HEIGHT = 150
+
+const initCanvas = () => {
+  const canvas = signatureCanvas.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  const dpr = window.devicePixelRatio || 1
+  
+  // Define dimensões CSS
+  canvas.style.width = CANVAS_WIDTH + 'px'
+  canvas.style.height = CANVAS_HEIGHT + 'px'
+  
+  // Define tamanho real do canvas baseado no device pixel ratio
+  canvas.width = CANVAS_WIDTH * dpr
+  canvas.height = CANVAS_HEIGHT * dpr
+  
+  // Escala o contexto para manter proporção
+  ctx.scale(dpr, dpr)
+  
+  // Configurações do traço
+  ctx.strokeStyle = '#1e3a5f'
+  ctx.lineWidth = 2
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+
+  // Carrega assinatura existente se houver
+  if (clinic.value?.doctorSignature?.imageUrl) {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+      hasSignature.value = true
+    }
+    img.src = clinic.value.doctorSignature.imageUrl
+  }
+}
+
+const getPoint = (e, canvas) => {
+  const rect = canvas.getBoundingClientRect()
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  }
+}
+
+const startDrawing = (e) => {
+  isDrawing.value = true
+  const canvas = signatureCanvas.value
+  lastPoint = getPoint(e, canvas)
+}
+
+const draw = (e) => {
+  if (!isDrawing.value) return
+  const canvas = signatureCanvas.value
+  const ctx = canvas.getContext('2d')
+  const currentPoint = getPoint(e, canvas)
+
+  ctx.beginPath()
+  ctx.moveTo(lastPoint.x, lastPoint.y)
+  ctx.lineTo(currentPoint.x, currentPoint.y)
+  ctx.stroke()
+
+  lastPoint = currentPoint
+  hasSignature.value = true
+}
+
+const stopDrawing = () => {
+  isDrawing.value = false
+}
+
+const handleTouchStart = (e) => {
+  e.preventDefault()
+  startDrawing(e)
+}
+
+const handleTouchMove = (e) => {
+  e.preventDefault()
+  draw(e)
+}
+
+const clearSignature = () => {
+  const canvas = signatureCanvas.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  
+  // Limpa usando dimensões do canvas
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+  hasSignature.value = false
+}
+
+const getSignatureData = () => {
+  const canvas = signatureCanvas.value
+  if (!canvas || !hasSignature.value) return null
+  return canvas.toDataURL('image/png')
+}
+
+const saveSignature = async () => {
+  if (!hasSignature.value && !croInput.value && !crmInput.value) {
+    toast.error('Desenhe a assinatura ou informe o CRO/CRM')
+    return
+  }
+
+  isSavingSignature.value = true
+  
+  const signatureData = getSignatureData()
+  const result = await clinicStore.updateDoctorSignature({
+    signatureData,
+    cro: croInput.value,
+    crm: crmInput.value,
+    uf: ufInput.value
+  })
+  
+  isSavingSignature.value = false
+
+  if (result.success) {
+    toast.success('Assinatura do médico salva com sucesso!')
+  } else {
+    toast.error(result.error || 'Erro ao salvar assinatura')
+  }
+}
+
+// Watch para inicializar canvas quando clínica carregar
+watch(() => clinic.value?.doctorSignature, async () => {
+  if (clinic.value?.doctorSignature) {
+    croInput.value = clinic.value.doctorSignature.cro || ''
+    crmInput.value = clinic.value.doctorSignature.crm || ''
+    ufInput.value = clinic.value.doctorSignature.uf || ''
+  }
+  await nextTick()
+  if (isOwner.value) {
+    initCanvas()
+  }
+}, { immediate: true })
+
+onMounted(async () => {
+  await refreshUserData()
+  await nextTick()
+  if (isOwner.value && signatureCanvas.value) {
+    initCanvas()
+  }
+  if (clinic.value?.doctorSignature) {
+    croInput.value = clinic.value.doctorSignature.cro || ''
+    crmInput.value = clinic.value.doctorSignature.crm || ''
+    ufInput.value = clinic.value.doctorSignature.uf || ''
+  }
 })
 </script>
 
@@ -258,6 +421,118 @@ onMounted(() => {
                   <span>{{ clinic.staff?.length || 0 }} membro(s)</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Doctor Signature Section (Owner Only) -->
+        <div v-if="isOwner" class="table-card signature-card">
+          <div class="card-header">
+            <div class="card-header-text">
+              <h3 class="card-title">
+                <FileSignature :size="20" class="title-icon" />
+                Assinatura do Médico
+              </h3>
+              <p class="card-subtitle">Crie uma assinatura digital para uso nos termos de consentimento.</p>
+            </div>
+          </div>
+
+          <div class="card-content">
+            <div class="signature-layout">
+              <!-- Coluna Esquerda: Canvas de Assinatura -->
+              <div class="signature-column">
+                <label class="section-label">Sua Assinatura</label>
+                <div class="canvas-container">
+                  <canvas 
+                    ref="signatureCanvas"
+                    class="signature-canvas"
+                    @mousedown="startDrawing"
+                    @mousemove="draw"
+                    @mouseup="stopDrawing"
+                    @mouseleave="stopDrawing"
+                    @touchstart="handleTouchStart"
+                    @touchmove="handleTouchMove"
+                    @touchend="stopDrawing"
+                  ></canvas>
+                  <p v-if="!hasSignature" class="canvas-placeholder">Desenhe sua assinatura aqui</p>
+                </div>
+                <div class="canvas-actions">
+                  <button @click="clearSignature" class="btn-clear" title="Limpar assinatura">
+                    <Eraser :size="16" />
+                    <span>Limpar</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Coluna Direita: Registro Profissional -->
+              <div class="registration-column">
+                <label class="section-label">Registro Profissional</label>
+                <div class="registration-grid">
+                  <div class="registration-field">
+                    <label class="field-label">CRO (Dentistas)</label>
+                    <FormInput 
+                      v-model="croInput" 
+                      placeholder="Ex: 12345"
+                      class="registration-input"
+                    />
+                  </div>
+                  <div class="registration-field">
+                    <label class="field-label">CRM (Médicos)</label>
+                    <FormInput 
+                      v-model="crmInput" 
+                      placeholder="Ex: 67890"
+                      class="registration-input"
+                    />
+                  </div>
+                  <div class="registration-field">
+                    <label class="field-label">UF de Emissão</label>
+                    <select v-model="ufInput" class="uf-select">
+                      <option value="">Selecione</option>
+                      <option value="AC">AC</option>
+                      <option value="AL">AL</option>
+                      <option value="AP">AP</option>
+                      <option value="AM">AM</option>
+                      <option value="BA">BA</option>
+                      <option value="CE">CE</option>
+                      <option value="DF">DF</option>
+                      <option value="ES">ES</option>
+                      <option value="GO">GO</option>
+                      <option value="MA">MA</option>
+                      <option value="MT">MT</option>
+                      <option value="MS">MS</option>
+                      <option value="MG">MG</option>
+                      <option value="PA">PA</option>
+                      <option value="PB">PB</option>
+                      <option value="PR">PR</option>
+                      <option value="PE">PE</option>
+                      <option value="PI">PI</option>
+                      <option value="RJ">RJ</option>
+                      <option value="RN">RN</option>
+                      <option value="RS">RS</option>
+                      <option value="RO">RO</option>
+                      <option value="RR">RR</option>
+                      <option value="SC">SC</option>
+                      <option value="SP">SP</option>
+                      <option value="SE">SE</option>
+                      <option value="TO">TO</option>
+                    </select>
+                  </div>
+                </div>
+                <p class="field-hint">O registro aparecerá formatado como CRO-SP 12345 ou CRM-RJ 67890.</p>
+              </div>
+            </div>
+
+            <!-- Botão Salvar e Informações -->
+            <div class="signature-footer">
+              <div class="info-box">
+                <p class="info-text">
+                  <strong>💡 Dica:</strong> Use <code>{cro_medico}</code> e <code>{crm_medico}</code> nos modelos de termo. A assinatura será adicionada automaticamente ao PDF.
+                </p>
+              </div>
+              <button @click="saveSignature" class="btn-save-signature" :disabled="isSavingSignature">
+                <Save :size="18" />
+                <span>{{ isSavingSignature ? 'Salvando...' : 'Salvar Assinatura' }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -628,6 +903,244 @@ onMounted(() => {
   .clinic-header {
     flex-direction: column;
     text-align: center;
+  }
+}
+
+/* ========== Doctor Signature Section ========== */
+.signature-card {
+  grid-column: 1 / -1;
+}
+
+.signature-card .card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title-icon {
+  color: var(--azul-principal);
+}
+
+/* Layout Principal em Duas Colunas */
+.signature-layout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--preto);
+  margin-bottom: 0.75rem;
+}
+
+/* Coluna do Canvas */
+.signature-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-container {
+  position: relative;
+  width: 422px;
+  height: 150px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.canvas-container:hover {
+  border-color: var(--azul-principal);
+  background: #f0f7ff;
+}
+
+.signature-canvas {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.canvas-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9ca3af;
+  font-size: 0.875rem;
+  pointer-events: none;
+  margin: 0;
+}
+
+.canvas-actions {
+  margin-top: 0.75rem;
+}
+
+.btn-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* Coluna do Registro Profissional */
+.registration-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.registration-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.registration-field {
+  width: 100%;
+}
+
+/* O campo UF deve ocupar menos espaço se possível, ou ficar na linha de baixo junto com outro */
+.registration-field.uf-field {
+  grid-column: 1 / -1;
+}
+
+.registration-input {
+  width: 100%;
+}
+
+.uf-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.875rem;
+  color: var(--preto);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.uf-select:hover {
+  border-color: var(--azul-principal);
+  background-color: #f0f7ff;
+}
+
+.uf-select:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+
+/* Footer da Seção de Assinatura */
+.signature-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.info-box {
+  flex: 1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+}
+
+.info-text {
+  font-size: 0.8rem;
+  color: #0369a1;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.info-text code {
+  background: #e0f2fe;
+  color: #0c4a6e;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.75rem;
+}
+
+.btn-save-signature {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, var(--azul-principal) 0%, #2563eb 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  white-space: nowrap;
+}
+
+.btn-save-signature:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.btn-save-signature:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .signature-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .canvas-container {
+    width: 100%;
+    max-width: 422px;
+    height: 150px;
+  }
+  
+  .signature-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-save-signature {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

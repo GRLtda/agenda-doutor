@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useConsentTermsStore } from '@/stores/consent-terms'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import { X, FileSignature } from 'lucide-vue-next'
 import SideDrawer from '@/components/global/SideDrawer.vue'
@@ -67,6 +68,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const consentTermsStore = useConsentTermsStore()
+const authStore = useAuthStore()
 const toast = useToast()
 
 const isLoading = ref(false)
@@ -75,8 +77,8 @@ const activeTab = ref('variables') // 'variables' ou 'formatting'
 
 const isEditMode = computed(() => !!props.templateIdToEdit)
 
-// Tags disponíveis para inserção
-const availableTags = [
+// Tags disponíveis para inserção (base)
+const baseTags = [
   { tag: '{paciente}', label: 'Nome Completo do Paciente' },
   { tag: '{primeiro_nome}', label: 'Primeiro Nome' },
   { tag: '{cpf}', label: 'CPF do Paciente' },
@@ -85,6 +87,25 @@ const availableTags = [
   { tag: '{clinica}', label: 'Nome da Clínica' },
   { tag: '{nome_medico}', label: 'Nome do Médico' },
 ]
+
+// Tags condicionais baseadas no preenchimento dos dados da clínica
+const availableTags = computed(() => {
+  const tags = [...baseTags]
+  const clinic = authStore.user?.clinic
+  const doctorSignature = clinic?.doctorSignature
+  
+  // Adiciona CRO se estiver preenchido
+  if (doctorSignature?.cro) {
+    tags.push({ tag: '{cro_medico}', label: `CRO: ${doctorSignature.uf ? `CRO-${doctorSignature.uf}` : 'CRO'} ${doctorSignature.cro}` })
+  }
+  
+  // Adiciona CRM se estiver preenchido
+  if (doctorSignature?.crm) {
+    tags.push({ tag: '{crm_medico}', label: `CRM: ${doctorSignature.uf ? `CRM-${doctorSignature.uf}` : 'CRM'} ${doctorSignature.crm}` })
+  }
+  
+  return tags
+})
 
 // Formato de tag para exibir no editor (estilizado como highlight)
 function insertTag(tag) {

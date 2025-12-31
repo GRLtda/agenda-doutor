@@ -12,3 +12,7 @@ export const updateClinic = (clinicData) => {
 export const getClinicSummary = (params) => {
   return apiClient.get('/clinics/summary', { params });
 };
+
+export const updateDoctorSignature = (data) => {
+  return apiClient.put('/clinics/doctor-signature', data);
+};
