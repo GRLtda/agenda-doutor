@@ -88,9 +88,13 @@ export const useCrmStore = defineStore('crm', () => {
             {
               id: 1,
               name: response.data.name || 'WhatsApp Principal',
+              username: response.data.username || null,
               number: response.data.number || 'Desconhecido',
               profileImage: response.data.profileImage || null,
-              status: 'connected'
+              status: 'connected',
+              instance: response.data.instance || {},
+              apiVersion: response.data.apiVersion || 'v1.0.0',
+              sessionId: response.data.sessionId || null
             }
           ]
           stopPolling() // Para o polling quando conectado
@@ -185,9 +189,13 @@ export const useCrmStore = defineStore('crm', () => {
           {
             id: 1,
             name: statusResponse.data.name || 'WhatsApp Principal',
+            username: statusResponse.data.username || null,
             number: statusResponse.data.number || 'Desconhecido',
             profileImage: statusResponse.data.profileImage || null,
-            status: 'connected'
+            status: 'connected',
+            instance: statusResponse.data.instance || {},
+            apiVersion: statusResponse.data.apiVersion || 'v1.0.0',
+            sessionId: statusResponse.data.sessionId || null
           },
         ]
         // Não inicia polling aqui
