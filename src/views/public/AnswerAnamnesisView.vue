@@ -542,7 +542,7 @@ p {
 }
 .success-title {
   font-family: var(--fonte-titulo);
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   animation: slide-up 0.6s ease-out forwards;
@@ -576,7 +576,7 @@ p {
 }
 .error-title {
   font-family: var(--fonte-titulo);
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: #b45309;

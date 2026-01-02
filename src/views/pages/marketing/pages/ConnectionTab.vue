@@ -100,9 +100,6 @@ onUnmounted(() => {
     <!-- Header -->
     <header class="page-header">
       <div class="header-left">
-        <div class="header-icon-wrapper">
-            <Smartphone :size="24" class="text-green-600" />
-        </div>
         <div class="header-text">
             <h1 class="title">Conexão WhatsApp</h1>
             <p class="subtitle">Gerencie a conexão da sua clínica com o WhatsApp API.</p>
@@ -391,26 +388,8 @@ onUnmounted(() => {
   gap: 1rem;
 }
 
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.header-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
 .title {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.1rem;
   color: var(--preto);

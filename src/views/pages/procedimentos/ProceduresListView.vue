@@ -387,7 +387,7 @@ export default {
 }
 
 .title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
 }

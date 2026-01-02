@@ -120,7 +120,6 @@ const sidebarSections = computed(() => {
 
   // Seção Marketing - com subitens
   const allMarketingChildren = [
-    { text: 'Visão Geral', to: '/app/marketing', icon: 'dashboard', feature: 'marketing_overview' },
     { text: 'Mensagens', to: '/app/marketing/mensagens', icon: 'message', feature: 'marketing_messages' },
     { text: 'Modelos', to: '/app/marketing/modelos', icon: 'template', feature: 'marketing_templates' },
     { text: 'Conexão', to: '/app/marketing/conexao', icon: 'link', feature: 'marketing_connection' },

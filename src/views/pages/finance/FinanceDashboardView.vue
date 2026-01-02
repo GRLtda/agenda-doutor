@@ -817,7 +817,7 @@ const getComparisonPercent = (current, previous) => {
 }
 
 .title {
-  font-size: 2.25rem; /* Matched PatientsListView title size */
+  font-size: 2rem; /* Matched PatientsListView title size */
   font-weight: 700;
   margin-bottom: 0.25rem;
   color: var(--preto); /* Using system variable */
@@ -1010,7 +1010,7 @@ const getComparisonPercent = (current, previous) => {
 }
 
 .balance-value {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
   letter-spacing: -0.02em;

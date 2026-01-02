@@ -52,7 +52,7 @@ const router = useRouter();
   opacity: 0.2;
 }
 .title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-top: -2rem;
   color: var(--preto);

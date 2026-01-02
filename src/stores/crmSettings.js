@@ -2,7 +2,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  getAvailableMessageTypes,
   listMessageSettings,
   upsertMessageSetting,
   deleteMessageSetting,
@@ -53,51 +52,41 @@ export const useCrmSettingsStore = defineStore('crmSettings', () => {
 
   // --- ACTIONS ---
 
-  async function fetchAvailableTypes() {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await getAvailableMessageTypes()
-      availableTypes.value = response.data.availableTypes || []
-      return { success: true }
-    } catch (err) {
-      error.value = 'Erro ao carregar tipos de mensagem.'
-      console.error(err)
-      toast.error(error.value)
-      availableTypes.value = [] // Garante array vazio em caso de erro
-      return { success: false, error: error.value }
-    } finally {
-      // Não define isLoading false aqui se fetchSettings for chamado em seguida
-    }
-  }
-
+  // Busca configurações e tipos disponíveis (unificado em uma única requisição)
   async function fetchSettings() {
-    isLoading.value = true // Garante que isLoading está true
     error.value = null
     try {
       const response = await listMessageSettings()
-      currentSettings.value = response.data || []
-      // Busca os templates também, caso ainda não tenham sido carregados
-      if (templatesStore.templates.length === 0) {
-        await templatesStore.fetchTemplates()
-      }
+      // A API agora retorna { availableTypes, settings }
+      availableTypes.value = response.data.availableTypes || []
+      currentSettings.value = response.data.settings || []
       return { success: true }
     } catch (err) {
       error.value = 'Erro ao carregar configurações.'
       console.error(err)
       toast.error(error.value)
+      availableTypes.value = []
       currentSettings.value = []
       return { success: false, error: error.value }
-    } finally {
-      isLoading.value = false // Define isLoading false aqui
     }
   }
 
-  // Action combinada para buscar tipos e configurações
+  // Action combinada para buscar configurações e templates em paralelo
   async function fetchAllSettingsData() {
     isLoading.value = true
-    await fetchAvailableTypes()
-    await fetchSettings() // fetchSettings definirá isLoading como false no final
+    error.value = null
+
+    try {
+      // Executa as 2 requisições em paralelo para otimizar o tempo de loading
+      await Promise.all([
+        fetchSettings(),
+        templatesStore.fetchTemplates()
+      ])
+    } catch (err) {
+      console.error('Erro ao carregar dados de configurações:', err)
+    } finally {
+      isLoading.value = false
+    }
   }
 
   async function saveSetting(type, templateId, isActive) {

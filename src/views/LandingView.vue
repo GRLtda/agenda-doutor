@@ -480,7 +480,7 @@ a { text-decoration: none; color: inherit; transition: 0.3s; }
 }
 
 .section-title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 1rem;
   letter-spacing: -0.02em;

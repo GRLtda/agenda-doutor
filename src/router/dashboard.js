@@ -13,7 +13,6 @@ import PatientDetailView from '../views/pages/pacientes/PatientDetailView.vue'
 import AppointmentsView from '../views/pages/atendimentos/AppointmentsView.vue'
 import InProgressAppointmentView from '../views/pages/atendimentos/InProgressAppointmentView.vue'
 import AjudaView from '../views/pages/ajuda/AjudaView.vue'
-import MarketingView from '../views/pages/marketing/MarketingView.vue'
 import PendingAnamnesesView from '../views/pages/resumo/PendingAnamnesesView.vue'
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
 import ProfileView from '../views/pages/ProfileView.vue'
@@ -107,13 +106,6 @@ const dashboardRoutes = [
         component: InProgressAppointmentView,
         meta: { title: 'Em Atendimento', layout: { noPadding: true, fullscreen: true } },
       },
-      {
-        path: 'marketing',
-        name: 'marketing',
-        component: MarketingView,
-        meta: { title: 'Marketing' },
-      },
-
       {
         path: 'marketing/mensagens',
         name: 'marketing-mensagens',
