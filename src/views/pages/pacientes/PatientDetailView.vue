@@ -31,7 +31,9 @@ import {
   Trash2,
   MessageSquare,
   Receipt,
-  FileSignature
+  FileSignature,
+  RotateCcw,
+  Syringe
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -40,6 +42,7 @@ import { fetchAddressByCEP } from '@/api/external'
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
+import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
 import PdfPreviewModal from '@/components/pages/pacientes/modals/PdfPreviewModal.vue'
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
@@ -61,6 +64,10 @@ const activeTab = ref('details')
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
+
+// Estado para o modal de detalhes do atendimento
+const isAppointmentModalOpen = ref(false)
+const selectedAppointment = ref(null)
 
 const patient = computed(() => patientsStore.selectedPatient)
 const clinic = computed(() => authStore.user?.clinic)
@@ -330,6 +337,57 @@ async function handleDeleteProcedure(procedure) {
     toast.error(result.error || 'Erro ao remover procedimento.')
   }
 }
+
+// --- FUNÇÕES DO MODAL DE ATENDIMENTO ---
+function openAppointmentModal(appointment) {
+  // Injetar os dados do paciente que já temos disponível
+  const appointmentWithPatient = {
+    ...appointment,
+    patient: patient.value
+  }
+  
+  selectedAppointment.value = {
+    originalEvent: appointmentWithPatient,
+    start: appointment.startTime,
+    end: appointment.endTime
+  }
+  isAppointmentModalOpen.value = true
+}
+
+function closeAppointmentModal() {
+  isAppointmentModalOpen.value = false
+  selectedAppointment.value = null
+}
+
+async function reopenAppointment(appointment) {
+  if (!confirm('Deseja reabrir este atendimento? Isso permitirá alterá-lo novamente.')) {
+    return
+  }
+
+  const result = await appointmentsStore.updateAppointmentStatus(appointment._id, 'Iniciado')
+  if (result.success) {
+    toast.success('Atendimento reaberto!')
+    // Atualizar a lista de atendimentos
+    await appointmentsStore.fetchAppointmentsByPatient(patient.value._id)
+  } else {
+    toast.error('Erro ao reabrir atendimento.')
+  }
+}
+
+async function deleteAppointment(appointment) {
+  if (!confirm('Tem certeza que deseja excluir este atendimento? Esta ação não pode ser desfeita.')) {
+    return
+  }
+
+  const result = await appointmentsStore.deleteAppointment(appointment._id)
+  if (result.success) {
+    toast.success('Atendimento excluído!')
+    // Atualizar a lista de atendimentos 
+    await appointmentsStore.fetchAppointmentsByPatient(patient.value._id)
+  } else {
+    toast.error('Erro ao excluir atendimento.')
+  }
+}
 </script>
 
 <template>
@@ -361,6 +419,15 @@ async function handleDeleteProcedure(procedure) {
       :patient-id="patient?._id"
       @close="isAddProcedureModalOpen = false"
       @save="handleAddProcedure"
+    />
+    <AppointmentDetailsModal
+      v-if="isAppointmentModalOpen && selectedAppointment"
+      :event="selectedAppointment"
+      :has-previous="false"
+      :has-next="false"
+      :current-index="0"
+      :total-count="1"
+      @close="closeAppointmentModal"
     />
 
     <div v-if="patientsStore.isLoading && !patient" class="loading-state">
@@ -690,9 +757,11 @@ async function handleDeleteProcedure(procedure) {
                 </div>
                 <ul v-else-if="patientHistory.length > 0" class="history-list">
                   <li v-for="item in patientHistory" :key="item._id" :class="['history-item-new', useStatusBadge(item.status).class]">
-                    <div class="history-item-content">
-                      <div class="history-main-info">
+                    <!-- Header clicável com ID e Data -->
+                    <div class="history-item-header" @click="openAppointmentModal(item)">
+                      <div class="history-header-left">
                         <span class="history-date-new">{{ formatSimpleDate(item.startTime) }}</span>
+                        <span class="appointment-id">ID #{{ item._id.slice(-6).toUpperCase() }}</span>
                         <span
                           :class="useStatusBadge(item.status).badgeClass"
                           :style="useStatusBadge(item.status).badgeStyle"
@@ -700,14 +769,49 @@ async function handleDeleteProcedure(procedure) {
                           {{ useStatusBadge(item.status).displayText }}
                         </span>
                       </div>
-                      <router-link
-                        v-if="item.status === 'Realizado'"
-                        :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
-                        class="history-action-btn"
-                      >
-                        <Eye :size="14" />
-                        <span>Ver Relatório</span>
-                      </router-link>
+                      <div class="history-header-right">
+                        <router-link
+                          v-if="item.status === 'Realizado'"
+                          :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
+                          class="history-action-btn"
+                          @click.stop
+                        >
+                          <Eye :size="14" />
+                          <span>Ver Relatório</span>
+                        </router-link>
+                      </div>
+                    </div>
+                    
+                    <!-- Info adicional com procedimentos e ações -->
+                    <div class="history-item-footer">
+                      <div class="history-footer-left">
+                        <div v-if="item.procedures && item.procedures.length > 0" class="procedures-info">
+                          <div class="procedures-count">
+                            <Syringe :size="14" />
+                            <span>{{ item.procedures.length }} procedimento{{ item.procedures.length > 1 ? 's' : '' }}</span>
+                          </div>
+                          <span class="procedures-divider">•</span>
+                          <span class="procedures-revenue">{{ formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0)) }}</span>
+                        </div>
+                        <span v-else class="no-procedures">Nenhum procedimento</span>
+                      </div>
+                      <div class="history-footer-actions">
+                        <button
+                          v-if="item.status === 'Realizado'"
+                          @click.stop="reopenAppointment(item)"
+                          class="btn-icon-action reopen"
+                          title="Reabrir Atendimento"
+                        >
+                          <RotateCcw :size="14" />
+                        </button>
+                        <button
+                          @click.stop="deleteAppointment(item)"
+                          class="btn-icon-action delete"
+                          title="Excluir Atendimento"
+                        >
+                          <Trash2 :size="14" />
+                        </button>
+                      </div>
                     </div>
                   </li>
                 </ul>
@@ -1263,6 +1367,125 @@ async function handleDeleteProcedure(procedure) {
   font-weight: 500;
   color: #1f2937;
   font-size: 0.9375rem;
+}
+
+/* Estilos do novo layout do histórico */
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  gap: 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.history-item-header:hover {
+  background-color: #fafafa;
+}
+
+.history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-grow: 1;
+}
+
+.history-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.appointment-id {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.history-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid #f3f4f6;
+  background-color: #fafafa;
+}
+
+.history-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.procedures-count {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #059669;
+  font-weight: 500;
+}
+
+.no-procedures {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+.procedures-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.procedures-divider {
+  color: #d1d5db;
+  font-size: 0.75rem;
+}
+
+.procedures-revenue {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #059669;
+}
+
+.history-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-icon-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-icon-action.reopen {
+  color: #2563eb;
+}
+
+.btn-icon-action.reopen:hover {
+  background-color: #eff6ff;
+}
+
+.btn-icon-action.delete {
+  color: #9ca3af;
+}
+
+.btn-icon-action.delete:hover {
+  background-color: #fef2f2;
+  color: #ef4444;
 }
 
 .history-action-btn {
