@@ -14,12 +14,14 @@ import NotFoundView from '../views/NotFoundView.vue'
 import TermsView from '../views/TermsView.vue'
 import PrivacyPolicyView from '../views/PrivacyPolicyView.vue'
 import LgpdView from '../views/LgpdView.vue'
+import ChangelogView from '../views/ChangelogView.vue'
 
 const routes = [
   { path: '/', name: 'landing', component: LandingView, meta: { public: true, title: 'Bem-vindo' } },
   { path: '/termos', name: 'terms', component: TermsView, meta: { public: true, title: 'Termos de Uso' } },
   { path: '/privacidade', name: 'privacy', component: PrivacyPolicyView, meta: { public: true, title: 'Política de Privacidade' } },
   { path: '/lgpd', name: 'lgpd', component: LgpdView, meta: { public: true, title: 'LGPD' } },
+  { path: '/atualizacao', name: 'atualizacao', component: ChangelogView, meta: { public: true, title: 'Atualizações' } },
   { path: '/login', name: 'login', component: LoginView, meta: { public: true, title: 'Login' } },
   {
     path: '/register',

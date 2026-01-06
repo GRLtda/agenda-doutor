@@ -261,7 +261,7 @@ function renderContent(content) {
 
           <div class="tiptap-editor-wrapper">
             <EditorToolbar v-if="editor" :editor="editor" />
-            <div class="editor-scroll-area">
+            <div class="editor-scroll-area" @click="editor?.commands.focus()">
               <EditorContent :editor="editor" />
             </div>
             
@@ -354,6 +354,37 @@ function renderContent(content) {
     height: 32px;
     align-items: center;
     justify-content: center;
+}
+
+/* ✨ Compact Mode: Ensure editor footer is always visible */
+.patient-notes-redesign.is-compact .editor-container-card {
+    height: 400px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.patient-notes-redesign.is-compact .tiptap-editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.patient-notes-redesign.is-compact .editor-scroll-area {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.patient-notes-redesign.is-compact .editor-footer {
+    flex-shrink: 0;
+}
+
+.patient-notes-redesign.is-compact :deep(.ProseMirror) {
+    min-height: 100px;
+    padding: 1rem;
 }
 
 @media (max-width: 1023px) {
@@ -624,6 +655,7 @@ function renderContent(content) {
 .editor-scroll-area {
   min-height: 200px; /* Voltando para o tamanho que estava */
   max-height: 400px;
+  cursor: text;
   overflow-y: auto;
   border-bottom: 1px solid #f1f5f9;
 }
@@ -676,12 +708,19 @@ function renderContent(content) {
   justify-content: space-between;
   align-items: center;
   background: white;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .hint {
   font-size: 0.75rem;
   color: #94a3b8;
-  max-width: 60%;
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-footer :deep(.app-button) {
+  flex-shrink: 0;
 }
 
 .tips-card {

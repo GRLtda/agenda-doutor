@@ -76,7 +76,7 @@ const patientId = route.params.patientId
 
 const appointment = ref(null)
 const patient = ref(null)
-const activeTab = ref('record')
+const activeTab = ref('patient-info')
 const selectedModel = ref(null)
 const isViewMode = ref()
 const isLoadingData = ref(true)
@@ -353,28 +353,36 @@ const patientAge = computed(() => {
 onMounted(async () => {
   isLoadingData.value = true // Manter o loading ativo
 
-  await patientsStore.fetchPatientById(patientId)
-  patient.value = patientsStore.selectedPatient
+  // ✨ Buscar dados em paralelo para otimizar performance
+  const [patientResult, appointmentResult, _anamnesisResult, _proceduresResult] = await Promise.all([
+    patientsStore.fetchPatientById(patientId),
+    appointmentsStore.fetchAppointmentById(appointmentId),
+    anamnesisStore.fetchAnamnesisForPatient(patientId),
+    proceduresStore.fetchProcedures()
+  ])
 
-  // ✨ Buscar agendamento pelo ID diretamente (funciona para qualquer data)
-  const { success, data } = await appointmentsStore.fetchAppointmentById(appointmentId)
+  patient.value = patientsStore.selectedPatient
   
-  if (!success || !data) {
+  if (!appointmentResult.success || !appointmentResult.data) {
     toast.error('Agendamento não encontrado.')
     router.push('/app/atendimentos')
     return
   }
 
-  appointment.value = data
+  appointment.value = appointmentResult.data
 
   isViewMode.value = appointment.value.status === 'Realizado'
 
   // ✨ Atualizar status para "Iniciado" quando não estiver em modo de visualização
-  if (!isViewMode.value && appointment.value.status !== 'Iniciado') {
-    await appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
-  }
-
-  await recordsStore.fetchRecordByAppointmentId(appointmentId)
+  // E buscar o prontuário em paralelo
+  const statusPromise = !isViewMode.value && appointment.value.status !== 'Iniciado'
+    ? appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
+    : Promise.resolve()
+  
+  await Promise.all([
+    statusPromise,
+    recordsStore.fetchRecordByAppointmentId(appointmentId)
+  ])
 
   if (isViewMode.value) {
     editor.value.setEditable(false)
@@ -409,14 +417,6 @@ onMounted(async () => {
   // Initial update
   setTimeout(updateIndicator, 100)
   handleViewportChange() // Verificação inicial
-
-  // ✨ Fetch Anamneses & Procedures
-  if (patientId) {
-    await Promise.all([
-      anamnesisStore.fetchAnamnesisForPatient(patientId),
-      proceduresStore.fetchProcedures()
-    ])
-  }
 })
 
 onBeforeUnmount(() => {

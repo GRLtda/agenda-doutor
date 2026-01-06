@@ -33,7 +33,12 @@ import {
   Receipt,
   FileSignature,
   RotateCcw,
-  Syringe
+  Syringe,
+  Calendar,
+  Hash,
+  Activity,
+  Briefcase,
+  Play
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -68,6 +73,9 @@ const pdfPreview = ref({ url: null, name: null })
 // Estado para o modal de detalhes do atendimento
 const isAppointmentModalOpen = ref(false)
 const selectedAppointment = ref(null)
+
+// Estado para controlar loading de reabrir atendimento (apenas o card específico)
+const reopeningAppointmentId = ref(null)
 
 const patient = computed(() => patientsStore.selectedPatient)
 const clinic = computed(() => authStore.user?.clinic)
@@ -364,13 +372,24 @@ async function reopenAppointment(appointment) {
     return
   }
 
-  const result = await appointmentsStore.updateAppointmentStatus(appointment._id, 'Iniciado')
-  if (result.success) {
-    toast.success('Atendimento reaberto!')
-    // Atualizar a lista de atendimentos
-    await appointmentsStore.fetchAppointmentsByPatient(patient.value._id)
-  } else {
-    toast.error('Erro ao reabrir atendimento.')
+  const previousStatus = appointment.status
+  appointment.status = 'Iniciado'
+  reopeningAppointmentId.value = appointment._id
+
+  try {
+    const result = await appointmentsStore.updateAppointmentStatus(appointment._id, 'Iniciado')
+    if (result.success) {
+      toast.success('Atendimento reaberto!')
+    } else {
+      appointment.status = previousStatus
+      toast.error('Erro ao reabrir atendimento.')
+    }
+  } catch (error) {
+    appointment.status = previousStatus
+    console.error('Erro ao reabrir atendimento:', error)
+    toast.error('Erro ao reabrir atendimento. Tente novamente.')
+  } finally {
+    reopeningAppointmentId.value = null
   }
 }
 
@@ -382,7 +401,6 @@ async function deleteAppointment(appointment) {
   const result = await appointmentsStore.deleteAppointment(appointment._id)
   if (result.success) {
     toast.success('Atendimento excluído!')
-    // Atualizar a lista de atendimentos 
     await appointmentsStore.fetchAppointmentsByPatient(patient.value._id)
   } else {
     toast.error('Erro ao excluir atendimento.')
@@ -755,13 +773,44 @@ async function deleteAppointment(appointment) {
                 <div v-if="appointmentsStore.isLoading" class="loading-state">
                   Carregando histórico...
                 </div>
-                <ul v-else-if="patientHistory.length > 0" class="history-list">
-                  <li v-for="item in patientHistory" :key="item._id" :class="['history-item-new', useStatusBadge(item.status).class]">
-                    <!-- Header clicável com ID e Data -->
-                    <div class="history-item-header" @click="openAppointmentModal(item)">
-                      <div class="history-header-left">
-                        <span class="history-date-new">{{ formatSimpleDate(item.startTime) }}</span>
-                        <span class="appointment-id">ID #{{ item._id.slice(-6).toUpperCase() }}</span>
+                <div v-else-if="patientHistory.length > 0" class="history-grid">
+                  <div 
+                    v-for="item in patientHistory" 
+                    :key="item._id" 
+                    class="history-card"
+                    @click="openAppointmentModal(item)"
+                  >
+                    <!-- Card Header - Data + Valor + Procedimentos -->
+                    <div class="card-header">
+                      <div class="card-header-content">
+                        <div class="card-header-date">
+                          <Calendar :size="14" />
+                          <span>{{ formatSimpleDate(item.startTime) }}</span>
+                        </div>
+                        <div class="card-header-stats">
+                          <span :class="['card-revenue-inline', { 'zero': !item.procedures || item.procedures.length === 0 || item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0) === 0 }]">
+                            {{ item.procedures && item.procedures.length > 0 
+                              ? formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0)) 
+                              : 'R$ 0,00' 
+                            }}
+                          </span>
+                          <span class="card-divider">•</span>
+                          <span class="card-procedures-inline">
+                            <Syringe :size="12" />
+                            {{ item.procedures?.length || 0 }} proc.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Card Body - ID, Status, Tipo -->
+                    <div class="card-body">
+                      <div class="card-info-row">
+                        <span class="card-label"><Hash :size="12" /> ID</span>
+                        <span class="appointment-id">#{{ item._id.slice(-6).toUpperCase() }}</span>
+                      </div>
+                      <div class="card-info-row">
+                        <span class="card-label"><Activity :size="12" /> Status</span>
                         <span
                           :class="useStatusBadge(item.status).badgeClass"
                           :style="useStatusBadge(item.status).badgeStyle"
@@ -769,52 +818,58 @@ async function deleteAppointment(appointment) {
                           {{ useStatusBadge(item.status).displayText }}
                         </span>
                       </div>
-                      <div class="history-header-right">
+                      <div class="card-info-row">
+                        <span class="card-label"><Briefcase :size="12" /> Tipo</span>
+                        <span class="card-type">{{ item.type || 'Consulta' }}</span>
+                      </div>
+                    </div>
+
+                    <!-- Card Footer - Botões de Ação -->
+                    <div class="card-footer">
+                      <div class="card-footer-actions">
+                        <!-- Botão Continuar para Iniciado -->
+                        <router-link
+                          v-if="item.status === 'Iniciado'"
+                          :to="reopeningAppointmentId === item._id ? '' : `/app/atendimentos/${item._id}/patient/${patient._id}`"
+                          :class="['btn-footer-action', 'primary', { 'disabled': reopeningAppointmentId === item._id }]"
+                          @click.stop
+                        >
+                          <Play :size="14" />
+                          <span>Continuar</span>
+                        </router-link>
+                        <!-- Botão Reabrir para Realizado -->
+                        <button
+                          v-if="item.status === 'Realizado'"
+                          @click.stop="reopenAppointment(item)"
+                          class="btn-footer-action"
+                          title="Reabrir Atendimento"
+                          :disabled="reopeningAppointmentId === item._id"
+                        >
+                          <RotateCcw :size="14" :class="{ 'spin': reopeningAppointmentId === item._id }" />
+                          <span>{{ reopeningAppointmentId === item._id ? 'Reabrindo...' : 'Reabrir' }}</span>
+                        </button>
+                        <!-- Botão Ver Relatório para Realizado -->
                         <router-link
                           v-if="item.status === 'Realizado'"
                           :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
-                          class="history-action-btn"
+                          class="btn-footer-action primary"
                           @click.stop
                         >
                           <Eye :size="14" />
                           <span>Ver Relatório</span>
                         </router-link>
                       </div>
+                      <button
+                        @click.stop="deleteAppointment(item)"
+                        class="btn-icon-action delete"
+                        title="Excluir Atendimento"
+                        :disabled="reopeningAppointmentId === item._id"
+                      >
+                        <Trash2 :size="14" />
+                      </button>
                     </div>
-                    
-                    <!-- Info adicional com procedimentos e ações -->
-                    <div class="history-item-footer">
-                      <div class="history-footer-left">
-                        <div v-if="item.procedures && item.procedures.length > 0" class="procedures-info">
-                          <div class="procedures-count">
-                            <Syringe :size="14" />
-                            <span>{{ item.procedures.length }} procedimento{{ item.procedures.length > 1 ? 's' : '' }}</span>
-                          </div>
-                          <span class="procedures-divider">•</span>
-                          <span class="procedures-revenue">{{ formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0)) }}</span>
-                        </div>
-                        <span v-else class="no-procedures">Nenhum procedimento</span>
-                      </div>
-                      <div class="history-footer-actions">
-                        <button
-                          v-if="item.status === 'Realizado'"
-                          @click.stop="reopenAppointment(item)"
-                          class="btn-icon-action reopen"
-                          title="Reabrir Atendimento"
-                        >
-                          <RotateCcw :size="14" />
-                        </button>
-                        <button
-                          @click.stop="deleteAppointment(item)"
-                          class="btn-icon-action delete"
-                          title="Excluir Atendimento"
-                        >
-                          <Trash2 :size="14" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                </ul>
+                  </div>
+                </div>
                 <div v-else class="empty-state-card">
                   <div class="empty-state-icon">
                     <History :size="40" />
@@ -1327,6 +1382,268 @@ async function deleteAppointment(appointment) {
   gap: 0.75rem;
   padding: 0;
 }
+
+/* Grid de Cards de Histórico */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.history-card {
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.history-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
+  border-color: #d1d5db;
+}
+
+/* Card Header */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.card-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.card-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-procedures-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Card Body */
+.card-body {
+  padding: 1rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.card-type {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.card-date {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.card-revenue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.card-no-revenue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #d1d5db;
+}
+
+/* Card Header Date */
+.card-header-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+/* Card Footer */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #f3f4f6;
+  background-color: #fafafa;
+}
+
+.card-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-footer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background: white;
+  color: #4b5563;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.btn-footer-action:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-footer-action.primary {
+  background: var(--azul-principal);
+  color: white;
+  border-color: var(--azul-principal);
+}
+
+.btn-footer-action.primary:hover {
+  opacity: 0.9;
+}
+
+.btn-footer-action:disabled,
+.btn-footer-action.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-icon-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+.card-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-revenue-inline {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.card-revenue-inline.zero {
+  color: #9ca3af;
+}
+
+.card-divider {
+  color: #d1d5db;
+  font-size: 0.75rem;
+}
+
+.card-procedures {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.card-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--azul-principal);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.card-view-btn:hover {
+  opacity: 0.8;
+}
+
+/* Botão de deletar */
+.btn-icon-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-icon-action.delete {
+  color: #9ca3af;
+}
+
+.btn-icon-action.delete:hover {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #ef4444;
+}
+
+/* Legacy styles */
 .history-item-new {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;

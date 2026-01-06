@@ -114,259 +114,260 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <!-- VIEW CONECTADO -->
-    <div v-if="status === 'connected' && !isTransitioning" class="connected-dashboard">
-      
-      <!-- Top Grid: KPIs -->
-      <div class="top-grid">
-        <!-- Status -->
-        <div class="kpi-card" title="Estado atual da conexão com o WhatsApp">
-          <div class="kpi-header">
-            <span class="kpi-label">Status da Conexão</span>
-            <div class="icon-bg bg-green-50">
-              <Wifi :size="18" class="text-green-500" />
-            </div>
-          </div>
-          <div class="kpi-body">
-            <span class="kpi-value text-green-600">Ativo</span>
-            <span class="kpi-sub">Conectado e operante</span>
+    <!-- Top Grid: KPIs (Sempre visível) -->
+    <div class="top-grid">
+      <!-- Status -->
+      <div class="kpi-card" title="Estado atual da conexão com o WhatsApp">
+        <div class="kpi-header">
+          <span class="kpi-label">Status da Conexão</span>
+          <div class="icon-bg" :class="status === 'connected' ? 'bg-green-50' : 'bg-gray-50'">
+            <Wifi :size="18" :class="status === 'connected' ? 'text-green-500' : 'text-gray-400'" />
           </div>
         </div>
-
-        <!-- Sessão -->
-        <div class="kpi-card" title="Tipo de conta configurada (Business ou Pessoal)">
-          <div class="kpi-header">
-            <span class="kpi-label">Tipo de Conta</span>
-            <div class="icon-bg bg-blue-50">
-              <Briefcase v-if="instanceInfo.isBusiness" :size="18" class="text-blue-500" />
-              <User v-else :size="18" class="text-blue-500" />
-            </div>
-          </div>
-          <div class="kpi-body">
-            <span class="kpi-value capitalize">{{ instanceInfo.isBusiness ? 'Business' : 'Pessoal' }}</span>
-            <span class="kpi-sub">{{ instanceInfo.platform === 'md' ? 'Multi-device' : (instanceInfo.platform || 'Legacy') }}</span>
-          </div>
-        </div>
-
-        <!-- Número -->
-        <div class="kpi-card" title="Número e Nome da conta conectada">
-          <div class="kpi-header">
-            <span class="kpi-label">Número Conectado</span>
-            <div class="icon-bg bg-emerald-50">
-              <MessageSquare :size="18" class="text-emerald-500" />
-            </div>
-          </div>
-          <div class="kpi-body">
-            <span class="kpi-value phone-number">{{ formatPhoneNumber(connections[0]?.number) }}</span>
-            <span class="kpi-sub">{{ connections[0]?.username || connections[0]?.name || 'WhatsApp' }}</span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Main Content: Profile & Actions -->
-      <div class="main-content-grid">
-        <div class="table-card profile-details-card">
-           <div class="card-header">
-              <div class="card-header-text">
-                <h3 class="card-title">Detalhes da Conta</h3>
-                <p class="card-subtitle">Informações públicas do perfil conectado.</p>
-              </div>
-           </div>
-           
-           <div class="profile-content">
-             <div class="profile-avatar-large">
-                <img
-                  v-if="connections[0]?.profileImage"
-                  :src="connections[0].profileImage"
-                  alt="Perfil WhatsApp"
-                  class="profile-image"
-                />
-                <div v-else class="profile-image-placeholder">
-                  <Smartphone :size="48" />
-                </div>
-                <div class="status-badge-profile">
-                   <CheckCircle :size="20" class="text-white fill-green-500" />
-                </div>
-             </div>
-             
-             <div class="profile-info-large">
-                <h2>{{ connections[0]?.username || connections[0]?.name || 'WhatsApp' }}</h2>
-                <p class="phone-display">{{ formatPhoneNumber(connections[0]?.number) }}</p>
-                
-                <div class="tags-row">
-                   <div class="security-badge">
-                      <ShieldCheck :size="14" />
-                      E2E Encrypted
-                   </div>
-                   <div v-if="instanceInfo.isBusiness" class="business-badge">
-                      <Briefcase :size="14" />
-                      Conta Comercial
-                   </div>
-                </div>
-
-                <!-- Business Info Expansion -->
-                <div v-if="instanceInfo.isBusiness" class="business-details-list">
-                    <div v-if="instanceInfo.email" class="detail-item">
-                        <Mail :size="14" class="text-gray-400" />
-                        <span>{{ instanceInfo.email }}</span>
-                    </div>
-                    <div v-if="instanceInfo.websites && instanceInfo.websites.length > 0" class="detail-item">
-                        <Globe :size="14" class="text-gray-400" />
-                        <a :href="instanceInfo.websites[0]" target="_blank" rel="noopener">{{ instanceInfo.websites[0] }}</a>
-                    </div>
-                    <div v-if="instanceInfo.description" class="detail-item description">
-                        <span>"{{ instanceInfo.description }}"</span>
-                    </div>
-                </div>
-             </div>
-
-             <div class="profile-actions">
-                <button
-                  @click="logoutConnection"
-                  :disabled="isLoading"
-                  class="btn-disconnect"
-                >
-                  <LogOut :size="18" />
-                  <span>{{ isLoading ? 'Desconectando...' : 'Desconectar Sessão' }}</span>
-                </button>
-             </div>
-           </div>
-        </div>
-
-        <!-- Recent Logs / Placeholder -->
-        <div class="table-card">
-           <div class="card-header">
-              <div class="card-header-text">
-                <h3 class="card-title">Logs de Conexão</h3>
-                <p class="card-subtitle">Histórico recente de atividades da sessão.</p>
-              </div>
-              <button class="refresh-btn" title="Atualizar">
-                  <RefreshCw :size="16" />
-              </button>
-           </div>
-           
-           <div class="logs-list">
-              <!-- Placeholder Logs -->
-              <div class="log-item">
-                 <div class="log-icon success"><CheckCircle :size="14" /></div>
-                 <div class="log-content">
-                    <span class="log-msg">Sessão estabelecida com sucesso</span>
-                    <span class="log-time">Agora</span>
-                 </div>
-              </div>
-              <div class="log-item">
-                 <div class="log-icon info"><Activity :size="14" /></div>
-                 <div class="log-content">
-                    <span class="log-msg">Perfil Business sincronizado</span>
-                    <span class="log-time">há 1 min</span>
-                 </div>
-              </div>
-              <div class="log-item">
-                 <div class="log-icon info"><Activity :size="14" /></div>
-                 <div class="log-content">
-                    <span class="log-msg">Verificação de status automática</span>
-                    <span class="log-time">há 5 min</span>
-                 </div>
-              </div>
-           </div>
+        <div class="kpi-body">
+          <span class="kpi-value" :class="status === 'connected' ? 'text-green-600' : 'text-gray-400'">{{ status === 'connected' ? 'Ativo' : '---' }}</span>
+          <span class="kpi-sub">{{ status === 'connected' ? 'Conectado e operante' : 'Aguardando conexão' }}</span>
         </div>
       </div>
 
-      <!-- Technical Footer -->
-      <footer class="tech-footer">
-          <div class="tech-info">
-             <span>API Version: {{ apiVersion }}</span>
-             <span class="separator">•</span>
-             <span>Session ID: {{ sessionId }}</span>
+      <!-- Tipo de Conta -->
+      <div class="kpi-card" title="Tipo de conta configurada (Business ou Pessoal)">
+        <div class="kpi-header">
+          <span class="kpi-label">Tipo de Conta</span>
+          <div class="icon-bg" :class="status === 'connected' ? 'bg-blue-50' : 'bg-gray-50'">
+            <Briefcase v-if="status === 'connected' && instanceInfo.isBusiness" :size="18" class="text-blue-500" />
+            <User v-else :size="18" :class="status === 'connected' ? 'text-blue-500' : 'text-gray-400'" />
           </div>
-      </footer>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value capitalize" :class="status !== 'connected' ? 'text-gray-400' : ''">
+            {{ status === 'connected' ? (instanceInfo.isBusiness ? 'Business' : 'Pessoal') : '---' }}
+          </span>
+          <span class="kpi-sub">
+            {{ status === 'connected' ? (instanceInfo.platform === 'md' ? 'Multi-device' : (instanceInfo.platform || 'Legacy')) : '---' }}
+          </span>
+        </div>
+      </div>
 
+      <!-- Número -->
+      <div class="kpi-card" title="Número e Nome da conta conectada">
+        <div class="kpi-header">
+          <span class="kpi-label">Número Conectado</span>
+          <div class="icon-bg" :class="status === 'connected' ? 'bg-emerald-50' : 'bg-gray-50'">
+            <MessageSquare :size="18" :class="status === 'connected' ? 'text-emerald-500' : 'text-gray-400'" />
+          </div>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-value phone-number" :class="status !== 'connected' ? 'text-gray-400' : ''">{{ status === 'connected' ? formatPhoneNumber(connections[0]?.number) : '---' }}</span>
+          <span class="kpi-sub">{{ status === 'connected' ? (connections[0]?.username || connections[0]?.name || 'WhatsApp') : '---' }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- VIEW DESCONECTADO / CONECTANDO -->
-    <div v-else class="disconnected-view">
-       <div class="table-card center-card">
-          <div class="card-header centered-header">
-             <div class="header-icon-large">
+    <!-- Main Content Grid (Sempre visível) -->
+    <div class="main-content-grid">
+      <!-- Card Detalhes da Conta -->
+      <div class="table-card profile-details-card">
+        <div class="card-header">
+          <div class="card-header-text">
+            <h3 class="card-title">Detalhes da Conta</h3>
+            <p class="card-subtitle">{{ status === 'connected' ? 'Informações públicas do perfil conectado.' : 'Conecte seu WhatsApp para começar.' }}</p>
+          </div>
+        </div>
+        
+        <!-- Conteúdo CONECTADO -->
+        <div v-if="status === 'connected' && !isTransitioning" class="profile-content">
+          <div class="profile-avatar-large">
+            <img
+              v-if="connections[0]?.profileImage"
+              :src="connections[0].profileImage"
+              alt="Perfil WhatsApp"
+              class="profile-image"
+            />
+            <div v-else class="profile-image-placeholder">
+              <Smartphone :size="48" />
+            </div>
+            <div class="status-badge-profile">
+              <CheckCircle :size="20" class="text-white fill-green-500" />
+            </div>
+          </div>
+          
+          <div class="profile-info-large">
+            <h2>{{ connections[0]?.username || connections[0]?.name || 'WhatsApp' }}</h2>
+            <p class="phone-display">{{ formatPhoneNumber(connections[0]?.number) }}</p>
+            
+            <div class="tags-row">
+              <div class="security-badge">
+                <ShieldCheck :size="14" />
+                E2E Encrypted
+              </div>
+              <div v-if="instanceInfo.isBusiness" class="business-badge">
+                <Briefcase :size="14" />
+                Conta Comercial
+              </div>
+            </div>
+
+            <!-- Business Info Expansion -->
+            <div v-if="instanceInfo.isBusiness" class="business-details-list">
+              <div v-if="instanceInfo.email" class="detail-item">
+                <Mail :size="14" class="text-gray-400" />
+                <span>{{ instanceInfo.email }}</span>
+              </div>
+              <div v-if="instanceInfo.websites && instanceInfo.websites.length > 0" class="detail-item">
+                <Globe :size="14" class="text-gray-400" />
+                <a :href="instanceInfo.websites[0]" target="_blank" rel="noopener">{{ instanceInfo.websites[0] }}</a>
+              </div>
+              <div v-if="instanceInfo.description" class="detail-item description">
+                <span>"{{ instanceInfo.description }}"</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <button
+              @click="logoutConnection"
+              :disabled="isLoading"
+              class="btn-disconnect"
+            >
+              <LogOut :size="18" />
+              <span>{{ isLoading ? 'Desconectando...' : 'Desconectar Sessão' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Conteúdo DESCONECTADO / CONECTANDO -->
+        <div v-else class="connection-content">
+          <!-- Botão Iniciar -->
+          <div v-if="status === 'disconnected'" class="action-area">
+            <div class="connect-icon-area">
+              <div class="connect-icon-bg">
                 <QrCode :size="48" class="text-blue-500" />
-             </div>
-             <h2 class="card-title-large">Conectar WhatsApp</h2>
-             <p class="card-subtitle-large">
-               Escaneie o QR Code abaixo com o aplicativo WhatsApp para conectar sua clínica.
-             </p>
-          </div>
-
-          <div class="connection-body">
-             <!-- Botão Iniciar -->
-             <div v-if="status === 'disconnected'" class="action-area">
-                <button @click="initiateConnection" :disabled="isLoading" class="btn-primary-large">
-                  <Smartphone :size="20" />
-                  <span>{{ isLoading ? 'Iniciando...' : 'Gerar QR Code' }}</span>
-                </button>
-                <p class="help-text">Clique para iniciar o processo de conexão.</p>
-             </div>
-
-             <!-- Displays de Status -->
-             <div v-if="status === 'creating_qr'" class="status-display creating-qr">
-               <Loader :size="24" class="animate-spin" />
-               <span>Criando sessão segura...</span>
-             </div>
-
-             <div v-if="status === 'initializing'" class="status-display initializing">
-               <Loader :size="24" class="animate-spin" />
-               <span>Inicializando serviços...</span>
-             </div>
-
-             <!-- Área do QR Code -->
-             <div v-if="status === 'qrcode_pending' || status === 'qrcode' || isTransitioning" class="qr-code-section">
-                <p class="qr-instruction" v-if="!isTransitioning">Abra o WhatsApp > Configurações > Aparelhos conectados > Conectar aparelho</p>
-                <div class="qr-code-border">
-                   <div class="qr-code-wrapper">
-                         <img
-                           v-if="qrCode || (isTransitioning && lastQrCode)"
-                           :src="qrCode || lastQrCode"
-                           alt="QR Code WhatsApp"
-                           :class="{ 'fade-out': isLoadingQrImage && qrCode, 'qr-blur': isTransitioning }" />
-                         
-                         <div v-if="isLoadingQrImage && !isTransitioning" class="qr-placeholder loading-overlay">
-                            <Loader :size="32" class="animate-spin text-blue-500" />
-                         </div>
-                         <div v-else-if="!qrCode && !isLoadingQrImage && !isTransitioning" class="qr-placeholder">
-                             <Loader :size="24" class="animate-spin" /> Gerando...
-                         </div>
-
-                         <!-- Overlay de Sucesso -->
-                         <div v-if="isTransitioning" class="success-overlay">
-                            <div class="success-icon-wrapper">
-                               <CheckCircle :size="64" class="text-green-500" />
-                            </div>
-                            <span class="success-text">Conectado!</span>
-                         </div>
-                   </div>
-                   <!-- Scan Line Animation -->
-                   <div class="scan-line" v-if="!isTransitioning && qrCode"></div>
-                </div>
-                <p class="qr-expiry" v-if="!isTransitioning">O código expira em breve.</p>
-             </div>
-          </div>
-
-          <!-- Benefits Section -->
-          <div v-if="status === 'disconnected'" class="benefits-section">
+              </div>
+            </div>
+            <button @click="initiateConnection" :disabled="isLoading" class="btn-primary-large">
+              <Smartphone :size="20" />
+              <span>{{ isLoading ? 'Iniciando...' : 'Gerar QR Code' }}</span>
+            </button>
+            <p class="help-text">Clique para iniciar o processo de conexão.</p>
+            
+            <!-- Benefits Section -->
+            <div class="benefits-section">
               <h4 class="benefits-title">Por que conectar?</h4>
               <ul class="benefits-list">
-                  <li><CheckCircle :size="16" class="text-green-500" /> Automação de agendamentos 24/7</li>
-                  <li><CheckCircle :size="16" class="text-green-500" /> Lembretes automáticos para pacientes</li>
-                  <li><CheckCircle :size="16" class="text-green-500" /> Centralização do atendimento no CRM</li>
+                <li><CheckCircle :size="16" class="text-green-500" /> Automação de agendamentos 24/7</li>
+                <li><CheckCircle :size="16" class="text-green-500" /> Lembretes automáticos para pacientes</li>
+                <li><CheckCircle :size="16" class="text-green-500" /> Centralização do atendimento no CRM</li>
               </ul>
+            </div>
           </div>
-       </div>
 
-       <div class="security-footer">
-          <Lock :size="14" />
-          <span>Seus dados são protegidos com criptografia de ponta a ponta. Não temos acesso às suas mensagens privadas.</span>
-       </div>
+          <!-- Displays de Status -->
+          <div v-if="status === 'creating_qr'" class="status-display creating-qr">
+            <Loader :size="24" class="animate-spin" />
+            <span>Criando sessão segura...</span>
+          </div>
+
+          <div v-if="status === 'initializing'" class="status-display initializing">
+            <Loader :size="24" class="animate-spin" />
+            <span>Inicializando serviços...</span>
+          </div>
+
+          <!-- Área do QR Code -->
+          <div v-if="status === 'qrcode_pending' || status === 'qrcode' || isTransitioning" class="qr-code-section">
+            <p class="qr-instruction" v-if="!isTransitioning">Abra o WhatsApp > Configurações > Aparelhos conectados > Conectar aparelho</p>
+            <div class="qr-code-border">
+              <div class="qr-code-wrapper">
+                <img
+                  v-if="qrCode || (isTransitioning && lastQrCode)"
+                  :src="qrCode || lastQrCode"
+                  alt="QR Code WhatsApp"
+                  :class="{ 'fade-out': isLoadingQrImage && qrCode, 'qr-blur': isTransitioning }" />
+                
+                <div v-if="isLoadingQrImage && !isTransitioning" class="qr-placeholder loading-overlay">
+                  <Loader :size="32" class="animate-spin text-blue-500" />
+                </div>
+                <div v-else-if="!qrCode && !isLoadingQrImage && !isTransitioning" class="qr-placeholder">
+                  <Loader :size="24" class="animate-spin" /> Gerando...
+                </div>
+
+                <!-- Overlay de Sucesso -->
+                <div v-if="isTransitioning" class="success-overlay">
+                  <div class="success-icon-wrapper">
+                    <CheckCircle :size="64" class="text-green-500" />
+                  </div>
+                  <span class="success-text">Conectado!</span>
+                </div>
+              </div>
+              <!-- Scan Line Animation -->
+              <div class="scan-line" v-if="!isTransitioning && qrCode"></div>
+            </div>
+            <p class="qr-expiry" v-if="!isTransitioning">O código expira em breve.</p>
+          </div>
+
+          <!-- Security Footer -->
+          <div class="security-footer-inline">
+            <Lock :size="14" />
+            <span>Criptografia de ponta a ponta.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Logs de Conexão -->
+      <div class="table-card">
+        <div class="card-header">
+          <div class="card-header-text">
+            <h3 class="card-title">Logs de Conexão</h3>
+            <p class="card-subtitle">Histórico recente de atividades da sessão.</p>
+          </div>
+          <button class="refresh-btn" title="Atualizar">
+            <RefreshCw :size="16" />
+          </button>
+        </div>
+        
+        <!-- Logs quando conectado -->
+        <div v-if="status === 'connected'" class="logs-list">
+          <div class="log-item">
+            <div class="log-icon success"><CheckCircle :size="14" /></div>
+            <div class="log-content">
+              <span class="log-msg">Sessão estabelecida com sucesso</span>
+              <span class="log-time">Agora</span>
+            </div>
+          </div>
+          <div class="log-item">
+            <div class="log-icon info"><Activity :size="14" /></div>
+            <div class="log-content">
+              <span class="log-msg">Perfil Business sincronizado</span>
+              <span class="log-time">há 1 min</span>
+            </div>
+          </div>
+          <div class="log-item">
+            <div class="log-icon info"><Activity :size="14" /></div>
+            <div class="log-content">
+              <span class="log-msg">Verificação de status automática</span>
+              <span class="log-time">há 5 min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Placeholder quando desconectado -->
+        <div v-else class="logs-empty">
+          <div class="empty-state">
+            <Activity :size="32" class="text-gray-300" />
+            <p>Nenhum log disponível</p>
+            <span>Conecte seu WhatsApp para ver o histórico.</span>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Technical Footer (apenas quando conectado) -->
+    <footer v-if="status === 'connected'" class="tech-footer">
+      <div class="tech-info">
+        <span>API Version: {{ apiVersion }}</span>
+        <span class="separator">•</span>
+        <span>Session ID: {{ sessionId }}</span>
+      </div>
+    </footer>
 
   </div>
 </template>
@@ -1064,9 +1065,126 @@ onUnmounted(() => {
   filter: blur(4px);
   opacity: 0.6;
 }
-
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+/* Estados desconectados */
+.bg-gray-50 { background-color: #f9fafb; }
+.text-gray-400 { color: #9ca3af; }
+.text-gray-300 { color: #d1d5db; }
+
+/* Connection Content (dentro do card Detalhes da Conta) */
+.connection-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.connect-icon-area {
+    margin-bottom: 1.5rem;
+}
+
+.connect-icon-bg {
+    width: 80px;
+    height: 80px;
+    background: #eff6ff;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Empty State para Logs */
+.logs-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    min-height: 180px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.empty-state p {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.empty-state span {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+/* Security Footer Inline (dentro do card) */
+.security-footer-inline {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+/* Ajuste para benefits dentro do card */
+.connection-content .benefits-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed #e2e8f0;
+    width: 100%;
+}
+
+.connection-content .benefits-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.connection-content .benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+.connection-content .benefits-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+/* Ajuste action-area dentro do connection-content */
+.connection-content .action-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 350px;
+}
+
+.connection-content .btn-primary-large {
+    width: 100%;
 }
 </style>
