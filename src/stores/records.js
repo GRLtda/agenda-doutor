@@ -65,7 +65,7 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  async function uploadAttachmentImage(recordId, file, draftData) {
+  async function uploadAttachmentImage(recordId, file, draftData, options = {}) {
     let currentRecordId = recordId
     if (!currentRecordId) {
       const { success, data: newRecord, error: createError } = await createRecord({
@@ -79,6 +79,11 @@ export const useRecordsStore = defineStore('records', () => {
     }
     const formData = new FormData()
     formData.append('image', file)
+
+    if (options.wasCompressed) {
+      formData.append('wasCompressed', 'true')
+    }
+
     try {
       const response = await apiClient.post(`/records/${currentRecordId}/attachments/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

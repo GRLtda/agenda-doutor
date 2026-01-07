@@ -1,7 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Plus, Image as ImageIcon, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2 } from 'lucide-vue-next'
+import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 
@@ -31,6 +31,125 @@ const isUploading = ref(false)
 const selectedImage = ref(null)
 const isImageLoading = ref(false)
 const showMontageEditor = ref(false)
+const isCompressing = ref(false)
+const imageLoadErrors = reactive(new Set())
+
+function handleImageError(attachmentId) {
+  imageLoadErrors.add(attachmentId)
+}
+
+function copyDebugInfo(attachment) {
+  const metadata = attachment.metadata || {}
+  const tags = metadata.tags?.join(', ') || '—'
+  
+  const debugInfo = `=== Debug Info - Anexo ===
+ID: ${attachment._id}
+S3 Key: ${attachment.s3Key || '—'}
+Tipo: ${attachment.fileType || '—'}
+
+Metadata:
+  - Nome Original: ${metadata.originalName || '—'}
+  - Mime Type: ${metadata.mimeType || '—'}
+  - Tamanho: ${metadata.sizeBytes ? (metadata.sizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '—'}
+  - Categoria: ${metadata.category || '—'}
+  - Tags: ${tags}
+  - Descrição: ${metadata.description || '—'}
+
+Criado em: ${attachment.createdAt ? new Date(attachment.createdAt).toLocaleString('pt-BR') : '—'}
+URL Expira em: ${attachment.expiresIn ? attachment.expiresIn + 's' : '—'}
+==============================`
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(debugInfo).then(() => {
+      toast.info('Informações copiadas para a área de transferência!')
+    })
+  } else {
+    const textArea = document.createElement('textarea')
+    textArea.value = debugInfo
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-9999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      toast.info('Informações copiadas para a área de transferência!')
+    } catch (err) {
+      console.error('[RecordAttachments] Erro ao copiar debug info:', err)
+      toast.error('Não foi possível copiar as informações.')
+    }
+    document.body.removeChild(textArea)
+  }
+}
+
+const MAX_FILE_SIZE_MB = 10
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+/**
+ * Comprime uma imagem para no máximo 10MB usando Canvas API
+ * Reduz qualidade progressivamente até atingir o tamanho alvo
+ */
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const reader = new FileReader()
+
+    reader.onload = (e) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+
+        let { width, height } = img
+        const maxDimension = 4096
+        
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        ctx.drawImage(img, 0, 0, width, height)
+
+        const tryCompress = (quality) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Falha ao comprimir imagem'))
+                return
+              }
+
+              if (blob.size <= MAX_FILE_SIZE_BYTES || quality <= 0.3) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                })
+                resolve(compressedFile)
+              } else {
+                tryCompress(quality - 0.05)
+              }
+            },
+            'image/jpeg',
+            quality
+          )
+        }
+
+        tryCompress(0.95)
+      }
+
+      img.onerror = () => reject(new Error('Falha ao carregar imagem'))
+      img.src = e.target.result
+    }
+
+    reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
+    reader.readAsDataURL(file)
+  })
+}
 
 
 function openImageViewer(attachment) {
@@ -63,13 +182,37 @@ async function handleFileUpload(event) {
 
   let successCount = 0
   let errorCount = 0
+  let compressedCount = 0
 
   // Upload sequential to avoid overwhelming the server/browser
-  for (const file of files) {
+  for (let file of files) {
+    let wasCompressed = false
+    
+    // Comprimir imagens maiores que 10MB
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      try {
+        isCompressing.value = true
+        const originalSize = (file.size / (1024 * 1024)).toFixed(2)
+        file = await compressImage(file)
+        const newSize = (file.size / (1024 * 1024)).toFixed(2)
+        console.log(`[RecordAttachments] Imagem comprimida de ${originalSize}MB para ${newSize}MB`)
+        compressedCount++
+        wasCompressed = true
+      } catch (err) {
+        console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
+        toast.error(`Falha ao comprimir imagem: ${file.name}`)
+        errorCount++
+        continue
+      } finally {
+        isCompressing.value = false
+      }
+    }
+
     const { success } = await recordsStore.uploadAttachmentImage(
       props.record?._id,
       file,
       { patientId: props.patientId, appointmentId: props.appointmentId },
+      { wasCompressed },
     )
 
     if (success) {
@@ -80,7 +223,8 @@ async function handleFileUpload(event) {
   }
 
   if (successCount > 0) {
-    toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!`)
+    const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
+    toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!${compressedMsg}`)
   }
   
   if (errorCount > 0) {
@@ -110,11 +254,31 @@ async function handleMontageComplete(file) {
   if (props.disabled) return
   
   isUploading.value = true
+  let wasCompressed = false
+
+  // Comprimir montagem se maior que 10MB
+  let fileToUpload = file
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    try {
+      isCompressing.value = true
+      fileToUpload = await compressImage(file)
+      console.log(`[RecordAttachments] Montagem comprimida de ${(file.size / (1024 * 1024)).toFixed(2)}MB para ${(fileToUpload.size / (1024 * 1024)).toFixed(2)}MB`)
+      wasCompressed = true
+    } catch (err) {
+      console.error('[RecordAttachments] Erro ao comprimir montagem:', err)
+      toast.error('Falha ao comprimir a montagem.')
+      isUploading.value = false
+      return
+    } finally {
+      isCompressing.value = false
+    }
+  }
   
   const { success } = await recordsStore.uploadAttachmentImage(
     props.record?._id,
-    file,
+    fileToUpload,
     { patientId: props.patientId, appointmentId: props.appointmentId },
+    { wasCompressed },
   )
 
   if (success) {
@@ -136,7 +300,11 @@ async function handleMontageComplete(file) {
         :class="{ disabled: disabled }"
         @click="triggerFileUpload"
       >
-        <div v-if="isUploading" class="action-content">
+      <div v-if="isCompressing" class="action-content">
+          <Loader2 :size="22" class="icon-loading" />
+          <span>Comprimindo...</span>
+        </div>
+        <div v-else-if="isUploading" class="action-content">
           <UploadCloud :size="22" class="icon-loading" />
           <span>Enviando...</span>
         </div>
@@ -162,15 +330,29 @@ async function handleMontageComplete(file) {
         v-for="attachment in record?.attachments || []"
         :key="attachment._id"
         class="image-card"
-        @click="openImageViewer(attachment)"
+        @click="!imageLoadErrors.has(attachment._id) && openImageViewer(attachment)"
       >
+        <!-- Placeholder de erro quando a imagem falha -->
+        <div v-if="imageLoadErrors.has(attachment._id)" class="error-placeholder">
+          <ImageOff :size="28" class="error-icon" />
+          <span class="error-text">Erro ao carregar</span>
+          <button 
+            class="debug-copy-btn" 
+            @click.stop="copyDebugInfo(attachment)"
+            title="Copiar informações de debug"
+          >
+            <Copy :size="12" />
+          </button>
+        </div>
         <!-- Thumbnail com resolução reduzida via CSS -->
         <img
+          v-else
           :src="attachment.signedUrl"
           alt="Anexo"
           class="thumbnail-image"
           loading="lazy"
           decoding="async"
+          @error="handleImageError(attachment._id)"
         />
         <div class="image-overlay">
           <div class="image-date-chip">
@@ -330,6 +512,57 @@ async function handleMontageComplete(file) {
   box-shadow:
     0 10px 15px -3px rgb(0 0 0 / 0.1),
     0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Error Placeholder */
+.error-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #fef2f2;
+  border: 1px dashed #fca5a5;
+  border-radius: 0.5rem;
+}
+
+.error-icon {
+  color: #ef4444;
+}
+
+.error-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #b91c1c;
+}
+
+.debug-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.error-placeholder:hover .debug-copy-btn {
+  opacity: 1;
+}
+
+.debug-copy-btn:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #374151;
 }
 
 /* Thumbnail com resolução visualmente reduzida */
