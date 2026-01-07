@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { useRecordsStore } from '@/stores/records'
 import { Plus, Image as ImageIcon, UploadCloud, X, Calendar, Trash2, LayoutGrid } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
-import { getCloudinaryUrl } from '@/helpers/cloudinary'
 import MontageEditor from './MontageEditor.vue'
 
 const props = defineProps({
@@ -30,17 +29,14 @@ const toast = useToast()
 const fileInput = ref(null)
 const isUploading = ref(false)
 const selectedImage = ref(null)
-const placeholderImage = ref(null)
-const isImageLoaded = ref(false)
 const showMontageEditor = ref(false)
 
 
-function openImageViewer(imageUrl) {
-  selectedImage.value = imageUrl
-  // Low quality placeholder for blur effect
-  placeholderImage.value = getCloudinaryUrl(imageUrl, { width: 50, quality: 'auto:low' }) 
-  isImageLoaded.value = false
+function openImageViewer(attachment) {
+  // Usa a signedUrl diretamente do S3
+  selectedImage.value = attachment.signedUrl
 }
+
 function closeImageViewer() {
   selectedImage.value = null
 }
@@ -165,10 +161,10 @@ async function handleMontageComplete(file) {
         class="image-card"
       >
         <img
-          :src="getCloudinaryUrl(attachment.url, { width: 300, height: 300, crop: 'fill', quality: 'auto' })"
+          :src="attachment.signedUrl"
           alt="Anexo do paciente"
           class="attachment-image"
-          @click="openImageViewer(attachment.url)"
+          @click="openImageViewer(attachment)"
         />
         <div class="image-overlay">
           <div class="image-date-chip">
@@ -219,20 +215,10 @@ async function handleMontageComplete(file) {
           <X :size="32" />
         </button>
         <div class="image-wrapper">
-          <!-- Placeholder (Blurred) -->
-          <img 
-            v-if="placeholderImage"
-            :src="placeholderImage" 
-            alt="Placeholder" 
-            class="fullscreen-image placeholder"
-          />
-          <!-- Main Image (High Quality) -->
           <img 
             :src="selectedImage" 
             alt="Visualização em tela cheia" 
-            class="fullscreen-image main-image"
-            :class="{ 'loaded': isImageLoaded }"
-            @load="isImageLoaded = true"
+            class="fullscreen-image"
           />
         </div>
       </div>

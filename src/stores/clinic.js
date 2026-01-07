@@ -52,8 +52,8 @@ export const useClinicStore = defineStore('clinic', () => {
   async function uploadLogo(formData) {
     try {
       const response = await apiUploadImage(formData)
-      // Pega a 'imageUrl' da resposta, conforme você especificou
-      const logoUrl = response.data.imageUrl
+      // A nova API retorna 'signedUrl' ao invés de 'imageUrl'
+      const logoUrl = response.data.signedUrl
 
       if (currentClinic.value) {
         currentClinic.value.logoUrl = logoUrl
