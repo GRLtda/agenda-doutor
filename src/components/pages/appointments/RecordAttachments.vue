@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Plus, Image as ImageIcon, UploadCloud, X, Calendar, Trash2, LayoutGrid } from 'lucide-vue-next'
+import { Plus, Image as ImageIcon, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 
@@ -29,16 +29,19 @@ const toast = useToast()
 const fileInput = ref(null)
 const isUploading = ref(false)
 const selectedImage = ref(null)
+const isImageLoading = ref(false)
 const showMontageEditor = ref(false)
 
 
 function openImageViewer(attachment) {
-  // Usa a signedUrl diretamente do S3
+  // Inicia carregamento da imagem real
+  isImageLoading.value = true
   selectedImage.value = attachment.signedUrl
 }
 
 function closeImageViewer() {
   selectedImage.value = null
+  isImageLoading.value = false
 }
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -159,12 +162,15 @@ async function handleMontageComplete(file) {
         v-for="attachment in record?.attachments || []"
         :key="attachment._id"
         class="image-card"
+        @click="openImageViewer(attachment)"
       >
+        <!-- Thumbnail com resolução reduzida via CSS -->
         <img
           :src="attachment.signedUrl"
-          alt="Anexo do paciente"
-          class="attachment-image"
-          @click="openImageViewer(attachment)"
+          alt="Anexo"
+          class="thumbnail-image"
+          loading="lazy"
+          decoding="async"
         />
         <div class="image-overlay">
           <div class="image-date-chip">
@@ -215,10 +221,16 @@ async function handleMontageComplete(file) {
           <X :size="32" />
         </button>
         <div class="image-wrapper">
+          <!-- Loading spinner -->
+          <div v-if="isImageLoading" class="image-loading">
+            <Loader2 :size="48" class="spinner" />
+            <span>Carregando imagem...</span>
+          </div>
           <img 
             :src="selectedImage" 
             alt="Visualização em tela cheia" 
             class="fullscreen-image"
+            @load="isImageLoading = false"
           />
         </div>
       </div>
@@ -320,11 +332,39 @@ async function handleMontageComplete(file) {
     0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-.attachment-image {
+/* Thumbnail com resolução visualmente reduzida */
+.thumbnail-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   cursor: pointer;
+  /* Força renderização em baixa qualidade */
+  image-rendering: pixelated;
+  filter: blur(0.5px);
+  transform: scale(1.02); /* Oculta bordas do blur */
+}
+
+/* Loading spinner no viewer */
+.image-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: white;
+  z-index: 10;
+}
+
+.image-loading .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .image-overlay {
