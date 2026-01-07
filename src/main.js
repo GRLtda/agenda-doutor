@@ -22,13 +22,17 @@ const app = createApp(App)
 
 Sentry.init({
   app,
-  dsn: import.meta.env.VITE_SENTRY_DSN, // Ler do .env
+  dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({
       maskAllText: false,
-      blockAllMedia: true,
+      blockAllMedia: false,
+      networkDetailAllowUrls: [
+        window.location.origin,
+        import.meta.env.VITE_API_URL || '',
+      ],
     }),
   ],
   tracesSampleRate: 1.0,
