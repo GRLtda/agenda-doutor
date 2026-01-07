@@ -84,6 +84,14 @@ export const useRecordsStore = defineStore('records', () => {
       formData.append('wasCompressed', 'true')
     }
 
+    if (options.description) {
+      formData.append('description', options.description)
+    }
+
+    if (options.tags && options.tags.length > 0) {
+      formData.append('tags', JSON.stringify(options.tags))
+    }
+
     try {
       const response = await apiClient.post(`/records/${currentRecordId}/attachments/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

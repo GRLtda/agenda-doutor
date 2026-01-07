@@ -4,6 +4,7 @@ import { useRecordsStore } from '@/stores/records'
 import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
+import PhotoViewerUpload from './PhotoViewerUpload.vue'
 
 const props = defineProps({
   record: {
@@ -33,6 +34,8 @@ const isImageLoading = ref(false)
 const showMontageEditor = ref(false)
 const isCompressing = ref(false)
 const imageLoadErrors = reactive(new Set())
+const showPhotoViewer = ref(false)
+const pendingFiles = ref([])
 
 const MAX_ATTACHMENTS = 20
 const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
@@ -181,6 +184,21 @@ async function handleFileUpload(event) {
   const files = Array.from(event.target.files)
   if (!files.length) return
 
+  // Abre o PhotoViewer para preparar as fotos antes do upload
+  pendingFiles.value = files
+  showPhotoViewer.value = true
+  
+  // Limpa o input para permitir selecionar os mesmos arquivos novamente
+  event.target.value = ''
+}
+
+// Processa o upload das fotos vindas do PhotoViewer
+async function handlePhotoViewerUpload(photosWithMetadata) {
+  showPhotoViewer.value = false
+  pendingFiles.value = []
+  
+  if (!photosWithMetadata || photosWithMetadata.length === 0) return
+
   isUploading.value = true
 
   let successCount = 0
@@ -188,7 +206,8 @@ async function handleFileUpload(event) {
   let compressedCount = 0
 
   // Upload sequential to avoid overwhelming the server/browser
-  for (let file of files) {
+  for (let photoData of photosWithMetadata) {
+    let { file, description, tags } = photoData
     let wasCompressed = false
     
     // Comprimir imagens maiores que 10MB
@@ -215,7 +234,7 @@ async function handleFileUpload(event) {
       props.record?._id,
       file,
       { patientId: props.patientId, appointmentId: props.appointmentId },
-      { wasCompressed },
+      { wasCompressed, description, tags },
     )
 
     if (success) {
@@ -233,8 +252,12 @@ async function handleFileUpload(event) {
     toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!${compressedMsg}`)
   }
 
-  event.target.value = ''
   isUploading.value = false
+}
+
+function handlePhotoViewerClose() {
+  showPhotoViewer.value = false
+  pendingFiles.value = []
 }
 
 async function handleDeleteAttachment(uploadId) {
@@ -407,6 +430,14 @@ async function handleMontageComplete(file) {
       :visible="showMontageEditor"
       @close="showMontageEditor = false"
       @save="handleMontageComplete"
+    />
+
+    <!-- Photo Viewer para Upload -->
+    <PhotoViewerUpload
+      :visible="showPhotoViewer"
+      :files="pendingFiles"
+      @close="handlePhotoViewerClose"
+      @upload="handlePhotoViewerUpload"
     />
 
     <Transition name="fade">
