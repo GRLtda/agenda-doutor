@@ -1928,14 +1928,11 @@ const focusEditor = () => {
 .editor-content :deep(.ProseMirror h1) { font-size: 1.875rem; font-weight: 700; }
 .editor-content :deep(.ProseMirror h2) { font-size: 1.5rem; font-weight: 600; }
 .editor-content :deep(.ProseMirror h3) { font-size: 1.25rem; font-weight: 600; }
-.editor-content :deep(.ProseMirror p) { margin-bottom: 1rem; }
 .editor-content :deep(.ProseMirror ul),
 .editor-content :deep(.ProseMirror ol) {
   margin-left: 1.5rem;
-  margin-bottom: 1rem;
   padding: 0;
 }
-.editor-content :deep(.ProseMirror li) { margin-bottom: 0.5rem; }
 .editor-content :deep(.ProseMirror blockquote) {
   border-left: 4px solid #d1d5db;
   padding-left: 1rem;
