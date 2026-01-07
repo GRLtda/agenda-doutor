@@ -1,7 +1,7 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy } from 'lucide-vue-next'
+import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 
@@ -33,6 +33,9 @@ const isImageLoading = ref(false)
 const showMontageEditor = ref(false)
 const isCompressing = ref(false)
 const imageLoadErrors = reactive(new Set())
+
+const MAX_ATTACHMENTS = 20
+const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
 
 function handleImageError(attachmentId) {
   imageLoadErrors.add(attachmentId)
@@ -208,7 +211,7 @@ async function handleFileUpload(event) {
       }
     }
 
-    const { success } = await recordsStore.uploadAttachmentImage(
+    const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
       props.record?._id,
       file,
       { patientId: props.patientId, appointmentId: props.appointmentId },
@@ -219,16 +222,15 @@ async function handleFileUpload(event) {
       successCount++
     } else {
       errorCount++
+      if (uploadError) {
+        toast.error(uploadError)
+      }
     }
   }
 
   if (successCount > 0) {
     const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
     toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!${compressedMsg}`)
-  }
-  
-  if (errorCount > 0) {
-    toast.error(`Falha no upload de ${errorCount} imagem(ns).`)
   }
 
   event.target.value = ''
@@ -274,7 +276,7 @@ async function handleMontageComplete(file) {
     }
   }
   
-  const { success } = await recordsStore.uploadAttachmentImage(
+  const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
     props.record?._id,
     fileToUpload,
     { patientId: props.patientId, appointmentId: props.appointmentId },
@@ -284,7 +286,7 @@ async function handleMontageComplete(file) {
   if (success) {
     toast.success('Montagem salva com sucesso!')
   } else {
-    toast.error('Falha ao salvar a montagem.')
+    toast.error(uploadError || 'Falha ao salvar a montagem.')
   }
 
   isUploading.value = false
@@ -294,13 +296,18 @@ async function handleMontageComplete(file) {
 <template>
   <div class="attachments-container">
     <div class="attachments-grid">
+      <!-- Botão Adicionar -->
       <div
         v-if="!disabled"
         class="action-card"
-        :class="{ disabled: disabled }"
-        @click="triggerFileUpload"
+        :class="{ disabled: disabled || hasReachedLimit }"
+        @click="!hasReachedLimit && triggerFileUpload()"
       >
-      <div v-if="isCompressing" class="action-content">
+        <div v-if="hasReachedLimit" class="action-content limit-reached">
+          <AlertTriangle :size="22" />
+          <span>Limite atingido</span>
+        </div>
+        <div v-else-if="isCompressing" class="action-content">
           <Loader2 :size="22" class="icon-loading" />
           <span>Comprimindo...</span>
         </div>
@@ -318,9 +325,14 @@ async function handleMontageComplete(file) {
       <div
         v-if="!disabled"
         class="action-card"
-        @click="showMontageEditor = true"
+        :class="{ disabled: hasReachedLimit }"
+        @click="!hasReachedLimit && (showMontageEditor = true)"
       >
-        <div class="action-content">
+        <div v-if="hasReachedLimit" class="action-content limit-reached">
+          <AlertTriangle :size="22" />
+          <span>Limite atingido</span>
+        </div>
+        <div v-else class="action-content">
           <LayoutGrid :size="22" />
           <span>Montagem</span>
         </div>
@@ -454,12 +466,16 @@ async function handleMontageComplete(file) {
 
 .action-card.disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 .action-card.disabled:hover {
   background-color: #fafafa;
   border-color: #e5e7eb;
+}
+
+.action-content.limit-reached {
+  color: #d97706;
 }
 
 .action-content {
