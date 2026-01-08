@@ -18,7 +18,8 @@ const statusMap = {
   canceled: { label: 'Cancelada', color: 'text-slate-700', bg: 'bg-slate-100', border: 'border-slate-300', icon: AlertTriangle },
   trialing: { label: 'Período de Teste', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', icon: Clock },
   free: { label: 'Gratuito', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', icon: Package },
-  enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', icon: Shield }
+  enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', icon: Shield },
+  lifetime: { label: 'Vitalício', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: CheckCircle }
 };
 
 const currentStatus = computed(() => {
@@ -225,8 +226,8 @@ onMounted(() => {
               </div>
               <div class="info-content">
                 <p class="label">Ciclo Atual</p>
-                <p v-if="subscription?.plan === 'enterprise'" class="value">
-                  Contrato Personalizado
+                <p v-if="subscription?.planType === 'enterprise'" class="value">
+                  Mensal
                 </p>
                 <p v-else-if="subscription?.currentPeriodEnd" class="value">
                   Renova em {{ formatDate(subscription.currentPeriodEnd) }}
@@ -277,8 +278,25 @@ onMounted(() => {
           </div>
           
           <div class="pricing-display">
-            <template v-if="subscription?.plan === 'enterprise'">
-               <span class="amount" style="font-size: 1.5rem;">Sob Consulta</span>
+            <template v-if="subscription?.status === 'lifetime'">
+               <span class="currency">R$</span>
+               <span class="amount">297,00</span>
+               <span class="interval">/ único</span>
+            </template>
+            <template v-else-if="subscription?.planType === 'enterprise'">
+               <span class="currency">R$</span>
+               <span class="amount">199,00</span>
+               <span class="interval">/ mês</span>
+            </template>
+            <template v-else-if="subscription?.planType === 'premium'">
+               <span class="currency">R$</span>
+               <span class="amount">159,00</span>
+               <span class="interval">/ mês</span>
+            </template>
+            <template v-else-if="subscription?.planType === 'basic' && subscription?.status !== 'free'">
+               <span class="currency">R$</span>
+               <span class="amount">99,90</span>
+               <span class="interval">/ mês</span>
             </template>
             <template v-else-if="subscription?.plan && typeof subscription.plan === 'object'">
               <span class="currency">{{ subscription.plan.currency.toUpperCase() }}</span>
@@ -300,7 +318,7 @@ onMounted(() => {
             </ul>
 
             <!-- Installation Fee Notice -->
-            <div v-if="(subscription?.status === 'free' || !subscription?.installationFeeCharged) && subscription?.plan !== 'enterprise'" class="installation-fee-notice">
+            <div v-if="(subscription?.status === 'free' || !subscription?.installationFeeCharged) && subscription?.planType !== 'enterprise' && subscription?.status !== 'lifetime' && subscription?.planType !== 'basic'" class="installation-fee-notice">
               <div class="fee-notice-header">
                 <AlertTriangle :size="16" />
                 <span>Taxa de Instalação</span>

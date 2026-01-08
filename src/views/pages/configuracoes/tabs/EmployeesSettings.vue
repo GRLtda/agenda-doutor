@@ -51,7 +51,7 @@ const roleOptions = computed(() => {
 
 function getRoleLabel(roleValue) {
   if (roleValue === 'owner') return 'Proprietário'
-  const role = roleOptions.find((r) => r.value === roleValue)
+  const role = roleOptions.value.find((r) => r.value === roleValue)
   return role ? role.label : 'N/D'
 }
 
