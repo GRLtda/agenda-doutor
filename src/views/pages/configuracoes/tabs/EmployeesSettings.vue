@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
 import { useAuthStore } from '@/stores/auth'
+import { usePlanAccess } from '@/composables/usePlanAccess'
 import { useToast } from 'vue-toastification'
 import {
   UserPlus,
@@ -20,6 +21,7 @@ import AppButton from '@/components/global/AppButton.vue'
 
 const employeesStore = useEmployeesStore()
 const authStore = useAuthStore()
+const { currentPlan } = usePlanAccess()
 const toast = useToast()
 
 const isModalOpen = ref(false)
@@ -33,11 +35,19 @@ onMounted(() => {
   employeesStore.fetchEmployees()
 })
 
-const roleOptions = [
-  { value: 'recepcionista', label: 'Recepcionista' },
-  { value: 'medico', label: 'Médico(a)' },
-  { value: 'gerente', label: 'Gerente' },
-]
+const roleOptions = computed(() => {
+  const options = [
+    { value: 'recepcionista', label: 'Recepcionista' },
+    { value: 'medico', label: 'Médico(a)' },
+    { value: 'gerente', label: 'Gerente' },
+  ]
+  
+  if (currentPlan.value === 'basic') {
+    return options.filter(opt => opt.value !== 'medico')
+  }
+  
+  return options
+})
 
 function getRoleLabel(roleValue) {
   if (roleValue === 'owner') return 'Proprietário'

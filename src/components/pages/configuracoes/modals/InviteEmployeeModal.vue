@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
+import { usePlanAccess } from '@/composables/usePlanAccess'
 import { useToast } from 'vue-toastification'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -10,6 +11,7 @@ import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const emit = defineEmits(['close'])
 const employeesStore = useEmployeesStore()
+const { currentPlan } = usePlanAccess()
 const toast = useToast()
 
 const email = ref('')
@@ -19,11 +21,19 @@ const generatedLink = ref(null)
 const linkCopied = ref(false)
 const canShare = ref(false)
 
-const roleOptions = [
-  { value: 'recepcionista', label: 'Recepcionista' },
-  { value: 'medico', label: 'Médico' },
-  { value: 'gerente', label: 'Gerente' },
-]
+const roleOptions = computed(() => {
+  const options = [
+    { value: 'recepcionista', label: 'Recepcionista' },
+    { value: 'medico', label: 'Médico' },
+    { value: 'gerente', label: 'Gerente' },
+  ]
+
+  if (currentPlan.value === 'basic') {
+    return options.filter((opt) => opt.value !== 'medico')
+  }
+
+  return options
+})
 
 onMounted(() => {
   if (typeof navigator !== 'undefined' && navigator.share) {

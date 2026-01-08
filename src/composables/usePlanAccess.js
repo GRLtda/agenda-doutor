@@ -19,6 +19,8 @@ const planFeatures = {
         'marketing_templates',
         'marketing_connection',
         'marketing_logs',
+        'finance',
+        'workflows',
         'settings',
     ],
     premium: [
@@ -32,6 +34,7 @@ const planFeatures = {
         'marketing_connection',
         'marketing_logs',
         'finance',
+        'workflows',
         'settings',
     ],
     enterprise: ['*'], // Acesso total a todas funcionalidades
