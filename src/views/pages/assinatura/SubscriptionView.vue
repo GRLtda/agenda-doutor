@@ -17,16 +17,18 @@ const statusMap = {
   past_due: { label: 'Pagamento Pendente', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', icon: AlertTriangle },
   canceled: { label: 'Cancelada', color: 'text-slate-700', bg: 'bg-slate-100', border: 'border-slate-300', icon: AlertTriangle },
   trialing: { label: 'Período de Teste', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', icon: Clock },
-  free: { label: 'Gratuito', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', icon: Package }
+  free: { label: 'Gratuito', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', icon: Package },
+  enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', icon: Shield }
 };
 
 const currentStatus = computed(() => {
+  if (subscription.value?.planType === 'enterprise') return statusMap.enterprise;
   const status = subscription.value?.status || 'free';
   return statusMap[status] || statusMap.free;
 });
 
 const isCanceled = computed(() => {
-  // Considera cancelado se o status for 'canceled' OU se tiver cancelAt agendado
+  if (subscription.value?.planType === 'enterprise') return false;
   return subscription.value?.status === 'canceled' || !!subscription.value?.cancelAt;
 });
 
@@ -223,7 +225,10 @@ onMounted(() => {
               </div>
               <div class="info-content">
                 <p class="label">Ciclo Atual</p>
-                <p v-if="subscription?.currentPeriodEnd" class="value">
+                <p v-if="subscription?.plan === 'enterprise'" class="value">
+                  Contrato Personalizado
+                </p>
+                <p v-else-if="subscription?.currentPeriodEnd" class="value">
                   Renova em {{ formatDate(subscription.currentPeriodEnd) }}
                 </p>
                 <p v-else-if="subscription?.billingCycleAnchor" class="value">
@@ -259,12 +264,23 @@ onMounted(() => {
             </div>
             <div>
               <span class="card-label">Seu Plano</span>
-              <h3 class="plan-name">{{ subscription?.planId === 'price_1SYz5GPa5IK4JNeqLG1QriOK' ? 'Premium' : 'Básico' }}</h3>
+              <h3 class="plan-name">
+                {{ 
+                  subscription?.planType === 'basic' ? 'Básico' :
+                  subscription?.planType === 'premium' ? 'Premium' :
+                  subscription?.planType === 'enterprise' ? 'Enterprise' :
+                  subscription?.planType ? subscription.planType.charAt(0).toUpperCase() + subscription.planType.slice(1) :
+                  'Básico'
+                }}
+              </h3>
             </div>
           </div>
           
           <div class="pricing-display">
-            <template v-if="subscription?.plan">
+            <template v-if="subscription?.plan === 'enterprise'">
+               <span class="amount" style="font-size: 1.5rem;">Sob Consulta</span>
+            </template>
+            <template v-else-if="subscription?.plan && typeof subscription.plan === 'object'">
               <span class="currency">{{ subscription.plan.currency.toUpperCase() }}</span>
               <span class="amount">{{ formatCurrency(subscription.plan.amount, subscription.plan.currency).replace('R$', '').trim() }}</span>
               <span class="interval">/ {{ subscription.plan.interval === 'month' ? 'mês' : 'ano' }}</span>
@@ -284,7 +300,7 @@ onMounted(() => {
             </ul>
 
             <!-- Installation Fee Notice -->
-            <div v-if="subscription?.status === 'free' || !subscription?.installationFeeCharged" class="installation-fee-notice">
+            <div v-if="(subscription?.status === 'free' || !subscription?.installationFeeCharged) && subscription?.plan !== 'enterprise'" class="installation-fee-notice">
               <div class="fee-notice-header">
                 <AlertTriangle :size="16" />
                 <span>Taxa de Instalação</span>

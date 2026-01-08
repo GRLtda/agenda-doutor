@@ -319,13 +319,27 @@ onUnmounted(() => {
                   </div>
                </div>
             </div>
+            
+            <!-- Row 2: Status & Doctor -->
             <div class="booking-row mt-4">
-               <div class="booking-item full-width">
+               <div class="booking-item">
                   <span class="label">Status Atual</span>
                   <div :class="['status-pill', badgeInfo.badgeClass]" :style="badgeInfo.badgeStyle">
                      {{ badgeInfo.displayText }}
                   </div>
                </div>
+               
+               <div class="booking-item">
+                    <span class="label">Profissional</span>
+                    <div class="value doctor-name-container">
+                        <div class="doctor-avatar-small">
+                            {{ appointment.doctor?.name ? appointment.doctor.name.charAt(0).toUpperCase() : '?' }}
+                        </div>
+                        <span class="text-truncate" :title="appointment.doctor?.name">
+                            {{ appointment.doctor?.name || 'Não atribuído' }}
+                        </span>
+                    </div>
+                </div>
             </div>
          </div>
       </section>
@@ -725,6 +739,37 @@ onUnmounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
+}
+
+/* Helper para truncar texto */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px; /* Ajuste conforme a largura desejada */
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.doctor-name-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.doctor-avatar-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
 .status-pill {
