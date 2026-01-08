@@ -49,7 +49,8 @@ function handleSearch() {
 
 <template>
   <div class="searchable-select" :class="{ 'has-error': error }">
-    <label v-if="label" class="form-label">
+    <label v-if="label || $slots.icon" class="form-label">
+      <slot name="icon"></slot>
       {{ label }} <span v-if="required" class="required-asterisk">*</span>
     </label>
     <div class="select-container" v-click-outside="() => isOpen = false">
@@ -88,9 +89,10 @@ function handleSearch() {
   color: #ef4444;
 }
 .searchable-select { width: 100%; }
-.form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; color: #374151; }
+.form-label { display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; color: #374151; }
+.form-label :deep(svg) { color: var(--azul-principal); }
 .select-container { position: relative; }
-.input-wrapper { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; background-color: white; cursor: pointer; }
+.input-wrapper { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; background-color: white; cursor: pointer; }
 .search-icon, .chevron-icon { color: #6b7280; }
 .chevron-icon { transition: transform 0.2s; }
 .chevron-icon.is-open { transform: rotate(180deg); }

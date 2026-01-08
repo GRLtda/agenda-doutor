@@ -6,7 +6,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
 // ✨ 1. Importar o LoaderCircle e a nova função da API
-import { User, Calendar, Bell, Plus, X, DoorClosed, Info, LoaderCircle } from 'lucide-vue-next'
+import { User, Calendar, Bell, Plus, X, DoorClosed, Info, LoaderCircle, Stethoscope } from 'lucide-vue-next'
 import { checkConflict } from '@/api/appointments'
 import {
   isToday,
@@ -99,6 +99,7 @@ const steps = [
 
 const appointmentData = ref({
   patient: null,
+  doctor: null,
   date: new Date(),
   startTime: null,
   endTime: null,
@@ -136,6 +137,21 @@ onMounted(() => {
 
 const patientOptions = computed(() => {
   return (patientsStore.searchResults || []).map((p) => ({ value: p._id, label: p.name }))
+})
+
+const doctorOptions = computed(() => {
+  const staff = clinicStore.currentClinic?.staff || []
+  
+  const doctors = staff.filter((member) => member.role === 'medico')
+  
+  if (doctors.length === 0) {
+    const owner = staff.find((member) => member.role === 'owner')
+    if (owner) {
+      return [{ value: owner._id, label: owner.name }]
+    }
+  }
+  
+  return doctors.map((doctor) => ({ value: doctor._id, label: doctor.name }))
 })
 
 function isTimeInFuture(timeString, selectedDate) {
@@ -406,9 +422,15 @@ watch(
 // ✨ 7. Função de validação atualizada
 function validateStep() {
   errors.value = {}
-  if (currentStep.value === 1 && !appointmentData.value.patient) {
-    errors.value.patient = 'Por favor, selecione um paciente para continuar.'
-    return false
+  if (currentStep.value === 1) {
+    if (!appointmentData.value.patient) {
+      errors.value.patient = 'Por favor, selecione um paciente para continuar.'
+      return false
+    }
+    if (!appointmentData.value.doctor) {
+      errors.value.doctor = 'Por favor, selecione um médico responsável.'
+      return false
+    }
   }
   if (
     currentStep.value === 2 &&
@@ -481,6 +503,7 @@ async function handleSubmit() {
     // --- MODO CRIAR (NOVO/REAGENDAR) ---
     const payload = {
       patient: appointmentData.value.patient,
+      doctor: appointmentData.value.doctor, // NOVO: ID do médico
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       sendReminder: appointmentData.value.sendReminder,
@@ -550,14 +573,30 @@ async function handleSubmit() {
           <SearchableSelect
             v-model="appointmentData.patient"
             :options="patientOptions"
-            label="Quem é o paciente? *"
+            label="Quem é o paciente?"
+            :required="true"
             :loading="patientsStore.isLoading"
             @search="handlePatientSearch"
             :error="!!errors.patient"
             placeholder="Digite para buscar um paciente"
             :disabled="isEditMode"
-          />
+          >
+          </SearchableSelect>
           <p v-if="errors.patient" class="error-message">{{ errors.patient }}</p>
+
+          <!-- Seletor de Médico -->
+          <div class="form-group">
+            <label class="form-label">
+              Médico Responsável <span class="required-asterisk">*</span>
+            </label>
+            <StyledSelect
+              v-model="appointmentData.doctor"
+              :options="doctorOptions"
+              placeholder="Selecione o médico"
+              :error="!!errors.doctor"
+            />
+            <p v-if="errors.doctor" class="error-message">{{ errors.doctor }}</p>
+          </div>
 
           <template v-if="!isEditMode">
             <div class="divider">
@@ -792,11 +831,16 @@ async function handleSubmit() {
   text-align: left;
 }
 .form-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   margin-bottom: 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
   color: #374151;
+}
+.required-asterisk {
+  color: #ef4444;
 }
 .error-message {
   color: #ef4444;
