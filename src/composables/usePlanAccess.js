@@ -4,8 +4,8 @@ import { useAuthStore } from '@/stores/auth'
 
 /**
  * Mapa de funcionalidades por plano.
- * - basic: Funcionalidades essenciais (sem financeiro e workflows)
- * - premium: Basic + financeiro e workflows
+ * - basic: Acesso total às ferramentas (financeiro e workflows inclusos)
+ * - premium: Acesso total (diferenciação por limite de médicos)
  * - enterprise: Acesso total
  */
 const planFeatures = {
