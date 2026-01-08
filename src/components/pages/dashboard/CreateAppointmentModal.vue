@@ -142,14 +142,7 @@ const patientOptions = computed(() => {
 const doctorOptions = computed(() => {
   const staff = clinicStore.currentClinic?.staff || []
   
-  const doctors = staff.filter((member) => member.role === 'medico')
-  
-  if (doctors.length === 0) {
-    const owner = staff.find((member) => member.role === 'owner')
-    if (owner) {
-      return [{ value: owner._id, label: owner.name }]
-    }
-  }
+  const doctors = staff.filter((member) => member.role === 'medico' || member.role === 'owner')
   
   return doctors.map((doctor) => ({ value: doctor._id, label: doctor.name }))
 })
