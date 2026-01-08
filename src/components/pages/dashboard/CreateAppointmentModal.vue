@@ -420,7 +420,7 @@ function validateStep() {
       errors.value.patient = 'Por favor, selecione um paciente para continuar.'
       return false
     }
-    if (!appointmentData.value.doctor) {
+    if (!appointmentData.value.doctor && clinicStore.currentClinic?.plan !== 'basic') {
       errors.value.doctor = 'Por favor, selecione um médico responsável.'
       return false
     }
@@ -577,8 +577,8 @@ async function handleSubmit() {
           </SearchableSelect>
           <p v-if="errors.patient" class="error-message">{{ errors.patient }}</p>
 
-          <!-- Seletor de Médico -->
-          <div class="form-group">
+          <!-- Seletor de Médico (Apenas para planos acima do Básico) -->
+          <div v-if="clinicStore.currentClinic?.plan !== 'basic'" class="form-group">
             <label class="form-label">
               Médico Responsável <span class="required-asterisk">*</span>
             </label>
