@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, ChevronLeft, ChevronRight, Upload, Trash2, Tag, FileText, Check } from 'lucide-vue-next'
+import { X, ChevronLeft, ChevronRight, Upload, Trash2, Tag, FileText, Check, Plus } from 'lucide-vue-next'
 
 const props = defineProps({
   visible: {
@@ -11,6 +11,14 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  existingCount: {
+    type: Number,
+    default: 0,
+  },
+  maxAttachments: {
+    type: Number,
+    default: 20,
+  },
 })
 
 const emit = defineEmits(['close', 'upload'])
@@ -18,6 +26,12 @@ const emit = defineEmits(['close', 'upload'])
 // Estado das fotos com metadados
 const photosData = ref([])
 const selectedIndex = ref(0)
+const addInput = ref(null)
+
+const canAddMore = computed(() => {
+  const total = props.existingCount + photosData.value.length
+  return total < props.maxAttachments
+})
 
 // Tags disponíveis para seleção
 const availableTags = [
@@ -30,8 +44,17 @@ const availableTags = [
   { id: 'nariz', label: 'Nariz', color: '#f59e0b' },
   { id: 'antes', label: 'Antes', color: '#22c55e' },
   { id: 'depois', label: 'Depois', color: '#06b6d4' },
-  { id: 'outro', label: 'Outro', color: '#6b7280' },
+  { id: 'outro', label: 'Outro', color: '#64748b' },
 ]
+
+// Tags customizadas da sessão
+const customTags = ref([])
+const newTagInput = ref('')
+
+// Combinar tags padrão com customizadas
+const displayedTags = computed(() => {
+  return [...availableTags, ...customTags.value]
+})
 
 // Foto atualmente selecionada
 const currentPhoto = computed(() => photosData.value[selectedIndex.value] || null)
@@ -59,6 +82,8 @@ watch(() => props.visible, (isVisible) => {
       }
     })
     photosData.value = []
+    customTags.value = []
+    newTagInput.value = ''
     selectedIndex.value = 0
   }
 })
@@ -90,6 +115,31 @@ function toggleTag(tagId) {
   }
 }
 
+function addCustomTag() {
+  const label = newTagInput.value.trim()
+  if (!label) return
+  
+  const id = label.toLowerCase().replace(/\s+/g, '-')
+  
+  // Evitar duplicatas (global ou customizada)
+  const exists = displayedTags.value.some(t => t.id === id)
+  
+  if (!exists) {
+    customTags.value.push({
+      id,
+      label,
+      color: '#64748b'
+    })
+  }
+  
+  // Auto-selecionar a tag recém criada
+  if (currentPhoto.value && !currentPhoto.value.tags.includes(id)) {
+    currentPhoto.value.tags.push(id)
+  }
+  
+  newTagInput.value = ''
+}
+
 function isTagSelected(tagId) {
   return currentPhoto.value?.tags?.includes(tagId) || false
 }
@@ -109,7 +159,44 @@ function removePhoto(index) {
   }
 }
 
+function triggerAddFiles() {
+  addInput.value.click()
+}
+
+function handleAddFiles(event) {
+  const newFiles = Array.from(event.target.files)
+  if (!newFiles.length) return
+
+  // Verifica quantos ainda podem ser adicionados
+  const currentTotal = props.existingCount + photosData.value.length
+  const remainingSlots = props.maxAttachments - currentTotal
+  
+  if (remainingSlots <= 0) return
+
+  const filesToAdd = newFiles.slice(0, remainingSlots)
+  
+  const newPhotos = filesToAdd.map((file, index) => ({
+    id: `photo-${Date.now()}-${photosData.value.length + index}`,
+    file,
+    preview: URL.createObjectURL(file),
+    description: '',
+    tags: [],
+  }))
+
+  photosData.value = [...photosData.value, ...newPhotos]
+  
+  // Seleciona a primeira das novas fotos
+  selectedIndex.value = photosData.value.length - newPhotos.length
+  
+  event.target.value = ''
+}
+
 function handleClose() {
+  if (photosData.value.length > 0) {
+    if (!window.confirm('Tem certeza que deseja sair? As fotos preparadas serão perdidas.')) {
+      return
+    }
+  }
   emit('close')
 }
 
@@ -126,6 +213,15 @@ function handleUpload() {
 // Keyboard navigation
 function handleKeydown(e) {
   if (!props.visible) return
+  
+  // Se estiver digitando no input de tag ou descrição, ignorar navegação por setas
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    if (e.key === 'Escape') {
+        e.target.blur() 
+        return 
+    }
+    return
+  }
   
   if (e.key === 'ArrowLeft') {
     navigatePrev()
@@ -167,6 +263,55 @@ watch(() => props.visible, (isVisible) => {
           </div>
         </header>
 
+        <!-- Filmstrip Bar (Desktop: Bottom, Mobile: Top) -->
+        <div class="viewer-filmstrip-bar">
+          <div class="filmstrip-container">
+            <div class="filmstrip">
+              <div
+                v-for="(photo, index) in photosData"
+                :key="photo.id"
+                class="filmstrip-item"
+                :class="{ active: index === selectedIndex }"
+                @click="selectPhoto(index)"
+              >
+                <img :src="photo.preview" :alt="`Miniatura ${index + 1}`" />
+                <span class="filmstrip-number">{{ index + 1 }}</span>
+                <button 
+                  class="filmstrip-remove" 
+                  @click.stop="removePhoto(index)"
+                  title="Remover foto"
+                >
+                  <Trash2 :size="12" />
+                </button>
+                <!-- Indicador de tags/descrição -->
+                <div v-if="photo.tags.length > 0 || photo.description" class="meta-indicator">
+                  <span v-if="photo.tags.length > 0" class="tag-count">{{ photo.tags.length }}</span>
+                </div>
+              </div>
+
+              <!-- Botão Adicionar Mais -->
+              <div 
+                v-if="canAddMore"
+                class="filmstrip-item add-more-item"
+                @click="triggerAddFiles"
+                title="Adicionar mais fotos"
+              >
+                <Plus :size="24" />
+                <span class="add-text">Adicionar</span>
+              </div>
+            </div>
+          </div>
+
+          <input
+            type="file"
+            ref="addInput"
+            @change="handleAddFiles"
+            accept="image/*"
+            multiple
+            hidden
+          />
+        </div>
+
         <!-- Main Content -->
         <div class="viewer-content">
           <!-- Sidebar Esquerda - Metadados -->
@@ -181,7 +326,7 @@ watch(() => props.visible, (isVisible) => {
                 v-model="currentPhoto.description"
                 class="description-input"
                 placeholder="Adicione uma descrição para esta foto..."
-                rows="4"
+                rows="2"
               ></textarea>
             </div>
 
@@ -192,7 +337,7 @@ watch(() => props.visible, (isVisible) => {
               </label>
               <div class="tags-grid">
                 <button
-                  v-for="tag in availableTags"
+                  v-for="tag in displayedTags"
                   :key="tag.id"
                   class="tag-btn"
                   :class="{ selected: isTagSelected(tag.id) }"
@@ -204,6 +349,24 @@ watch(() => props.visible, (isVisible) => {
                 >
                   <Check v-if="isTagSelected(tag.id)" :size="14" class="tag-check" />
                   {{ tag.label }}
+                </button>
+              </div>
+              
+              <div class="custom-tag-input-container">
+                <input
+                  v-model="newTagInput"
+                  type="text"
+                  placeholder="Nova tag (máx 20)"
+                  maxlength="20"
+                  class="custom-tag-input"
+                  @keydown.enter.prevent="addCustomTag"
+                />
+                <button 
+                  class="add-tag-btn" 
+                  @click="addCustomTag"
+                  :disabled="!newTagInput.trim()"
+                >
+                  <Plus :size="16" />
                 </button>
               </div>
             </div>
@@ -239,34 +402,8 @@ watch(() => props.visible, (isVisible) => {
           </main>
         </div>
 
-        <!-- Footer - Filmstrip -->
+        <!-- Footer -->
         <footer class="viewer-footer">
-          <div class="filmstrip-container">
-            <div class="filmstrip">
-              <div
-                v-for="(photo, index) in photosData"
-                :key="photo.id"
-                class="filmstrip-item"
-                :class="{ active: index === selectedIndex }"
-                @click="selectPhoto(index)"
-              >
-                <img :src="photo.preview" :alt="`Miniatura ${index + 1}`" />
-                <span class="filmstrip-number">{{ index + 1 }}</span>
-                <button 
-                  class="filmstrip-remove" 
-                  @click.stop="removePhoto(index)"
-                  title="Remover foto"
-                >
-                  <Trash2 :size="12" />
-                </button>
-                <!-- Indicador de tags/descrição -->
-                <div v-if="photo.tags.length > 0 || photo.description" class="meta-indicator">
-                  <span v-if="photo.tags.length > 0" class="tag-count">{{ photo.tags.length }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Botão de Upload -->
           <div class="footer-actions">
             <button class="cancel-btn" @click="handleClose">
@@ -396,7 +533,7 @@ watch(() => props.visible, (isVisible) => {
   border-radius: 0.5rem;
   color: white;
   font-size: 0.875rem;
-  resize: vertical;
+  resize: none;
   min-height: 100px;
   transition: all 0.2s ease;
 }
@@ -415,13 +552,16 @@ watch(() => props.visible, (isVisible) => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .tag-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
+  justify-content: center;
+  /* Padding simétrico inicial grande o suficiente para acomodar a troca */
+  padding: 0.5rem 1.5rem; 
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 9999px;
@@ -429,7 +569,11 @@ watch(() => props.visible, (isVisible) => {
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  text-transform: capitalize;
+  min-height: 30px;
+  min-width: 80px;
 }
 
 .tag-btn:hover {
@@ -442,10 +586,71 @@ watch(() => props.visible, (isVisible) => {
   background: var(--tag-color-light);
   border-color: var(--tag-color);
   color: white;
+  /* Mantém a SOMA do padding horizontal igual (1.5 + 1.5 = 3.0) -> (2.25 + 0.75 = 3.0) */
+  padding-left: 2.25rem;
+  padding-right: 0.75rem;
 }
 
 .tag-check {
+  position: absolute;
+  left: 0.75rem;
   color: var(--tag-color);
+  opacity: 0;
+  transform: translateX(-10px) scale(0.5);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tag-btn.selected .tag-check {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+/* Custom Tag Input */
+.custom-tag-input-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.custom-tag-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.custom-tag-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.add-tag-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-tag-btn:hover:not(:disabled) {
+  background: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.add-tag-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Main View */
@@ -507,18 +712,28 @@ watch(() => props.visible, (isVisible) => {
   right: 1rem;
 }
 
-/* Footer / Filmstrip */
-.viewer-footer {
+/* Filmstrip Bar */
+.viewer-filmstrip-bar {
   background: rgba(0, 0, 0, 0.6);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.5rem 0.25rem 1.5rem; 
   flex-shrink: 0;
+  overflow-x: auto;
+  order: 2; /* Desktop: Abaixo do content */
+}
+
+/* Content Area */
+.viewer-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+  order: 1; /* Desktop: Acima do filmstrip */
 }
 
 .filmstrip-container {
   overflow-x: auto;
-  padding-bottom: 0.75rem;
-  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
 }
 
 .filmstrip {
@@ -593,6 +808,29 @@ watch(() => props.visible, (isVisible) => {
   background: rgb(239, 68, 68);
 }
 
+.filmstrip-item.add-more-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.filmstrip-item.add-more-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.add-text {
+  font-size: 0.65rem;
+  font-weight: 500;
+}
+
 .meta-indicator {
   position: absolute;
   top: 4px;
@@ -610,7 +848,15 @@ watch(() => props.visible, (isVisible) => {
   border-radius: 4px;
 }
 
-/* Footer Actions */
+/* Footer (Actions Only) */
+.viewer-footer {
+  background: rgba(0, 0, 0, 0.6);
+  /* Sem border-top se quisermos juntar visualmente com filmstrip no desktop */
+  padding: 0.5rem 1.5rem 1rem 1.5rem;
+  flex-shrink: 0;
+  order: 3; /* Desktop: No final */
+}
+
 .footer-actions {
   display: flex;
   justify-content: flex-end;
@@ -691,13 +937,75 @@ watch(() => props.visible, (isVisible) => {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .viewer-content {
+    flex-direction: column;
+    order: 3; /* Conteúdo depois do filmstrip */
+  }
+
+  .viewer-header {
+    order: 1;
+  }
+
+  .viewer-filmstrip-bar {
+    order: 2; /* Filmstrip no topo */
+    border-top: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    display: flex;
+    /* Ajuste para garantir scroll horizontal suave */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filmstrip {
+    /* Ajustes para alinhar items no mobile se necessário */
+    padding: 0;
+  }
+
+  .viewer-footer {
+    order: 4; /* Actions no rodapé */
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
   .sidebar-left {
-    display: none;
+    display: block; 
+    width: 100%;
+    border-right: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    height: 30%; 
+    padding: 1rem;
+    order: 2; /* No contexto flex-column do viewer-content */
   }
   
+  .main-view {
+    height: 70%; 
+    flex: none;
+    padding: 1.5rem; 
+    overflow: hidden; 
+    order: 1; /* No contexto flex-column do viewer-content */
+  }
+  
+  .main-photo {
+    max-height: 100%;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .tags-grid {
+    max-height: 150px;
+    overflow-y: auto;
+    padding-right: 4px; 
+    align-content: flex-start;
+  }
+
   .nav-arrow {
     width: 36px;
     height: 36px;
+    background: rgba(0, 0, 0, 0.3); 
   }
   
   .filmstrip-item {

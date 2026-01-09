@@ -83,3 +83,11 @@ export const addProcedureToRecord = (procedureData) => {
 export const removeProcedureFromRecord = (recordId, procedureId) => {
   return apiClient.delete(`/records/${recordId}/procedures/${procedureId}`)
 }
+
+/**
+ * Remove anexos em massa (Bulk Delete)
+ * Rota: POST /api/records/:recordId/attachments/bulk-delete
+ */
+export const removeAttachmentsBulk = (recordId, uploadIds) => {
+  return apiClient.post(`/records/${recordId}/attachments/bulk-delete`, { uploadIds })
+}
