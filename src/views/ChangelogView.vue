@@ -5,6 +5,32 @@ import AppFooter from '@/components/global/AppFooter.vue'
 // Changelog entries - futuramente pode vir de um .md ou API
 const changelog = [
   {
+    date: '08 Jan 2025',
+    version: 'v1.8.0',
+    title: 'Gestão de Fotos e Especialistas',
+    description: 'Novas funcionalidades para gestão de anexos e expansão da equipe médica.',
+    items: [
+      { category: 'Novidades:', items: [
+        'Pré-visualização de fotos antes do envio',
+        'Adição de tags e descrições em fotos',
+        'Filtro de fotos por tags e descrição',
+        'Possibilidade de baixar fotos',
+        'Múltiplos doutores disponíveis em planos superiores'
+      ] }
+    ]
+  },
+  {
+    date: '07 Jan 2025',
+    version: 'v1.7.2',
+    title: 'Infraestrutura Cloud',
+    description: 'Atualização crítica do sistema de armazenamento.',
+    items: [
+      { category: 'Infraestrutura:', items: [
+        'Migração completa de fotos, assinaturas e logos para Amazon S3'
+      ] }
+    ]
+  },
+  {
     date: '05 Jan 2026',
     version: 'v1.7.1',
     title: 'Melhorias nos Atendimentos',

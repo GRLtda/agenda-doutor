@@ -26,6 +26,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  initialImages: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -544,14 +548,49 @@ function handleClose() {
 // Reinicializa quando o modal abre
 watch(() => props.visible, (isVisible) => {
   if (isVisible) {
-    selectedLayout.value = layouts[0]
-    selectedAspectRatio.value = aspectRatios[0]
-    images.value = Array(selectedLayout.value.slots).fill(null)
+    // Se tiver imagens iniciais, configura elas
+    if (props.initialImages && props.initialImages.length > 0) {
+      const count = props.initialImages.length
+      
+      // Tenta achar layout com número exato de slots
+      const matchingLayout = layouts.find(l => l.slots === count) || layouts[0]
+      selectedLayout.value = matchingLayout
+      selectedAspectRatio.value = aspectRatios[0]
+      
+      // Popula imagens
+      images.value = Array(matchingLayout.slots).fill(null)
+      props.initialImages.forEach((imgData, index) => {
+        if (index < matchingLayout.slots) {
+          images.value[index] = {
+            src: imgData.src, // Espera objeto { src: 'url' }
+            file: null, // Sem file object raw por enquanto
+            offsetX: 0,
+            offsetY: 0,
+            scale: 1,
+          }
+        }
+      })
+    } else {
+      // Reset padrão
+      selectedLayout.value = layouts[0]
+      selectedAspectRatio.value = aspectRatios[0]
+      images.value = Array(selectedLayout.value.slots).fill(null)
+    }
   }
 })
 
 watch(selectedLayout, (newLayout) => {
-  images.value = Array(newLayout.slots).fill(null)
+  // Se mudar layout, tenta preservar imagens existentes
+  const oldImages = images.value.filter(Boolean)
+  const newImages = Array(newLayout.slots).fill(null)
+  
+  oldImages.forEach((img, i) => {
+    if (i < newLayout.slots) {
+      newImages[i] = img
+    }
+  })
+  
+  images.value = newImages
 })
 </script>
 

@@ -5,9 +5,10 @@ import {
   getByAppointmentId as apiGetByAppointmentId,
   updateRecord as apiUpdateRecord,
   uploadImageAttachment as apiUploadImageAttachment,
-  removeAttachment as apiRemoveAttachment, // ✨ 1. Importa a função correta do lugar certo
-  addProcedureToRecord as apiAddProcedureToRecord, // ✨ Import add procedure
-  removeProcedureFromRecord as apiRemoveProcedureFromRecord, // ✨ Import remove procedure
+  removeAttachment as apiRemoveAttachment,
+  removeAttachmentsBulk as apiRemoveAttachmentsBulk,
+  addProcedureToRecord as apiAddProcedureToRecord,
+  removeProcedureFromRecord as apiRemoveProcedureFromRecord,
 } from '@/api/records'
 import apiClient from '@/api'
 
@@ -84,6 +85,14 @@ export const useRecordsStore = defineStore('records', () => {
       formData.append('wasCompressed', 'true')
     }
 
+    if (options.description) {
+      formData.append('description', options.description)
+    }
+
+    if (options.tags && options.tags.length > 0) {
+      formData.append('tags', JSON.stringify(options.tags))
+    }
+
     try {
       const response = await apiClient.post(`/records/${currentRecordId}/attachments/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -148,6 +157,62 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  // ✨ Bulk delete action (Optimistic UI)
+  async function deleteAttachmentsBulk(uploadIds) {
+    if (!currentRecord.value?._id) return { success: false, error: 'Prontuário não encontrado.' }
+    if (!uploadIds || uploadIds.length === 0) return { success: true }
+
+    // Backup para rollback
+    const originalAttachments = [...currentRecord.value.attachments]
+
+    // 1. Otimista: Remove da UI imediatamente
+    currentRecord.value.attachments = currentRecord.value.attachments.filter(
+      (attachment) => !uploadIds.includes(attachment._id)
+    )
+
+    try {
+      await apiRemoveAttachmentsBulk(currentRecord.value._id, uploadIds)
+      return { success: true }
+    } catch (err) {
+      // 2. Fallback: Restaura estado original em caso de erro
+      currentRecord.value.attachments = originalAttachments
+      const errorMessage = err.response?.data?.message || 'Erro ao excluir anexos.'
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  // ✨ Download attachment via Proxy
+  async function downloadAttachment(uploadId) {
+    if (!currentRecord.value?._id) {
+      return { success: false, error: 'Prontuário não encontrado.' }
+    }
+
+    try {
+      const downloadUrl = `/records/${currentRecord.value._id}/attachments/${uploadId}/download`
+      const response = await apiClient.get(downloadUrl, {
+        responseType: 'blob',
+        timeout: 60000,
+      })
+
+      let filename = `imagem-${uploadId}.jpg`
+      const contentDisposition = response.headers['content-disposition']
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/)
+        if (match && match[1]) filename = match[1]
+      } else {
+        const attachment = currentRecord.value.attachments.find(a => a._id === uploadId)
+        if (attachment?.metadata?.originalName) {
+          filename = attachment.metadata.originalName
+        }
+      }
+
+      return { success: true, blob: response.data, filename }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Erro ao baixar o anexo.'
+      return { success: false, error: errorMessage }
+    }
+  }
+
   return {
     currentRecord,
     isLoading,
@@ -157,7 +222,9 @@ export const useRecordsStore = defineStore('records', () => {
     updateRecord,
     uploadAttachmentImage,
     deleteAttachment,
-    addProcedureToRecord, // ✨ Export new function
-    removeProcedureFromRecord, // ✨ Export remove function
+    deleteAttachmentsBulk,
+    addProcedureToRecord,
+    removeProcedureFromRecord,
+    downloadAttachment,
   }
 })
