@@ -83,10 +83,23 @@ function handleSearchSubmit() {
 <template>
   <header class="top-bar">
     <div class="top-bar-left">
-      <button @click="$emit('toggle-sidebar')" class="hamburger-button">
-        <Menu :size="24" />
-      </button>
-      <button @click="$emit('toggle-collapse')" class="collapse-button">
+      <!-- Mobile: Clinic Summary instead of Hamburger -->
+      <div class="mobile-clinic-summary">
+        <div class="clinic-logo-mobile">
+             <img
+              v-if="authStore.user?.clinic?.logoUrl"
+              :src="authStore.user.clinic.logoUrl"
+              alt="Logo"
+              class="clinic-logo-img-mobile"
+            />
+            <span v-else>{{ authStore.user?.clinic?.name?.charAt(0) || 'C' }}</span>
+        </div>
+        <div class="clinic-info-mobile">
+            <span class="clinic-name-mobile">{{ authStore.user?.clinic?.name || 'Sua Clínica' }}</span>
+        </div>
+      </div>
+
+      <button @click="$emit('toggle-collapse')" class="collapse-button desktop-only">
         <PanelLeftClose v-if="!isSidebarCollapsed" :size="20" />
         <PanelLeftOpen v-else :size="20" />
       </button>
@@ -140,10 +153,10 @@ function handleSearchSubmit() {
         <Plus :size="24" />
       </button>
 
-      <div class="separator"></div>
+      <div class="separator desktop-only"></div>
 
       <div
-        class="user-profile"
+        class="user-profile desktop-only"
         @click="isUserDropdownOpen = !isUserDropdownOpen"
         v-click-outside="() => (isUserDropdownOpen = false)"
       >
@@ -155,6 +168,11 @@ function handleSearchSubmit() {
         <div class="user-avatar">
           {{ authStore.user?.name.charAt(0) || 'U' }}
         </div>
+      </div>
+      
+      <!-- Mobile User Profile Icon (Simplified) -->
+      <div class="user-avatar mobile-only">
+          {{ authStore.user?.name.charAt(0) || 'U' }}
       </div>
     </div>
   </header>
@@ -477,10 +495,67 @@ function handleSearchSubmit() {
     display: none;
   }
 
-  /* Oculta detalhes do usuário no mobile, mostra apenas avatar */
-  .user-profile {
+  /* Oculta detalhes do usuário no mobile */
+  .user-profile.desktop-only {
     display: none;
   }
+  .separator.desktop-only {
+      display: none;
+  }
+  .collapse-button.desktop-only {
+      display: none;
+  }
+
+  .mobile-clinic-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .clinic-logo-mobile {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background-color: #eef2ff;
+      color: var(--azul-principal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+  }
+  
+  .clinic-logo-img-mobile {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+  }
+  
+  .clinic-info-mobile {
+      display: flex;
+      flex-direction: column;
+  }
+  
+  .clinic-name-mobile {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #111827;
+      line-height: 1.2;
+  }
+
+  .user-avatar.mobile-only {
+      display: flex;
+  }
+}
+
+@media (min-width: 1025px) {
+    .mobile-clinic-summary {
+        display: none;
+    }
+    .user-avatar.mobile-only {
+        display: none;
+    }
 }
 
 /* Animação do Dropdown */

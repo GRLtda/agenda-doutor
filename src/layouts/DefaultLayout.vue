@@ -4,6 +4,8 @@ import { RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import TopBar from '@/components/layout/TopBar.vue' // ✨ 1. Importar a TopBar
+import BottomNavBar from '@/components/layout/BottomNavBar.vue' // ✨ Novo Bottom Nav
+import MobileMenuDrawer from '@/components/layout/MobileMenuDrawer.vue' // ✨ Novo Drawer
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue' // ✨ 2. Importar o Modal
 import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
 
@@ -18,6 +20,7 @@ const layoutStore = useLayoutStore()
 const toast = useToast()
 const isMobileSidebarOpen = ref(false)
 const isAppointmentModalOpen = ref(false) // ✨ 3. Estado para o modal global
+const isMobileDrawerOpen = ref(false) // ✨ Estado do Drawer Mobile
 
 
 
@@ -74,6 +77,19 @@ watch(
 
     <SubscriptionModal />
 
+    <!-- Novos Componentes Mobile -->
+    <BottomNavBar 
+      v-if="!route.meta.layout?.fullscreen" 
+      @open-menu="isMobileDrawerOpen = true" 
+    />
+    
+    <MobileMenuDrawer 
+      :is-open="isMobileDrawerOpen" 
+      @close="isMobileDrawerOpen = false" 
+    />
+
+    <!-- O antigo sidebar overlay pode ser removido ou mantido se o Sidebar ainda for usado em algum caso raro, 
+         mas com o BottomNav ele deve ser desativado no mobile -->
     <div
       v-if="isMobileSidebarOpen"
       @click="isMobileSidebarOpen = false"
@@ -146,24 +162,21 @@ watch(
   }
   .main-content {
     padding: 1.5rem 1rem;
+    padding-bottom: 100px; /* ✨ Espaço para a Bottom Bar */
     border-radius: 0;
   }
   .main-content.no-padding {
     padding: 0;
+    padding-bottom: 100px; /* Mesmo se for no-padding, precisa do espaço embaixo se a nav estiver lá */
   }
   .sidebar-component {
-    position: fixed;
-    left: 0;
-    top: 0;
-    border-radius: 0;
-    bottom: 0;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 5000;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
-  }
-  .sidebar-component.is-mobile-open {
-    transform: translateX(0);
+    /* Esconder o sidebar no mobile pois agora usamos BottomNav */
+    display: none; 
+    /* 
+       Mover a sidebar antiga para fora da tela ou display:none é o ideal.
+       Se display:none, precisamos garantir que ela reapareça no desktop.
+       O media query já cuida do desktop. 
+    */
   }
   .sidebar-overlay {
     display: block;
