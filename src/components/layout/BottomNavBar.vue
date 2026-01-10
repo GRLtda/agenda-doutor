@@ -90,7 +90,7 @@ const navigate = (path) => {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  z-index: 5000;
+  z-index: 900;
   border-radius: 20px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
   padding: 0 10px;
