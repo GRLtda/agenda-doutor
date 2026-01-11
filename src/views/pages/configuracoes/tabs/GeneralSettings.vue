@@ -128,6 +128,15 @@ const hasUnsavedChanges = computed(() => {
     return JSON.stringify(originalClinicData.value) !== JSON.stringify(clinicData.value);
 });
 
+const handleCancel = () => {
+    if (originalClinicData.value) {
+        clinicData.value = JSON.parse(JSON.stringify(originalClinicData.value))
+        selectedLogoFile.value = null
+        logoPreviewUrl.value = clinicData.value.logoUrl
+        toast.info('Alterações descartadas.')
+    }
+}
+
 onBeforeRouteLeave((to, from, next) => {
     if (hasUnsavedChanges.value) {
         const confirmation = window.confirm(
@@ -183,12 +192,17 @@ onBeforeRouteLeave((to, from, next) => {
                 ref="logoInput"
                 hidden
               />
-              <button type="button" @click="logoInput.click()" class="upload-btn">
+              <AppButton 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                @click="logoInput.click()" 
+                class="upload-btn"
+              >
                 <UploadCloud :size="16" />
                 <span>Alterar logo</span>
-              </button>
+              </AppButton>
               <span class="logo-hint">PNG ou JPG, máx 2MB</span>
-              <span class="logo-usage-hint">Usada na impressão de PDFs e documentos</span>
             </div>
 
             <!-- Campos de Texto -->
@@ -279,7 +293,15 @@ onBeforeRouteLeave((to, from, next) => {
           <span class="dot"></span>
           Alterações não salvas
         </span>
-        <AppButton type="submit" variant="primary" class="save-btn">
+        <AppButton 
+          v-if="hasUnsavedChanges" 
+          type="button" 
+          variant="default" 
+          @click="handleCancel"
+        >
+          Cancelar
+        </AppButton>
+        <AppButton type="submit" variant="primary" class="save-btn" :disabled="!hasUnsavedChanges && !selectedLogoFile">
           <Save :size="18" />
           Salvar Alterações
         </AppButton>
@@ -391,26 +413,7 @@ onBeforeRouteLeave((to, from, next) => {
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
 }
 
-.upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  background: transparent;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  color: #374151;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.upload-btn:hover {
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
-  background: #eef2ff;
-}
 
 .logo-label {
   font-size: 0.875rem;
@@ -423,15 +426,6 @@ onBeforeRouteLeave((to, from, next) => {
   color: #9ca3af;
 }
 
-.logo-usage-hint {
-  font-size: 0.7rem;
-  color: #9ca3af;
-  background: #f3f4f6;
-  padding: 0.375rem 0.625rem;
-  border-radius: 0.375rem;
-  text-align: center;
-  line-height: 1.3;
-}
 
 .identity-fields {
   flex: 1;
@@ -573,11 +567,6 @@ onBeforeRouteLeave((to, from, next) => {
 
   .logo-label {
     width: 100%;
-  }
-
-  .logo-usage-hint {
-    flex: 1;
-    min-width: 100%;
   }
 
   .field-row-cep,

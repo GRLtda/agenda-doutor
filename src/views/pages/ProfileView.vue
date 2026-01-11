@@ -1,8 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { User, Mail, Briefcase, Building2, MapPin, Shield, Crown, UserCircle, Calendar, Pencil, Check, X } from 'lucide-vue-next'
+import { 
+  User, Mail, Briefcase, Building2, MapPin, 
+  Calendar, Pencil, Check, X, ShieldCheck
+} from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
+import AppTabs from '@/components/global/AppTabs.vue'
 import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
@@ -10,6 +14,9 @@ const toast = useToast()
 const isLoading = ref(false)
 const isSaving = ref(false)
 const isEditing = ref(false)
+
+// Tab state: 'personal' | 'clinic'
+const activeTab = ref('personal')
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
@@ -100,454 +107,383 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="profile-container">
+  <div class="page-container">
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
     </div>
 
-    <div v-else class="profile-content">
-      <!-- Header Section -->
-      <div class="profile-header">
-        <div class="avatar-section">
-          <div class="avatar-wrapper">
+    <div v-else class="content-wrapper">
+      <!-- Profile Header -->
+      <header class="profile-header">
+        <div class="header-content">
+          <div class="avatar-container">
             <div class="avatar">
               {{ getInitials(user?.name) }}
             </div>
+            <div class="online-status"></div>
           </div>
-          <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
-          <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
-        </div>
-      </div>
-
-      <!-- Main Content -->
-      <div class="profile-body">
-        <!-- Personal Information Section -->
-        <section class="profile-section">
-          <div class="section-header">
-             <div>
-                <h2 class="section-title">Informações Pessoais</h2>
-                <p class="section-description">Suas informações básicas de perfil.</p>
-             </div>
-             <button v-if="!isEditing" @click="startEditing" class="btn-icon" title="Editar Perfil">
-                <Pencil :size="18" />
-             </button>
-             <div v-else class="edit-actions">
-                <button @click="cancelEditing" class="btn-icon btn-cancel" title="Cancelar">
-                  <X :size="18" />
-                </button>
-                <button @click="saveProfile" class="btn-icon btn-save" title="Salvar" :disabled="isSaving">
-                  <Check :size="18" />
-                </button>
-             </div>
-          </div>
-
-          <div class="info-grid">
-            <div class="info-field">
-              <label class="field-label">Nome completo</label>
-              <div v-if="!isEditing" class="field-value">
-                <User :size="18" class="field-icon" />
-                <span>{{ user?.name || 'Não informado' }}</span>
-              </div>
-              <FormInput 
-                v-else 
-                v-model="formData.name" 
-                placeholder="Seu nome completo"
-                class="edit-input"
-              />
-            </div>
-
-            <div class="info-field">
-              <label class="field-label">Email</label>
-              <div v-if="!isEditing" class="field-value">
-                <Mail :size="18" class="field-icon" />
-                <span>{{ user?.email || 'Não informado' }}</span>
-              </div>
-              <FormInput 
-                v-else 
-                v-model="formData.email" 
-                placeholder="Seu email"
-                type="email"
-                class="edit-input"
-              />
-            </div>
-
-            <div class="info-field">
-              <label class="field-label">Função</label>
-              <div class="field-value">
-                <Briefcase :size="18" class="field-icon" />
-                <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
-              </div>
-            </div>
-
-            <div class="info-field">
-              <label class="field-label">Membro desde</label>
-              <div class="field-value">
-                <Calendar :size="18" class="field-icon" />
-                <span>{{ formatDate(clinic?.createdAt) }}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Clinic Information Section -->
-        <section v-if="clinic" class="profile-section">
-          <h2 class="section-title">Informações da Clínica</h2>
-          <p class="section-description">Detalhes da instituição vinculada ao seu perfil.</p>
-
-          <div class="clinic-header">
-            <div class="clinic-logo-container">
-              <img 
-                v-if="clinic.logoUrl" 
-                :src="clinic.logoUrl" 
-                :alt="clinic.name"
-                class="clinic-logo"
-              />
-              <div v-else class="clinic-logo-placeholder">
-                <Building2 :size="28" />
-              </div>
-            </div>
-            <div class="clinic-info">
-              <h3 class="clinic-name">{{ clinic.name }}</h3>
-              <span class="clinic-plan" :class="`plan-${clinic.plan}`">
-                {{ planLabels[clinic.plan] || clinic.plan }}
+          
+          <div class="user-info">
+            <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
+            <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
+            <div class="user-badges">
+              <span class="badge role-badge">
+                {{ roleLabels[user?.role] || 'Membro' }}
               </span>
             </div>
           </div>
+        </div>
+      </header>
 
-          <div class="info-grid">
-            <div class="info-field">
-              <label class="field-label">CNPJ</label>
-              <div class="field-value">
-                <Building2 :size="18" class="field-icon" />
-                <span>{{ clinic.cnpj || 'Não informado' }}</span>
+      <!-- Tabs Navigation -->
+      <nav class="tabs-container">
+        <AppTabs 
+          :model-value="activeTab" 
+          @update:model-value="activeTab = $event"
+          :items="[
+            { value: 'personal', label: 'Informações Pessoais', icon: User },
+            { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
+          ]"
+        />
+      </nav>
+
+
+      <!-- Tab Content Area -->
+      <main class="tab-content">
+        
+        <!-- Personal Info Tab -->
+        <transition name="fade" mode="out-in">
+          <div v-if="activeTab === 'personal'" class="content-card">
+            <div class="card-header">
+              <div class="header-text">
+                <h2>Dados do Perfil</h2>
+                <p>Gerencie suas informações de acesso e identificação</p>
+              </div>
+              
+              <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
+                <Pencil :size="16" />
+                <span>Editar</span>
+              </button>
+              <div v-else class="edit-actions">
+                <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
+                  <X :size="16" />
+                </button>
+                <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
+                  <Check :size="16" />
+                  <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
+                </button>
               </div>
             </div>
 
-            <div class="info-field">
-              <label class="field-label">Responsável</label>
-              <div class="field-value">
-                <User :size="18" class="field-icon" />
-                <span>{{ clinic.responsibleName || 'Não informado' }}</span>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Nome Completo</label>
+                <div v-if="!isEditing" class="read-only-field">
+                  <User :size="18" class="field-icon" />
+                  <span>{{ user?.name || 'Não informado' }}</span>
+                </div>
+                <FormInput 
+                  v-else 
+                  v-model="formData.name" 
+                  placeholder="Seu nome completo"
+                />
               </div>
-            </div>
 
-            <div v-if="clinic.address?.city" class="info-field">
-              <label class="field-label">Localização</label>
-              <div class="field-value">
-                <MapPin :size="18" class="field-icon" />
-                <span>{{ clinic.address.city }}{{ clinic.address.state ? `, ${clinic.address.state}` : '' }}</span>
+              <div class="field-group">
+                <label>Email de Acesso</label>
+                <div v-if="!isEditing" class="read-only-field">
+                  <Mail :size="18" class="field-icon" />
+                  <span>{{ user?.email || 'Não informado' }}</span>
+                </div>
+                <FormInput 
+                  v-else 
+                  v-model="formData.email" 
+                  placeholder="Seu email"
+                  type="email"
+                />
               </div>
-            </div>
 
-            <div class="info-field">
-              <label class="field-label">Membros da equipe</label>
-              <div class="field-value">
-                <UserCircle :size="18" class="field-icon" />
-                <span>{{ clinic.staff?.length || 0 }} membro(s)</span>
+              <div class="field-group">
+                <label>Função no Sistema</label>
+                <div class="read-only-field disabled">
+                  <Briefcase :size="18" class="field-icon" />
+                  <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label>Membro Desde</label>
+                <div class="read-only-field disabled">
+                  <Calendar :size="18" class="field-icon" />
+                  <span>{{ formatDate(clinic?.createdAt) }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </section>
-      </div>
+
+          <!-- Clinic Info Tab -->
+          <div v-else-if="activeTab === 'clinic'" class="content-card">
+            <div class="card-header">
+              <div class="header-text">
+                <h2> {{ clinic?.name || 'Minha Clínica' }}</h2>
+                <p>Informações institucionais e plano contratado</p>
+              </div>
+              <span class="plan-badge" :class="clinic?.plan">
+                {{ planLabels[clinic?.plan] || clinic?.plan }}
+              </span>
+            </div>
+
+            <div v-if="clinic" class="clinic-details">
+              <!-- Clinic Branding -->
+              <div class="branding-section">
+                <div class="clinic-logo-wrapper">
+                  <img 
+                    v-if="clinic.logoUrl" 
+                    :src="clinic.logoUrl" 
+                    :alt="clinic.name"
+                  />
+                  <div v-else class="logo-placeholder">
+                    <Building2 :size="32" />
+                  </div>
+                </div>
+                <div class="branding-info">
+                  <h3>Identidade Visual</h3>
+                  <p>Logo utilizada em documentos e na área do paciente</p>
+                </div>
+              </div>
+
+              <div class="fields-grid">
+                <div class="field-group">
+                  <label>CNPJ</label>
+                  <div class="read-only-field">
+                    <ShieldCheck :size="18" class="field-icon" />
+                    <span>{{ clinic.cnpj || 'Não informado' }}</span>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label>Responsável Técnico</label>
+                  <div class="read-only-field">
+                    <User :size="18" class="field-icon" />
+                    <span>{{ clinic.responsibleName || 'Não informado' }}</span>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label>Localização</label>
+                  <div class="read-only-field">
+                    <MapPin :size="18" class="field-icon" />
+                    <span>
+                      {{ clinic.address?.city || 'Cidade não informada' }}
+                      {{ clinic.address?.state ? ` - ${clinic.address.state}` : '' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="empty-state">
+              <p>Nenhuma informação de clínica vinculada.</p>
+            </div>
+          </div>
+        </transition>
+      </main>
     </div>
   </div>
 </template>
 
 <style scoped>
-.profile-container {
+.page-container {
   min-height: 100vh;
-  background: #f9fafb;
-  padding: 2rem 0;
+  background-color: #f8fafc; /* Slate 50 */
+}
+
+.content-wrapper {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .loading-state {
   display: flex;
-  align-items: center;
   justify-content: center;
-  min-height: 400px;
+  align-items: center;
+  height: 50vh;
+  width: 100%;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e5e7eb;
+  border: 3px solid #e2e8f0;
   border-top-color: #3b82f6;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.profile-content {
-  width: 100%;
-}
-
-/* Header Section */
+/* Header Styles */
 .profile-header {
   background: white;
-  border-radius: 12px;
-  padding: 3rem 2rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
 }
 
-.avatar-section {
+.header-content {
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
   gap: 1rem;
 }
 
-.avatar-wrapper {
+.avatar-container {
   position: relative;
 }
 
 .avatar {
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border: 4px solid white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
+.online-status {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  background: #22c55e;
+  border: 3px solid white;
+  border-radius: 50%;
+}
 
 .user-name {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: #0f172a; /* Slate 900 */
   margin: 0;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .user-email {
-  font-size: 1rem;
-  color: #6b7280;
-  margin: 0;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  color: #64748b; /* Slate 500 */
+  font-size: 0.95rem;
+  margin: 0.25rem 0 0.75rem 0;
 }
 
-/* Body Section */
-.profile-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.profile-section {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  min-width: 0; /* Prevents grid blowout */
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 0.5rem 0;
-}
-
-.section-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0 0 2rem 0;
-}
-
-/* Clinic Header */
-.clinic-header {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e5e7eb;
-  min-width: 0; /* Allows children to truncate */
-}
-
-.clinic-logo-container {
-  flex-shrink: 0;
-}
-
-.clinic-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.clinic-logo-placeholder {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-}
-
-.clinic-info {
-  flex: 1;
-  min-width: 0; /* Allows truncation */
-}
-
-.clinic-name {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 0.5rem 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.clinic-plan {
-  display: inline-block;
-  padding: 0.375rem 0.875rem;
-  border-radius: 6px;
+.badge {
+  display: inline-flex;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.clinic-plan.plan-basic {
-  background: #dbeafe;
-  color: #1e40af;
+.role-badge {
+  background: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #dbeafe;
 }
 
-.clinic-plan.plan-premium {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.clinic-plan.plan-enterprise,
-.clinic-plan.plan-lifetime {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-/* Info Grid */
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-
-.info-field {
+/* Tabs Navigation */
+.tabs-container {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0; /* Allows children to truncate */
+  justify-content: center; /* Center the tabs container */
 }
 
-.field-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+
+/* Content Area */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+  animation: slideIn 0.3s ease-out;
 }
 
-.field-value {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.9375rem;
-  color: #111827;
-  transition: all 0.2s ease;
-  min-width: 0; /* Allows children to truncate */
-}
-
-.field-value span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.field-value:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-}
-
-.field-icon {
-  color: #6b7280;
-  flex-shrink: 0;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 1rem;
-  }
-
-  .profile-header {
-    padding: 2rem 1.5rem;
-  }
-
-  .avatar {
-    width: 100px;
-    height: 100px;
-    font-size: 2.5rem;
-  }
-
-  .user-name {
-    font-size: 1.5rem;
-  }
-  
-  .profile-body {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-section {
-    padding: 1.5rem;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .clinic-header {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-/* Edit Mode Styles */
-.section-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1.5rem;
 }
 
-.section-header .section-description {
-  margin-bottom: 0;
+.header-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.header-text p {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Action Buttons */
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #475569;
+}
+
+.action-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.save-btn {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  color: #ef4444;
+  border-color: #fee2e2;
+}
+
+.cancel-btn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 .edit-actions {
@@ -555,50 +491,137 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.btn-icon {
-  background: white;
-  border: 1px solid #e5e7eb;
-  color: #6b7280;
-  padding: 0.5rem;
+/* Fields Grid */
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.read-only-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.read-only-field.disabled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.field-icon {
+  color: #94a3b8;
+}
+
+/* Clinic Branding Styles */
+.branding-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+}
+
+.clinic-logo-wrapper img {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.logo-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
 }
 
-.btn-icon:hover {
-  background: #f9fafb;
-  color: #111827;
-  border-color: #d1d5db;
+.branding-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
 }
 
-.btn-save {
-  background: #22c55e;
-  color: white;
-  border-color: #22c55e;
+.branding-info p {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
 }
 
-.btn-save:hover {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: white;
+.plan-badge {
+  padding: 0.35rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-.btn-save:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.plan-badge.basic { background: #e0f2fe; color: #0369a1; }
+.plan-badge.premium { background: #fef3c7; color: #b45309; }
+.plan-badge.enterprise { background: #f3e8ff; color: #7e22ce; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.btn-cancel {
-  background: white;
-  color: #ef4444;
-  border-color: #fee2e2;
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.btn-cancel:hover {
-  background: #fef2f2;
-  border-color: #ef4444;
+/* Responsive */
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1rem 0.5rem;
+  }
+  
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .branding-section {
+    flex-direction: column;
+    text-align: center;
+  }
 }
 </style>

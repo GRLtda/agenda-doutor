@@ -43,6 +43,7 @@ import {
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import AppTabs from '@/components/global/AppTabs.vue'
 import { fetchAddressByCEP } from '@/api/external'
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
@@ -65,7 +66,41 @@ const toast = useToast()
 const isEditing = ref(false)
 const isAssignModalOpen = ref(false)
 const editablePatient = ref(null)
-const activeTab = ref('details')
+const activeTab = computed({
+  get() {
+    const tabMap = {
+      'anamnese': 'anamneses',
+      'historico': 'history',
+      'procedimentos': 'procedures',
+      'anotacoes': 'notes',
+      'orcamentos': 'budgets',
+      'termos': 'termos'
+    }
+    return tabMap[route.params.tab] || 'details'
+  },
+  set(newValue) {
+    const reverseMap = {
+      'anamneses': 'anamnese',
+      'history': 'historico',
+      'procedures': 'procedimentos',
+      'notes': 'anotacoes',
+      'budgets': 'orcamentos',
+      'termos': 'termos',
+      'details': undefined // Remove param for details
+    }
+    const tabParam = reverseMap[newValue]
+    
+    // Maintain current query params when switching tabs
+    router.push({ 
+      name: 'detalhes-paciente', 
+      params: { 
+        id: patient.value?._id || route.params.id, 
+        tab: tabParam 
+      },
+      query: route.query
+    })
+  }
+})
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
@@ -109,7 +144,8 @@ async function loadPatientData(patientId) {
 
     // Reseta estados visuais/de edição
     isEditing.value = false
-    activeTab.value = 'details'
+    // activeTab is now computed, no need to reset manually
+    // activeTab.value = 'details'
 
     // 2. Busca os dados do novo paciente
     await patientsStore.fetchPatientById(patientId)
@@ -489,42 +525,27 @@ async function deleteAppointment(appointment) {
         </div>
       </header>
 
-      <nav class="tabs-nav">
-        <button @click="activeTab = 'details'" :class="{ active: activeTab === 'details' }">
-          <ClipboardList :size="16" />
-          Detalhes
-        </button>
-        <button @click="activeTab = 'anamneses'" :class="{ active: activeTab === 'anamneses' }">
-          <FileText :size="16" />
-          Anamneses
-        </button>
-        <button @click="activeTab = 'history'" :class="{ active: activeTab === 'history' }">
-          <History :size="16" />
-          Histórico
-        </button>
-        <button @click="activeTab = 'procedures'" :class="{ active: activeTab === 'procedures' }">
-          <Stethoscope :size="16" />
-          Procedimentos
-        </button>
-        <button @click="activeTab = 'notes'" :class="{ active: activeTab === 'notes' }">
-          <MessageSquare :size="16" />
-          Anotações
-        </button>
-        <button @click="activeTab = 'budgets'" :class="{ active: activeTab === 'budgets' }">
-          <Receipt :size="16" />
-          Orçamentos
-        </button>
-        <button @click="activeTab = 'termos'" :class="{ active: activeTab === 'termos' }">
-          <FileSignature :size="16" />
-          Termos
-        </button>
-      </nav>
+      <div class="tabs-container-wrapper">
+        <AppTabs 
+          :model-value="activeTab" 
+          @update:model-value="activeTab = $event"
+          :items="[
+            { value: 'details', label: 'Detalhes', icon: ClipboardList },
+            { value: 'anamneses', label: 'Anamneses', icon: FileText },
+            { value: 'history', label: 'Histórico', icon: History },
+            { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
+            { value: 'notes', label: 'Anotações', icon: MessageSquare },
+            { value: 'budgets', label: 'Orçamentos', icon: Receipt },
+            { value: 'termos', label: 'Termos', icon: FileSignature },
+          ]"
+        />
+      </div>
 
-      <div class="tab-content">
+      <div class="tab-content unified-card">
         <Transition name="fade" mode="out-in">
-          <div :key="activeTab">
+          <div :key="activeTab" class="unified-card-content">
             <div v-if="activeTab === 'details'">
-              <div v-if="isEditing && editablePatient" class="unified-card">
+              <div v-if="isEditing && editablePatient">
                 <form @submit.prevent="handleSaveChanges">
                   <section class="card-section">
                     <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
@@ -597,7 +618,7 @@ async function deleteAppointment(appointment) {
                   </footer>
                 </form>
               </div>
-              <div v-else class="unified-card">
+              <div v-else>
                 <section class="card-section">
                   <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                   <div class="section-content grid-2-cols">
@@ -695,7 +716,7 @@ async function deleteAppointment(appointment) {
               </div>
             </div>
 
-            <div v-if="activeTab === 'anamneses'">
+            <div v-if="activeTab === 'anamneses'" class="card-section">
               <div class="anamnesis-section">
                 <h3 class="section-title"><CheckSquare class="title-icon" :size="18" /> Respondidas</h3>
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
@@ -767,7 +788,7 @@ async function deleteAppointment(appointment) {
               </div>
             </div>
 
-            <div v-if="activeTab === 'history'">
+            <div v-if="activeTab === 'history'" class="card-section">
               <div class="history-section">
                 <h3 class="title-historico"><History class="title-icon" :size="20" /> Histórico de Atendimentos</h3>
                 <div v-if="appointmentsStore.isLoading" class="loading-state">
@@ -887,7 +908,7 @@ async function deleteAppointment(appointment) {
               </div>
             </div>
 
-            <div v-if="activeTab === 'procedures'">
+            <div v-if="activeTab === 'procedures'" class="card-section">
               <div class="procedures-section">
                 <div class="section-header-row">
                   <h3 class="title-procedures"><Stethoscope class="title-icon" :size="20" /> Procedimentos Realizados</h3>
@@ -931,13 +952,13 @@ async function deleteAppointment(appointment) {
                 </div>
               </div>
             </div>
-            <div v-if="activeTab === 'notes'">
+            <div v-if="activeTab === 'notes'" class="card-section">
               <PatientNotesTab :patient-id="patient._id" />
             </div>
-            <div v-if="activeTab === 'budgets'">
+            <div v-if="activeTab === 'budgets'" class="card-section">
               <PatientBudgetsTab :patient-id="patient._id" />
             </div>
-            <div v-if="activeTab === 'termos'">
+            <div v-if="activeTab === 'termos'" class="card-section">
               <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
           </div>
@@ -948,6 +969,14 @@ async function deleteAppointment(appointment) {
 </template>
 
 <style scoped>
+.patient-detail-view {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  overflow-y: overlay;
+}
+
 /*
   Cores Laranja (Aviso):
   - #f59e0b (Amber-500) para o ícone.
@@ -1155,7 +1184,6 @@ async function deleteAppointment(appointment) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
 .title-procedures {
@@ -1261,29 +1289,17 @@ async function deleteAppointment(appointment) {
   font-size: 0.875rem;
 }
 
-.tabs-nav button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--cinza-texto);
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-.tabs-nav button.active {
-  color: var(--azul-principal);
-  border-bottom-color: var(--azul-principal);
-}
+
 .unified-card {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
+  height: calc(100vh - 350px);
+  overflow-y: auto;
+  position: relative;
+}
+.unified-card-content {
+  height: 100%;
 }
 .card-section {
   padding: 1.5rem 2rem;
@@ -1368,7 +1384,7 @@ async function deleteAppointment(appointment) {
 .history-section h3 {
   font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.0rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1405,6 +1421,13 @@ async function deleteAppointment(appointment) {
   transform: translateY(-3px);
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
   border-color: #d1d5db;
+}
+
+
+.tabs-container-wrapper {
+  display: flex;
+  width: 100%;
+  margin-bottom: 1rem;
 }
 
 /* Card Header */
@@ -1949,6 +1972,9 @@ async function deleteAppointment(appointment) {
   opacity: 0;
 }
 @media (max-width: 768px) {
+  .patient-detail-view {
+    padding: 0rem;
+  }
   .patient-header {
     align-items: center;
   }
@@ -1969,31 +1995,7 @@ async function deleteAppointment(appointment) {
   .btn-edit .btn-text {
     display: none;
   }
-  .tabs-nav {
-    justify-content: space-around;
-  }
-  .tabs-nav button {
-    /* Garante que o ícone e o texto permaneçam legíveis em mobile */
-    font-size: 0.9rem;
-    padding: 0.75rem 0.5rem;
-  }
-  .section-content.grid-2-cols {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  .card-section {
-    padding: 1.5rem;
-  }
-  .history-info {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-  .history-list .btn-secondary {
-    width: 100%;
-    justify-content: center;
-  }
+
   /* Estilos específicos para o tooltip em telas pequenas para evitar corte */
   .missing-info-tooltip {
     right: 0;

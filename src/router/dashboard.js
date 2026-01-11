@@ -39,7 +39,7 @@ const dashboardRoutes = [
         path: '',
         name: 'resumo-dashboard',
         component: ResumoView,
-        meta: { title: 'Visão Geral'},
+        meta: { title: 'Visão Geral' },
       },
       {
         path: 'configuracoes',
@@ -72,10 +72,15 @@ const dashboardRoutes = [
         meta: { title: 'Novo Paciente' },
       },
       {
-        path: 'pacientes/:id',
+        path: 'pacientes/anamnese/:id',
+        redirect: to => `/app/pacientes/${to.params.id}/anamnese`
+      },
+      {
+        path: 'pacientes/:id/:tab?',
         name: 'detalhes-paciente',
         component: PatientDetailView,
         meta: { title: 'Detalhes do Paciente' },
+        props: true
       },
       {
         path: 'procedimentos',

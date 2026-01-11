@@ -326,7 +326,7 @@ function renderContent(content) {
   }
   
   /* On desktop, keep list on left and editor on right as per user's split request */
-  .patient-notes-redesign:not(.is-compact) .list-column { order: 1; height: 600px; } /* Altura fixa na coluna */
+  .patient-notes-redesign:not(.is-compact) .list-column { order: 1; height: 560px; } /* Altura fixa na coluna */
   .patient-notes-redesign:not(.is-compact) .editor-column { order: 2; }
 }
 

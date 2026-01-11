@@ -96,7 +96,7 @@ async function handleDeleteBudget(budget) {
   if (!confirm(`Tem certeza que deseja excluir o orçamento "${budget.name}"?`)) {
     return
   }
-  
+
   openMenuId.value = null
   const result = await budgetsStore.deleteBudget(budget._id)
   if (result.success) {
@@ -146,7 +146,7 @@ function handleClickOutside(event) {
         <Receipt class="title-icon" :size="20" />
         Orçamentos
       </h3>
-      <AppButton @click="handleCreateBudget" variant="primary" class="btn-sm">
+      <AppButton @click="handleCreateBudget" variant="primary" size="sm">
         <Plus :size="16" />
         Criar Orçamento
       </AppButton>
@@ -226,7 +226,7 @@ function handleClickOutside(event) {
           <button @click="(e) => toggleMenu(e, budget._id)" class="action-btn menu-trigger">
             <MoreVertical :size="20" />
           </button>
-          
+
           <div v-if="openMenuId === budget._id" class="dropdown-menu">
             <button
               @click="handleEditBudget(budget)"
@@ -272,7 +272,7 @@ function handleClickOutside(event) {
       <p class="empty-state-text">
         Crie orçamentos para o paciente e envie diretamente via WhatsApp.
       </p>
-      <AppButton @click="handleCreateBudget" variant="secondary">
+      <AppButton @click="handleCreateBudget" variant="primary" size="sm">
         <Plus :size="16" />
         Criar Orçamento
       </AppButton>
@@ -308,10 +308,6 @@ function handleClickOutside(event) {
   color: var(--azul-principal);
 }
 
-.btn-sm {
-  padding: 0.5rem 0.875rem;
-  font-size: 0.8125rem;
-}
 
 .loading-state {
   padding: 2rem;
@@ -591,21 +587,21 @@ function handleClickOutside(event) {
   .desktop-only {
     display: none !important;
   }
-  
+
   .mobile-only {
     display: block;
   }
-  
+
   .budget-item {
     padding: 0.75rem;
   }
-  
+
   .budget-main {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
+
   .budget-values {
     width: 100%;
     flex-direction: row;
@@ -615,7 +611,7 @@ function handleClickOutside(event) {
     padding-top: 0.5rem;
     margin-top: 0.25rem;
   }
-  
+
   .budget-meta {
     flex-wrap: wrap;
     gap: 0.5rem 1rem;
