@@ -5,8 +5,8 @@ import { ref } from 'vue'
 import {
   createClinic as apiCreateClinic,
   updateClinic as apiUpdateClinic,
+  uploadClinicLogo as apiCreateClinicLogo,
 } from '@/api/clinics'
-import { uploadImage as apiUploadImage } from '@/api/uploads'
 import { useAuthStore } from './auth'
 import api from '@/api'
 
@@ -51,8 +51,8 @@ export const useClinicStore = defineStore('clinic', () => {
 
   async function uploadLogo(formData) {
     try {
-      const response = await apiUploadImage(formData)
-      // A nova API retorna 'signedUrl' ao invés de 'imageUrl'
+      const response = await apiCreateClinicLogo(formData) // Fix import name below
+      // A API /clinics/logo retorna signedUrl
       const logoUrl = response.data.signedUrl
 
       if (currentClinic.value) {

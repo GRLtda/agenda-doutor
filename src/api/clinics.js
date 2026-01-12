@@ -12,3 +12,11 @@ export const updateClinic = (clinicData) => {
 export const getClinicSummary = (params) => {
   return apiClient.get('/clinics/summary', { params });
 };
+
+export const uploadClinicLogo = (formData) => {
+  return apiClient.post('/clinics/logo', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
