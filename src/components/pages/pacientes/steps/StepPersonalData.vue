@@ -3,14 +3,26 @@ import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { ref, onMounted } from 'vue'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
+import { Calendar } from 'lucide-vue-next'
 
 // Define a interface do v-model para o objeto patientData completo
 const patientData = defineModel()
 
 const showDDINotification = ref(false)
 
+function formatSimpleDate(dateString) {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 onMounted(() => {
-  const expirationDate = new Date('2026-01-30')
+  const expirationDate = new Date('2026-01-19')
   const now = new Date()
   
   if (now > expirationDate) return
@@ -80,12 +92,70 @@ const genderOptions = [
         </div>
       </transition>
     </div>
-    <FormInput v-model="patientData.birthDate" label="Data de Nascimento" type="date" required />
+    
+    <!-- Campo de Data com VueDatePicker -->
+    <div class="form-group">
+      <label class="form-label">Data de Nascimento <span class="required-asterisk" v-if="false">*</span></label>
+      <VueDatePicker
+        v-model="patientData.birthDate"
+        locale="pt-BR"
+        format="dd/MM/yyyy"
+        auto-apply
+        :enable-time-picker="false"
+        :teleport="true"
+        placeholder="dd/mm/aaaa"
+        model-type="yyyy-MM-dd"
+        :clearable="false"
+      >
+        <template #trigger>
+          <div class="custom-date-trigger">
+            <span v-if="patientData.birthDate">{{ formatSimpleDate(patientData.birthDate) }}</span>
+            <span v-else class="placeholder-text">dd/mm/aaaa</span>
+            <Calendar :size="16" class="icon-slate" />
+          </div>
+        </template>
+      </VueDatePicker>
+    </div>
+
     <StyledSelect v-model="patientData.gender" label="Gênero" :options="genderOptions" required />
   </div>
 </template>
 
 <style scoped>
+/* Estilos para o VueDatePicker customizado */
+.form-group {
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+}
+.custom-date-trigger {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: var(--branco);
+  font-size: 1rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.custom-date-trigger:hover {
+  border-color: var(--azul-principal);
+}
+.placeholder-text {
+  color: #9ca3af;
+}
+
 .step-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

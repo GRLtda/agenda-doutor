@@ -9,7 +9,9 @@ import { useToast } from 'vue-toastification'
 import { generateAnamnesisPdf } from '@/helpers/pdf-generator'
 import { formatPhone } from '@/directives/phone-mask.js'
 import { formatCPF } from '@/directives/cpf-mask.js'
-import { useStatusBadge } from '@/composables/useStatusBadge'
+
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 import {
   FileDown,
@@ -180,24 +182,10 @@ onBeforeRouteUpdate(async (to, from) => {
 // CORREÇÃO: Formata a data para YYYY-MM-DD no modo edição
 watch(patient, (newVal) => {
   if (newVal) {
-    let formattedBirthDate = newVal.birthDate;
-
-    if (newVal.birthDate) {
-      const date = new Date(newVal.birthDate);
-
-      // Usamos métodos UTC para formatar corretamente no formato ISO (YYYY-MM-DD)
-      const year = date.getUTCFullYear();
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(date.getUTCDate()).padStart(2, '0');
-
-      formattedBirthDate = `${year}-${month}-${day}`;
-    }
-
     editablePatient.value = JSON.parse(JSON.stringify({
       ...newVal,
       address: newVal.address || {},
-      // Aplica a data formatada para o <input type="date">
-      birthDate: formattedBirthDate || '',
+      birthDate: newVal.birthDate,
     }))
   }
 })
@@ -568,12 +556,30 @@ async function deleteAppointment(appointment) {
                         placeholder="Nome do paciente"
                         required
                       />
-                      <FormInput
-                        v-model="editablePatient.birthDate"
-                        label="Data de Nascimento"
-                        type="date"
-                        required
-                      />
+                      <!-- Campo de Data com VueDatePicker -->
+                      <div class="form-group">
+                        <label class="form-label">Data de Nascimento</label>
+                        <VueDatePicker
+                          v-model="editablePatient.birthDate"
+                          locale="pt-BR"
+                          format="dd/MM/yyyy"
+                          auto-apply
+                          :enable-time-picker="false"
+                          :teleport="true"
+                          placeholder="dd/mm/aaaa"
+                          model-type="yyyy-MM-dd"
+                          :clearable="false"
+                        >
+                          <template #trigger>
+                            <div class="custom-date-trigger">
+                              <span v-if="editablePatient.birthDate">{{ formatSimpleDate(editablePatient.birthDate) }}</span>
+                              <span v-else class="placeholder-text">dd/mm/aaaa</span>
+                              <Calendar :size="16" class="icon-slate" />
+                            </div>
+                          </template>
+                        </VueDatePicker>
+                      </div>
+
                       <FormInput
                         v-model="editablePatient.cpf"
                         label="CPF"
@@ -2018,5 +2024,39 @@ async function deleteAppointment(appointment) {
     left: auto;
     right: 15px;
   }
+}
+
+/* Estilos para o VueDatePicker customizado */
+.form-group {
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+}
+.custom-date-trigger {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: var(--branco);
+  font-size: 1rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.custom-date-trigger:hover {
+  border-color: var(--azul-principal);
+}
+.placeholder-text {
+  color: #9ca3af;
 }
 </style>
