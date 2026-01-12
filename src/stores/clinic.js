@@ -6,7 +6,7 @@ import {
   createClinic as apiCreateClinic,
   updateClinic as apiUpdateClinic,
 } from '@/api/clinics'
-import { uploadImage as apiUploadImage } from '@/api/uploads'
+import { uploadClinicLogo as apiUploadClinicLogo } from '@/api/uploads'
 import { useAuthStore } from './auth'
 import api from '@/api'
 
@@ -51,7 +51,7 @@ export const useClinicStore = defineStore('clinic', () => {
 
   async function uploadLogo(formData) {
     try {
-      const response = await apiUploadImage(formData)
+      const response = await apiUploadClinicLogo(formData)
       // A nova API retorna 'signedUrl' ao invés de 'imageUrl'
       const logoUrl = response.data.signedUrl
 
@@ -59,8 +59,9 @@ export const useClinicStore = defineStore('clinic', () => {
         currentClinic.value.logoUrl = logoUrl
       }
 
-      const authStore = useAuthStore()
-      await authStore.fetchUser()
+      // NÃO chamar fetchUser() aqui! 
+      // Isso trigger o watch no GeneralSettings e sobrescreve as alterações locais do usuário.
+      // O fetchUser() será chamado após o updateClinicDetails.
 
       return { success: true, data: { logoUrl } }
     } catch (error) {
