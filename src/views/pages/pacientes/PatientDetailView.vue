@@ -12,6 +12,7 @@ import { formatCPF } from '@/directives/cpf-mask.js'
 
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
+import { useStatusBadge } from '@/composables/useStatusBadge'
 
 import {
   FileDown,
