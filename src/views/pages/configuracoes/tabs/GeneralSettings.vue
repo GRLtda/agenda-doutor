@@ -94,6 +94,10 @@ function handleFileSelect(event) {
 async function handleUpdate() {
   const savingToast = toast.info('Salvando alterações...', { timeout: false })
 
+  // Snapshot dos dados do formulário para evitar que o watcher (ativado pelo uploadLogo -> fetchUser)
+  // sobrescreva as mudanças de texto com os dados antigos do banco.
+  const payload = JSON.parse(JSON.stringify(clinicData.value))
+
   if (selectedLogoFile.value) {
     const formData = new FormData()
     formData.append('image', selectedLogoFile.value)
@@ -101,6 +105,10 @@ async function handleUpdate() {
     const { success, data } = await clinicStore.uploadLogo(formData)
 
     if (success) {
+      // Atualizamos o payload com a nova URL
+      payload.logoUrl = data.logoUrl
+      
+      // Também atualizamos o reactive para a UI refletir (mesmo que o watcher possa brigar depois)
       clinicData.value.logoUrl = data.logoUrl
     } else {
       toast.dismiss(savingToast)
@@ -109,14 +117,18 @@ async function handleUpdate() {
     }
   }
 
-  const { success: updateSuccess } = await clinicStore.updateClinicDetails(clinicData.value)
+  // Envia o payload que contém os dados digitados PELO USUÁRIO (+ nova logo),
+  // ignorando qualquer reset que o watcher tenha feito nesse meio tempo.
+  const { success: updateSuccess } = await clinicStore.updateClinicDetails(payload)
 
   toast.dismiss(savingToast)
 
   if (updateSuccess) {
     toast.success('Informações da clínica salvas com sucesso!')
     selectedLogoFile.value = null
-    originalClinicData.value = JSON.parse(JSON.stringify(clinicData.value))
+    // Sincroniza tudo com o sucesso
+    clinicData.value = JSON.parse(JSON.stringify(payload))
+    originalClinicData.value = JSON.parse(JSON.stringify(payload))
   } else {
     toast.error('Erro ao salvar as informações da clínica.')
   }
