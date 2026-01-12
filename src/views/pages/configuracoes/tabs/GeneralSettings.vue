@@ -94,6 +94,7 @@ function handleFileSelect(event) {
 async function handleUpdate() {
   const savingToast = toast.info('Salvando alterações...', { timeout: false })
 
+  // Se tem uma nova logo selecionada, faz o upload primeiro
   if (selectedLogoFile.value) {
     const formData = new FormData()
     formData.append('image', selectedLogoFile.value)
@@ -101,7 +102,8 @@ async function handleUpdate() {
     const { success, data } = await clinicStore.uploadLogo(formData)
 
     if (success) {
-      clinicData.value.logoUrl = data.logoUrl
+      // Atualiza localmente para exibição, mas NÃO será enviado no PUT
+      logoPreviewUrl.value = data.logoUrl
     } else {
       toast.dismiss(savingToast)
       toast.error('Falha ao enviar o novo logo. Nenhuma alteração foi salva.')
@@ -109,7 +111,10 @@ async function handleUpdate() {
     }
   }
 
-  const { success: updateSuccess } = await clinicStore.updateClinicDetails(clinicData.value)
+  // Criar payload SEM o logoUrl para não sobrescrever a URL que já foi salva pelo upload
+  const { logoUrl, logo, ...updatePayload } = clinicData.value
+
+  const { success: updateSuccess } = await clinicStore.updateClinicDetails(updatePayload)
 
   toast.dismiss(savingToast)
 
