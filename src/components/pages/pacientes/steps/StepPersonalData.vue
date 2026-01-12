@@ -80,7 +80,7 @@ const genderOptions = [
         </div>
       </transition>
     </div>
-    <FormInput v-model="patientData.birthDate" label="Data de Nascimento" type="date" required />
+    <FormInput v-model="patientData.birthDate" label="Data de Nascimento" type="date" />
     <StyledSelect v-model="patientData.gender" label="Gênero" :options="genderOptions" required />
   </div>
 </template>

@@ -198,7 +198,8 @@ onBeforeUnmount(() => {
          </div>
          <input 
             ref="ddiInputRef"
-            type="text" 
+            type="text"
+            inputmode="numeric"
             class="ddi-input"
             :value="ddiQuery"
             @input="handleDDIInput"
@@ -214,6 +215,7 @@ onBeforeUnmount(() => {
       <!-- Phone Input -->
       <input
         type="text"
+        inputmode="numeric"
         :value="phoneNumber"
         @input="handlePhoneInput"
         placeholder="(00) 00000-0000"
