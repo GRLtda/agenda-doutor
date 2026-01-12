@@ -58,6 +58,7 @@ import AttendanceConsentTermsTab from '@/components/pages/atendimentos/Attendanc
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue' // ✨ Import Anamnesis Modal
 import AttendanceProceduresTab from '@/components/pages/atendimentos/AttendanceProceduresTab.vue' // ✨ Import Procedures Tab
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue' // ✨ Import Patient Notes Tab
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -750,7 +751,7 @@ const focusEditor = () => {
                     <div class="profile-contact">
                       <div class="contact-item" v-if="patient?.phone">
                         <Phone :size="14" />
-                        <span>{{ patient.phone }}</span>
+                        <PatientPhoneDisplay :phone="patient.phone" :show-flag="false" :country-code="patient.countryCode" />
                       </div>
                       <div class="contact-item" v-if="patient?.email">
                         <Mail :size="14" />

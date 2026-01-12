@@ -20,6 +20,7 @@ import {
   LoaderCircle,
   AlertCircle
 } from 'lucide-vue-next'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const router = useRouter()
 const anamnesisStore = useAnamnesisStore()
@@ -153,7 +154,7 @@ const showPagination = computed(() => pendingPages.value > 1)
               <h3 class="patient-name">{{ anamnesis.patientName || 'Nome não disponível' }}</h3>
               <div class="patient-phone">
                 <Phone :size="14" />
-                <span>{{ formatPhone(anamnesis.patientPhone) }}</span>
+                <PatientPhoneDisplay :phone="anamnesis.patientPhone" :country-code="anamnesis.patientCountryCode" />
               </div>
             </div>
           </div>

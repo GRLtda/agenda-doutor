@@ -16,6 +16,7 @@ import {
   LoaderCircle,
   AlertCircle
 } from 'lucide-vue-next'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const router = useRouter()
 const patientsStore = usePatientsStore()
@@ -167,7 +168,7 @@ const totalBirthdays = computed(() => birthdayPatients.value.length)
             </div>
             <div class="info-content">
               <span class="info-label">Telefone:</span>
-              <span class="info-value">{{ formatPhone(patient.phone) }}</span>
+              <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" :show-flag="false" class="info-value" />
             </div>
           </div>
 

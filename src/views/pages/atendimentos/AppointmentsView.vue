@@ -36,6 +36,7 @@ import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AppTableList from '@/components/global/AppTableList.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const appointmentsStore = useAppointmentsStore()
 const router = useRouter()
@@ -382,7 +383,14 @@ function closeActionMenu(event) {
                         </div>
                         <div class="patient-details">
                           <span class="patient-name">{{ appt.patient.name }}</span>
-                          <span class="patient-phone">{{ appt.patient.phone || 'Sem telefone' }}</span>
+                          <PatientPhoneDisplay 
+                             v-if="appt.patient.phone" 
+                             :phone="appt.patient.phone" 
+                             :country-code="appt.patient.countryCode" 
+                             :show-flag="false"
+                             class="patient-phone"
+                          />
+                          <span v-else class="patient-phone">Sem telefone</span>
                         </div>
                       </div>
                       <div class="status-wrapper">
@@ -521,7 +529,14 @@ function closeActionMenu(event) {
                       </div>
                       <div class="patient-info-col">
                          <span class="patient-name-list">{{ appt.patient?.name || 'Sem nome' }}</span>
-                         <span class="patient-phone-list">{{ formatPhone(appt.patient?.phone) || 'Sem telefone' }}</span>
+                         <PatientPhoneDisplay 
+                            v-if="appt.patient?.phone" 
+                            :phone="appt.patient.phone" 
+                            :country-code="appt.patient.countryCode" 
+                            :show-flag="false"
+                            class="patient-phone-list" 
+                         />
+                         <span v-else class="patient-phone-list">Sem telefone</span>
                       </div>
                     </div>
                   </td>

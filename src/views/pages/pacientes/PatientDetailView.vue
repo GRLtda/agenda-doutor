@@ -38,12 +38,15 @@ import {
   Hash,
   Activity,
   Briefcase,
-  Play
+  Play,
+  Folder
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
+import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { fetchAddressByCEP } from '@/api/external'
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
@@ -54,6 +57,7 @@ import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
 import PatientBudgetsTab from '@/components/pages/pacientes/PatientBudgetsTab.vue'
 import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
+import PatientMediaGallery from '@/views/pages/pacientes/components/PatientMediaGallery.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,7 +78,9 @@ const activeTab = computed({
       'procedimentos': 'procedures',
       'anotacoes': 'notes',
       'orcamentos': 'budgets',
-      'termos': 'termos'
+      'orcamentos': 'budgets',
+      'termos': 'termos',
+      'galeria': 'media'
     }
     return tabMap[route.params.tab] || 'details'
   },
@@ -85,7 +91,9 @@ const activeTab = computed({
       'procedures': 'procedimentos',
       'notes': 'anotacoes',
       'budgets': 'orcamentos',
+      'budgets': 'orcamentos',
       'termos': 'termos',
+      'media': 'galeria',
       'details': undefined // Remove param for details
     }
     const tabParam = reverseMap[newValue]
@@ -509,7 +517,7 @@ async function deleteAppointment(appointment) {
             </div>
             <div class="patient-meta">
               <span>ID: #{{ patient._id.slice(-6).toUpperCase() }}</span>
-              <span>{{ patient.phone }}</span>
+              <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
             </div>
           </div>
         </div>
@@ -537,6 +545,7 @@ async function deleteAppointment(appointment) {
             { value: 'notes', label: 'Anotações', icon: MessageSquare },
             { value: 'budgets', label: 'Orçamentos', icon: Receipt },
             { value: 'termos', label: 'Termos', icon: FileSignature },
+            { value: 'media', label: 'Galeria', icon: Folder },
           ]"
         />
       </div>
@@ -544,6 +553,9 @@ async function deleteAppointment(appointment) {
       <div class="tab-content unified-card">
         <Transition name="fade" mode="out-in">
           <div :key="activeTab" class="unified-card-content">
+            <div v-if="activeTab === 'media'">
+                <PatientMediaGallery :patient-id="patient._id" />
+            </div>
             <div v-if="activeTab === 'details'">
               <div v-if="isEditing && editablePatient">
                 <form @submit.prevent="handleSaveChanges">
@@ -568,13 +580,14 @@ async function deleteAppointment(appointment) {
                         placeholder="000.000.000-00"
                         cpf-mask
                       />
-                      <FormInput
-                        v-model="editablePatient.phone"
-                        label="Telefone"
-                        placeholder="(00) 00000-0000"
-                        required
-                        phone-mask
-                      />
+                      <div class="phone-input-wrapper">
+                        <PhoneInputWithDDI
+                          v-model="editablePatient.phone"
+                          v-model:countryCode="editablePatient.countryCode"
+                          label="Telefone"
+                          required
+                        />
+                      </div>
                       <FormInput
                         v-model="editablePatient.email"
                         label="E-mail"
@@ -638,7 +651,7 @@ async function deleteAppointment(appointment) {
                     <div class="detail-item">
                       <span class="label">Telefone</span>
                       <strong class="value" :class="{ 'text-red-500 flex items-center gap-1': patient.isInvalidWhatsapp }">
-                          {{ formatPhone(patient.phone) }}
+                          <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
                           <div v-if="patient.isInvalidWhatsapp" class="invalid-whatsapp-badge" title="Este número não possui WhatsApp ou é inválido.">
                              <AlertTriangle class="title-icon" :size="14" />
                              <span class="text-xs">Inválido</span>
@@ -1294,7 +1307,7 @@ async function deleteAppointment(appointment) {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
-  height: calc(100vh - 350px);
+  height: calc(100vh - 300px);
   overflow-y: auto;
   position: relative;
 }

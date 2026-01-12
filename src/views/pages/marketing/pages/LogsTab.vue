@@ -9,6 +9,7 @@ import StyledSelect from '@/components/global/StyledSelect.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue' // Import SearchableSelect
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const logsStore = useCrmLogsStore()
 const patientsStore = usePatientsStore() // Instantiate patient store
@@ -150,7 +151,14 @@ function showFullError(message) {
               <td class="patient-cell">
                 <span v-if="log.patient" class="patient-name">{{ log.patient.name }}</span>
                 <span v-else class="text-muted">N/A</span>
-                <small v-if="log.patient" class="patient-phone">{{ log.recipientPhone || log.patient.phone }}</small>
+                <div v-if="log.patient">
+                   <PatientPhoneDisplay 
+                      :phone="log.recipientPhone || log.patient.phone" 
+                      :country-code="log.patient.countryCode" 
+                      :show-flag="false"
+                      class="patient-phone"
+                   />
+                </div>
               </td>
               <td class="template-cell">
                  <span class="trigger-name">{{ logsStore.getTriggerOrTemplateName(log) }}</span>

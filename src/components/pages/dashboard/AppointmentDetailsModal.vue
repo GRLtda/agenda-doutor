@@ -31,6 +31,7 @@ import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -273,7 +274,7 @@ onUnmounted(() => {
             <div class="contact-row">
                <div class="contact-item">
                   <Phone :size="14" />
-                  <span>{{ formatPhone(patient.phone) }}</span>
+                  <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" :show-flag="false" />
                </div>
                <div class="contact-item" v-if="patient.email">
                   <Mail :size="14" />

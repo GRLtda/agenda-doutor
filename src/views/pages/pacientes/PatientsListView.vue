@@ -17,7 +17,7 @@ import {
 import AppPagination from '@/components/global/AppPagination.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
-import { formatPhone } from '@/directives/phone-mask.js'
+import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const patientsStore = usePatientsStore()
 const router = useRouter()
@@ -87,7 +87,7 @@ async function handleDelete(patientId) {
 }
 
 const formatCPF = (cpf) => {
-  if (!cpf) return 'N/A'
+  if (!cpf) return null
   const cpfDigits = cpf.replace(/\D/g, '')
   if (cpfDigits.length !== 11) return cpf
   return cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
@@ -123,35 +123,35 @@ const formatCPF = (cpf) => {
     >
       <div class="table-container desktop-only">
         <table>
-          <thead>
-            <tr>
-              <th class="avatar-header"></th>
-              <th>
-                <div class="th-content">
-                  <Hash :size="14" />
-                  <span>CPF</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <User :size="14" />
-                  <span>Nome do Paciente</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <Phone :size="14" />
-                  <span>Telefone</span>
-                </div>
-              </th>
-              <th class="actions-header">
-                <div class="th-content">
-                  <SlidersHorizontal :size="14" />
-                  <span>Ações</span>
-                </div>
-              </th>
-            </tr>
-          </thead>
+            <thead>
+              <tr>
+                <th class="avatar-header"></th>
+                <th class="name-header">
+                  <div class="th-content">
+                    <User :size="14" />
+                    <span>Nome do Paciente</span>
+                  </div>
+                </th>
+                <th>
+                  <div class="th-content">
+                    <Hash :size="14" />
+                    <span>CPF</span>
+                  </div>
+                </th>
+                <th>
+                  <div class="th-content">
+                    <Phone :size="14" />
+                    <span>Telefone</span>
+                  </div>
+                </th>
+                <th class="actions-header">
+                  <div class="th-content">
+                    <SlidersHorizontal :size="14" />
+                    <span>Ações</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
           <tbody>
             <template v-if="patientsStore.isLoading && patients.length === 0">
               <tr v-for="n in 10" :key="`skel-desk-${n}`" class="skeleton-row">
@@ -193,9 +193,14 @@ const formatCPF = (cpf) => {
                 <td>
                   <div class="patient-avatar">{{ patient.name.charAt(0).toUpperCase() }}</div>
                 </td>
-                <td>{{ formatCPF(patient.cpf) }}</td>
                 <td class="patient-name">{{ patient.name }}</td>
-                <td class="patient-phone">{{ formatPhone(patient.phone) }}</td>
+                <td>
+                   <span v-if="formatCPF(patient.cpf)">{{ formatCPF(patient.cpf) }}</span>
+                   <span v-else class="text-muted" title="Não informado">—</span>
+                </td>
+                <td class="patient-phone">
+                    <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" :show-flag="true" />
+                </td>
                 <td class="actions-cell" @click.stop>
                   <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)">
                     <button @click.stop="toggleActionsMenu(patient._id)" class="btn-icon">
@@ -493,6 +498,14 @@ th.actions-header .th-content {
 .patient-name {
   font-weight: 600;
   color: #111827;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.name-header {
+  width: 400px; /* Force consistent width */
+  max-width: 400px;
 }
 .state-cell {
   padding: 4rem;

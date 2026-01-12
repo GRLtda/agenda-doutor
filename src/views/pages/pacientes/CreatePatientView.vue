@@ -28,6 +28,7 @@ const patientData = ref({
   birthDate: '',
   cpf: '',
   phone: '',
+  countryCode: '55',
   gender: 'Feminino',
   email: '',
   address: {
@@ -79,6 +80,9 @@ async function submitForm() {
     }
     if (payload.phone) {
       payload.phone = payload.phone.replace(/\D/g, '')
+    }
+    if (payload.countryCode) {
+      payload.countryCode = payload.countryCode.replace(/\D/g, '')
     }
 
     const { success, error } = await patientsStore.createPatient(payload)

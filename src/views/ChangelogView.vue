@@ -5,6 +5,18 @@ import AppFooter from '@/components/global/AppFooter.vue'
 // Changelog entries - futuramente pode vir de um .md ou API
 const changelog = [
   {
+    date: '12 Jan 2026',
+    version: 'v1.9.0',
+    title: 'Suporte Internacional',
+    description: 'Expansão do sistema para suportar números de telefone globais.',
+    items: [
+      { category: 'Pacientes:', items: [
+        'Agora é possível adicionar números internacionais no sistema',
+        'Na aba de paciente é possível anexar o DDD do país do paciente'
+      ] }
+    ]
+  },
+  {
     date: '08 Jan 2025',
     version: 'v1.8.0',
     title: 'Gestão de Fotos e Especialistas',
