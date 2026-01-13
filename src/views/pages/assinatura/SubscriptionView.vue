@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useClinicStore } from '@/stores/clinic';
-import { CheckCircle, AlertTriangle, Package, CreditCard, Calendar, Shield, Clock, X, MessageCircle, Trash2, Edit3, FileText } from 'lucide-vue-next';
+import { useAuthStore } from '@/stores/auth';
+import { CheckCircle, AlertTriangle, Package, CreditCard, Shield, Clock, X, MessageCircle, Edit3, FileText, Info } from 'lucide-vue-next';
 import choroEmoji from '@/assets/imgs/choro_emoji.png';
 
 const clinicStore = useClinicStore();
+const authStore = useAuthStore();
 
 const loading = ref(true);
 const subscription = ref(null);
@@ -12,13 +14,16 @@ const error = ref(null);
 const actionLoading = ref(false);
 const showCancelModal = ref(false);
 
+const isTrialActive = computed(() => authStore.user?.planStatus?.trial?.isActive);
+const trialDaysRemaining = computed(() => authStore.user?.planStatus?.trial?.daysRemaining);
+
 const statusMap = {
   active: { label: 'Ativa', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle },
   past_due: { label: 'Pagamento Pendente', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', icon: AlertTriangle },
   canceled: { label: 'Cancelada', color: 'text-slate-700', bg: 'bg-slate-100', border: 'border-slate-300', icon: AlertTriangle },
   trialing: { label: 'Período de Teste', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', icon: Clock },
   free: { label: 'Gratuito', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', icon: Package },
-  enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', icon: Shield },
+  enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-blue-50', border: 'border-purple-200', icon: Shield },
   lifetime: { label: 'Vitalício', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: CheckCircle }
 };
 
@@ -202,6 +207,16 @@ onMounted(() => {
           <div class="card-divider"></div>
           
           <div class="card-body">
+          <!-- Trial Notice -->
+            <div v-if="isTrialActive" class="trial-notice mb-6">
+              <div class="trial-notice-header">
+                <Info :size="20" />
+                <h3>Período de Teste Ativo</h3>
+              </div>
+              <p>Você está aproveitando o período de teste gratuito. Faltam <strong>{{ trialDaysRemaining }} dias</strong> para o fim do teste.</p>
+              <p class="text-sm mt-2 opacity-90">Sua assinatura iniciará automaticamente ao fim deste período. Cancele a qualquer momento para evitar cobranças.</p>
+            </div>
+
           <!-- Cancellation Message -->
           <div v-if="isCanceled" class="cancellation-notice">
             <div class="cancellation-header">
@@ -220,24 +235,7 @@ onMounted(() => {
 
           <!-- Regular Status Info -->
           <div v-else>
-            <div class="info-row">
-              <div class="info-icon">
-                <Calendar :size="16" />
-              </div>
-              <div class="info-content">
-                <p class="label">Ciclo Atual</p>
-                <p v-if="subscription?.planType === 'enterprise'" class="value">
-                  Mensal
-                </p>
-                <p v-else-if="subscription?.currentPeriodEnd" class="value">
-                  Renova em {{ formatDate(subscription.currentPeriodEnd) }}
-                </p>
-                <p v-else-if="subscription?.billingCycleAnchor" class="value">
-                  Dia {{ formatDate(subscription.billingCycleAnchor, false) }} de cada mês
-                </p>
-                <p v-else class="value">Vitalício / Gratuito</p>
-              </div>
-            </div>
+
 
             <div class="info-row mt-4" v-if="subscription?.startDate">
                <div class="info-icon">
@@ -394,13 +392,17 @@ onMounted(() => {
         <div class="actions-grid">
           <button 
             @click="handleUpdatePayment" 
-            :disabled="actionLoading"
+            :disabled="actionLoading || isTrialActive"
             class="action-btn primary"
+            :class="{ 'opacity-50 cursor-not-allowed': isTrialActive }"
+            :title="isTrialActive ? 'Gerenciamento desabilitado durante o período de teste' : ''"
           >
             <Edit3 :size="20" />
             <div class="btn-content">
               <span class="btn-title">Gerenciar Assinatura</span>
-              <span class="btn-subtitle">Atualize pagamento e preferências</span>
+              <span class="btn-subtitle">
+                {{ isTrialActive ? 'Disponível após o período de teste' : 'Atualize pagamento e preferências' }}
+              </span>
             </div>
           </button>
 
@@ -653,6 +655,31 @@ onMounted(() => {
   color: #be123c;
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+.trial-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.trial-notice-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1d4ed8;
+}
+
+.trial-notice-header h3 {
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 /* Plan Card Specifics */

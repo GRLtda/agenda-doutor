@@ -30,6 +30,8 @@ const { hasAccess } = usePlanAccess()
 const isUserDropdownOpen = ref(false)
 const isClinicDropdownOpen = ref(false)
 
+const planStatus = computed(() => authStore.user?.planStatus)
+
 // Estado para controlar quais menus estão expandidos
 const expandedItems = ref([])
 
@@ -256,6 +258,20 @@ const sidebarSections = computed(() => {
       <div v-show="!isCollapsed" class="branding-info">
         <span class="brand-name">Agenda Doutor</span>
         <span class="version-text">v{{ version }}</span>
+      </div>
+    </div>
+
+    <div v-if="planStatus?.trial?.isActive && !isCollapsed" class="trial-alert success">
+      <div class="trial-content">
+        <div class="trial-icon-wrapper">
+          <AppIcon name="check" :size="16" class="trial-icon" />
+        </div>
+        <div class="trial-info">
+          <span class="trial-title">Período de Avaliação</span>
+          <span class="trial-days">
+            {{ planStatus.trial.daysRemaining }} dias restantes
+          </span>
+        </div>
       </div>
     </div>
 
@@ -557,8 +573,6 @@ const sidebarSections = computed(() => {
 /* Rodapé */
 .sidebar-footer {
   position: relative;
-  margin-top: 1rem;
-  padding-top: 1rem;
   border-top: 1px solid #f3f4f6;
   display: none;
 }
@@ -698,5 +712,58 @@ const sidebarSections = computed(() => {
   .sidebar.is-collapsed .sidebar-header {
     justify-content: flex-start;
   }
+}
+
+/* Trial Alert Styles */
+.trial-alert {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.trial-alert.success {
+  background-color: #f0fdf4; /* Green 50 */
+  border: 1px solid #bbf7d0; /* Green 200 */
+}
+
+.trial-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.trial-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #dcfce7; /* Green 100 */
+  flex-shrink: 0;
+}
+
+.trial-icon {
+  color: #16a34a; /* Green 600 */
+}
+
+.trial-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.trial-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #15803d; /* Green 700 */
+}
+
+.trial-days {
+  font-size: 0.75rem;
+  color: #16a34a; /* Green 600 */
 }
 </style>
