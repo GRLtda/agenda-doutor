@@ -131,4 +131,29 @@ router.beforeEach((to, from, next) => {
 
 
 
+router.onError((error, to) => {
+  if (
+    error.message.includes('Failed to fetch dynamically imported module') ||
+    error.message.includes('Importing a module script failed')
+  ) {
+    if (!to?.path) {
+      window.location.reload()
+      return
+    }
+
+    // Prevent infinite reload loop if the error persists
+    const targetPath = to.fullPath
+    const storageKey = `router-reload:${targetPath}`
+    const lastReload = sessionStorage.getItem(storageKey)
+    const now = Date.now()
+
+    if (!lastReload || now - parseInt(lastReload) > 10000) {
+      sessionStorage.setItem(storageKey, now.toString())
+      window.location.assign(targetPath)
+    } else {
+      console.error('Too many reloads detected for path:', targetPath)
+    }
+  }
+})
+
 export default router
