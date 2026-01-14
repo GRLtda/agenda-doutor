@@ -12,6 +12,17 @@ const apiClient = axios.create({
   },
 })
 
+// Interceptador de Requisição para Versionamento Dinâmico (v1 default, override v2)
+apiClient.interceptors.request.use((config) => {
+  const versionPrefixRegex = /^\/?v\d+(\/|$)/
+
+  if (config.url && !versionPrefixRegex.test(config.url)) {
+    const cleanUrl = config.url.startsWith('/') ? config.url : `/${config.url}`
+    config.url = `/v1${cleanUrl}`
+  }
+  return config
+})
+
 apiClient.interceptors.response.use(
   (response) => {
     if (isGlobalOffline.value) {
