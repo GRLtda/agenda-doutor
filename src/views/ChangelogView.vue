@@ -5,6 +5,18 @@ import AppFooter from '@/components/global/AppFooter.vue'
 // Changelog entries - futuramente pode vir de um .md ou API
 const changelog = [
   {
+    date: '14 Jan 2026',
+    version: 'v1.9.2',
+    title: 'Correção de Rótulos',
+    description: 'Ajuste na nomenclatura dos logs de mensagens.',
+    items: [
+      { category: 'CRM:', items: [
+        'Corrigido os rótulos de "Envio Manual" para "Lembrete Automático" nos logs de mensagens automáticas',
+        'Adicionado suporte para logs de workflows automáticos'
+      ] }
+    ]
+  },
+  {
     date: '12 Jan 2026',
     version: 'v1.9.0',
     title: 'Suporte Internacional',

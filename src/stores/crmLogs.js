@@ -20,6 +20,7 @@ const actionTypeDescriptions = {
     MANUAL_SEND: 'Envio Manual',
     AUTOMATIC_REMINDER: 'Lembrete Automático',
     AUTOMATIC_BIRTHDAY: 'Aniversário Automático',
+    AUTOMATIC_WORKFLOW: 'Workflow Automático',
 }
 
 export const useCrmLogsStore = defineStore('crmLogs', () => {
