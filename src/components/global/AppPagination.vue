@@ -55,7 +55,10 @@ const summaryText = computed(() => {
   if (props.totalItems === 0) {
     return 'Nenhum item encontrado'
   }
-  return `Mostrando ${fromItem.value} a ${toItem.value} de ${props.totalItems} resultados`
+  if (props.totalItems === 1) {
+    return 'Mostrando 1 resultado'
+  }
+  return `Mostrando ${fromItem.value} - ${toItem.value} de ${props.totalItems} resultados`
 })
 </script>
 
@@ -132,7 +135,7 @@ const summaryText = computed(() => {
   align-items: center;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--cinza-borda);
-  background-color: #f9fafb; /* 🎨 Cor de fundo um pouco mais escura */
+  background-color: var(--branco);
   width: 100%;
 }
 

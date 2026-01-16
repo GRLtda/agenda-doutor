@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useFinanceStore } from '@/stores/finance'
 import AppPagination from '@/components/global/AppPagination.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
-import FormInput from '@/components/global/FormInput.vue'
+import AnimatedNumber from '@/components/global/AnimatedNumber.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -30,7 +31,10 @@ import {
   Filter,
   MoreHorizontal,
   CalendarDays, // Import CalendarDays
-  ArrowLeft     // Import ArrowLeft
+  ArrowLeft,     // Import ArrowLeft
+  User,
+  Hash,
+  CheckCircle
 } from 'lucide-vue-next'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
@@ -50,6 +54,7 @@ ChartJS.register(
 )
 
 const financeStore = useFinanceStore()
+const router = useRouter()
 const selectedPeriod = ref('month')
 const clientSearch = ref('')
 let searchTimeout = null
@@ -411,6 +416,15 @@ const getComparisonPercent = (current, previous) => {
     if (!previous) return 0
     return Math.round(((current - previous) / previous) * 100)
 }
+const navigateToPatient = (patientId) => {
+  if (patientId) {
+    router.push({ name: 'detalhes-paciente', params: { id: patientId } })
+  }
+}
+
+const navigateToProcedures = () => {
+    router.push({ name: 'procedimentos' })
+}
 </script>
 
 <template>
@@ -456,13 +470,12 @@ const getComparisonPercent = (current, previous) => {
                     >
                         <template #trigger>
                         <div class="custom-date-trigger-inline">
-                            <div class="date-value">
-                                {{ customDateRange && customDateRange[0] ? formatDateDisplay(customDateRange[0]) : 'Data Inicial' }}
-                            </div>
-                            <span class="separator-inline">até</span>
-                            <div class="date-value">
-                                {{ customDateRange && customDateRange[1] ? formatDateDisplay(customDateRange[1]) : 'Data Final' }}
-                                <CalendarDays :size="14" class="text-slate-400" />
+                            <div class="date-value text-slate-700">
+                                <CalendarDays :size="16" class="text-slate-500 mr-2" />
+                                <span v-if="customDateRange && customDateRange[0] && customDateRange[1]">
+                                    {{ formatDateDisplay(customDateRange[0]) }} - {{ formatDateDisplay(customDateRange[1]) }}
+                                </span>
+                                <span v-else>Selecione o período</span>
                             </div>
                         </div>
                         </template>
@@ -498,10 +511,12 @@ const getComparisonPercent = (current, previous) => {
              <AppSkeleton width="140px" height="24px" borderRadius="2rem" bg="rgba(255,255,255,0.2)" shimmer="rgba(255,255,255,0.3)" />
           </div>
           <template v-else>
-            <h2 class="balance-value">{{ formatCurrency(financeStore.revenueSummary.totalRevenue) }}</h2>
-            <div class="balance-trend" :class="getComparisonClass(financeStore.comparison.month.current, financeStore.comparison.month.previous)">
-                <component :is="getComparisonIcon(financeStore.comparison.month.current, financeStore.comparison.month.previous)" :size="16" />
-                <span>{{ getComparisonPercent(financeStore.comparison.month.current, financeStore.comparison.month.previous) }}% vs período anterior</span>
+            <h2 class="balance-value">
+              <AnimatedNumber :duration="1000" :value="financeStore.revenueSummary.totalRevenue" type="currency" />
+            </h2>
+            <div class="balance-trend" :class="getComparisonClass(financeStore.comparison.current, financeStore.comparison.previous)">
+                <component :is="getComparisonIcon(financeStore.comparison.current, financeStore.comparison.previous)" :size="16" />
+                <span>{{ getComparisonPercent(financeStore.comparison.current, financeStore.comparison.previous) }}% vs período anterior</span>
             </div>
           </template>
         </div>
@@ -515,7 +530,9 @@ const getComparisonPercent = (current, previous) => {
         </div>
         <div class="kpi-body">
           <AppSkeleton v-if="financeStore.isLoading" width="100px" height="28px" />
-          <span v-else class="kpi-value">{{ formatCurrency(financeStore.kpi.averageTicket) }}</span>
+          <span v-else class="kpi-value">
+            <AnimatedNumber :value="financeStore.kpi.averageTicket" type="currency" />
+          </span>
         </div>
       </div>
 
@@ -530,7 +547,9 @@ const getComparisonPercent = (current, previous) => {
              <AppSkeleton width="80px" height="14px" />
           </template>
           <template v-else>
-            <span class="kpi-value">{{ financeStore.kpi.proceduresCount }}</span>
+            <span class="kpi-value">
+              <AnimatedNumber :value="financeStore.kpi.proceduresCount" type="number" />
+            </span>
             <span class="kpi-sub">realizados</span>
           </template>
         </div>
@@ -548,7 +567,9 @@ const getComparisonPercent = (current, previous) => {
           </template>
           <template v-else>
             <span class="kpi-value text-sm truncate" :title="financeStore.topClients[0]?.name">{{ financeStore.topClients[0]?.name || '-' }}</span>
-            <span class="kpi-sub">{{ formatCurrency(financeStore.topClients[0]?.totalRevenue) }}</span>
+            <span class="kpi-sub">
+              <AnimatedNumber :value="financeStore.topClients[0]?.totalRevenue" type="currency" />
+            </span>
           </template>
         </div>
       </div>
@@ -559,7 +580,10 @@ const getComparisonPercent = (current, previous) => {
       <!-- Main Chart -->
       <div class="chart-card main-chart-card">
         <div class="card-header">
-          <h3 class="card-title">Evolução da Receita</h3>
+          <div class="header-text-group">
+            <h3 class="card-title">Evolução da Receita</h3>
+            <p class="card-subtitle">Acompanhe o crescimento da receita no período selecionado.</p>
+          </div>
         </div>
         <div class="chart-wrapper">
           <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
@@ -572,7 +596,10 @@ const getComparisonPercent = (current, previous) => {
       <!-- Doughnut Chart -->
       <div class="chart-card doughnut-card">
         <div class="card-header">
-          <h3 class="card-title">Por Procedimento</h3>
+          <div class="header-text-group">
+            <h3 class="card-title">Por Procedimento</h3>
+            <p class="card-subtitle">Distribuição da receita gerada por tipo de serviço.</p>
+          </div>
         </div>
         <div class="doughnut-wrapper">
           <div v-if="financeStore.isLoading" class="w-full h-full flex items-center justify-center">
@@ -586,7 +613,10 @@ const getComparisonPercent = (current, previous) => {
     <!-- Monthly Revenue Bar Chart (Full Width) -->
     <div class="chart-card full-width mb-8">
         <div class="card-header">
-            <h3 class="card-title">Faturamento Mensal (Ano Atual)</h3>
+            <div class="header-text-group">
+                <h3 class="card-title">Faturamento Mensal (Ano Atual)</h3>
+                <p class="card-subtitle">Visão consolidada do desempenho financeiro mês a mês.</p>
+            </div>
         </div>
         <div class="chart-wrapper">
             <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
@@ -601,7 +631,10 @@ const getComparisonPercent = (current, previous) => {
       <!-- Top Clients Table -->
       <div class="table-card">
         <div class="card-header">
-          <h3 class="card-title">Top Clientes</h3>
+          <div class="header-text-group">
+            <h3 class="card-title">Principais Clientes</h3>
+            <p class="card-subtitle">Pacientes com maior volume financeiro.</p>
+          </div>
           <div class="search-box">
             <Search :size="14" />
             <input 
@@ -638,8 +671,9 @@ const getComparisonPercent = (current, previous) => {
               </div>
               <span class="mobile-card-value">{{ formatCurrency(client.totalRevenue) }}</span>
             </div>
-            <div v-if="financeStore.topClientsPaginated.data.length === 0" class="mobile-empty">
-              Nenhum cliente encontrado.
+            <div v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-state-container">
+              <Users :size="32" class="empty-state-icon" />
+              <span class="empty-state-text">Nenhum cliente encontrado.</span>
             </div>
           </template>
         </div>
@@ -649,10 +683,10 @@ const getComparisonPercent = (current, previous) => {
           <table class="premium-table">
             <thead>
               <tr>
-                <th>Cliente</th>
-                <th class="text-center">Procedimento</th>
-                <th class="text-right">Total Gasto</th>
-                <th class="text-right">Status</th>
+                <th><div class="th-content"><User :size="14" /> Cliente</div></th>
+                <th class="text-center"><div class="th-content center"><Activity :size="14" /> Procedimento</div></th>
+                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Total Gasto</div></th>
+                <th class="text-right"><div class="th-content right"><CheckCircle :size="14" /> Status</div></th>
               </tr>
             </thead>
             <tbody>
@@ -670,7 +704,7 @@ const getComparisonPercent = (current, previous) => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id">
+                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id" @click="navigateToPatient(client._id)" class="clickable-row" title="Ver detalhes do paciente">
                     <td>
                     <div class="client-info">
                         <div class="client-avatar">{{ client.name.charAt(0) }}</div>
@@ -683,8 +717,13 @@ const getComparisonPercent = (current, previous) => {
                         <span class="status-badge success">Ativo</span>
                     </td>
                 </tr>
-                <tr v-if="financeStore.topClientsPaginated.data.length === 0">
-                    <td colspan="4" class="text-center py-8 text-muted">Nenhum cliente encontrado.</td>
+                <tr v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-row">
+                    <td colspan="4">
+                        <div class="empty-state-container">
+                            <Users :size="48" class="empty-state-icon" />
+                            <span class="empty-state-text">Nenhum cliente encontrado.</span>
+                        </div>
+                    </td>
                 </tr>
               </template>
             </tbody>
@@ -704,7 +743,10 @@ const getComparisonPercent = (current, previous) => {
       <!-- Top Procedures Table -->
       <div class="table-card">
         <div class="card-header">
-          <h3 class="card-title">Procedimentos Mais Realizados</h3>
+          <div class="header-text-group">
+            <h3 class="card-title">Principais Procedimentos</h3>
+            <p class="card-subtitle">Serviços mais realizados no período.</p>
+          </div>
           <div class="search-box">
             <Search :size="14" />
             <input 
@@ -739,8 +781,9 @@ const getComparisonPercent = (current, previous) => {
               </div>
               <span class="mobile-card-value text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</span>
             </div>
-            <div v-if="financeStore.topProceduresPaginated.data.length === 0" class="mobile-empty">
-              Nenhum procedimento encontrado.
+            <div v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-state-container">
+               <Activity :size="32" class="empty-state-icon" />
+               <span class="empty-state-text">Nenhum procedimento encontrado.</span>
             </div>
           </template>
         </div>
@@ -750,9 +793,9 @@ const getComparisonPercent = (current, previous) => {
           <table class="premium-table">
             <thead>
               <tr>
-                <th>Procedimento</th>
-                <th class="text-right">Qtd.</th>
-                <th class="text-right">Receita</th>
+                <th><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
+                <th class="text-right"><div class="th-content right"><Hash :size="14" /> Qtd.</div></th>
+                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Receita</div></th>
               </tr>
             </thead>
             <tbody>
@@ -764,15 +807,20 @@ const getComparisonPercent = (current, previous) => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id">
+                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" @click="navigateToProcedures()" class="clickable-row" title="Ver lista de procedimentos">
                     <td>
                     <span class="font-medium text-slate-700">{{ proc._id }}</span>
                     </td>
                     <td class="text-right">{{ proc.count }}</td>
                     <td class="text-right font-bold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
                 </tr>
-                <tr v-if="financeStore.topProceduresPaginated.data.length === 0">
-                    <td colspan="3" class="text-center py-8 text-muted">Nenhum procedimento encontrado.</td>
+                <tr v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-row">
+                    <td colspan="3">
+                        <div class="empty-state-container">
+                            <Activity :size="48" class="empty-state-icon" />
+                            <span class="empty-state-text">Nenhum procedimento encontrado.</span>
+                        </div>
+                    </td>
                 </tr>
               </template>
             </tbody>
@@ -862,9 +910,9 @@ const getComparisonPercent = (current, previous) => {
 .custom-controls {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     background-color: var(--branco);
-    padding: 0.25rem;
+    padding: 0.35rem;
     border-radius: 0.75rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     border: 1px solid #e5e7eb;
@@ -874,14 +922,15 @@ const getComparisonPercent = (current, previous) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border: none;
     background: transparent;
     border-radius: 0.5rem;
     color: var(--cinza-texto);
     cursor: pointer;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .back-btn:hover {
@@ -890,18 +939,27 @@ const getComparisonPercent = (current, previous) => {
 }
 
 .date-picker-wrapper-inline {
-    width: 260px;
+    flex: 1;
+    min-width: 0; /* Enable flex shrinking/growing */
 }
 
 .custom-date-trigger-inline {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* Center align */
   padding: 0.4rem 0.75rem;
   background-color: transparent;
   cursor: pointer;
   height: 36px;
   gap: 0.5rem;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.date-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .separator-inline {
@@ -911,7 +969,7 @@ const getComparisonPercent = (current, previous) => {
 }
 
 .apply-btn-inline {
-    padding: 0 1rem;
+    padding: 0 1.25rem;
     height: 36px;
     background-color: var(--azul-principal);
     color: var(--branco);
@@ -921,6 +979,7 @@ const getComparisonPercent = (current, previous) => {
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    flex-shrink: 0;
 }
 
 .apply-btn-inline:hover {
@@ -930,6 +989,7 @@ const getComparisonPercent = (current, previous) => {
 .apply-btn-inline:disabled {
     background-color: #cbd5e1;
     cursor: not-allowed;
+    opacity: 0.7;
 }
 
 /* Animations */
@@ -1137,6 +1197,13 @@ const getComparisonPercent = (current, previous) => {
   color: var(--preto);
 }
 
+.card-subtitle {
+  font-size: 0.875rem;
+  color: var(--cinza-texto);
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
 .chart-wrapper {
   height: 300px;
   width: 100%;
@@ -1201,11 +1268,11 @@ const getComparisonPercent = (current, previous) => {
 /* Lists Grid */
 .lists-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1366px) {
   .lists-grid {
     grid-template-columns: 1fr;
   }
@@ -1249,33 +1316,31 @@ const getComparisonPercent = (current, previous) => {
 
 .premium-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 0.3rem;
+  border-collapse: collapse;
 }
 
 .premium-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   text-align: left;
-  color: var(--cinza-texto);
-  font-size: 0.75rem;
+  padding: 1rem;
+  background: #f8fafc;
+  color: #64748b;
   font-weight: 600;
-  text-transform: uppercase;
-  padding: 0.75rem 1rem;
-  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .premium-table td {
   padding: 1rem;
-  background-color: #fff;
-  border-top: 1px solid #f1f5f9;
   border-bottom: 1px solid #f1f5f9;
-  color: var(--preto);
+  color: #334155;
+  font-size: 0.95rem;
 }
 
-.premium-table tr:first-child td {
-    border-top: none;
-}
-
-.premium-table tr:hover td {
+.premium-table tr:not(.empty-row):hover td {
     background-color: #f8fafc;
 }
 
@@ -1296,6 +1361,16 @@ const getComparisonPercent = (current, previous) => {
   justify-content: center;
   font-weight: 600;
   font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable-row:hover td {
+  background-color: #f8fafc !important; 
 }
 
 .client-name {
@@ -1580,5 +1655,41 @@ const getComparisonPercent = (current, previous) => {
     padding: 0.5rem 0.5rem;
     font-size: 0.75rem;
   }
+}
+
+/* Empty State Styling */
+.empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: var(--cinza-texto);
+    gap: 0.75rem;
+}
+
+.empty-state-icon {
+    color: #cbd5e1;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.th-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.th-content.center {
+    justify-content: center;
+}
+
+.th-content.right {
+    justify-content: flex-end;
 }
 </style>

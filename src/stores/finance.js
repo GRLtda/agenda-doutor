@@ -19,9 +19,8 @@ export const useFinanceStore = defineStore('finance', () => {
     proceduresCount: 0
   })
   const comparison = ref({
-    month: { current: 0, previous: 0 },
-    week: { current: 0, previous: 0 },
-    year: { current: 0, previous: 0 }
+    current: 0,
+    previous: 0
   })
 
   // Actions
@@ -42,7 +41,7 @@ export const useFinanceStore = defineStore('finance', () => {
       monthlyRevenue.value = data.monthlyRevenue || []
       topClients.value = data.topClients || []
       kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
-      comparison.value = data.comparison || { month: { current: 0, previous: 0 } }
+      comparison.value = data.comparison || { current: 0, previous: 0 }
       topProcedures.value = data.topProcedures || []
 
     } catch (err) {
