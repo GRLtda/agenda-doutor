@@ -965,10 +965,6 @@ async function deleteAppointment(appointment) {
                   <p class="empty-state-text">
                     Adicione procedimentos ao paciente para manter o histórico financeiro e clínico.
                   </p>
-                  <AppButton @click="isAddProcedureModalOpen = true" variant="secondary">
-                    <CalendarPlus :size="16" />
-                    Adicionar Procedimento
-                  </AppButton>
                 </div>
               </div>
             </div>
@@ -1967,7 +1963,6 @@ async function deleteAppointment(appointment) {
 .empty-state-text {
   max-width: 400px;
   color: var(--cinza-texto);
-  margin-bottom: 1.5rem;
   line-height: 1.6;
 }
 .empty-state-button {
