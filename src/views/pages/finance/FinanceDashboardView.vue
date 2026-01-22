@@ -482,10 +482,6 @@ const navigateToProcedures = () => {
         <h1 class="title">Dashboard Financeiro</h1>
         <div class="subtitle-group">
             <p class="subtitle">Visão geral do desempenho da sua clínica.</p>
-            <div class="last-synced" v-if="financeStore.lastSynced">
-                <Clock :size="14" />
-                <span>Atualizado {{ new Date(financeStore.lastSynced).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
-            </div>
         </div>
       </div>
       
@@ -924,18 +920,6 @@ const navigateToProcedures = () => {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-}
-
-.last-synced {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    background-color: #f1f5f9;
-    padding: 2px 8px;
-    border-radius: 999px;
-    width: fit-content;
 }
 
 .header-right {
