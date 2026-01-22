@@ -2,7 +2,10 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFinanceStore } from '@/stores/finance'
+import { useClinicStore } from '@/stores/clinic'
+import { useEmployeesStore } from '@/stores/employees'
 import AppPagination from '@/components/global/AppPagination.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AnimatedNumber from '@/components/global/AnimatedNumber.vue'
 import {
@@ -30,11 +33,12 @@ import {
   Search,
   Filter,
   MoreHorizontal,
-  CalendarDays, // Import CalendarDays
-  ArrowLeft,     // Import ArrowLeft
+  CalendarDays,
+  ArrowLeft,
   User,
   Hash,
-  CheckCircle
+  CheckCircle,
+  Clock
 } from 'lucide-vue-next'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
@@ -54,12 +58,15 @@ ChartJS.register(
 )
 
 const financeStore = useFinanceStore()
+const employeesStore = useEmployeesStore()
+const clinicStore = useClinicStore()
 const router = useRouter()
 const selectedPeriod = ref('month')
+const selectedProfessional = ref('')
 const clientSearch = ref('')
-let searchTimeout = null
+const searchTimeout = null
 const procedureSearch = ref('')
-let procedureSearchTimeout = null
+const procedureSearchTimeout = null
 
 const periods = [
   { label: 'Hoje', value: 'day' },
@@ -68,6 +75,39 @@ const periods = [
   { label: 'Ano', value: 'year' },
   { label: 'Personalizado', value: 'custom' }
 ]
+
+const doctorOptions = computed(() => {
+    const options = [
+        { label: 'Todos os Médicos', value: '' }
+    ]
+    
+    if (clinicStore.currentClinic) {
+        const { owner, staff } = clinicStore.currentClinic
+        const validRoles = ['owner', 'medico']
+        
+        // Combinar owner e staff em uma única lista
+        const allUsers = []
+        if (owner) allUsers.push(owner)
+        if (staff && Array.isArray(staff)) allUsers.push(...staff)
+        
+        // Filtrar por role e garantir unicidade por ID
+        const doctorsAndOwners = allUsers
+            .filter(u => u && validRoles.includes(u.role))
+            .filter((user, index, self) => 
+                index === self.findIndex((u) => u._id === user._id)
+            )
+
+        options.push(...doctorsAndOwners.map(emp => ({
+            label: emp.name,
+            value: emp._id
+        })))
+    }
+    return options
+})
+
+const shouldShowDoctorSelector = computed(() => {
+    return doctorOptions.value.length > 2
+})
 
 const customDateRange = ref(null)
 const previousPeriod = ref('month') // Store previous period to restore on back
@@ -79,11 +119,35 @@ const formatDateDisplay = (dateInput) => {
 }
 
 onMounted(async () => {
-  await Promise.all([
-    financeStore.fetchDashboardData(selectedPeriod.value),
-    financeStore.fetchTopClients({ period: selectedPeriod.value }),
-    financeStore.fetchTopProcedures({ period: selectedPeriod.value })
-  ])
+  await employeesStore.fetchEmployees()
+  await refreshDashboard()
+})
+
+const refreshDashboard = async () => {
+    let startDate = null
+    let endDate = null
+
+    if (selectedPeriod.value === 'custom' && customDateRange.value) {
+        startDate = customDateRange.value[0].toISOString().split('T')[0]
+        endDate = customDateRange.value[1].toISOString().split('T')[0]
+    }
+
+    const commonParams = {
+        period: selectedPeriod.value,
+        startDate,
+        endDate,
+        professionalId: selectedProfessional.value || null
+    }
+
+    await Promise.all([
+        financeStore.fetchDashboardData(commonParams.period, commonParams.startDate, commonParams.endDate, commonParams.professionalId),
+        financeStore.fetchTopClients({ ...commonParams, search: clientSearch.value }),
+        financeStore.fetchTopProcedures({ ...commonParams, search: procedureSearch.value })
+    ])
+}
+
+watch(selectedProfessional, () => {
+    refreshDashboard()
 })
 
 const handlePeriodChange = async (period) => {
@@ -96,11 +160,7 @@ const handlePeriodChange = async (period) => {
   }
 
   selectedPeriod.value = period
-  await Promise.all([
-    financeStore.fetchDashboardData(period),
-    financeStore.fetchTopClients({ period, search: clientSearch.value }),
-    financeStore.fetchTopProcedures({ period, search: procedureSearch.value })
-  ])
+  await refreshDashboard()
 }
 
 const cancelCustomMode = () => {
@@ -110,25 +170,8 @@ const cancelCustomMode = () => {
 const applyCustomFilter = async () => {
   if (!customDateRange.value || !customDateRange.value[0] || !customDateRange.value[1]) return
   
-  const startDate = customDateRange.value[0].toISOString().split('T')[0]
-  const endDate = customDateRange.value[1].toISOString().split('T')[0]
-
   isLoadingCustom.value = true
-  await Promise.all([
-    financeStore.fetchDashboardData('custom', startDate, endDate),
-    financeStore.fetchTopClients({ 
-      period: 'custom', 
-      startDate, 
-      endDate, 
-      search: clientSearch.value 
-    }),
-    financeStore.fetchTopProcedures({ 
-      period: 'custom', 
-      startDate, 
-      endDate, 
-      search: procedureSearch.value 
-    })
-  ])
+  await refreshDashboard()
   isLoadingCustom.value = false
 }
 
@@ -148,7 +191,8 @@ const handlePageChange = async (page) => {
         startDate,
         endDate,
         page, 
-        search: clientSearch.value 
+        search: clientSearch.value,
+        professionalId: selectedProfessional.value || null
     })
 }
 
@@ -166,7 +210,8 @@ const handleProcedurePageChange = async (page) => {
         startDate,
         endDate,
         page, 
-        search: procedureSearch.value 
+        search: procedureSearch.value,
+        professionalId: selectedProfessional.value || null
     })
 }
 
@@ -189,7 +234,8 @@ const handleSearch = (event) => {
             startDate,
             endDate, 
             page: 1, 
-            search: query 
+            search: query,
+            professionalId: selectedProfessional.value || null
         })
     }, 500)
 }
@@ -213,7 +259,8 @@ const handleProcedureSearch = (event) => {
             startDate,
             endDate, 
             page: 1, 
-            search: query 
+            search: query,
+            professionalId: selectedProfessional.value || null
         })
     }, 500)
 }
@@ -433,10 +480,25 @@ const navigateToProcedures = () => {
     <header class="page-header">
       <div class="header-text">
         <h1 class="title">Dashboard Financeiro</h1>
-        <p class="subtitle">Visão geral do desempenho da sua clínica.</p>
+        <div class="subtitle-group">
+            <p class="subtitle">Visão geral do desempenho da sua clínica.</p>
+            <div class="last-synced" v-if="financeStore.lastSynced">
+                <Clock :size="14" />
+                <span>Atualizado {{ new Date(financeStore.lastSynced).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+            </div>
+        </div>
       </div>
       
       <div class="header-right">
+        <!-- Professional Select -->
+        <div class="professional-select-wrapper" v-if="shouldShowDoctorSelector">
+            <StyledSelect 
+                v-model="selectedProfessional" 
+                :options="doctorOptions" 
+                placeholder="Selecione o Médico"
+            />
+        </div>
+
         <Transition name="slide-fade" mode="out-in">
             <!-- Normal Tabs -->
             <div v-if="selectedPeriod !== 'custom'" class="period-tabs" key="tabs">
@@ -853,9 +915,27 @@ const navigateToProcedures = () => {
   display: flex;
   justify-content: space-between;
   align-items: center; /* Changed to center to match PatientsListView */
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.subtitle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.last-synced {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    background-color: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 999px;
+    width: fit-content;
 }
 
 .header-right {
@@ -1018,7 +1098,7 @@ const navigateToProcedures = () => {
   margin-bottom: 2rem;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1000px) {
   .top-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1691,5 +1771,19 @@ const navigateToProcedures = () => {
 
 .th-content.right {
     justify-content: flex-end;
+}
+
+/* Professional Select */
+.professional-select-wrapper {
+  margin-right: 1rem;
+  width: 250px;
+}
+
+@media (max-width: 768px) {
+    .professional-select-wrapper {
+        margin-right: 0;
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
 }
 </style>

@@ -19,110 +19,113 @@ export const useFinanceStore = defineStore('finance', () => {
     proceduresCount: 0
   })
   const comparison = ref({
-    current: 0,
+  current: 0,
     previous: 0
-  })
+})
+const lastSynced = ref(null)
 
-  // Actions
-  async function fetchDashboardData(period = 'month', startDate = null, endDate = null) {
-    isLoading.value = true
-    error.value = null
-    try {
-      const p = period === 'custom' ? 'custom' : period
-      const response = await apiClient.get('/finance/dashboard', {
-        params: { period: p, startDate, endDate }
-      })
-      const data = response.data
+// Actions
+async function fetchDashboardData(period = 'month', startDate = null, endDate = null, professionalId = null) {
+  isLoading.value = true
+  error.value = null
+  try {
+    const p = period === 'custom' ? 'custom' : period
+    const response = await apiClient.get('/finance/dashboard', {
+      params: { period: p, startDate, endDate, professionalId }
+    })
+    const data = response.data
 
-      revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
-      revenueByProcedure.value = data.revenueByProcedure || []
-      dailyRevenue.value = data.dailyRevenue || []
-      hoursRevenue.value = data.hoursRevenue || []
-      monthlyRevenue.value = data.monthlyRevenue || []
-      topClients.value = data.topClients || []
-      kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
-      comparison.value = data.comparison || { current: 0, previous: 0 }
-      topProcedures.value = data.topProcedures || []
+    revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
+    revenueByProcedure.value = data.revenueByProcedure || []
+    dailyRevenue.value = data.dailyRevenue || []
+    hoursRevenue.value = data.hoursRevenue || []
+    monthlyRevenue.value = data.monthlyRevenue || []
+    topClients.value = data.topClients || []
+    kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
+    comparison.value = data.comparison || { current: 0, previous: 0 }
+    topProcedures.value = data.topProcedures || []
+    lastSynced.value = data.lastSynced || null
 
-    } catch (err) {
-      console.error('Error fetching finance data:', err)
-      error.value = 'Erro ao carregar dados financeiros.'
-    } finally {
-      isLoading.value = false
-    }
+  } catch (err) {
+    console.error('Error fetching finance data:', err)
+    error.value = 'Erro ao carregar dados financeiros.'
+  } finally {
+    isLoading.value = false
   }
+}
 
-  // Pagination State
-  const topClientsPaginated = ref({
-    data: [],
-    pagination: {
-      total: 0,
-      page: 1,
-      pages: 1,
-      limit: 5
-    },
-    isLoading: false
-  })
+// Pagination State
+const topClientsPaginated = ref({
+  data: [],
+  pagination: {
+    total: 0,
+    page: 1,
+    pages: 1,
+    limit: 5
+  },
+  isLoading: false
+})
 
-  async function fetchTopClients({ period = 'month', startDate = null, endDate = null, page = 1, search = '' } = {}) {
-    topClientsPaginated.value.isLoading = true
-    try {
-      const response = await apiClient.get('/finance/top-clients', {
-        params: { period, startDate, endDate, page, search }
-      })
-      topClientsPaginated.value.data = response.data.data
-      topClientsPaginated.value.pagination = response.data.pagination
-    } catch (err) {
-      console.error('Error fetching top clients:', err)
-    } finally {
-      topClientsPaginated.value.isLoading = false
-    }
+async function fetchTopClients({ period = 'month', startDate = null, endDate = null, page = 1, search = '', professionalId = null } = {}) {
+  topClientsPaginated.value.isLoading = true
+  try {
+    const response = await apiClient.get('/finance/top-clients', {
+      params: { period, startDate, endDate, page, search, professionalId }
+    })
+    topClientsPaginated.value.data = response.data.data
+    topClientsPaginated.value.pagination = response.data.pagination
+  } catch (err) {
+    console.error('Error fetching top clients:', err)
+  } finally {
+    topClientsPaginated.value.isLoading = false
   }
+}
 
-  const topProceduresPaginated = ref({
-    data: [],
-    pagination: {
-      total: 0,
-      page: 1,
-      pages: 1,
-      limit: 5
-    },
-    isLoading: false
-  })
+const topProceduresPaginated = ref({
+  data: [],
+  pagination: {
+    total: 0,
+    page: 1,
+    pages: 1,
+    limit: 5
+  },
+  isLoading: false
+})
 
-  async function fetchTopProcedures({ period = 'month', startDate = null, endDate = null, page = 1, search = '' } = {}) {
-    topProceduresPaginated.value.isLoading = true
-    try {
-      const response = await apiClient.get('/finance/top-procedures', {
-        params: { period, startDate, endDate, page, search }
-      })
-      topProceduresPaginated.value.data = response.data.data
-      topProceduresPaginated.value.pagination = response.data.pagination
-    } catch (err) {
-      console.error('Error fetching top procedures:', err)
-    } finally {
-      topProceduresPaginated.value.isLoading = false
-    }
+async function fetchTopProcedures({ period = 'month', startDate = null, endDate = null, page = 1, search = '', professionalId = null } = {}) {
+  topProceduresPaginated.value.isLoading = true
+  try {
+    const response = await apiClient.get('/finance/top-procedures', {
+      params: { period, startDate, endDate, page, search, professionalId }
+    })
+    topProceduresPaginated.value.data = response.data.data
+    topProceduresPaginated.value.pagination = response.data.pagination
+  } catch (err) {
+    console.error('Error fetching top procedures:', err)
+  } finally {
+    topProceduresPaginated.value.isLoading = false
   }
+}
 
-  return {
-    isLoading,
-    error,
-    revenueSummary,
-    revenueByProcedure,
-    dailyRevenue,
-    hoursRevenue,
-    monthlyRevenue,
-    topClients,
-    topProcedures,
-    kpi,
-    comparison,
-    fetchDashboardData,
+return {
+  isLoading,
+  error,
+  revenueSummary,
+  revenueByProcedure,
+  dailyRevenue,
+  hoursRevenue,
+  monthlyRevenue,
+  topClients,
+  topProcedures,
+  kpi,
+  comparison,
+  lastSynced,
+  fetchDashboardData,
 
-    // Pagination
-    topClientsPaginated,
-    fetchTopClients,
-    topProceduresPaginated,
-    fetchTopProcedures
-  }
+  // Pagination
+  topClientsPaginated,
+  fetchTopClients,
+  topProceduresPaginated,
+  fetchTopProcedures
+}
 })

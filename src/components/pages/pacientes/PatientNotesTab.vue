@@ -650,11 +650,14 @@ function renderContent(content) {
 .tiptap-editor-wrapper {
   display: flex;
   flex-direction: column;
+  flex: 1; /* Ocupa o espaço restante do card */
+  min-height: 0; /* Crucial para scroll interno funcionar no flex */
 }
 
 .editor-scroll-area {
-  min-height: 200px; /* Voltando para o tamanho que estava */
-  max-height: 400px;
+  flex: 1; /* Cresce para ocupar o espaço */
+  min-height: 150px;
+  max-height: none; /* Remove limitação fixa, usa o espaço do pai */
   cursor: text;
   overflow-y: auto;
   border-bottom: 1px solid #f1f5f9;
@@ -710,6 +713,7 @@ function renderContent(content) {
   background: white;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0; /* Garante que o footer nunca encolha/suma */
 }
 
 .hint {
@@ -717,6 +721,19 @@ function renderContent(content) {
   color: #94a3b8;
   flex: 1;
   min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .hint {
+    display: none;
+  }
+  .editor-footer {
+    justify-content: flex-end;
+  }
+  .editor-footer :deep(.app-button) {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .editor-footer :deep(.app-button) {

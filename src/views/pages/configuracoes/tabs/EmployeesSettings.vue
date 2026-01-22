@@ -14,6 +14,7 @@ import {
   Mail,
   Users,
   XCircle,
+  Copy,
 } from 'lucide-vue-next'
 import InviteEmployeeModal from '@/components/pages/configuracoes/modals/InviteEmployeeModal.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -96,6 +97,43 @@ async function handleCancelInvite(inviteId) {
 
 function isOwner(employee) {
   return employee.role === 'owner'
+}
+
+function copyInviteLink(token) {
+  if (!token) return
+  
+  const origin = window.location.origin
+  const link = `${origin}/register?invitationToken=${token}`
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(link)
+      .then(() => {
+        toast.info('Link copiado!')
+      })
+      .catch((err) => {
+        console.error('Erro ao copiar:', err)
+        toast.error('Falha ao copiar o link.')
+      })
+  } else {
+    // Fallback
+    const textarea = document.createElement('textarea')
+    textarea.value = link
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      toast.info('Link copiado!')
+    } catch (err) {
+      console.error('Erro ao copiar (fallback):', err)
+      toast.error('Falha ao copiar o link.')
+    } finally {
+      document.body.removeChild(textarea)
+    }
+  }
 }
 </script>
 
@@ -242,6 +280,14 @@ function isOwner(employee) {
           <div class="item-actions pending-actions">
             <span class="pending-text">Aguardando aceite</span>
             <AppButton
+              @click="copyInviteLink(invite.token)"
+              variant="default"
+              size="sm"
+              title="Copiar link de convite"
+            >
+              <Copy :size="18" />
+            </AppButton>
+            <AppButton
               @click="handleCancelInvite(invite._id)"
               variant="dangerous"
               size="sm"
@@ -265,10 +311,6 @@ function isOwner(employee) {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 2rem;
-}
-.header-subtitle {
-  margin-top: 0.25rem;
-  color: var(--cinza-texto);
 }
 .header-subtitle {
   margin-top: 0.25rem;
@@ -396,15 +438,8 @@ function isOwner(employee) {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
-  width: 150px;
-}
-
-.pending-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  width: 150px;
+  width: auto;
+  min-width: 150px;
 }
 
 .list-item.is-pending {
@@ -462,9 +497,6 @@ function isOwner(employee) {
 }
 .dropdown-item.delete {
   color: #ef4444;
-}
-.dropdown-item.delete:hover {
-  background-color: #fee2e2;
 }
 .dropdown-item.delete:hover {
   background-color: #fee2e2;

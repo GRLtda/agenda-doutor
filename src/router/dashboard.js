@@ -17,6 +17,7 @@ import PendingAnamnesesView from '../views/pages/resumo/PendingAnamnesesView.vue
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
 import ProfileView from '../views/pages/ProfileView.vue'
 
+
 import MessagesTab from '../views/pages/marketing/pages/MessagesTab.vue'
 import TemplatesTab from '../views/pages/marketing/pages/TemplatesTab.vue'
 import ConnectionTab from '../views/pages/marketing/pages/ConnectionTab.vue'
@@ -59,6 +60,7 @@ const dashboardRoutes = [
         component: ProfileView,
         meta: { title: 'Meu Perfil' },
       },
+
       {
         path: 'pacientes',
         name: 'pacientes',

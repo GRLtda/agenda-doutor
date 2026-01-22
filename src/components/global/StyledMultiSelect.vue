@@ -234,7 +234,7 @@ function clearAll(event) {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  min-height: 48px;
+  min-height: 40px;
   padding: 0.5rem 0.75rem;
   background-color: var(--branco);
   border: 1px solid #d1d5db;

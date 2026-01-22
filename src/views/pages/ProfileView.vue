@@ -3,10 +3,11 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { 
   User, Mail, Briefcase, Building2, MapPin, 
-  Calendar, Pencil, Check, X, ShieldCheck
+  Calendar, Pencil, Check, X, ShieldCheck, Monitor
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
+import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
@@ -153,25 +154,29 @@ onMounted(() => {
         
         <!-- Personal Info Tab -->
         <transition name="fade" mode="out-in">
-          <div v-if="activeTab === 'personal'" class="content-card">
-            <div class="card-header">
-              <div class="header-text">
-                <h2>Dados do Perfil</h2>
+          <div v-if="activeTab === 'personal'" class="cards-grid">
+            <!-- Coluna da Esquerda: Dados do Perfil -->
+            <div class="content-card">
+              <div class="card-header">
+                <div class="header-text">
+                  <h2>Dados do Perfil</h2>
                 <p>Gerencie suas informações de acesso e identificação</p>
               </div>
               
-              <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
-                <Pencil :size="16" />
-                <span>Editar</span>
-              </button>
-              <div v-else class="edit-actions">
-                <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
-                  <X :size="16" />
+              <div class="header-actions">
+                <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
+                  <Pencil :size="16" />
+                  <span>Editar</span>
                 </button>
-                <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
-                  <Check :size="16" />
-                  <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
-                </button>
+                <div v-else class="edit-actions">
+                  <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
+                    <X :size="16" />
+                  </button>
+                  <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
+                    <Check :size="16" />
+                    <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -219,6 +224,10 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+            </div>
+            
+            <!-- Coluna da Direita: Dispositivos -->
+            <ActiveSessionsView />
           </div>
 
           <!-- Clinic Info Tab -->
@@ -293,10 +302,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-container {
-  min-height: 100vh;
-  background-color: #f8fafc; /* Slate 50 */
-}
 
 .content-wrapper {
   width: 100%;
@@ -329,7 +334,7 @@ onMounted(() => {
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #f1f5f9;
+  border: 1px solid #e2e8f0;
 }
 
 .header-content {
@@ -407,12 +412,19 @@ onMounted(() => {
 
 
 /* Content Area */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  animation: slideIn 0.3s ease-out;
+}
+
 .content-card {
   background: white;
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #f1f5f9;
+  border: 1px solid #e2e8f0;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -421,7 +433,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 2rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 1.5rem;
 }
 
@@ -438,6 +450,12 @@ onMounted(() => {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 /* Action Buttons */
 .action-btn {
   display: flex;
@@ -447,11 +465,11 @@ onMounted(() => {
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: white;
-  font-weight: 500;
+  font-weight: 600; /* Updated from 500 */
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
-  color: #475569;
+  color: #0f172a; /* Updated from #475569 */
 }
 
 .action-btn:hover {
@@ -603,6 +621,10 @@ onMounted(() => {
 @media (max-width: 640px) {
   .page-container {
     padding: 1rem 0.5rem;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
   }
   
   .fields-grid {
