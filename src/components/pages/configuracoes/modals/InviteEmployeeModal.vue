@@ -48,7 +48,7 @@ const expirationDate = computed(() => {
 })
 
 const formattedRole = computed(() => {
-  const selected = roleOptions.find((r) => r.value === role.value)
+  const selected = roleOptions.value.find((r) => r.value === role.value)
   return selected ? selected.label : role.value
 })
 
@@ -70,11 +70,15 @@ async function handleInvite() {
     role: role.value,
   })
 
-  if (success && data.invitation?.token) {
+  // Tenta extrair o token de diferentes locais para garantir compatibilidade
+  const token = data?.invitation?.token || data?.invitationToken || data?.token
+
+  if (success && token) {
     const origin = window.location.origin
-    generatedLink.value = `${origin}/register?invitationToken=${data.invitation.token}`
+    generatedLink.value = `${origin}/register?invitationToken=${token}`
     toast.success('Convite gerado com sucesso!')
   } else {
+    console.error('Erro ao criar convite: ', { success, data, error })
     toast.error(error || 'Não foi possível gerar o convite.')
   }
 }
