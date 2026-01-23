@@ -141,11 +141,7 @@ function copyInviteLink(token) {
   <div>
     <InviteEmployeeModal v-if="isModalOpen" @close="isModalOpen = false" />
 
-    <div class="header-actions">
-      <div>
-        <h2>Membros da Equipe</h2>
-        <p class="header-subtitle">Gerencie os acessos e funções dos funcionários.</p>
-      </div>
+    <Teleport to="#tab-actions">
       <AppButton
         v-if="currentUser?.role === 'owner' || currentUser?.role === 'gerente'"
         @click="isModalOpen = true"
@@ -154,7 +150,7 @@ function copyInviteLink(token) {
         <UserPlus :size="16" />
         Convidar Funcionário
       </AppButton>
-    </div>
+    </Teleport>
 
     <div class="section-container">
       <h3 class="section-title"><UserCheck :size="20" /> Equipe Ativa</h3>
@@ -306,28 +302,21 @@ function copyInviteLink(token) {
 
 <style scoped>
 /* --- STYLES EXISTENTES (Mantidos) --- */
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-}
-.header-subtitle {
-  margin-top: 0.25rem;
-  color: var(--cinza-texto);
-}
-
 .section-container {
   margin-bottom: 2.5rem;
 }
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--preto);
+}
+
+.section-title svg {
+  color: var(--azul-principal);
 }
 .state-cell,
 .empty-list-card {
@@ -579,9 +568,7 @@ function copyInviteLink(token) {
   .pending-text {
     display: none;
   }
-  .section-title {
-    font-size: 1.125rem;
-  }
+
 }
 
 /* --- NOVOS ESTILOS DE SKELETON --- */

@@ -341,15 +341,6 @@ onBeforeRouteLeave((to, from, next) => {
   align-items: stretch;
 }
 
-/* Seções */
-.settings-section {
-  background: var(--branco);
-  border-radius: 1rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  padding: 1.5rem;
-}
-
 .section-header {
   display: flex;
   align-items: flex-start;

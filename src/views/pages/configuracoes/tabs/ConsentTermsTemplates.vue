@@ -76,16 +76,12 @@ function formatDate(dateString) {
       @close="closeModal"
     />
 
-    <div v-if="!isFetchingTemplates && templates.length > 0" class="header-actions">
-      <div>
-        <h2>Modelos de Termo de Consentimento</h2>
-        <p class="header-subtitle">Você tem {{ templates.length }} modelo(s) cadastrado(s).</p>
-      </div>
+    <Teleport to="#tab-actions">
       <AppButton @click="openCreateModal" variant="primary">
         <FilePlus2 :size="16" />
         Criar Novo Modelo
       </AppButton>
-    </div>
+    </Teleport>
 
     <!-- Loading Skeleton -->
     <div v-if="isFetchingTemplates" class="templates-grid">
@@ -213,17 +209,7 @@ function formatDate(dateString) {
   pointer-events: none;
 }
 
-/* Header */
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-}
-.header-subtitle {
-  margin-top: 0.25rem;
-  color: var(--cinza-texto);
-}
+
 
 /* Grid */
 .templates-grid {

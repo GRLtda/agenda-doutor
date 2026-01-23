@@ -69,16 +69,12 @@ async function handleDelete(templateId) {
       @close="closeModal"
     />
 
-    <div v-if="!anamnesisStore.isFetchingTemplates && templates.length > 0" class="header-actions">
-      <div>
-        <h2>Modelos de Anamnese</h2>
-        <p class="header-subtitle">Você tem {{ templates.length }} modelo(s) cadastrado(s).</p>
-      </div>
+    <Teleport to="#tab-actions">
       <AppButton variant="primary" @click="openCreateModal">
         <FilePlus2 :size="16" />
         Criar Novo Modelo
       </AppButton>
-    </div>
+    </Teleport>
 
     <div v-if="anamnesisStore.isFetchingTemplates" class="templates-grid">
       <div v-for="n in 6" :key="n" class="template-card">
@@ -185,20 +181,7 @@ async function handleDelete(templateId) {
 }
 
 /* --- ESTILOS ORIGINAIS ABAIXO --- */
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-.header-subtitle {
-  margin-top: 0.25rem;
-  color: var(--cinza-texto);
-}
-.header-subtitle {
-  margin-top: 0.25rem;
-  color: var(--cinza-texto);
-}
+
 
 .templates-grid {
   display: grid;
