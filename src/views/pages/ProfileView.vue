@@ -38,6 +38,7 @@ const planLabels = {
   basic: 'Básico',
   premium: 'Premium',
   enterprise: 'Enterprise',
+  enterprise_plus: 'Enterprise Plus',
   lifetime: 'Vitalício'
 }
 

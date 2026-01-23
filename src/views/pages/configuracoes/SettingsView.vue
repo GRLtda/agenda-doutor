@@ -141,10 +141,11 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value) ||
   justify-content: space-between;
   align-items: flex-start;
   /* Removido margin-bottom para evitar buraco no scroll sticky */
-  padding-bottom: 1.5rem;
+  margin: -1.5rem -1.5rem 0 -1.5rem; /* Negative margins to extend beyond parent padding */
+  padding: 1.5rem 1.5rem 1.5rem 1.5rem;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
-  top: 0;
+  top: -1.5rem; /* Adjusted to account for parent padding */
   z-index: 20;
   background-color: var(--branco);
 }

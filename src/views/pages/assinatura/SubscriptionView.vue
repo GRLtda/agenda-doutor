@@ -24,17 +24,20 @@ const statusMap = {
   trialing: { label: 'Período de Teste', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', icon: Clock },
   free: { label: 'Gratuito', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', icon: Package },
   enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-blue-50', border: 'border-purple-200', icon: Shield },
+  enterprise_plus: { label: 'Enterprise Plus', color: 'text-purple-700', bg: 'bg-blue-50', border: 'border-purple-200', icon: Shield },
   lifetime: { label: 'Vitalício', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: CheckCircle }
 };
 
 const currentStatus = computed(() => {
   if (subscription.value?.planType === 'enterprise') return statusMap.enterprise;
+  if (subscription.value?.planType === 'enterprise_plus') return statusMap.enterprise_plus;
   const status = subscription.value?.status || 'free';
   return statusMap[status] || statusMap.free;
 });
 
 const isCanceled = computed(() => {
   if (subscription.value?.planType === 'enterprise') return false;
+  if (subscription.value?.planType === 'enterprise_plus') return false;
   return subscription.value?.status === 'canceled' || !!subscription.value?.cancelAt;
 });
 
@@ -268,6 +271,7 @@ onMounted(() => {
                   subscription?.planType === 'basic' ? 'Básico' :
                   subscription?.planType === 'premium' ? 'Premium' :
                   subscription?.planType === 'enterprise' ? 'Enterprise' :
+                  subscription?.planType === 'enterprise_plus' ? 'Enterprise Plus' :
                   subscription?.planType ? subscription.planType.charAt(0).toUpperCase() + subscription.planType.slice(1) :
                   'Básico'
                 }}
@@ -284,6 +288,11 @@ onMounted(() => {
             <template v-else-if="subscription?.planType === 'enterprise'">
                <span class="currency">R$</span>
                <span class="amount">199,00</span>
+               <span class="interval">/ mês</span>
+            </template>
+            <template v-else-if="subscription?.planType === 'enterprise_plus'">
+               <span class="currency">R$</span>
+               <span class="amount">359,00</span>
                <span class="interval">/ mês</span>
             </template>
             <template v-else-if="subscription?.planType === 'premium'">
