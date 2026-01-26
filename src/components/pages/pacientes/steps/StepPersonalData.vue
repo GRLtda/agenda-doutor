@@ -14,7 +14,11 @@ const showDDINotification = ref(false)
 
 function formatSimpleDate(dateString) {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('pt-BR', {
+  // Split the date string into components to avoid UTC parsing (new Date('YYYY-MM-DD') is UTC)
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  
+  return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',

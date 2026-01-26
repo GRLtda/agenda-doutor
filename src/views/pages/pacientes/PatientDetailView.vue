@@ -244,6 +244,18 @@ const formattedBirthDate = computed(() => {
 
 function formatSimpleDate(dateString) {
   if (!dateString) return ''
+  
+  // If it's a date string (YYYY-MM-DD)
+  if (dateString.length === 10 && dateString.includes('-')) {
+    const [year, month, day] = dateString.split('-').map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
+  }
+
+  // Fallback for full ISO strings with time
   return new Date(dateString).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'long',
