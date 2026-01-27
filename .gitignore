@@ -26,3 +26,4 @@ dist-ssr
 .env
 .env.*
 !.env.example
+public/proposta-comercial.html
