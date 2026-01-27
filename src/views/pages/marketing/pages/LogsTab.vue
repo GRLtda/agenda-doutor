@@ -1,6 +1,7 @@
 // src/components/pages/marketing/tabs/LogsTab.vue
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCrmLogsStore } from '@/stores/crmLogs'
 import { usePatientsStore } from '@/stores/patients' // Import patient store for search
 import { History, SlidersHorizontal, User, Tag, AlertTriangle, CheckCircle, Clock, Eye, Send, Search, LoaderCircle, MessageSquare } from 'lucide-vue-next' // Added MessageSquare
@@ -13,6 +14,7 @@ import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const logsStore = useCrmLogsStore()
 const patientsStore = usePatientsStore() // Instantiate patient store
+const router = useRouter()
 
 const logs = computed(() => logsStore.logs)
 const pagination = computed(() => logsStore.pagination)
@@ -98,6 +100,15 @@ function getStatusClass(status) {
 function showFullError(message) {
    alert(message || "Sem detalhes adicionais do erro."); // Simple alert for now
 }
+
+function openPatientProfile(patientId) {
+  if (!patientId) return
+  const routeData = router.resolve({
+    name: 'detalhes-paciente',
+    params: { id: patientId }
+  })
+  window.open(routeData.href, '_blank')
+}
 </script>
 
 <template>
@@ -149,7 +160,7 @@ function showFullError(message) {
             </tr>
             <tr v-for="log in logs" :key="log._id" class="log-row">
               <td class="patient-cell">
-                <span v-if="log.patient" class="patient-name">{{ log.patient.name }}</span>
+                <span v-if="log.patient" class="patient-name clickable" @click="openPatientProfile(log.patient._id)">{{ log.patient.name }}</span>
                 <span v-else class="text-muted">N/A</span>
                 <div v-if="log.patient">
                    <PatientPhoneDisplay 
@@ -241,7 +252,9 @@ th svg { margin-right: 0.3rem; vertical-align: text-bottom; }
 
 /* ✨ Coluna Paciente Melhorada */
 .patient-cell { width: 20%; }
-.patient-name { display: block; font-weight: 600; color: var(--preto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.patient-name { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.2s; }
+.patient-name.clickable { cursor: pointer; }
+.patient-name.clickable:hover { color: var(--azul-principal); }
 .patient-phone { display: block; color: var(--cinza-texto); font-size: 0.8rem; }
 
 /* ✨ Coluna Gatilho/Modelo Melhorada */

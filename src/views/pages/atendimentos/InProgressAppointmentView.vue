@@ -48,6 +48,7 @@ import {
   Syringe, // ✨ Import Syringe icon for procedures
   FileSignature, // ✨ Import FileSignature icon for consent terms
   Send, // ✨ Import Send icon for anamnesis
+  RotateCcw, // ✨ Import RotateCcw icon for reopening
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -532,6 +533,58 @@ const focusEditor = () => {
     editor.value.commands.focus()
   }
 }
+
+async function reopenAppointment() {
+  if (!confirm('Deseja reabrir este atendimento? Isso permitirá alterá-lo novamente.')) {
+    return
+  }
+
+  try {
+    isLoadingData.value = true
+    const result = await appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
+    
+    if (result.success) {
+      toast.success('Atendimento reaberto!')
+      
+      // Reset timer if it was stopped
+      if (timerInterval.value) {
+        clearInterval(timerInterval.value)
+      }
+      
+      timerInterval.value = setInterval(() => {
+        elapsedTimeInSeconds.value++
+      }, 1000)
+
+      // Reload data to ensure everything is consistent
+      const [appointmentResult] = await Promise.all([
+        appointmentsStore.fetchAppointmentById(appointmentId),
+        recordsStore.fetchRecordByAppointmentId(appointmentId)
+      ])
+
+      if (appointmentResult.success) {
+        appointment.value = appointmentResult.data
+        isViewMode.value = false
+        editor.value.setEditable(true)
+      }
+    } else {
+      toast.error(result.error || 'Erro ao reabrir atendimento.')
+    }
+  } catch (error) {
+    console.error('Erro ao reabrir atendimento:', error)
+    toast.error('Erro ao reabrir atendimento. Tente novamente.')
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+function openPatientProfile() {
+  const routeData = router.resolve({
+    name: 'detalhes-paciente',
+    params: { id: patientId }
+  })
+  window.open(routeData.href, '_blank')
+}
+
 </script>
 
 <template>
@@ -579,7 +632,7 @@ const focusEditor = () => {
       <div v-if="patient" class="patient-card">
         <div class="avatar">{{ patient.name?.charAt(0) }}</div>
         <div class="patient-details">
-          <div class="name">{{ patient.name }}</div>
+          <div class="name profile-name" @click="openPatientProfile">{{ patient.name }}</div>
           <div class="detail-row">
             <span>Idade</span>
             <span class="value">{{ patientAge }}</span>
@@ -663,16 +716,38 @@ const focusEditor = () => {
           <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle">
             <Menu :size="24" />
           </button>
-          <div class="header-title">
-            {{ isViewMode ? 'Visualizando Atendimento' : 'Novo Atendimento' }}
+          
+          <div v-if="patient && appointment" class="header-patient-info">
+            <div class="patient-name-group">
+              <span class="patient-name profile-name" @click="openPatientProfile">{{ patient.name }}</span>
+              <span class="appointment-status-badge" :class="appointment.status.toLowerCase()">
+                {{ appointment.status }}
+              </span>
+            </div>
+            <div class="appointment-meta">
+              <div class="meta-item">
+                <Calendar :size="14" />
+                <span>{{ formatDate(appointment.startTime) }}</span>
+              </div>
+              <div class="meta-item type-meta" v-if="appointment.type">
+                <Stethoscope :size="14" />
+                <span>{{ appointment.type }}</span>
+              </div>
+              <div class="meta-item return-meta" v-if="appointment.isReturn">
+                <RotateCcw :size="14" />
+                <span>Retorno</span>
+              </div>
+            </div>
           </div>
         </div>
+
         <div class="header-center">
           <div v-if="!isViewMode" class="appointment-timer desktop-only">
             <Clock :size="18" />
             <span>{{ formattedElapsedTime }}</span>
           </div>
         </div>
+
         <div class="header-right">
           <div v-if="!isViewMode" class="appointment-timer mobile-only">
             <Clock :size="18" />
@@ -686,16 +761,31 @@ const focusEditor = () => {
             class="desktop-only"
           />
 
-          <AppButton
-            v-if="!isViewMode"
-            @click="saveAndFinish"
-            variant="secondary"
-            :loading="recordsStore.isLoading || appointmentsStore.isLoading"
-            :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
-          >
-            <span class="desktop-only">Finalizar</span>
-            <ChevronRight :size="16" />
-          </AppButton>
+          <div class="header-actions">
+            <!-- Botão de Reabrir -->
+            <AppButton
+              v-if="isViewMode"
+              @click="reopenAppointment"
+              variant="default"
+              size="sm"
+              class="reopen-btn"
+            >
+              <RotateCcw :size="16" />
+              <span>Reabrir Atendimento</span>
+            </AppButton>
+
+            <!-- Botão de Finalizar -->
+            <AppButton
+              v-if="!isViewMode"
+              @click="saveAndFinish"
+              variant="secondary"
+              :loading="recordsStore.isLoading || appointmentsStore.isLoading"
+              :disabled="recordsStore.isLoading || appointmentsStore.isLoading"
+            >
+              <span class="action-text">Finalizar</span>
+              <ChevronRight :size="16" />
+            </AppButton>
+          </div>
         </div>
       </header>
 
@@ -747,7 +837,7 @@ const focusEditor = () => {
                     {{ patient?.name?.charAt(0) || 'P' }}
                   </div>
                   <div class="profile-info">
-                    <h2 class="profile-name">{{ patient?.name || 'Nome do Paciente' }}</h2>
+                    <h2 class="profile-name" @click="openPatientProfile">{{ patient?.name || 'Nome do Paciente' }}</h2>
                     <div class="profile-contact">
                       <div class="contact-item" v-if="patient?.phone">
                         <Phone :size="14" />
@@ -1003,13 +1093,15 @@ const focusEditor = () => {
 }
 
 .top-bar {
-  background-color: #fafbfc;
-  padding: 1rem 2rem;
+  padding: 0.75rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
+  min-height: 64px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 /* Delete Button Style (reused logic) handled by utility classes now */
@@ -1406,7 +1498,6 @@ const focusEditor = () => {
   font-size: 1.25rem;
   font-weight: 700;
   color: #111827;
-  margin-bottom: 0.5rem;
 }
 
 .profile-contact {
@@ -1710,25 +1801,146 @@ const focusEditor = () => {
 }
 
 
-.header-left,
-.header-right {
-  flex: 1;
+.header-left {
+  flex: 2; /* ✨ Give more space to patient info */
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 .header-right {
+  flex: 1;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 1rem;
 }
 .header-center {
-  flex: 1;
+  flex: 0; /* ✨ Timer doesn't need to push everything away */
   display: flex;
   justify-content: center;
+  min-width: fit-content;
+  margin: 0 1rem;
 }
 .header-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: #333;
+}
+
+/* ✨ New Header Patient Info Styles ✨ */
+.header-patient-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-left: 0.5rem;
+}
+
+.patient-name-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patient-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appointment-status-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Status Colors */
+.appointment-status-badge.iniciado {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #dbeafe;
+}
+
+.appointment-status-badge.realizado {
+  background-color: #ecfdf5;
+  color: #10b981;
+  border: 1px solid #d1fae5;
+}
+
+.appointment-status-badge.pendente {
+  background-color: #fffbeb;
+  color: #f59e0b;
+  border: 1px solid #fef3c7;
+}
+
+.appointment-status-badge.confirmado {
+  background-color: #fefce8;
+  color: #ca8a04;
+  border: 1px solid #fef9c3;
+}
+
+.appointment-status-badge.cancelado {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+
+.appointment-status-badge.não\ compareceu {
+  background-color: #f9fafb;
+  color: #6b7280;
+  border: 1px solid #f3f4f6;
+}
+
+.appointment-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* ✨ Slightly tighter gap */
+  flex-wrap: nowrap; /* ✨ Prevent stacking within the info area unless on mobile */
+  overflow: hidden;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-weight: 500;
+  white-space: nowrap; /* ✨ Prevent text wrapping inside meta-item */
+}
+
+.type-meta {
+  color: var(--azul-principal); /* ✨ Highlight appointment type */
+  font-weight: 600;
+}
+
+.return-meta {
+  color: #f59e0b; /* ✨ Yellow-ish for return */
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reopen-btn {
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.reopen-btn:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
 }
 .appointment-timer {
   display: flex;
@@ -2221,14 +2433,44 @@ const focusEditor = () => {
     max-width: 100%;
   }
 
-  /* Hide Desktop Timer on Mobile */
-  .header-center .desktop-only {
-    display: none;
+  /* ✨ Hide Patient Info on Mobile as requested ✨ */
+  @media (max-width: 768px) {
+    .header-patient-info {
+      display: none;
+    }
+    .header-actions span {
+      display: inline !important; /* ✨ Show text on buttons on mobile */
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .reopen-btn, .mobile-finish-btn, .header-actions button {
+       padding: 0.5rem 1rem;
+       width: auto;
+    }
+  }
+
+  /* Reset previous mobile rules that might conflict */
+  @media (max-width: 640px) {
+    .appointment-meta {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .patient-name {
+      max-width: 120px;
+    }
   }
 
   .header-left {
     display: flex;
     align-items: center;
+    min-width: 0;
+    flex: 1; /* Reset on mobile */
+  }
+
+  .header-center {
+     display: none; /* Hide center element (empty wrapper) on mobile */
   }
 
   .header-title {
@@ -2386,5 +2628,16 @@ const focusEditor = () => {
 
 .w-full {
   width: 100%;
+}
+
+/* ✨ Clickable Profile Name Styles */
+.profile-name {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-name:hover {
+  opacity: 1;
+  color: var(--azul-principal);
 }
 </style>

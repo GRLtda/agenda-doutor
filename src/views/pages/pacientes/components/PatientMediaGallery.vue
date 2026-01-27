@@ -422,6 +422,10 @@ function closePreview() {
   color: #9ca3af;
 }
 
+.gallery-header {
+  margin-bottom: 1rem;
+}
+
 .search-input {
   width: 100%;
   padding: 0.5rem 2.5rem 0.5rem 2.25rem;
