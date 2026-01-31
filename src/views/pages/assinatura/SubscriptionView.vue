@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useClinicStore } from '@/stores/clinic';
 import { useAuthStore } from '@/stores/auth';
+import { usePlansStore } from '@/stores/plans'; // [NEW] Import plans store
 import { CheckCircle, AlertTriangle, Package, CreditCard, Shield, Clock, X, MessageCircle, Edit3, FileText, Info } from 'lucide-vue-next';
 import choroEmoji from '@/assets/imgs/choro_emoji.png';
 
 const clinicStore = useClinicStore();
 const authStore = useAuthStore();
+const plansStore = usePlansStore(); // [NEW]
 
 const loading = ref(true);
 const subscription = ref(null);
@@ -39,6 +41,13 @@ const isCanceled = computed(() => {
   if (subscription.value?.planType === 'enterprise') return false;
   if (subscription.value?.planType === 'enterprise_plus') return false;
   return subscription.value?.status === 'canceled' || !!subscription.value?.cancelAt;
+});
+
+// [NEW] Find detailed plan info from store based on subscription planType
+const currentPlanDetails = computed(() => {
+  if (!subscription.value?.planType) return null;
+  const slug = subscription.value.planType;
+  return plansStore.plans.find(p => p.slug === slug) || null;
 });
 
 const formatDate = (dateString, fullDate = true) => {
@@ -160,6 +169,7 @@ const handleViewInvoice = async () => {
 
 onMounted(() => {
   fetchSubscription();
+  plansStore.fetchPlans(); // [NEW] Fetch plans
 });
 </script>
 
@@ -267,13 +277,15 @@ onMounted(() => {
             <div>
               <span class="card-label">Seu Plano</span>
               <h3 class="plan-name">
+                <!-- [MODIFIED] Use plan name from store if available -->
                 {{ 
-                  subscription?.planType === 'basic' ? 'Básico' :
+                  currentPlanDetails?.name ||
+                  (subscription?.planType === 'basic' ? 'Básico' :
                   subscription?.planType === 'premium' ? 'Premium' :
                   subscription?.planType === 'enterprise' ? 'Enterprise' :
                   subscription?.planType === 'enterprise_plus' ? 'Enterprise Plus' :
                   subscription?.planType ? subscription.planType.charAt(0).toUpperCase() + subscription.planType.slice(1) :
-                  'Básico'
+                  'Básico')
                 }}
               </h3>
             </div>
@@ -284,6 +296,12 @@ onMounted(() => {
                <span class="currency">R$</span>
                <span class="amount">297,00</span>
                <span class="interval">/ único</span>
+            </template>
+            <!-- [MODIFIED] Use plan value from store if available -->
+            <template v-else-if="currentPlanDetails">
+               <span class="currency">R$</span>
+               <span class="amount">{{ formatCurrency(currentPlanDetails.value, 'BRL').replace('R$', '').trim() }}</span>
+               <span class="interval">/ mês</span>
             </template>
             <template v-else-if="subscription?.planType === 'enterprise'">
                <span class="currency">R$</span>
@@ -319,9 +337,19 @@ onMounted(() => {
 
           <div class="card-body">
             <ul class="features-list">
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Acesso total ao sistema</li>
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Suporte prioritário via WhatsApp</li>
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Backup automático</li>
+              <!-- [MODIFIED] Dynamic Features List -->
+              <template v-if="currentPlanDetails?.features && currentPlanDetails.features.length > 0">
+                <li v-for="(feature, index) in currentPlanDetails.features" :key="index">
+                   <div class="check-icon"><CheckCircle :size="14" /></div> {{ feature }}
+                </li>
+              </template>
+              
+              <!-- Fallback to hardcoded if no plan details -->
+              <template v-else>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Acesso total ao sistema</li>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Suporte prioritário via WhatsApp</li>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Backup automático</li>
+              </template>
             </ul>
 
             <!-- Installation Fee Notice -->
@@ -346,6 +374,7 @@ onMounted(() => {
 
         <!-- Payment Method Card -->
         <div class="info-card payment-card">
+
           <div class="card-header">
              <div class="icon-wrapper bg-violet-50">
               <CreditCard class="text-violet-600" :size="24" />
