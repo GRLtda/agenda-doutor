@@ -30,7 +30,7 @@ const { hasAccess } = usePlanAccess()
 const isUserDropdownOpen = ref(false)
 const isClinicDropdownOpen = ref(false)
 
-const planStatus = computed(() => authStore.user?.planStatus)
+const planDetails = computed(() => authStore.user?.planDetails)
 
 // Estado para controlar quais menus estão expandidos
 const expandedItems = ref([])
@@ -261,7 +261,7 @@ const sidebarSections = computed(() => {
       </div>
     </div>
 
-    <div v-if="planStatus?.trial?.isActive && !isCollapsed" class="trial-alert success">
+    <div v-if="planDetails?.trial?.isActive && !isCollapsed" class="trial-alert success">
       <div class="trial-content">
         <div class="trial-icon-wrapper">
           <AppIcon name="check" :size="16" class="trial-icon" />
@@ -269,7 +269,7 @@ const sidebarSections = computed(() => {
         <div class="trial-info">
           <span class="trial-title">Período de Avaliação</span>
           <span class="trial-days">
-            {{ planStatus.trial.daysRemaining }} dias restantes
+            {{ planDetails.trial.daysRemaining }} dias restantes
           </span>
         </div>
       </div>

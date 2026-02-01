@@ -2,13 +2,13 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useClinicStore } from '@/stores/clinic';
 import { useAuthStore } from '@/stores/auth';
-import { usePlansStore } from '@/stores/plans'; // [NEW] Import plans store
+// import { usePlansStore } from '@/stores/plans'; // Removed
 import { CheckCircle, AlertTriangle, Package, CreditCard, Shield, Clock, X, MessageCircle, Edit3, FileText, Info } from 'lucide-vue-next';
 import choroEmoji from '@/assets/imgs/choro_emoji.png';
 
 const clinicStore = useClinicStore();
 const authStore = useAuthStore();
-const plansStore = usePlansStore(); // [NEW]
+// const plansStore = usePlansStore(); // Removed
 
 const loading = ref(true);
 const subscription = ref(null);
@@ -16,8 +16,8 @@ const error = ref(null);
 const actionLoading = ref(false);
 const showCancelModal = ref(false);
 
-const isTrialActive = computed(() => authStore.user?.planStatus?.trial?.isActive);
-const trialDaysRemaining = computed(() => authStore.user?.planStatus?.trial?.daysRemaining);
+const isTrialActive = computed(() => authStore.user?.planDetails?.trial?.isActive);
+const trialDaysRemaining = computed(() => authStore.user?.planDetails?.trial?.daysRemaining);
 
 const statusMap = {
   active: { label: 'Ativa', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle },
@@ -43,11 +43,9 @@ const isCanceled = computed(() => {
   return subscription.value?.status === 'canceled' || !!subscription.value?.cancelAt;
 });
 
-// [NEW] Find detailed plan info from store based on subscription planType
+// [NEW] Find detailed plan info from auth store (optimized)
 const currentPlanDetails = computed(() => {
-  if (!subscription.value?.planType) return null;
-  const slug = subscription.value.planType;
-  return plansStore.plans.find(p => p.slug === slug) || null;
+  return authStore.user?.planDetails || null;
 });
 
 const formatDate = (dateString, fullDate = true) => {
@@ -169,7 +167,7 @@ const handleViewInvoice = async () => {
 
 onMounted(() => {
   fetchSubscription();
-  plansStore.fetchPlans(); // [NEW] Fetch plans
+  // plansStore.fetchPlans(); // Optimized: Data now comes via Auth
 });
 </script>
 
@@ -297,36 +295,16 @@ onMounted(() => {
                <span class="amount">297,00</span>
                <span class="interval">/ único</span>
             </template>
-            <!-- [MODIFIED] Use plan value from store if available -->
-            <template v-else-if="currentPlanDetails">
-               <span class="currency">R$</span>
-               <span class="amount">{{ formatCurrency(currentPlanDetails.value, 'BRL').replace('R$', '').trim() }}</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'enterprise'">
-               <span class="currency">R$</span>
-               <span class="amount">199,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'enterprise_plus'">
-               <span class="currency">R$</span>
-               <span class="amount">359,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'premium'">
-               <span class="currency">R$</span>
-               <span class="amount">159,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'basic' && subscription?.status !== 'free'">
-               <span class="currency">R$</span>
-               <span class="amount">99,90</span>
-               <span class="interval">/ mês</span>
-            </template>
+            <!-- [UPDATED] Use dynamic plan data from Stripe (subscription.plan) or DB (currentPlanDetails) -->
             <template v-else-if="subscription?.plan && typeof subscription.plan === 'object'">
               <span class="currency">{{ subscription.plan.currency.toUpperCase() }}</span>
               <span class="amount">{{ formatCurrency(subscription.plan.amount, subscription.plan.currency).replace('R$', '').trim() }}</span>
-              <span class="interval">/ {{ subscription.plan.interval === 'month' ? 'mês' : 'ano' }}</span>
+              <span class="interval">/ {{ subscription.plan.interval === 'month' ? 'mês' : (subscription.plan.interval === 'year' ? 'ano' : subscription.plan.interval) }}</span>
+            </template>
+            <template v-else-if="currentPlanDetails?.value">
+               <span class="currency">R$</span>
+               <span class="amount">{{ formatCurrency(currentPlanDetails.value, 'BRL').replace('R$', '').trim() }}</span>
+               <span class="interval">/ mês</span>
             </template>
             <template v-else>
                <span class="amount">Grátis</span>
@@ -339,7 +317,7 @@ onMounted(() => {
             <ul class="features-list">
               <!-- [MODIFIED] Dynamic Features List -->
               <template v-if="currentPlanDetails?.features && currentPlanDetails.features.length > 0">
-                <li v-for="(feature, index) in currentPlanDetails.features" :key="index">
+                <li v-for="(feature, index) in (currentPlanDetails.marketingFeatures?.length ? currentPlanDetails.marketingFeatures : currentPlanDetails.features)" :key="index">
                    <div class="check-icon"><CheckCircle :size="14" /></div> {{ feature }}
                 </li>
               </template>

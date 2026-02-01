@@ -31,6 +31,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = newUser
     // Apenas salva no localStorage se o usuário não for nulo
     if (newUser) {
+      if (newUser.planDetails) {
+        // Ensure nested objects are reactive safe if needed, though JSON.parse/stringify handles it.
+      }
       localStorage.setItem('user', JSON.stringify(newUser))
       Sentry.setUser({
         id: newUser.id,
@@ -113,7 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
     localStorage.removeItem('token')
     Sentry.setUser(null)
-    
+
     // Limpa o cabeçalho da API e a store da clínica
     delete apiClient.defaults.headers.common['Authorization']
     const clinicStore = useClinicStore()
