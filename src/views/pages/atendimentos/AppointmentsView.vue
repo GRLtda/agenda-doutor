@@ -119,8 +119,8 @@ const totalAppointments = computed(() => filteredAppointments.value.length)
 async function fetchAppointments() {
   if (!dateRange.value || !dateRange.value[0]) return
   
-  const start = dateRange.value[0].toISOString().split('T')[0]
-  const end = dateRange.value[1] ? dateRange.value[1].toISOString().split('T')[0] : start
+  const start = format(dateRange.value[0], 'yyyy-MM-dd')
+  const end = dateRange.value[1] ? format(dateRange.value[1], 'yyyy-MM-dd') : start
   
   await appointmentsStore.fetchAppointmentsByDate(start, end)
 }

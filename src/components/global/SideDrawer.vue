@@ -110,7 +110,7 @@ const widthClass = computed(() => {
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 /* Mobile Responsiveness for Close Button */

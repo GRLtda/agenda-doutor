@@ -2002,6 +2002,15 @@ async function deleteAppointment(appointment) {
   .patient-detail-view {
     padding: 0rem;
   }
+  .card-section {
+    padding: 0.5rem;
+  }
+  .unified-card {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
   .patient-header {
     align-items: center;
   }

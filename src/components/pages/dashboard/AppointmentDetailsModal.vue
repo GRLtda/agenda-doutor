@@ -32,6 +32,7 @@ import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
+import BottomSheet from '@/components/global/BottomSheet.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -125,16 +126,102 @@ async function updateStatus(status) {
   }
 }
 
-function handleCancelClick() {
-  if (isConfirmingCancel.value) {
-    clearCancelTimer()
-    updateStatus('Cancelado')
-  } else {
-    isConfirmingCancel.value = true
-    cancelConfirmTimer.value = setTimeout(() => {
-      isConfirmingCancel.value = false
-    }, 5000)
+const showCancelInput = ref(false)
+const cancelReason = ref('')
+const reasonOptions = [
+    'Paciente desistiu', 
+    'Imprevisto médico', 
+    'Erro de agendamento', 
+    'Não compareceu',
+    'Duplicidade',
+    'Procedimento contraindicado',
+    'Remarcado',
+    'Outro'
+]
+
+// Scroll Drag Logic for Quick Reasons
+const quickReasonsRef = ref(null)
+const isDown = ref(false)
+const isDragging = ref(false)
+const startX = ref(0)
+const scrollLeft = ref(0)
+
+function startDragging(e) {
+    isDown.value = true
+    isDragging.value = false // Reset drag state on new press
+    startX.value = e.pageX - quickReasonsRef.value.offsetLeft
+    scrollLeft.value = quickReasonsRef.value.scrollLeft
+}
+
+function stopDragging() {
+    isDown.value = false
+    // Don't reset isDragging here immediately to allow click handler to check it
+    // But we need to ensure it doesn't get stuck. 
+    // Actually, click fires immediately after mouseup.
+    // We can reset it shortly after.
+    setTimeout(() => {
+        isDragging.value = false
+    }, 100)
+}
+
+function onDragMove(e) {
+    if (!isDown.value) return
+    e.preventDefault()
+    const x = e.pageX - quickReasonsRef.value.offsetLeft
+    const walk = x - startX.value
+    
+    // Threshold de 5px para considerar arrasto
+    if (Math.abs(walk) > 5) {
+        isDragging.value = true
+        quickReasonsRef.value.scrollLeft = scrollLeft.value - walk * 1.5
+    }
+}
+
+function selectReason(reason) {
+    if (isDragging.value) return 
+    cancelReason.value = reason
+}
+
+const isCancelling = ref(false)
+
+async function handleCancelClick() {
+  if (!showCancelInput.value) {
+    showCancelInput.value = true
+    return
   }
+
+  if (!cancelReason.value.trim()) {
+    toast.warning('Por favor, informe o motivo do cancelamento.')
+    return
+  }
+
+  try {
+    isCancelling.value = true
+    
+    const appointmentId = props.event.originalEvent._id
+    const result = await appointmentsStore.updateAppointment(appointmentId, { 
+        status: 'Cancelado', 
+        cancellationReason: cancelReason.value 
+    })
+
+    if (result.success) {
+        toast.success('Agendamento cancelado com sucesso.')
+        showCancelInput.value = false
+        emit('close')
+    } else {
+        throw new Error('Falha ao atualizar')
+    }
+  } catch (error) {
+    console.error('Erro ao cancelar:', error)
+    toast.error('Erro ao cancelar agendamento.')
+  } finally {
+    isCancelling.value = false
+  }
+}
+
+function cancelCancellation() {
+    showCancelInput.value = false
+    cancelReason.value = ''
 }
 
 const isDeleteConfirming = ref(false)
@@ -217,9 +304,6 @@ function handleApprove() {
   updateStatus('Confirmado')
 }
 
-onUnmounted(() => {
-  clearCancelTimer()
-})
 </script>
 
 <template>
@@ -329,8 +413,8 @@ onUnmounted(() => {
                      {{ badgeInfo.displayText }}
                   </div>
                </div>
-               
-               <div class="booking-item">
+
+                <div class="booking-item">
                     <span class="label">Profissional</span>
                     <div class="value doctor-name-container">
                         <div class="doctor-avatar-small">
@@ -339,6 +423,15 @@ onUnmounted(() => {
                         <span class="text-truncate" :title="appointment.doctor?.name">
                             {{ appointment.doctor?.name || 'Não atribuído' }}
                         </span>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="appointment.status === 'Cancelado' && appointment.cancellationReason" class="booking-row mt-4">
+                <div class="booking-item full-width">
+                    <span class="label text-red-500">Motivo do Cancelamento</span>
+                    <div class="value">
+                        <span class="reason-content">{{ appointment.cancellationReason }}</span>
                     </div>
                 </div>
             </div>
@@ -400,6 +493,7 @@ onUnmounted(() => {
             <span class="sub-text">Pode ser um registro antigo ou incompleto.</span>
          </div>
       </section>
+
     </template>
 
     <template #footer>
@@ -439,7 +533,7 @@ onUnmounted(() => {
             variant="primary"
          >
             <Play :size="18" />
-            Iniciar Atendimento
+            Iniciar
          </AppButton>
 
 
@@ -455,6 +549,82 @@ onUnmounted(() => {
             <div class="progress-bg"></div>
          </button>
       </footer>
+       <!-- Bottom Sheet de Cancelamento (Inside Footer slot to avoid body overflow clipping) -->
+      <BottomSheet 
+        v-if="showCancelInput" 
+        :title="'Cancelar Atendimento'" 
+        @close="cancelCancellation"
+        :absolute="true"
+      >
+          <template #header>
+              <div class="sheet-header-custom">
+                 <div class="header-icon-wrapper">
+                    <AlertCircle :size="24" class="text-red-600" />
+                 </div>
+                 <div class="header-texts">
+                    <h3 class="header-title">Cancelar Atendimento</h3>
+                    <p class="header-subtitle">O agendamento poderá ser reaberto</p>
+                 </div>
+              </div>
+          </template>
+
+          <div class="cancel-sheet-content mt-2">
+              <p class="text-sm text-gray-500 mb-6">
+                Selecione um motivo rápido ou descreva abaixo o motivo do cancelamento deste agendamento.
+              </p>
+              
+              <div class="flex space-between items-center mb-2">
+                  <label class="block text-sm text-gray-700">Descrever Motivo</label>
+                  <span class="text-xs text-gray-500">{{ cancelReason.length }}/140</span>
+              </div>
+              <textarea 
+                  v-model="cancelReason"
+                  class="cancel-textarea"
+                  placeholder="Informe os detalhes do cancelamento..."
+                  rows="4"
+                  autofocus
+                  maxlength="140"
+              ></textarea>
+
+               <div 
+                ref="quickReasonsRef"
+                class="quick-reasons mb-4"
+                :class="{ 'is-dragging': isDragging }"
+                @mousedown="startDragging"
+                @mouseleave="stopDragging"
+                @mouseup="stopDragging"
+                @mousemove="onDragMove"
+                @dragstart.prevent
+              >
+                  <button 
+                    v-for="reason in reasonOptions" 
+                    :key="reason"
+                    class="reason-chip"
+                    :class="{ 'active': cancelReason === reason }"
+                    @click="selectReason(reason)"
+                  >
+                    {{ reason }}
+                  </button>
+              </div>
+          </div>
+
+          <template #footer>
+            <div class="flex gap-3 pt-2">
+                <AppButton @click="cancelCancellation" variant="outline" class="flex-1">
+                    Voltar
+                </AppButton>
+                <AppButton 
+                    @click="handleCancelClick" 
+                    variant="dangerous" 
+                    class="flex-1"
+                    :loading="isCancelling"
+                    :disabled="isCancelling"
+                >
+                    {{ isCancelling ? 'Cancelando...' : 'Confirmar Cancelamento' }}
+                </AppButton>
+            </div>
+          </template>
+      </BottomSheet>
     </template>
   </SideDrawer>
 </template>
@@ -801,6 +971,113 @@ onUnmounted(() => {
   padding-bottom: 0;
 }
 
+.history-item:last-child .history-marker::before {
+  display: none; /* Hide connecting line for last item */
+}
+
+/* Cancel Section */
+.cancel-section {
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.cancel-box {
+    background: #fef2f2;
+    border: 1px solid #fee2e2;
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.cancel-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+    margin-bottom: 1rem;
+    transition: all 0.2s;
+}
+
+.cancel-textarea:focus {
+    outline: none;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.cancel-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.text-red-600 {
+    color: #dc2626;
+}
+
+.text-gray-500 {
+    color: #6b7280;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cancel Sheet Styles */
+.cancel-sheet-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.warning-box {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: #fef2f2;
+    border-radius: 0.5rem;
+    border: 1px solid #fee2e2;
+    align-items: flex-start;
+}
+
+.cancel-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: none;
+    transition: all 0.2s;
+    background-color: #fff;
+    color: #111827;
+}
+
+.cancel-textarea:focus {
+    outline: none;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.text-red-500 { color: #ef4444; }
+.text-gray-700 { color: #374151; }
+.font-medium { font-weight: 500; }
+.block { display: block; }
+.flex-shrink-0 { flex-shrink: 0; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.flex { display: flex; }
+.gap-3 { gap: 0.75rem; }
+.flex-1 { flex: 1; }
+
 /* Linha conectora */
 .history-item:not(:last-child)::before {
   content: '';
@@ -909,7 +1186,7 @@ onUnmounted(() => {
 
 /* Footer */
 .drawer-footer {
-  padding: 1.5rem;
+  padding: 1rem;
   border-top: 1px solid #f3f4f6;
   display: flex;
   justify-content: flex-end;
@@ -1083,4 +1360,172 @@ onUnmounted(() => {
   position: relative;
   z-index: 2;
 }
+
+/* Cancel Sheet Styles */
+.cancel-sheet-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.warning-box {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: #fef2f2;
+    border-radius: 0.5rem;
+    border: 1px solid #fee2e2;
+    align-items: flex-start;
+}
+
+.cancel-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: none;
+    transition: all 0.2s;
+    background-color: #fff;
+    color: #111827;
+}
+
+.cancel-textarea:focus {
+    outline: none;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.text-red-500 { color: #ef4444; }
+.text-gray-700 { color: #374151; }
+.font-medium { font-weight: 500; }
+.block { display: block; }
+.flex-shrink-0 { flex-shrink: 0; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.flex { display: flex; }
+.gap-3 { gap: 0.75rem; }
+.flex-1 { flex: 1; }
+
+.pt-2 { padding-top: 0.5rem; }
+.mb-6 { margin-bottom: 1rem; }
+.space-between {
+    justify-content: space-between;
+}
+
+/* Quick Reasons Chips */
+.quick-reasons {
+    display: flex;
+    flex-wrap: nowrap; /* Prevent wrapping */
+    gap: 0.5rem;
+    overflow-x: auto; /* Enable horizontal scroll */
+    padding-bottom: 0.5rem; /* Space for scrollbar */
+    -webkit-overflow-scrolling: touch; /* Smooth scroll iOS */
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+    cursor: grab; /* Indica que é arrastável */
+    user-select: none; /* Impede seleção de texto ao arrastar */
+}
+
+.quick-reasons:active {
+    cursor: grabbing;
+}
+
+.quick-reasons.is-dragging {
+    cursor: grabbing;
+}
+
+.quick-reasons.is-dragging .reason-chip {
+    cursor: grabbing;
+    pointer-events: none; /* Impede hover/click enquanto arrasta */
+}
+
+/* Hide Scrollbar Chrome/Safari/Webkit */
+.quick-reasons::-webkit-scrollbar {
+    display: none;
+}
+
+.reason-chip {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 99px;
+    padding: 0.375rem 1rem;
+    font-size: 0.8125rem;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    white-space: nowrap; /* Prevent text wrap inside chip */
+    flex-shrink: 0; /* Prevent chip shrinking */
+}
+
+.reason-chip:hover {
+    border-color: #d1d5db;
+    background: #f9fafb;
+    color: #111827;
+}
+
+.reason-chip.active {
+    background: #eff6ff;
+    border-color: var(--azul-principal);
+    color: var(--azul-principal);
+}
+
+/* Custom Header Styles */
+.sheet-header-custom {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-top: 0.5rem;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.cancel-reason-display .label {
+    color: #dc2626; /* Red 600 */
+    font-weight: 600;
+}
+
+.reason-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    max-width: 100%;
+}
+
+.header-icon-wrapper {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: #fef2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-texts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.header-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.header-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 400;
+}
+
+.mt-2 { margin-top: 0.5rem; }
 </style>
