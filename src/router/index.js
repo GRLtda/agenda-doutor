@@ -2,26 +2,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { checkPlanAccess, getRouteFeature } from '@/composables/usePlanAccess'
 import dashboardRoutes from './dashboard'
-
-
-// Views Públicas e de Autenticação
-import LandingView from '../views/LandingView.vue'
 import LoginView from '../views/pages/autenticacao/LoginView.vue'
 import RegisterView from '../views/pages/autenticacao/RegisterView.vue'
 import ClinicWizardView from '../views/pages/onboarding/ClinicWizardView.vue'
 import AnswerAnamnesisView from '../views/public/AnswerAnamnesisView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
-import TermsView from '../views/TermsView.vue'
-import PrivacyPolicyView from '../views/PrivacyPolicyView.vue'
-import LgpdView from '../views/LgpdView.vue'
-import ChangelogView from '../views/ChangelogView.vue'
 
 const routes = [
-  { path: '/', name: 'landing', component: LandingView, meta: { public: true, title: 'Bem-vindo' } },
-  { path: '/termos', name: 'terms', component: TermsView, meta: { public: true, title: 'Termos de Uso' } },
-  { path: '/privacidade', name: 'privacy', component: PrivacyPolicyView, meta: { public: true, title: 'Política de Privacidade' } },
-  { path: '/lgpd', name: 'lgpd', component: LgpdView, meta: { public: true, title: 'LGPD' } },
-  { path: '/atualizacao', name: 'atualizacao', component: ChangelogView, meta: { public: true, title: 'Atualizações' } },
+  { path: '/', redirect: { name: 'login' } },
   { path: '/login', name: 'login', component: LoginView, meta: { public: true, title: 'Login' } },
   {
     path: '/register',
