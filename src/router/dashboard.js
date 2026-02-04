@@ -26,7 +26,6 @@ import SubscriptionView from '../views/pages/assinatura/SubscriptionView.vue'
 
 const dashboardRoutes = [
   {
-  {
     path: '/',
     component: DefaultLayout,
     meta: { requiresAuth: true },
