@@ -23,6 +23,7 @@ const toast = useToast()
 const responseData = ref(null)
 const submissionStatus = ref('pending') // pending, success, error
 const token = route.params.token
+const logoError = ref(false)
 
 // Canvas de assinatura
 const signatureCanvas = ref(null)
@@ -270,27 +271,95 @@ async function handleSubmit() {
 
 <template>
   <div class="consent-page">
-    <!-- Success State -->
-    <div v-if="submissionStatus === 'success'" class="card success-card">
-      <CheckCircle2 class="success-icon" :size="64" />
-      <h2 class="success-title">Termo Assinado!</h2>
-      <p class="success-message">
-        Sua assinatura foi registrada com sucesso
-        <span v-if="responseData?.clinicInfo?.name">
-          para a <strong>{{ responseData.clinicInfo.name }}</strong>
-        </span>.
-      </p>
-      <p class="success-footer">Você já pode fechar esta página.</p>
+    <!-- ✨ TELA DE SUCESSO REFINADA -->
+    <div v-if="submissionStatus === 'success'" class="status-wrapper">
+      <div class="status-card success-card">
+        <!-- Elementos decorativos -->
+        <div class="decorative-circles">
+          <div class="circle circle-1"></div>
+          <div class="circle circle-2"></div>
+          <div class="circle circle-3"></div>
+        </div>
+
+        <!-- Ícone com background animado -->
+        <div class="icon-wrapper success-icon-bg">
+          <div class="icon-glow"></div>
+          <CheckCircle2 class="status-icon success-icon" :size="48" />
+        </div>
+
+        <!-- Conteúdo principal -->
+        <div class="status-content">
+          <h2 class="status-title success-title">Termo Assinado!</h2>
+          <p class="status-subtitle">Sua assinatura foi registrada com sucesso</p>
+        </div>
+
+        <!-- Mensagem de agradecimento -->
+        <div class="thank-you-box">
+          <p>Sua assinatura digital foi registrada com segurança. A clínica receberá uma cópia do termo assinado.</p>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="status-footer">
+          <div class="footer-divider"></div>
+          <p class="footer-text">
+            Você já pode fechar esta página com segurança
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- Error State -->
-    <div v-else-if="submissionStatus === 'error'" class="card error-card">
-      <AlertTriangle class="error-icon" :size="64" />
-      <h2 class="error-title">Link Inválido ou Expirado</h2>
-      <p class="error-message">
-        Não foi possível carregar o termo. Por favor, entre em contato com a
-        clínica para solicitar um novo link.
-      </p>
+    <!-- ✨ TELA DE ERRO REFINADA -->
+    <div v-else-if="submissionStatus === 'error'" class="status-wrapper">
+      <div class="status-card error-card">
+        <!-- Elementos decorativos -->
+        <div class="decorative-circles error-circles">
+          <div class="circle circle-1"></div>
+          <div class="circle circle-2"></div>
+          <div class="circle circle-3"></div>
+        </div>
+
+        <!-- Ícone com background animado -->
+        <div class="icon-wrapper error-icon-bg">
+          <div class="icon-glow error-glow"></div>
+          <AlertTriangle class="status-icon error-icon" :size="48" />
+        </div>
+
+        <!-- Conteúdo principal -->
+        <div class="status-content">
+          <h2 class="status-title error-title">Link Inválido ou Expirado</h2>
+          <p class="status-subtitle">Não foi possível carregar o termo</p>
+        </div>
+
+        <!-- Box de instrução -->
+        <div class="instruction-box">
+          <div class="instruction-header">
+            <span class="instruction-icon">💡</span>
+            <span class="instruction-label">O que fazer agora?</span>
+          </div>
+          <ul class="instruction-list">
+            <li>
+              <span class="list-bullet">1</span>
+              <span>Entre em contato com a clínica ou profissional de saúde</span>
+            </li>
+            <li>
+              <span class="list-bullet">2</span>
+              <span>Solicite um novo link para assinar o termo</span>
+            </li>
+            <li>
+              <span class="list-bullet">3</span>
+              <span>Verifique se o link foi copiado corretamente</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="status-footer">
+          <div class="footer-divider error-divider"></div>
+          <p class="footer-text error-footer-text">
+            Links de termos expiram após um período para sua segurança
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Form -->
@@ -298,10 +367,11 @@ async function handleSubmit() {
       <header class="page-header">
         <div class="clinic-branding">
           <img
-            v-if="responseData.clinicInfo?.logoUrl"
+            v-if="responseData.clinicInfo?.logoUrl && !logoError"
             :src="responseData.clinicInfo.logoUrl"
             alt="Logo da clínica"
             class="clinic-logo"
+            @error="logoError = true"
           />
           <div v-else class="clinic-logo-placeholder">
             <Building :size="24" />
@@ -941,62 +1011,274 @@ async function handleSubmit() {
   margin-bottom: 0;
 }
 
-/* Success & Error Cards */
-.success-card,
-.error-card {
-  text-align: center;
-  padding: 4rem 2rem;
+/* --- ✨ TELAS DE STATUS REFINADAS --- */
+.status-wrapper {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 2rem;
+  min-height: 100vh;
+  width: 100%;
+  padding: 2rem;
+}
+
+.status-card {
+  position: relative;
+  border-radius: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  padding: 3rem 2.5rem;
+  text-align: center;
+  overflow: hidden;
+  animation: card-appear 0.6s ease-out forwards;
+}
+
+/* Círculos decorativos */
+.decorative-circles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.success-card .circle-1 {
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0) 70%);
+  top: -80px;
+  right: -60px;
+  animation: float 6s ease-in-out infinite;
+}
+
+.success-card .circle-2 {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 70%);
+  bottom: -40px;
+  left: -30px;
+  animation: float 8s ease-in-out infinite reverse;
+}
+
+.success-card .circle-3 {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0) 70%);
+  top: 50%;
+  right: -20px;
+  animation: float 5s ease-in-out infinite;
+}
+
+.error-circles .circle-1 {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0) 70%);
+}
+
+.error-circles .circle-2 {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0) 70%);
+}
+
+.error-circles .circle-3 {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0) 70%);
+}
+
+/* Wrapper do ícone */
+.icon-wrapper {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  animation: pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.success-icon-bg {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.error-icon-bg {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.icon-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.error-glow {
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.status-icon {
+  position: relative;
+  z-index: 1;
 }
 
 .success-icon {
   color: #10b981;
-  margin-bottom: 1.5rem;
-  animation: pop-in 0.5s ease forwards;
-}
-
-.success-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.success-message {
-  font-size: 1.125rem;
-  color: var(--cinza-texto);
-  max-width: 450px;
-  margin-bottom: 2rem;
-}
-
-.success-message strong {
-  color: var(--preto);
-}
-
-.success-footer {
-  font-size: 0.875rem;
-  color: #9ca3af;
 }
 
 .error-icon {
   color: #f59e0b;
+}
+
+/* Conteúdo */
+.status-content {
   margin-bottom: 1.5rem;
+  animation: slide-up 0.6s ease-out forwards;
+  animation-delay: 0.15s;
+  opacity: 0;
+}
+
+.status-title {
+  font-family: var(--fonte-titulo);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.025em;
+}
+
+.success-title {
+  color: #065f46;
 }
 
 .error-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #b45309;
-  margin-bottom: 0.5rem;
+  color: #92400e;
 }
 
-.error-message {
-  font-size: 1.125rem;
-  color: var(--cinza-texto);
-  max-width: 450px;
+.status-subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+/* Box de agradecimento */
+.thank-you-box {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+  animation: slide-up 0.6s ease-out forwards;
+  animation-delay: 0.25s;
+  opacity: 0;
+}
+
+.thank-you-box p {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Box de instruções */
+.instruction-box {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #fde68a;
+  text-align: left;
+  animation: slide-up 0.6s ease-out forwards;
+  animation-delay: 0.25s;
+  opacity: 0;
+}
+
+.instruction-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.instruction-icon {
+  font-size: 1.25rem;
+}
+
+.instruction-label {
+  font-weight: 600;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.instruction-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.instruction-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+.list-bullet {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: #fbbf24;
+  color: #78350f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Rodapé */
+.status-footer {
+  animation: slide-up 0.6s ease-out forwards;
+  animation-delay: 0.35s;
+  opacity: 0;
+}
+
+.footer-divider {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  border-radius: 2px;
+  margin: 0 auto 1rem;
+}
+
+.error-divider {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.footer-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.error-footer-text {
+  font-size: 0.8rem;
+  color: #78716c;
 }
 
 /* Loading */
@@ -1021,6 +1303,26 @@ async function handleSubmit() {
 @keyframes pop-in {
   from { transform: scale(0.5); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(5deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.15); opacity: 0.4; }
+}
+
+@keyframes card-appear {
+  from { transform: translateY(30px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes spin {
@@ -1054,6 +1356,66 @@ async function handleSubmit() {
 
   .form-header h1 {
     font-size: 1.25rem;
+  }
+
+  /* ✨ Estilos responsivos para as telas de status */
+  .status-wrapper {
+    padding: 1rem;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  }
+
+  .status-card {
+    padding: 0;
+    border-radius: 1.25rem;
+    margin: 0;
+  }
+
+  .icon-wrapper {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1.25rem;
+  }
+
+  .status-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .status-title {
+    font-size: 1.5rem;
+  }
+
+  .status-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .thank-you-box,
+  .instruction-box {
+    padding: 1rem;
+  }
+
+  .thank-you-box p {
+    font-size: 0.8rem;
+  }
+
+  .instruction-list li {
+    font-size: 0.8rem;
+  }
+
+  .list-bullet {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+
+  .footer-text {
+    font-size: 0.8rem;
+  }
+
+  /* Esconde círculos decorativos em mobile para performance */
+  .decorative-circles {
+    display: none;
   }
 }
 </style>
