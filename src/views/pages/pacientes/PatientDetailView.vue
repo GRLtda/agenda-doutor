@@ -761,13 +761,13 @@ async function deleteAppointment(appointment) {
                         >Respondida em {{ formatSimpleDate(item.updatedAt) }}</span
                       >
                     </div>
-                    <button
+                    <!-- <button
                       @click.stop="handleGeneratePdf(item)"
                       class="btn-icon"
                       title="Visualizar PDF"
                     >
                       <FileDown class="title-icon" :size="16" />
-                    </button>
+                    </button> -->
                   </li>
                 </ul>
 

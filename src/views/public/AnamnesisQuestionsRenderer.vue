@@ -38,15 +38,25 @@ function getVisibleSubQuestions(question) {
   }
 
   const answerObj = props.answers[question.qId]
-  // Se não tem resposta (e não estamos editando/respondendo), não mostra nada?
-  // Na verdade, se estamos respondendo, answers[qId] deve existir (inicializado).
-  if (!answerObj) return []
+  
+  // Normal Condition: Logic based on parent's answer
+  const currentAnswer = answerObj ? String(answerObj.answer) : ''
 
-  const currentAnswer = String(answerObj.answer)
-
-  // Filtra os grupos que correspondem à resposta atual e "achata" as perguntas em uma única lista
   return question.conditionalQuestions
-    .filter((group) => group.showWhenAnswerIs === currentAnswer)
+    .filter((group) => {
+      if (answerObj && group.showWhenAnswerIs === currentAnswer) {
+        return true
+      }
+
+      const hasAnsweredChild = group.questions.some(childQ => {
+          const childVal = props.answers[childQ.qId]?.answer
+          // Consider "answered" if not null/undefined and not empty string/array
+          if (Array.isArray(childVal)) return childVal.length > 0
+          return childVal !== undefined && childVal !== '' && childVal !== null
+      })
+      
+      return hasAnsweredChild
+    })
     .flatMap((group) => group.questions)
 }
 </script>
