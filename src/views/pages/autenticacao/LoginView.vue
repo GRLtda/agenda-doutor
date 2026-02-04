@@ -68,7 +68,7 @@ async function handleLogin() {
   isLoading.value = false
 
   if (success) {
-    const redirectPath = router.currentRoute.value.query.redirect || '/app'
+    const redirectPath = router.currentRoute.value.query.redirect || '/'
     router.push(redirectPath)
   } else {
     errorMessage.value = error || 'Email ou senha inválidos.'
@@ -98,7 +98,7 @@ async function handleResetPassword() {
   })
   isLoading.value = false
   if (success) {
-    router.push('/app')
+    router.push('/')
   } else {
     errorMessage.value = error
   }

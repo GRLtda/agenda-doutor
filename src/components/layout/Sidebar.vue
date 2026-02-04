@@ -98,21 +98,21 @@ const sidebarSections = computed(() => {
   const principalSection = {
     title: null, // Sem título para a primeira seção
     links: [
-      { icon: 'dashboard', text: 'Resumo', to: '/app' },
-      { icon: 'calendar-search', text: 'Calendário', to: '/app/calendario' },
-      { icon: 'calendar', text: 'Atendimentos', to: '/app/atendimentos' },
+      { icon: 'dashboard', text: 'Resumo', to: '/' },
+      { icon: 'calendar-search', text: 'Calendário', to: '/calendario' },
+      { icon: 'calendar', text: 'Atendimentos', to: '/atendimentos' },
     ]
   }
 
   // Seção Gestão
   const gestaoLinks = [
-    { icon: 'users', text: 'Pacientes', to: '/app/pacientes' },
-    { icon: 'stethoscope', text: 'Procedimentos', to: '/app/procedimentos' },
+    { icon: 'users', text: 'Pacientes', to: '/pacientes' },
+    { icon: 'stethoscope', text: 'Procedimentos', to: '/procedimentos' },
   ]
   
   // Adiciona Financeiro apenas se tiver acesso
   if (hasAccess('finance')) {
-    gestaoLinks.push({ icon: 'dollar', text: 'Financeiro', to: '/app/financeiro' })
+    gestaoLinks.push({ icon: 'dollar', text: 'Financeiro', to: '/financeiro' })
   }
   
   const gestaoSection = {
@@ -122,10 +122,10 @@ const sidebarSections = computed(() => {
 
   // Seção Marketing - com subitens
   const allMarketingChildren = [
-    { text: 'Mensagens', to: '/app/marketing/mensagens', icon: 'message', feature: 'marketing_messages' },
-    { text: 'Modelos', to: '/app/marketing/modelos', icon: 'template', feature: 'marketing_templates' },
-    { text: 'Conexão', to: '/app/marketing/conexao', icon: 'link', feature: 'marketing_connection' },
-    { text: 'Histórico', to: '/app/marketing/logs', icon: 'history', feature: 'marketing_logs' },
+    { text: 'Mensagens', to: '/marketing/mensagens', icon: 'message', feature: 'marketing_messages' },
+    { text: 'Modelos', to: '/marketing/modelos', icon: 'template', feature: 'marketing_templates' },
+    { text: 'Conexão', to: '/marketing/conexao', icon: 'link', feature: 'marketing_connection' },
+    { text: 'Histórico', to: '/marketing/logs', icon: 'history', feature: 'marketing_logs' },
   ]
   
   const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))
@@ -141,7 +141,7 @@ const sidebarSections = computed(() => {
   
   // Adiciona Workflows se tiver acesso
   if (hasAccess('workflows')) {
-    marketingLinks.push({ icon: 'workflow', text: 'Workflows', to: '/app/workflows' })
+    marketingLinks.push({ icon: 'workflow', text: 'Workflows', to: '/workflows' })
   }
   
   const marketingSection = {
@@ -153,8 +153,8 @@ const sidebarSections = computed(() => {
   const configSection = {
     title: 'Sistema',
     links: [
-      { icon: 'settings', text: 'Configurações', to: '/app/configuracoes' },
-      { icon: 'support', text: 'Suporte', to: '/app/suporte' },
+      { icon: 'settings', text: 'Configurações', to: '/configuracoes' },
+      { icon: 'support', text: 'Suporte', to: '/suporte' },
     ]
   }
 
@@ -242,8 +242,8 @@ const sidebarSections = computed(() => {
               :to="link.to"
               class="nav-link"
               :title="isCollapsed ? link.text : ''"
-              :active-class="link.to === '/app' ? '' : 'active-link'"
-              :exact-active-class="link.to === '/app' ? 'active-link' : ''"
+              :active-class="link.to === '/' ? '' : 'active-link'"
+              :exact-active-class="link.to === '/' ? 'active-link' : ''"
             >
               <AppIcon :name="link.icon" :size="20" />
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>

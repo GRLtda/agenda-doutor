@@ -249,7 +249,7 @@ async function deleteSelectedNode() {
 }
 
 function goBack() {
-  router.push('/app/workflows')
+  router.push('/workflows')
 }
 
 // Helper for display

@@ -109,7 +109,7 @@ function formatTimelineDate(dateString) {
 function goToPatient() {
   if (patient.value && patient.value._id) {
     emit('close')
-    router.push(`/app/pacientes/${patient.value._id}`)
+    router.push(`/pacientes/${patient.value._id}`)
   } else {
     toast.info('Este agendamento não parece ter um paciente vinculado.')
   }

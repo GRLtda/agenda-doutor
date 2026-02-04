@@ -24,13 +24,13 @@ function handleLogout() {
   <div class="dropdown-menu" :class="`direction-${direction}`">
     <ul>
       <li>
-        <button class="dropdown-item" @click="router.push('/app/perfil')">
+        <button class="dropdown-item" @click="router.push('/perfil')">
           <User :size="16" />
           <span>Perfil</span>
         </button>
       </li>
       <li v-if="authStore.user?.role === 'owner'">
-        <button class="dropdown-item" @click="router.push('/app/assinatura')">
+        <button class="dropdown-item" @click="router.push('/assinatura')">
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
@@ -39,7 +39,7 @@ function handleLogout() {
       <li class="separator"></li>
 
       <li>
-        <button class="dropdown-item" @click="router.push('/app/ajuda')">
+        <button class="dropdown-item" @click="router.push('/ajuda')">
           <LifeBuoy :size="16" />
           <span>Central de Ajuda</span>
         </button>

@@ -96,7 +96,7 @@ onUnmounted(() => {
           </li>
         </ul>
 
-        <button @click="router.push('/app')" class="auth-button">Ir para o Dashboard</button>
+        <button @click="router.push('/')" class="auth-button">Ir para o Dashboard</button>
       </div>
     </div>
   </AuthCard>

@@ -48,9 +48,9 @@ const isGlobalLoading = computed(() => {
 
 const allShortcuts = ref([
   { name: 'Agendar Atendimento', icon: Calendar, action: () => emit('open-schedule-modal') },
-  { name: 'Adicionar Paciente', icon: User, path: '/app/pacientes/novo' },
-  { name: 'Ver Pacientes', icon: User, path: '/app/pacientes' },
-  { name: 'Configurações', icon: Settings, path: '/app/configuracoes' },
+  { name: 'Adicionar Paciente', icon: User, path: '/pacientes/novo' },
+  { name: 'Ver Pacientes', icon: User, path: '/pacientes' },
+  { name: 'Configurações', icon: Settings, path: '/configuracoes' },
 ])
 
 const filteredShortcuts = computed(() => {

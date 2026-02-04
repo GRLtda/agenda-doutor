@@ -89,7 +89,7 @@ async function submitForm() {
 
     if (success) {
       toast.success('Paciente cadastrado com sucesso!')
-      router.push('/app/pacientes')
+      router.push('/pacientes')
     } else {
       // E usamos a variável 'error' para exibir a mensagem específica.
       const errorMessage = error || 'Erro ao cadastrar paciente.'

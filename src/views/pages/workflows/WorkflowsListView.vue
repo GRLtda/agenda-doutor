@@ -50,7 +50,7 @@ onMounted(async () => {
 
 function goToWorkflow(id) {
   if (actionsMenuOpenFor.value === id) return
-  router.push(`/app/workflows/${id}`)
+  router.push(`/workflows/${id}`)
 }
 
 function toggleActionsMenu(id) {
@@ -86,7 +86,7 @@ async function handleCreate() {
       description: newWorkflowData.value.description.trim()
     })
     closeCreateModal()
-    router.push(`/app/workflows/${newWorkflow._id}`)
+    router.push(`/workflows/${newWorkflow._id}`)
   } catch (error) {
     // Erro já tratado no store
   } finally {

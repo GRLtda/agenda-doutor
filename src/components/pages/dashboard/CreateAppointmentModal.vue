@@ -243,7 +243,7 @@ function handlePatientSearch(query) {
 
 function goToCreatePatient() {
   emit('close')
-  router.push('/app/pacientes/novo')
+  router.push('/pacientes/novo')
 }
 
 // ✨ 3. Função para formatar data para ISO (necessária para a API)

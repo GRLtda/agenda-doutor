@@ -140,7 +140,7 @@ async function handleRegister() {
 function handleRegistrationComplete() {
   if (isStaffInvitation.value) {
     // Se for convite de FUNCIONÁRIO, vai para o app
-    router.push('/app')
+    router.push('/')
   } else {
     // Se for registro (com convite de ?token), vai para o onboarding
     router.push('/onboarding/clinic') 

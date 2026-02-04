@@ -48,7 +48,7 @@ function handlePatientSearch(query) {
 
 watch(selectedPatientId, (newId) => {
   if (newId) {
-    router.push(`/app/pacientes/${newId}`)
+    router.push(`/pacientes/${newId}`)
   }
 })
 
@@ -65,7 +65,7 @@ function goToPatient(patientId) {
   if (actionsMenuOpenFor.value === patientId) {
     return
   }
-  router.push(`/app/pacientes/${patientId}`)
+  router.push(`/pacientes/${patientId}`)
 }
 
 function toggleActionsMenu(patientId) {
@@ -110,7 +110,7 @@ const formatCPF = (cpf) => {
           empty-label="Buscar paciente por nome..."
           class="patient-search"
         />
-        <AppButton variant="primary" to="/app/pacientes/novo" class="add-patient-btn">
+        <AppButton variant="primary" to="/pacientes/novo" class="add-patient-btn">
           <UserPlus :size="16" />
           Adicionar Paciente
         </AppButton>
@@ -174,7 +174,7 @@ const formatCPF = (cpf) => {
                     <p class="empty-state-text">
                       Comece cadastrando um novo paciente para vê-lo aqui.
                     </p>
-                    <router-link to="/app/pacientes/novo" class="btn-primary-sm">
+                    <router-link to="/pacientes/novo" class="btn-primary-sm">
                       <UserPlus :size="16" />
                       <span>Adicionar Paciente</span>
                     </router-link>
@@ -209,7 +209,7 @@ const formatCPF = (cpf) => {
                     <Transition name="fade">
                       <div v-if="actionsMenuOpenFor === patient._id" class="actions-dropdown">
                         <router-link
-                          :to="`/app/pacientes/${patient._id}?edit=true`"
+                          :to="`/pacientes/${patient._id}?edit=true`"
                           class="dropdown-item"
                         >
                           <Pencil :size="14" /> Editar
@@ -270,7 +270,7 @@ const formatCPF = (cpf) => {
               <Transition name="fade">
                 <div v-if="actionsMenuOpenFor === patient._id" class="actions-dropdown">
                   <router-link
-                    :to="`/app/pacientes/${patient._id}?edit=true`"
+                    :to="`/pacientes/${patient._id}?edit=true`"
                     class="dropdown-item"
                   >
                     <Pencil :size="14" /> Editar
@@ -291,7 +291,7 @@ const formatCPF = (cpf) => {
             </div>
             <h3 class="empty-state-title">Nenhum paciente encontrado</h3>
             <p class="empty-state-text">Comece cadastrando um novo paciente para vê-lo aqui.</p>
-            <router-link to="/app/pacientes/novo" class="btn-primary-sm">
+            <router-link to="/pacientes/novo" class="btn-primary-sm">
               <UserPlus :size="16" />
               <span>Adicionar Paciente</span>
             </router-link>

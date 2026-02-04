@@ -883,7 +883,7 @@ async function deleteAppointment(appointment) {
                         <!-- Botão Continuar para Iniciado -->
                         <router-link
                           v-if="item.status === 'Iniciado'"
-                          :to="reopeningAppointmentId === item._id ? '' : `/app/atendimentos/${item._id}/patient/${patient._id}`"
+                          :to="reopeningAppointmentId === item._id ? '' : `/atendimentos/${item._id}/patient/${patient._id}`"
                           :class="['btn-footer-action', 'primary', { 'disabled': reopeningAppointmentId === item._id }]"
                           @click.stop
                         >
@@ -904,7 +904,7 @@ async function deleteAppointment(appointment) {
                         <!-- Botão Ver Relatório para Realizado -->
                         <router-link
                           v-if="item.status === 'Realizado'"
-                          :to="`/app/atendimentos/${item._id}/patient/${patient._id}`"
+                          :to="`/atendimentos/${item._id}/patient/${patient._id}`"
                           class="btn-footer-action primary"
                           @click.stop
                         >

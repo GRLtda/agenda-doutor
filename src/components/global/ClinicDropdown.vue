@@ -13,13 +13,13 @@ function navigateTo(path, query = {}) {
   <div class="dropdown-menu">
     <ul>
       <li>
-        <button @click="navigateTo('/app/configuracoes')" class="dropdown-item">
+        <button @click="navigateTo('/configuracoes')" class="dropdown-item">
           <Settings :size="16" />
           <span>Configurações</span>
         </button>
       </li>
       <li>
-        <button @click="navigateTo('/app/ajuda')" class="dropdown-item">
+        <button @click="navigateTo('/ajuda')" class="dropdown-item">
           <Info :size="16" />
           <span>Ajuda</span>
         </button>

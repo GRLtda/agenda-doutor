@@ -367,7 +367,7 @@ onMounted(async () => {
   
   if (!appointmentResult.success || !appointmentResult.data) {
     toast.error('Agendamento não encontrado.')
-    router.push('/app/atendimentos')
+    router.push('/atendimentos')
     return
   }
 
@@ -495,7 +495,7 @@ async function handleCheckoutConfirm(checkoutData) {
     if (result.success) {
       toast.success('Atendimento finalizado com sucesso!')
       showCheckoutModal.value = false
-      router.push('/app/atendimentos')
+      router.push('/atendimentos')
     } else {
       toast.error(result.error || 'Erro ao processar checkout.')
     }
@@ -675,7 +675,7 @@ function openPatientProfile() {
 
       <!-- ✨ Desktop Sidebar Footer -->
       <div class="sidebar-footer desktop-only">
-        <AppButton @click="router.push('/app/atendimentos')" variant="default" class="w-full">
+        <AppButton @click="router.push('/atendimentos')" variant="default" class="w-full">
           <ArrowLeft :size="16" />
           Voltar
         </AppButton>
