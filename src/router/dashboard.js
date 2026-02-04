@@ -26,7 +26,8 @@ import SubscriptionView from '../views/pages/assinatura/SubscriptionView.vue'
 
 const dashboardRoutes = [
   {
-    path: '/app',
+  {
+    path: '/',
     component: DefaultLayout,
     meta: { requiresAuth: true },
     children: [
@@ -75,7 +76,7 @@ const dashboardRoutes = [
       },
       {
         path: 'pacientes/anamnese/:id',
-        redirect: to => `/app/pacientes/${to.params.id}/anamnese`
+        redirect: to => `/pacientes/${to.params.id}/anamnese`
       },
       {
         path: 'pacientes/:id/:tab?',

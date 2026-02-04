@@ -45,12 +45,26 @@ const routes = [
     meta: { public: true, title: 'Assinar Termo' },
   },
   {
+    path: '/termo/:token',
+    name: 'sign-consent-term',
+    component: () => import('../views/public/SignConsentTermView.vue'),
+    meta: { public: true, title: 'Assinar Termo' },
+  },
+  // Legacy Redirect for internal app links
+  {
+    path: '/app/:pathMatch(.*)*',
+    redirect: to => {
+      const path = to.params.pathMatch ? `/${to.params.pathMatch}` : '/'
+      return { path }
+    }
+  },
+  ...dashboardRoutes,
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFoundView,
     meta: { title: 'Página não encontrada' },
   },
-  ...dashboardRoutes,
 ]
 
 const router = createRouter({

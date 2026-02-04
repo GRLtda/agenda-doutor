@@ -24,7 +24,7 @@ export default defineConfig({
         name: 'Agenda Doutor',
         short_name: 'Agenda Doutor',
         description: 'Agenda Doutor - Agendamentos e consultas.',
-        start_url: '/app',
+        start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#ffffff',
