@@ -68,8 +68,12 @@ async function handleLogin() {
   isLoading.value = false
 
   if (success) {
-    const redirectPath = router.currentRoute.value.query.redirect || '/'
-    router.push(redirectPath)
+    const redirectPath = router.currentRoute.value.query.redirect
+    if (redirectPath) {
+      router.push(redirectPath)
+    } else {
+      router.push({ name: 'resumo-dashboard' })
+    }
   } else {
     errorMessage.value = error || 'Email ou senha inválidos.'
   }
