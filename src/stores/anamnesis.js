@@ -12,6 +12,7 @@ import {
   getAnamnesisForPatient as apiGetForPatient,
   updateAnamnesisResponse as apiUpdateResponse,
   getPendingAnamneses as apiGetPendingAnamneses,
+  downloadAnamnesisPdf as apiDownloadPdf,
 } from '@/api/anamnesis'
 import { useToast } from 'vue-toastification'
 
@@ -290,6 +291,36 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     }
   }
 
+  // Download do PDF de uma anamnese respondida
+  async function downloadPdf(patientId, anamnesisId, templateName = 'anamnese') {
+    isLoading.value = true
+    try {
+      const response = await apiDownloadPdf(patientId, anamnesisId)
+
+      // Cria blob URL e dispara download
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${templateName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('PDF baixado com sucesso!')
+      return { success: true }
+    } catch (error) {
+      console.error('[Anamnesis Store] downloadPdf error:', error)
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Erro ao baixar PDF.'
+      toast.error(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Computed properties
   const answeredAnamneses = computed(() =>
     // Esta linha agora é segura, pois 'patientAnamneses.value' é sempre um array
@@ -330,6 +361,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     fetchAnamnesisForPatient,
     updateAnamnesisResponse,
     fetchPendingAnamneses,
+    downloadPdf,
     isFetchingTemplates,
   }
 })

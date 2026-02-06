@@ -56,6 +56,23 @@ function getSubQuestionLetter(index) {
   return String.fromCharCode(65 + index)
 }
 
+// Normaliza valores de resposta para comparação consistente
+// Trata: boolean true -> "Sim", boolean false -> "Não"
+// Também trata strings "true"/"false"/"sim"/"não" (case-insensitive)
+function normalizeAnswerValue(value) {
+  if (typeof value === 'boolean') {
+    return value ? 'Sim' : 'Não'
+  }
+  
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase().trim()
+    if (lower === 'true' || lower === 'sim') return 'Sim'
+    if (lower === 'false' || lower === 'não' || lower === 'nao') return 'Não'
+  }
+  
+  return String(value)
+}
+
 onMounted(async () => {
   const { success } = await anamnesisStore.fetchPublicAnamnesis(token)
 
@@ -156,7 +173,7 @@ function validateRecursive(questionsArray) {
           subQuestions.forEach((subQ) => delete validationErrors.value[subQ.qId])
         }
 
-        if (answer === group.showWhenAnswerIs) {
+        if (answer === group.showWhenAnswerIs || normalizeAnswerValue(answer) === normalizeAnswerValue(group.showWhenAnswerIs)) {
           validateRecursive(group.questions)
         } else {
           cleanSubErrors(group.questions)
@@ -182,7 +199,9 @@ function buildPayloadRecursive(questionsArray, payload) {
 
       if (q.conditionalQuestions && q.conditionalQuestions.length > 0) {
         for (const group of q.conditionalQuestions) {
-          if (answerObj.answer === group.showWhenAnswerIs) {
+          const normalizedA = normalizeAnswerValue(answerObj.answer)
+          const normalizedT = normalizeAnswerValue(group.showWhenAnswerIs)
+          if (answerObj.answer === group.showWhenAnswerIs || normalizedA === normalizedT) {
             buildPayloadRecursive(group.questions, payload)
           }
         }

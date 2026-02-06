@@ -6,7 +6,6 @@ import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
-import { generateAnamnesisPdf } from '@/helpers/pdf-generator'
 import { formatPhone } from '@/directives/phone-mask.js'
 import { formatCPF } from '@/directives/cpf-mask.js'
 
@@ -42,7 +41,8 @@ import {
   Activity,
   Briefcase,
   Play,
-  Folder
+  Folder,
+  Loader2
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -115,6 +115,7 @@ const activeTab = computed({
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
+const generatingPdfId = ref(null) // ID da anamnese que está gerando PDF
 
 // Estado para o modal de detalhes do atendimento
 const isAppointmentModalOpen = ref(false)
@@ -296,30 +297,26 @@ function handleCopyLink(token) {
 }
 
 async function handleGeneratePdf(anamnesis) {
-  if (!patient.value || !clinic.value) {
-    toast.error('Dados do paciente ou da clínica não carregados.')
+  // Bloqueia se já estiver gerando um PDF
+  if (generatingPdfId.value) return
+  
+  if (!patient.value) {
+    toast.error('Dados do paciente não carregados.')
     return
   }
+  
+  generatingPdfId.value = anamnesis._id
 
-  const loadingToast = toast.info('Gerando PDF...', { timeout: false })
-
-  const fullTemplate = await anamnesisStore.fetchTemplateById(anamnesis.template._id)
-
-  if (!fullTemplate) {
-    toast.dismiss(loadingToast)
-    toast.error('Não foi possível carregar o modelo da anamnese para gerar o PDF.')
-    return
+  try {
+    const templateName = anamnesis.template?.name || 'anamnese'
+    const result = await anamnesisStore.downloadPdf(patient.value._id, anamnesis._id, templateName)
+    
+    if (!result.success) {
+      toast.error(result.error || 'Erro ao baixar PDF.')
+    }
+  } finally {
+    generatingPdfId.value = null
   }
-
-  const completeAnamnesisData = { ...anamnesis, template: fullTemplate }
-  const { fileName, pdfDataUri } = await generateAnamnesisPdf(
-    completeAnamnesisData,
-    patient.value,
-    clinic.value,
-  )
-
-  toast.dismiss(loadingToast)
-  pdfPreview.value = { url: pdfDataUri, name: fileName }
 }
 
 // FUNÇÃO AUXILIAR PARA TRATAR VALORES VAZIOS
@@ -761,13 +758,16 @@ async function deleteAppointment(appointment) {
                         >Respondida em {{ formatSimpleDate(item.updatedAt) }}</span
                       >
                     </div>
-                    <!-- <button
+                    <button
                       @click.stop="handleGeneratePdf(item)"
                       class="btn-icon"
-                      title="Visualizar PDF"
+                      :class="{ 'btn-loading': generatingPdfId === item._id }"
+                      :disabled="generatingPdfId !== null"
+                      :title="generatingPdfId === item._id ? 'Gerando PDF...' : 'Baixar PDF'"
                     >
-                      <FileDown class="title-icon" :size="16" />
-                    </button> -->
+                      <Loader2 v-if="generatingPdfId === item._id" class="title-icon spinning" :size="16" />
+                      <FileDown v-else class="title-icon" :size="16" />
+                    </button>
                   </li>
                 </ul>
 
@@ -2075,5 +2075,29 @@ async function deleteAppointment(appointment) {
 }
 .placeholder-text {
   color: #9ca3af;
+}
+
+/* Loading spinner para botão de PDF */
+.btn-icon.btn-loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

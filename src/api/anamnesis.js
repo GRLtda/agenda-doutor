@@ -58,3 +58,10 @@ export const getPendingAnamneses = (page = 1, limit = 20) => {
     params: { page, limit }
   })
 }
+
+// Download do PDF de uma anamnese respondida
+export const downloadAnamnesisPdf = (patientId, anamnesisId) => {
+  return apiClient.get(`/patients/${patientId}/anamnesis/${anamnesisId}/pdf`, {
+    responseType: 'blob'
+  })
+}

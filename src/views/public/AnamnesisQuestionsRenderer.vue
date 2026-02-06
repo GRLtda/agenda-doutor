@@ -44,7 +44,16 @@ function getVisibleSubQuestions(question) {
 
   return question.conditionalQuestions
     .filter((group) => {
-      if (answerObj && group.showWhenAnswerIs === currentAnswer) {
+      // Normaliza showWhenAnswerIs para string
+      // Trata boolean: true->"Sim", false->"Não"
+      let triggerValue = group.showWhenAnswerIs
+      if (typeof triggerValue === 'boolean') {
+        triggerValue = triggerValue ? 'Sim' : 'Não'
+      } else {
+        triggerValue = String(triggerValue)
+      }
+      
+      if (answerObj && triggerValue === currentAnswer) {
         return true
       }
 
