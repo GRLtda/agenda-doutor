@@ -10,6 +10,14 @@ import { MessageSquare, Quote } from 'lucide-vue-next'
 import NoteCard from './notes/NoteCard.vue'
 import NoteEditor from './notes/NoteEditor.vue'
 
+interface Note {
+  _id: string
+  content: string
+  isPinned?: boolean
+  createdAt: string
+  author?: { name: string }
+}
+
 const props = defineProps<{
   patientId: string
 }>()
@@ -44,9 +52,9 @@ async function handleLoadMore() {
   }
 }
 
-const sortedNotes = computed(() => notesStore.notes)
+const sortedNotes = computed(() => notesStore.notes as Note[])
 const totalCount = computed(() => notesStore.pagination.totalCount)
-const userName = computed(() => authStore.user?.nickname || authStore.user?.name || 'Usuário')
+const userName = computed(() => (authStore.user as any)?.nickname || (authStore.user as any)?.name || 'Usuário')
 
 async function handleCreateNote(content: string) {
   if (!content.trim()) {

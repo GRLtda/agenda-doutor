@@ -10,6 +10,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Receipt, Plus, Eye, Send, Trash2, FileDown, Package } from 'lucide-vue-next'
 import BudgetModal from '@/components/modals/BudgetModal.vue'
 
+interface Budget {
+  _id: string
+  name?: string
+  status: string
+  items?: any[]
+  createdAt: string
+  totalFinal: number
+}
+
 const STATUS_MAP: Record<string, { text: string; variant: string }> = {
   DRAFT: { text: 'Rascunho', variant: 'secondary' },
   SENT: { text: 'Enviado', variant: 'default' },
@@ -38,7 +47,7 @@ watchEffect(() => {
   }
 })
 
-const budgets = computed(() => budgetsStore.budgets)
+const budgets = computed(() => budgetsStore.budgets as Budget[])
 const isLoading = computed(() => budgetsStore.isLoading)
 
 function formatCurrency(value: number): string {
@@ -67,8 +76,8 @@ function handleBudgetSaved() {
   budgetsStore.fetchBudgetsByPatient(props.patientId)
 }
 
-async function handleSendWhatsApp(budget: any) {
-  const result = await budgetsStore.sendBudgetWhatsApp(budget._id)
+async function handleSendWhatsApp(budget: Budget) {
+  const result = await budgetsStore.sendBudgetWhatsApp(budget._id) as any
   if (result.success && result.url) {
     window.open(result.url, '_blank')
   } else {

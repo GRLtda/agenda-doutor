@@ -10,7 +10,7 @@ import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import { ClipboardList, MapPin, History, Calendar, AlertTriangle } from 'lucide-vue-next'
 import { formatCPF } from '@/directives/cpf-mask.js'
-import { useStatusBadge } from '@/composables/useStatusBadge'
+// useStatusBadge removed - unused
 
 interface Patient {
   _id: string
@@ -57,12 +57,7 @@ const genderOptions = [
   { value: 'Outro', label: 'Outro' },
 ]
 
-function displayValue(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || String(value).trim() === '') {
-    return 'Não informado'
-  }
-  return String(value)
-}
+// displayValue function removed - unused
 
 function formatDate(dateString: string | undefined): string {
   if (!dateString) return ''
@@ -215,7 +210,7 @@ const addressItems = computed(() => {
         <KeyValueGrid :items="personalDataItems">
           <template #Telefone>
             <div class="flex items-center gap-2">
-              <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+              <PatientPhoneDisplay :phone="patient.phone || ''" :country-code="patient.countryCode" />
               <span v-if="patient.isInvalidWhatsapp" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-200">
                 <AlertTriangle class="h-3 w-3" />
                 Inválido

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -43,7 +43,7 @@ const isEmpty = computed(() => editor.value?.isEmpty ?? true)
 
 function handleSubmit() {
   if (!editor.value || isEmpty.value) return
-  const content = editor.value.storage.markdown.getMarkdown()
+  const content = (editor.value.storage as any).markdown.getMarkdown()
   emit('submit', content)
   editor.value.commands.setContent('')
 }

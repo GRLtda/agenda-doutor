@@ -89,7 +89,7 @@ const missingInfo = computed(() => {
         
         <div class="flex items-center gap-4 text-sm text-muted-foreground mt-1">
           <span>ID: #{{ shortId }}</span>
-          <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+          <PatientPhoneDisplay :phone="patient.phone || ''" :country-code="patient.countryCode" />
         </div>
       </div>
     </div>

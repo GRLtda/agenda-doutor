@@ -11,6 +11,14 @@ import { FileSignature, Plus, Copy, Eye, Clock, CheckCircle2 } from 'lucide-vue-
 import AssignConsentTermModal from '@/components/pages/pacientes/modals/AssignConsentTermModal.vue'
 import ViewConsentTermModal from '@/components/pages/pacientes/modals/ViewConsentTermModal.vue'
 
+interface ConsentTerm {
+  _id: string
+  status: string
+  template?: { name: string }
+  createdAt: string
+  patientAccessToken?: string
+}
+
 const props = defineProps<{
   patientId: string
 }>()
@@ -21,7 +29,7 @@ const toast = useToast()
 const isAssignModalOpen = ref(false)
 const viewingTermId = ref<string | null>(null)
 
-const patientTerms = computed(() => consentTermsStore.patientTerms)
+const patientTerms = computed(() => consentTermsStore.patientTerms as ConsentTerm[])
 const isLoading = computed(() => consentTermsStore.isLoading)
 
 onMounted(() => {
