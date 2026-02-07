@@ -176,7 +176,14 @@ function copyInviteLink(token) {
       <ul v-else-if="employeesStore.activeEmployees.length > 0" class="item-list">
         <li v-for="employee in employeesStore.activeEmployees" :key="employee._id" class="list-item">
           <div class="item-main-info">
-            <div class="item-avatar">{{ employee.name.charAt(0) }}</div>
+            <div class="item-avatar">
+              <img 
+                v-if="employee.profilePhotoUrl" 
+                :src="employee.profilePhotoUrl" 
+                :alt="employee.name"
+              />
+              <span v-else>{{ employee.name.charAt(0).toUpperCase() }}</span>
+            </div>
             <div class="item-details">
               <span class="item-name">{{ employee.name }}</span>
               <span class="item-email">{{ employee.email }}</span>
@@ -363,6 +370,12 @@ function copyInviteLink(token) {
   font-weight: 600;
   font-size: 1.1rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.item-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .item-details {
   display: flex;

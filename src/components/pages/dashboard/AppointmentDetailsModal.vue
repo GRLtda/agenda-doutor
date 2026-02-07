@@ -418,7 +418,14 @@ function handleApprove() {
                     <span class="label">Profissional</span>
                     <div class="value doctor-name-container">
                         <div class="doctor-avatar-small">
-                            {{ appointment.doctor?.name ? appointment.doctor.name.charAt(0).toUpperCase() : '?' }}
+                            <img 
+                              v-if="appointment.doctor?.profilePhotoUrl" 
+                              :src="appointment.doctor.profilePhotoUrl" 
+                              :alt="appointment.doctor?.name"
+                            />
+                            <span v-else>
+                              {{ appointment.doctor?.name ? appointment.doctor.name.charAt(0).toUpperCase() : '?' }}
+                            </span>
                         </div>
                         <span class="text-truncate" :title="appointment.doctor?.name">
                             {{ appointment.doctor?.name || 'Não atribuído' }}
@@ -941,6 +948,13 @@ function handleApprove() {
   font-weight: 600;
   font-size: 0.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.doctor-avatar-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status-pill {
