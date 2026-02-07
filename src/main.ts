@@ -17,6 +17,7 @@ import router from './router'
 import './assets/css/normalize.css'
 import './assets/css/global.css'
 import './assets/css/custom-toast.css'
+import './assets/css/brand.css'
 
 const app = createApp(App)
 
