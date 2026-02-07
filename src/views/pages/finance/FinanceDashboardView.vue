@@ -64,9 +64,9 @@ const router = useRouter()
 const selectedPeriod = ref('month')
 const selectedProfessional = ref('')
 const clientSearch = ref('')
-const searchTimeout = null
+let searchTimeout = null
 const procedureSearch = ref('')
-const procedureSearchTimeout = null
+let procedureSearchTimeout = null
 
 const periods = [
   { label: 'Hoje', value: 'day' },

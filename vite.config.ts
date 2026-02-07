@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -16,6 +17,7 @@ export default defineConfig({
         getHash: (content) => createHash('sha256').update(content).digest('hex'),
       },
     }),
+    tailwindcss(),
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
