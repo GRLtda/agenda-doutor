@@ -9,7 +9,9 @@ import {
   LifeBuoy,
   Zap,
   BadgeDollarSign,
-  HeartHandshake
+  HeartHandshake,
+  Mail,
+  LockKeyhole
 } from 'lucide-vue-next'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -191,7 +193,11 @@ async function handleResetPassword() {
             :hide-required-asterisk="true"
             :error="fieldErrors.email"
             @input="clearFieldError('email')"
-          />
+          >
+            <template #icon>
+              <Mail :size="18" />
+            </template>
+          </FormInput>
           <PasswordInput 
             ref="passwordInputRef" 
             v-model="password" 
@@ -202,7 +208,11 @@ async function handleResetPassword() {
             :error="fieldErrors.password"
             autocomplete="current-password"
             @input="clearFieldError('password')"
-          />
+          >
+            <template #icon>
+              <LockKeyhole :size="18" />
+            </template>
+          </PasswordInput>
 
           <div class="forgot-password-link">
             <a @click.prevent="goToStep('forgot')" href="#" class="link-purple">Esqueceu a senha?</a>

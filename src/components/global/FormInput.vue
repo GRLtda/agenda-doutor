@@ -88,23 +88,28 @@ function handleBlur(event) {
       </label>
     </div>
 
-    <input
-      v-else
-      ref="inputRef"
-      :type="type"
-      :name="name"
-      :placeholder="placeholder"
-      :value="modelValue"
-      :autocomplete="autocomplete"
-      @input="handleInput"
-      @blur="handleBlur"
-      v-phone-mask="phoneMask"
-      v-cpf-mask="cpfMask"
-      v-cnpj-mask="cnpjMask"
-      class="form-input"
-      :class="{ 'has-error': !!error }"
-      :disabled="disabled"
-    />
+    <!-- Input com suporte a ícone -->
+    <div v-else class="input-wrapper" :class="{ 'has-icon': $slots.icon }">
+      <span v-if="$slots.icon" class="input-icon">
+        <slot name="icon" />
+      </span>
+      <input
+        ref="inputRef"
+        :type="type"
+        :name="name"
+        :placeholder="placeholder"
+        :value="modelValue"
+        :autocomplete="autocomplete"
+        @input="handleInput"
+        @blur="handleBlur"
+        v-phone-mask="phoneMask"
+        v-cpf-mask="cpfMask"
+        v-cnpj-mask="cnpjMask"
+        class="form-input"
+        :class="{ 'has-error': !!error, 'with-icon': $slots.icon }"
+        :disabled="disabled"
+      />
+    </div>
     <Transition name="fade-error">
       <span v-if="error" class="error-message">{{ error }}</span>
     </Transition>
@@ -127,6 +132,29 @@ function handleBlur(event) {
   text-overflow: ellipsis;
   width: 100%;
 }
+
+/* Input Wrapper para suporte a ícone */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--azul-principal);
+}
+
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -138,6 +166,11 @@ function handleBlur(event) {
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
+
+.form-input.with-icon {
+  padding-left: 2.75rem;
+}
+
 .form-input:focus {
   outline: none;
   border-color: var(--azul-principal);

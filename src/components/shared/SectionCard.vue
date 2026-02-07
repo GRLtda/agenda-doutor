@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const cardClasses = computed(() => cn(
-  'border-border/60 shadow-sm',
+  'border-border/60',
   props.accent && 'card-brand-accent',
   props.class
 ))

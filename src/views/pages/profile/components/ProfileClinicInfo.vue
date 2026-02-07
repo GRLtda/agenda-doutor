@@ -38,7 +38,7 @@ const planVariant = computed(() => {
 </script>
 
 <template>
-  <Card class="h-full border-border shadow-sm">
+  <Card class="h-full border-border">
     <CardHeader class="pb-4">
       <div class="flex items-start justify-between">
         <div class="space-y-1">

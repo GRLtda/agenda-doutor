@@ -61,7 +61,10 @@ function handleBlur(event) {
       <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
     </label>
 
-    <div class="input-wrapper">
+    <div class="input-wrapper" :class="{ 'has-icon': $slots.icon }">
+      <span v-if="$slots.icon" class="input-icon">
+        <slot name="icon" />
+      </span>
       <input
         ref="inputRef"
         :type="inputType"
@@ -70,7 +73,7 @@ function handleBlur(event) {
         @blur="handleBlur"
         :placeholder="props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha'"
         class="form-input"
-        :class="{ 'has-error': !!error }"
+        :class="{ 'has-error': !!error, 'with-icon': $slots.icon }"
         :autocomplete="autocomplete"
       />
       <button type="button" @click="toggleVisibility" class="visibility-toggle">
@@ -145,6 +148,24 @@ function handleBlur(event) {
 }
 .input-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  z-index: 1;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--azul-principal);
 }
 .form-input {
   width: 100%;
@@ -156,6 +177,10 @@ function handleBlur(event) {
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+.form-input.with-icon {
+  padding-left: 2.75rem;
 }
 .form-input:focus {
   outline: none;

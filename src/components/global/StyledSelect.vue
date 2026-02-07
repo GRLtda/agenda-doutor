@@ -142,7 +142,7 @@ function selectOption(option) {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  height: 40px;
+  height: 42px;
   padding: 0 1rem;
   background-color: var(--branco);
   border: 1px solid #d1d5db;

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info } from 'lucide-vue-next'
+import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, LayoutDashboard, Calendar, Users, UserCog, FileText, ClipboardList } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -51,10 +51,18 @@ const isGlobalLoading = computed(() => {
 })
 
 const allShortcuts = ref([
+  // Navegação rápida
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/resumo' },
+  { name: 'Calendário', icon: Calendar, path: '/calendario' },
+  { name: 'Pacientes', icon: Users, path: '/pacientes' },
+  { name: 'Funcionários', icon: UserCog, path: '/funcionarios' },
+  { name: 'Anamneses', icon: ClipboardList, path: '/anamneses' },
+  // Ações
   { name: 'Novo paciente', icon: UserPlus, path: '/pacientes/novo' },
   { name: 'Novo agendamento', icon: CalendarPlus, action: () => emit('open-schedule-modal') },
-  //{ name: 'Novo bloqueio na agenda', icon: CalendarOff, action: () => emit('open-schedule-modal') },
+  // Configurações
   { name: 'Configurações', icon: Settings, path: '/configuracoes' },
+  { name: 'Meu perfil', icon: User, path: '/perfil' },
 ])
 
 // Estado de seleção com teclado
@@ -206,7 +214,7 @@ onUnmounted(() => {
               <input
                 ref="searchInputRef"
                 type="text"
-                placeholder="Pesquise aqui ou utilize nossa IA"
+                placeholder="Pesquise aqui"
                 v-model="searchQuery"
                 @keydown.enter.prevent="handleSearchSubmit"
                 class="palette-search-input"

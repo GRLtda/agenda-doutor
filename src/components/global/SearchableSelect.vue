@@ -92,7 +92,7 @@ function handleSearch() {
 .form-label { display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; color: #374151; }
 .form-label :deep(svg) { color: var(--azul-principal); }
 .select-container { position: relative; }
-.input-wrapper { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; background-color: white; cursor: pointer; }
+.input-wrapper { display: flex; align-items: center; height: 42px; gap: 0.75rem; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; background-color: white; cursor: pointer; }
 .search-icon, .chevron-icon { color: #6b7280; }
 .chevron-icon { transition: transform 0.2s; }
 .chevron-icon.is-open { transform: rotate(180deg); }

@@ -90,7 +90,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Card class="h-full border-border shadow-sm flex flex-col">
+  <Card class="h-full border-border flex flex-col">
     <CardHeader class="pb-4 shrink-0">
       <div class="flex items-start justify-between">
         <div class="space-y-1">

@@ -95,7 +95,7 @@ async function handlePhotoDelete() {
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-6 p-8 bg-white border border-border rounded-xl shadow-sm">
+  <div class="flex flex-col items-center gap-6 p-8 bg-white border border-border rounded-xl">
     <div v-if="loading" class="flex flex-col items-center gap-4 w-full">
       <Skeleton class="h-24 w-24 rounded-full" />
       <div class="space-y-2 text-center w-full max-w-[200px]">
