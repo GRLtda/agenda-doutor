@@ -72,3 +72,26 @@ export const getMeV2 = () => {
 export const revokeSessionV2 = (sessionId) => {
     return apiClient.delete(`/v2/auth/sessions/${sessionId}`)
 }
+
+/**
+ * Upload de foto de perfil
+ * @param {File} file - Arquivo de imagem
+ * @returns {Promise<{success: boolean, data: {message: string, photoUrl: string}}>}
+ */
+export const uploadProfilePhotoV2 = (file) => {
+    const formData = new FormData()
+    formData.append('photo', file)
+    return apiClient.post('/v2/auth/me/photo', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+}
+
+/**
+ * Remove foto de perfil
+ * @returns {Promise<{success: boolean, data: {message: string}}>}
+ */
+export const deleteProfilePhotoV2 = () => {
+    return apiClient.delete('/v2/auth/me/photo')
+}

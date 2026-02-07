@@ -301,7 +301,7 @@ const sidebarSections = computed(() => {
   flex-direction: column;
   width: 240px;
   padding: 1rem;
-  background-color: #fafbfc;
+  background-color: #ffffff;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   border-top-right-radius: 1rem;

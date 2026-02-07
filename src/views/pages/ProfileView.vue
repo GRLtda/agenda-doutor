@@ -3,7 +3,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { 
   User, Mail, Briefcase, Building2, MapPin, 
-  Calendar, Pencil, Check, X, ShieldCheck, Monitor
+  Calendar, Pencil, Check, X, ShieldCheck, Monitor, Camera, Loader2, Trash2
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
@@ -15,6 +15,11 @@ const toast = useToast()
 const isLoading = ref(false)
 const isSaving = ref(false)
 const isEditing = ref(false)
+
+// Photo upload state
+const photoInput = ref(null)
+const isUploadingPhoto = ref(false)
+const showPhotoMenu = ref(false)
 
 // Tab state: 'personal' | 'clinic'
 const activeTab = ref('personal')
@@ -106,6 +111,59 @@ const refreshUserData = async () => {
 onMounted(() => {
   refreshUserData()
 })
+
+// Photo upload handlers
+function triggerPhotoUpload() {
+  photoInput.value?.click()
+}
+
+async function handlePhotoUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    toast.error('Formato inválido. Use JPEG, PNG ou WebP.')
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Imagem muito grande. Máximo 5MB.')
+    return
+  }
+
+  isUploadingPhoto.value = true
+  showPhotoMenu.value = false
+
+  const result = await authStore.uploadProfilePhoto(file)
+  
+  isUploadingPhoto.value = false
+  
+  if (result.success) {
+    toast.success('Foto atualizada com sucesso!')
+  } else {
+    toast.error(result.error || 'Erro ao fazer upload')
+  }
+
+  if (photoInput.value) photoInput.value.value = ''
+}
+
+async function handlePhotoDelete() {
+  if (!confirm('Tem certeza que deseja remover sua foto de perfil?')) return
+
+  isUploadingPhoto.value = true
+  showPhotoMenu.value = false
+
+  const result = await authStore.deleteProfilePhoto()
+  
+  isUploadingPhoto.value = false
+  
+  if (result.success) {
+    toast.success('Foto removida com sucesso!')
+  } else {
+    toast.error(result.error || 'Erro ao remover foto')
+  }
+}
 </script>
 
 <template>
@@ -118,11 +176,38 @@ onMounted(() => {
       <!-- Profile Header -->
       <header class="profile-header">
         <div class="header-content">
-          <div class="avatar-container">
-            <div class="avatar">
-              {{ getInitials(user?.name) }}
+          <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
+            <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
+              <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
+              <span v-else>{{ getInitials(user?.name) }}</span>
+              
+              <!-- Loading overlay -->
+              <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
+                <Loader2 :size="28" class="animate-spin" />
+              </div>
+              
+              <!-- Hover overlay with actions -->
+              <Transition name="fade">
+                <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
+                  <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
+                    <Camera :size="20" />
+                  </button>
+                  <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
+                    <Trash2 :size="18" />
+                  </button>
+                </div>
+              </Transition>
             </div>
             <div class="online-status"></div>
+            
+            <!-- Hidden file input -->
+            <input
+              ref="photoInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style="display: none;"
+              @change="handlePhotoUpload"
+            />
           </div>
           
           <div class="user-info">
@@ -363,6 +448,87 @@ onMounted(() => {
   color: white;
   border: 4px solid white;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  overflow: hidden;
+}
+
+.avatar.has-photo {
+  background: transparent;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Avatar overlay styles */
+.avatar-loading-overlay,
+.avatar-hover-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.avatar-loading-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+}
+
+.avatar-hover-overlay {
+  background-color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.avatar-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background-color: white;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.avatar-action-btn:hover {
+  background-color: var(--azul-principal);
+  color: white;
+  transform: scale(1.1);
+}
+
+.avatar-action-btn.delete:hover {
+  background-color: #ef4444;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.avatar-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.avatar {
+  position: relative;
 }
 
 .online-status {

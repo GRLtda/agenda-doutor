@@ -14,6 +14,8 @@ import {
   getSessionsV2,
   getMeV2,
   revokeSessionV2,
+  uploadProfilePhotoV2,
+  deleteProfilePhotoV2,
 } from '@/api/auth-v2'
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
 import apiClient from '@/api/index'
@@ -196,7 +198,12 @@ export const useAuthStore = defineStore('auth', () => {
         message = errorData.message
       }
 
-      return { success: false, error: message }
+      return {
+        success: false,
+        error: message,
+        code: errorData?.error?.code,
+        details: errorData?.error?.details
+      }
     }
   }
 
@@ -476,5 +483,42 @@ export const useAuthStore = defineStore('auth', () => {
     // Outros
     subscribe,
     updateProfile,
+
+    // Profile Photo
+    uploadProfilePhoto: async (file) => {
+      try {
+        const response = await uploadProfilePhotoV2(file)
+        if (response.data.success) {
+          // Atualiza o user com a nova URL da foto
+          if (user.value) {
+            user.value.profilePhotoUrl = response.data.data.photoUrl
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user.value))
+          }
+          return { success: true, photoUrl: response.data.data.photoUrl }
+        }
+        return { success: false, error: 'Erro ao fazer upload' }
+      } catch (error) {
+        console.error('[Auth] Erro no upload da foto:', error)
+        return { success: false, error: error.response?.data?.error?.message || 'Erro ao fazer upload' }
+      }
+    },
+
+    deleteProfilePhoto: async () => {
+      try {
+        const response = await deleteProfilePhotoV2()
+        if (response.data.success) {
+          // Remove a URL da foto do user
+          if (user.value) {
+            user.value.profilePhotoUrl = null
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user.value))
+          }
+          return { success: true }
+        }
+        return { success: false, error: 'Erro ao remover foto' }
+      } catch (error) {
+        console.error('[Auth] Erro ao remover foto:', error)
+        return { success: false, error: error.response?.data?.error?.message || 'Erro ao remover foto' }
+      }
+    },
   }
 })

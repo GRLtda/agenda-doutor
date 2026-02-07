@@ -17,6 +17,8 @@ const props = defineProps({
   cnpjMask: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
+  hideRequiredAsterisk: { type: Boolean, default: false },
+  error: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -62,7 +64,7 @@ function handleBlur(event) {
   <div class="form-group" :class="{ 'checkbox-group': type === 'checkbox' }">
     <label v-if="label && type !== 'checkbox'" class="form-label">
       {{ label }}
-      <span v-if="required" class="required-asterisk">*</span>
+      <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
     </label>
 
     <div v-if="type === 'checkbox'" class="checkbox-wrapper">
@@ -81,7 +83,7 @@ function handleBlur(event) {
         </div>
         <span v-if="label" class="checkbox-text">
           {{ label }}
-          <span v-if="required" class="required-asterisk">*</span>
+          <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
         </span>
       </label>
     </div>
@@ -100,8 +102,12 @@ function handleBlur(event) {
       v-cpf-mask="cpfMask"
       v-cnpj-mask="cnpjMask"
       class="form-input"
+      :class="{ 'has-error': !!error }"
       :disabled="disabled"
     />
+    <Transition name="fade-error">
+      <span v-if="error" class="error-message">{{ error }}</span>
+    </Transition>
   </div>
 </template>
 
@@ -141,6 +147,19 @@ function handleBlur(event) {
   background-color: #f3f4f6;
   color: #9ca3af;
   cursor: not-allowed;
+}
+.form-input.has-error {
+  border-color: #ef4444;
+}
+.form-input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+.error-message {
+  display: block;
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.375rem;
+  font-weight: 500;
 }
 .required-asterisk {
   color: #ef4444;
@@ -231,5 +250,17 @@ function handleBlur(event) {
 
 .custom-checkbox-label:hover .checkbox-text {
   color: #111827; /* Preto ao hover */
+}
+
+/* Animations */
+.fade-error-enter-active,
+.fade-error-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-error-enter-from,
+.fade-error-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 </style>

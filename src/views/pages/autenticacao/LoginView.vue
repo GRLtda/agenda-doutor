@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
@@ -22,6 +22,19 @@ const step = ref('login')
 const isLoading = ref(false)
 const errorMessage = ref(null)
 const notificationMessage = ref(null)
+const fieldErrors = ref({
+  email: '',
+  password: ''
+})
+
+function clearFieldError(field) {
+  if (fieldErrors.value[field]) {
+    fieldErrors.value[field] = ''
+  }
+  if (errorMessage.value) {
+    errorMessage.value = null
+  }
+}
 
 // --- V-MODELS ---
 const email = ref('')
@@ -31,6 +44,9 @@ const token = ref('')
 const newPassword = ref('')
 const emailInputRef = ref(null)
 const passwordInputRef = ref(null)
+const isLoginFormValid = computed(() => {
+  return email.value.trim() !== '' && password.value.length > 0
+})
 
 const imageUrl = new URL('@/assets/clinic1.webp', import.meta.url).href
 const whatsappLink = 'https://wa.me/5511921923978'
@@ -50,24 +66,24 @@ function goToStep(stepName) {
 
 async function handleLogin() {
   errorMessage.value = null
+  fieldErrors.value = { email: '', password: '' }
   isLoading.value = true
 
   // 1. Sincronização forçada para iOS Autofill
-  // Tenta ler do ref exposto pelo componente (inputRef) e depois do .value do input nativo
   const emailValue = emailInputRef.value?.inputRef?.value || email.value
   const passwordValue = passwordInputRef.value?.inputRef?.value || password.value
 
-  // Atualiza os v-models caso estejam desincronizados
   if (email.value !== emailValue) email.value = emailValue
   if (password.value !== passwordValue) password.value = passwordValue
 
-  const { success, error } = await authStore.login({
+  const result = await authStore.login({
     email: emailValue,
     password: passwordValue,
   })
+  
   isLoading.value = false
 
-  if (success) {
+  if (result.success) {
     const redirectPath = router.currentRoute.value.query.redirect
     if (redirectPath) {
       router.push(redirectPath)
@@ -75,7 +91,19 @@ async function handleLogin() {
       router.push({ name: 'resumo-dashboard' })
     }
   } else {
-    errorMessage.value = error || 'Email ou senha inválidos.'
+    // Prioriza erros por campo; se existirem, esconde a mensagem geral para evitar redundância
+    const hasFieldErrors = result.details?.fields && result.details.fields.length > 0
+    
+    if (hasFieldErrors) {
+      errorMessage.value = null
+      result.details.fields.forEach(err => {
+        if (fieldErrors.value.hasOwnProperty(err.field)) {
+          fieldErrors.value[err.field] = err.message
+        }
+      })
+    } else {
+      errorMessage.value = result.error || 'Email ou senha inválidos.'
+    }
   }
 }
 
@@ -160,6 +188,9 @@ async function handleResetPassword() {
             placeholder="seuemail@exemplo.com"
             autocomplete="username"
             :required="true"
+            :hide-required-asterisk="true"
+            :error="fieldErrors.email"
+            @input="clearFieldError('email')"
           />
           <PasswordInput 
             ref="passwordInputRef" 
@@ -167,15 +198,27 @@ async function handleResetPassword() {
             label="Senha" 
             :required="true" 
             :show-validation="false"
+            :hide-required-asterisk="true"
+            :error="fieldErrors.password"
             autocomplete="current-password"
+            @input="clearFieldError('password')"
           />
 
           <div class="forgot-password-link">
             <a @click.prevent="goToStep('forgot')" href="#" class="link-purple">Esqueceu a senha?</a>
           </div>
 
-          <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-          <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
+          <Transition name="fade-error">
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          </Transition>
+          <AppButton 
+            type="submit" 
+            variant="primary" 
+            size="lg" 
+            :loading="isLoading" 
+            :disabled="!isLoginFormValid"
+            style="width: 100%; margin-top: 0.5rem;"
+          >
             Entrar
           </AppButton>
         </form>
@@ -193,7 +236,9 @@ async function handleResetPassword() {
             placeholder="seuemail@exemplo.com"
             :required="true"
           />
-          <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          <Transition name="fade-error">
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          </Transition>
           <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
             Enviar código
           </AppButton>
@@ -216,7 +261,9 @@ async function handleResetPassword() {
             :required="true"
           />
           <PasswordInput v-model="newPassword" label="Nova Senha" :required="true" />
-          <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          <Transition name="fade-error">
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          </Transition>
           <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 0.5rem;">
             Salvar e Entrar
           </AppButton>
@@ -489,6 +536,18 @@ async function handleResetPassword() {
   font-size: 0.875rem;
   margin-bottom: 1rem;
   text-align: left;
+}
+
+/* Error Transition */
+.fade-error-enter-active,
+.fade-error-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-error-enter-from,
+.fade-error-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 
 /* Override global input styles for this view to match purple theme */

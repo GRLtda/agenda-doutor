@@ -7,7 +7,9 @@ const props = defineProps({
   label: String,
   required: { type: Boolean, default: false },
   showValidation: { type: Boolean, default: true },
-  autocomplete: { type: String, default: 'new-password' }
+  autocomplete: { type: String, default: 'new-password' },
+  hideRequiredAsterisk: { type: Boolean, default: false },
+  error: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -56,7 +58,7 @@ function handleBlur(event) {
   <div class="password-input-group" v-auto-animate>
     <label v-if="label" class="form-label">
       {{ label }}
-      <span v-if="required" class="required-asterisk">*</span>
+      <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
     </label>
 
     <div class="input-wrapper">
@@ -68,6 +70,7 @@ function handleBlur(event) {
         @blur="handleBlur"
         :placeholder="props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha'"
         class="form-input"
+        :class="{ 'has-error': !!error }"
         :autocomplete="autocomplete"
       />
       <button type="button" @click="toggleVisibility" class="visibility-toggle">
@@ -75,6 +78,10 @@ function handleBlur(event) {
         <EyeOff v-else :size="20" />
       </button>
     </div>
+    
+    <Transition name="fade-error">
+      <span v-if="error" class="error-message">{{ error }}</span>
+    </Transition>
 
     <div
       v-if="props.showValidation"
@@ -155,6 +162,19 @@ function handleBlur(event) {
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
+.form-input.has-error {
+  border-color: #ef4444;
+}
+.form-input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+.error-message {
+  display: block;
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.375rem;
+  font-weight: 500;
+}
 .visibility-toggle {
   position: absolute;
   top: 50%;
@@ -225,5 +245,17 @@ function handleBlur(event) {
 .fade-content-enter-from,
 .fade-content-leave-to {
   opacity: 0;
+}
+
+/* Error Transition */
+.fade-error-enter-active,
+.fade-error-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-error-enter-from,
+.fade-error-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 </style>
