@@ -1,0 +1,95 @@
+/* ==========================================
+   Brand Identity Utilities - AgendaDoutor
+   ========================================== */
+
+/* Primary brand gradient for buttons and CTAs */
+.bg-brand-gradient {
+    background: linear-gradient(135deg, var(--azul-principal) 0%, #3b82f6 100%);
+}
+
+.bg-brand-gradient:hover {
+    background: linear-gradient(135deg, #0047d4 0%, #2563eb 100%);
+}
+
+/* Brand text color */
+.text-brand {
+    color: var(--azul-principal);
+}
+
+/* Brand icon accent */
+.icon-brand {
+    color: var(--azul-principal);
+}
+
+/* Section header with brand accent border */
+.border-brand-accent {
+    border-left: 3px solid var(--azul-principal);
+    padding-left: 0.75rem;
+}
+
+/* Brand badges */
+.badge-brand {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
+
+.badge-brand-solid {
+    background-color: var(--azul-principal);
+    color: white;
+}
+
+/* Pinned/Featured highlight */
+.badge-pinned {
+    background: linear-gradient(135deg, var(--azul-principal) 0%, #3b82f6 100%);
+    color: white;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+}
+
+/* Status badge consistent colors */
+.badge-success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.badge-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.badge-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+/* Card with brand accent */
+.card-brand-accent {
+    border-top: 3px solid var(--azul-principal);
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+}
