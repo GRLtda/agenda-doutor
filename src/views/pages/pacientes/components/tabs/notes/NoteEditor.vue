@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
-import { Markdown } from 'tiptap-markdown'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -24,11 +23,6 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Underline,
-    Markdown.configure({
-      html: false,
-      tightLists: true,
-      bulletListMarker: '-',
-    })
   ],
   editorProps: {
     attributes: {
@@ -37,13 +31,18 @@ const editor = useEditor({
   },
 })
 
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+})
+
 const userInitial = computed(() => props.userName?.charAt(0).toUpperCase() || 'U')
 
 const isEmpty = computed(() => editor.value?.isEmpty ?? true)
 
 function handleSubmit() {
   if (!editor.value || isEmpty.value) return
-  const content = (editor.value.storage as any).markdown.getMarkdown()
+  // Get plain text content instead of markdown
+  const content = editor.value.getText()
   emit('submit', content)
   editor.value.commands.setContent('')
 }
