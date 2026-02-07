@@ -3,11 +3,13 @@ import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle } from 'lucide-vue-next'
+import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import {
   startOfWeek,
   endOfWeek,
@@ -25,6 +27,10 @@ const appointmentsStore = useAppointmentsStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const toast = useToast()
+
+const handleDateSelect = () => {
+    fetchDataForView()
+}
 
 const isModalOpen = ref(false)
 const isDetailsModalOpen = ref(false)
@@ -596,11 +602,30 @@ function handleReturn(appointment) {
             Semana
           </button>
           <button @click="goToToday" class="today-btn">Hoje</button>
-          <span class="calendar-header-display">{{ calendarHeader }}</span>
+          
+          <VueDatePicker
+            v-model="selectedDate"
+            :enable-time-picker="false"
+            auto-apply
+            locale="pt-BR"
+            :clearable="false"
+            @update:model-value="handleDateSelect"
+            :teleport="true"
+          >
+            <template #trigger>
+                 <span class="calendar-header-display cursor-pointer" title="Clique para selecionar data">{{ calendarHeader }}</span>
+            </template>
+          </VueDatePicker>
         </div>
 
         <button @click="goToNext" class="nav-btn" title="Próximo">
           <ChevronRight :size="20" />
+        </button>
+
+        <!-- ✨ Botão Adicionado (Novo Agendamento) -->
+        <div class="separator-vertical"></div>
+        <button class="new-appointment-btn" @click="handleEditAction(null)" title="Novo Agendamento">
+             <Plus :size="20" />
         </button>
       </div>
     </footer>
@@ -796,7 +821,8 @@ function handleReturn(appointment) {
   bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  width: 35%;
+  width: auto;
+  max-width: 95vw;
   z-index: 40;
 
   background-color: rgba(255, 255, 255, 0.85);
@@ -807,7 +833,7 @@ function handleReturn(appointment) {
   padding: 0.5rem 0.75rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 
-  min-width: 380px;
+  min-width: min-content;
   box-sizing: border-box;
 
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -892,6 +918,33 @@ function handleReturn(appointment) {
 }
 .week-btn {
   padding: 0 0.75rem;
+}
+
+.separator-vertical {
+  width: 1px;
+  height: 24px;
+  background-color: #e5e7eb;
+  margin: 0 0.25rem;
+}
+
+.new-appointment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%; /* Circle */
+  background-color: var(--azul-principal); /* Primary Blue */
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.new-appointment-btn:hover {
+  background-color: #2563eb;
+  transform: scale(1.05);
 }
 /* --- ✨ [FIM DA ALTERAÇÃO] --- */
 

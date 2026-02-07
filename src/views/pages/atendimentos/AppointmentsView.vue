@@ -257,6 +257,11 @@ function closeActionMenu(event) {
       </div>
       <div class="header-actions">
 
+        <!-- ✨ Novo Agendamento Button -->
+        <AppButton @click="openCreateModal" variant="primary">
+          <Plus :size="18" />
+          Novo Agendamento
+        </AppButton>
 
         <!-- ✨ Date Range Picker (VueDatePicker) -->
         <div class="date-picker-wrapper">
@@ -650,6 +655,37 @@ function closeActionMenu(event) {
 
 .date-picker-wrapper {
   width: 290px;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .date-picker-wrapper {
+    width: 100%;
+  }
+
+  /* Make buttons full width inside header-actions if they aren't already */
+  .header-actions > button,
+  .header-actions .view-switcher {
+     width: 100%;
+     display: flex;
+     justify-content: center;
+  }
+
+  .view-switcher {
+      justify-content: center;
+  }
 }
 
 .custom-date-trigger {
