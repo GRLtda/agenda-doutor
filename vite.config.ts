@@ -66,6 +66,9 @@ export default defineConfig({
       },
     }),
   ],
+  optimizeDeps: {
+    include: ['radix-vue'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
