@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useClinicStore } from '@/stores/clinic';
 import { useAuthStore } from '@/stores/auth';
+// import { usePlansStore } from '@/stores/plans'; // Removed
 import { CheckCircle, AlertTriangle, Package, CreditCard, Shield, Clock, X, MessageCircle, Edit3, FileText, Info } from 'lucide-vue-next';
 import choroEmoji from '@/assets/imgs/choro_emoji.png';
 
 const clinicStore = useClinicStore();
 const authStore = useAuthStore();
+// const plansStore = usePlansStore(); // Removed
 
 const loading = ref(true);
 const subscription = ref(null);
@@ -14,8 +16,8 @@ const error = ref(null);
 const actionLoading = ref(false);
 const showCancelModal = ref(false);
 
-const isTrialActive = computed(() => authStore.user?.planStatus?.trial?.isActive);
-const trialDaysRemaining = computed(() => authStore.user?.planStatus?.trial?.daysRemaining);
+const isTrialActive = computed(() => authStore.user?.planDetails?.trial?.isActive);
+const trialDaysRemaining = computed(() => authStore.user?.planDetails?.trial?.daysRemaining);
 
 const statusMap = {
   active: { label: 'Ativa', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle },
@@ -39,6 +41,11 @@ const isCanceled = computed(() => {
   if (subscription.value?.planType === 'enterprise') return false;
   if (subscription.value?.planType === 'enterprise_plus') return false;
   return subscription.value?.status === 'canceled' || !!subscription.value?.cancelAt;
+});
+
+// [NEW] Find detailed plan info from auth store (optimized)
+const currentPlanDetails = computed(() => {
+  return authStore.user?.planDetails || null;
 });
 
 const formatDate = (dateString, fullDate = true) => {
@@ -160,6 +167,7 @@ const handleViewInvoice = async () => {
 
 onMounted(() => {
   fetchSubscription();
+  // plansStore.fetchPlans(); // Optimized: Data now comes via Auth
 });
 </script>
 
@@ -267,13 +275,15 @@ onMounted(() => {
             <div>
               <span class="card-label">Seu Plano</span>
               <h3 class="plan-name">
+                <!-- [MODIFIED] Use plan name from store if available -->
                 {{ 
-                  subscription?.planType === 'basic' ? 'Básico' :
+                  currentPlanDetails?.name ||
+                  (subscription?.planType === 'basic' ? 'Básico' :
                   subscription?.planType === 'premium' ? 'Premium' :
                   subscription?.planType === 'enterprise' ? 'Enterprise' :
                   subscription?.planType === 'enterprise_plus' ? 'Enterprise Plus' :
                   subscription?.planType ? subscription.planType.charAt(0).toUpperCase() + subscription.planType.slice(1) :
-                  'Básico'
+                  'Básico')
                 }}
               </h3>
             </div>
@@ -285,30 +295,16 @@ onMounted(() => {
                <span class="amount">297,00</span>
                <span class="interval">/ único</span>
             </template>
-            <template v-else-if="subscription?.planType === 'enterprise'">
-               <span class="currency">R$</span>
-               <span class="amount">199,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'enterprise_plus'">
-               <span class="currency">R$</span>
-               <span class="amount">359,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'premium'">
-               <span class="currency">R$</span>
-               <span class="amount">159,00</span>
-               <span class="interval">/ mês</span>
-            </template>
-            <template v-else-if="subscription?.planType === 'basic' && subscription?.status !== 'free'">
-               <span class="currency">R$</span>
-               <span class="amount">99,90</span>
-               <span class="interval">/ mês</span>
-            </template>
+            <!-- [UPDATED] Use dynamic plan data from Stripe (subscription.plan) or DB (currentPlanDetails) -->
             <template v-else-if="subscription?.plan && typeof subscription.plan === 'object'">
               <span class="currency">{{ subscription.plan.currency.toUpperCase() }}</span>
               <span class="amount">{{ formatCurrency(subscription.plan.amount, subscription.plan.currency).replace('R$', '').trim() }}</span>
-              <span class="interval">/ {{ subscription.plan.interval === 'month' ? 'mês' : 'ano' }}</span>
+              <span class="interval">/ {{ subscription.plan.interval === 'month' ? 'mês' : (subscription.plan.interval === 'year' ? 'ano' : subscription.plan.interval) }}</span>
+            </template>
+            <template v-else-if="currentPlanDetails?.value">
+               <span class="currency">R$</span>
+               <span class="amount">{{ formatCurrency(currentPlanDetails.value, 'BRL').replace('R$', '').trim() }}</span>
+               <span class="interval">/ mês</span>
             </template>
             <template v-else>
                <span class="amount">Grátis</span>
@@ -319,9 +315,19 @@ onMounted(() => {
 
           <div class="card-body">
             <ul class="features-list">
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Acesso total ao sistema</li>
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Suporte prioritário via WhatsApp</li>
-              <li><div class="check-icon"><CheckCircle :size="14" /></div> Backup automático</li>
+              <!-- [MODIFIED] Dynamic Features List -->
+              <template v-if="currentPlanDetails?.features && currentPlanDetails.features.length > 0">
+                <li v-for="(feature, index) in (currentPlanDetails.marketingFeatures?.length ? currentPlanDetails.marketingFeatures : currentPlanDetails.features)" :key="index">
+                   <div class="check-icon"><CheckCircle :size="14" /></div> {{ feature }}
+                </li>
+              </template>
+              
+              <!-- Fallback to hardcoded if no plan details -->
+              <template v-else>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Acesso total ao sistema</li>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Suporte prioritário via WhatsApp</li>
+                <li><div class="check-icon"><CheckCircle :size="14" /></div> Backup automático</li>
+              </template>
             </ul>
 
             <!-- Installation Fee Notice -->
@@ -346,6 +352,7 @@ onMounted(() => {
 
         <!-- Payment Method Card -->
         <div class="info-card payment-card">
+
           <div class="card-header">
              <div class="icon-wrapper bg-violet-50">
               <CreditCard class="text-violet-600" :size="24" />
