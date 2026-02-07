@@ -6,7 +6,8 @@ import { useRouter } from 'vue-router'
 import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
-import MedicalScheduler from '@/components/scheduler/MedicalScheduler.vue'
+import VueCal from 'vue-cal'
+import 'vue-cal/dist/vuecal.css'
 import {
   startOfWeek,
   endOfWeek,
@@ -239,15 +240,6 @@ async function fetchDataForView() {
   await appointmentsStore.fetchAppointmentsByDate(startDate, endDate)
 }
 
-const handleViewModeUpdate = (mode) => {
-  calendarView.value = mode
-}
-
-const handleDateChange = (newDate) => {
-  selectedDate.value = newDate
-  fetchDataForView()
-}
-
 function handleEditAction(eventData) {
   // console.log('DEBUG (inicio.vue): handleEditAction chamado com modo:', eventData._mode)
   initialAppointmentData.value = eventData
@@ -259,7 +251,6 @@ function handleEditAction(eventData) {
 
   isModalOpen.value = true
 }
-
 
 function goToPrevious() {
   const daysToSubtract = calendarView.value === 'day' ? 1 : 7
@@ -303,8 +294,9 @@ function backToWeekView() {
 }
 
 onMounted(async () => {
-  // Removed manual resize listener as MedicalScheduler handles it
+  updateCalendarView()
   await fetchDataForView()
+  window.addEventListener('resize', updateCalendarView)
   timer = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
@@ -315,7 +307,6 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateCalendarView)
 })
 
-// function formatToVueCalString(dateString) { ... } removed
 function formatToVueCalString(dateString) {
   if (!dateString) return ''
   const d = new Date(dateString)
@@ -532,38 +523,295 @@ function handleReturn(appointment) {
       @reschedule="handleReschedule(selectedEventForDetails.originalEvent)"
     />
 
-    <div class="calendar-wrapper"> <!-- Wrapper for styling context -->
-       <MedicalScheduler 
-        :appointments="allCalendarEvents"
-        :loading="appointmentsStore.isLoading"
-        :working-hours="calendarTimeRange"
-        @date-change="handleDateChange"
-        @update:view-mode="handleViewModeUpdate"
+    <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading }">
+      <div v-if="appointmentsStore.isLoading" class="loading-overlay">
+        <div class="loading-animation">
+          <LoaderCircle :size="32" class="animate-spin" />
+          <span>Carregando...</span>
+        </div>
+      </div>
+      <vue-cal
+        ref="vueCalRef"
+        @ready="handleCalendarReady"
+        class="vuecal--full-height-delete"
+        :selected-date="selectedDate"
+        :events="allCalendarEvents" :active-view="calendarView" :disable-views="['years', 'year', 'month']"
+        hide-view-selector
+        :time-from="calendarTimeRange.from"
+        :time-to="calendarTimeRange.to"
+        :time-step="30"
+        :snap-to-time="15"
+        :min-cell-width="120"
+        locale="pt-br"
         @cell-click="handleCellClick"
         @event-click="handleEventClick"
-       />
+        no-events-text=""
+      >
+        <template #weekday-heading="{ heading }">
+          <div class="custom-weekday-heading" @click="handleDayHeaderClick(heading.date)">
+            <div class="day-name">{{ getAbbreviatedDay(heading.label) }}</div>
+            <div class="day-number" :class="{ 'is-today': heading.today }">
+              {{ heading.date.getDate() }}
+            </div>
+          </div>
+        </template>
+
+        <template #event="{ event }">
+          <div v-if="event.class === 'clinic-closed-event'" class="closed-event-content">
+            {{ event.title }}
+          </div>
+
+          <div
+            v-else-if="event.duration <= 30"
+            class="custom-event-content-short"
+            :title="`${event.title} (${event.status})`"
+          >
+            <span class="event-title-short">{{ event.title }}</span>
+            <ArrowRight :size="14" class="event-status-icon" />
+          </div>
+
+          <div v-else class="custom-event-content-long">
+            <div class="event-title-long">{{ event.title }}</div>
+            <div class="event-time-long">
+              {{ formatTime(event.start) }} - {{ formatTime(event.end) }}
+            </div>
+          </div>
+        </template>
+      </vue-cal>
     </div>
+
+    <footer class="calendar-toolbar-floating">
+      <div class="calendar-nav">
+        <button @click="goToPrevious" class="nav-btn" title="Anterior">
+          <ChevronLeft :size="20" />
+        </button>
+
+        <div class="nav-center-content">
+          <button
+            v-if="calendarView === 'day' && !isMobile"
+            @click="backToWeekView"
+            class="today-btn week-btn"
+          >
+            <ChevronLeft :size="16" />
+            Semana
+          </button>
+          <button @click="goToToday" class="today-btn">Hoje</button>
+          <span class="calendar-header-display">{{ calendarHeader }}</span>
+        </div>
+
+        <button @click="goToNext" class="nav-btn" title="Próximo">
+          <ChevronRight :size="20" />
+        </button>
+      </div>
+    </footer>
   </div>
 </template>
 
 <style>
-/* Cleaned up VueCal styles */
+.vuecal__menu,
+.vuecal__title-bar {
+  display: none;
+}
+.vuecal__event {
+  cursor: pointer;
+  border-radius: 1vh;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--fonte-principal);
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+.vuecal__event::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: currentColor;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  opacity: 0.8;
+}
+.vuecal__event:hover {
+  transform: scale(0.98);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.256);
+}
+.vuecal__event.clinic-closed-event {
+  background-color: #fef2f2; /* Vermelho bem claro */
+  color: #b91c1c79; /* Vermelho escuro */
+  border: 1px solid #fecaca;
+  border-radius: 0 !important;
+  opacity: 0.8;
+  cursor: not-allowed;
+  z-index: 1; /* Fica por baixo dos eventos normais */
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 5px,
+    rgba(239, 68, 68, 0.1) 5px,
+    rgba(239, 68, 68, 0.1) 10px
+  );
+}
+.vuecal__event.clinic-closed-event:hover {
+  transform: none;
+  box-shadow: none;
+  opacity: 0.8;
+}
+.vuecal__event.clinic-closed-event::before {
+  display: none; /* Esconde a barra lateral */
+}
+.vuecal__event.clinic-event {
+  background-color: #eef2ff;
+  color: #3b82f6;
+  border-color: #dbeafe;
+}
+.vuecal__event.status--confirmado {
+  background-color: #fefce8;
+  color: #a16207;
+  border-color: #fde68a;
+}
+.vuecal__event.status--realizado {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+.vuecal__event.status--cancelado,
+.vuecal__event.status--não-compareceu {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.vuecal--week-view .vuecal__bg .vuecal__time-column {
+  width: 70px;
+}
+.vuecal__cell-events-count {
+  display: none;
+}
+.vuecal--overflow-x.vuecal--week-view .vuecal__time-column {
+  margin-top: 4.2em;
+}
+.vuecal--day-view .vuecal__bg .vuecal__time-column {
+  margin-top: 0;
+}
+.vuecal__event-time {
+  display: none;
+}
+.vuecal__heading {
+  height: auto;
+  padding: 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.vuecal--day-view .vuecal__heading {
+  display: none;
+}
+.vuecal__time-cell-label {
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  transform: translateY(-8px);
+}
+.vuecal__bg .vuecal__time-cell {
+  border-bottom: 1px solid #e5e7eb;
+}
+.custom-weekday-heading {
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-principal);
+  padding: 0.75rem 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.custom-weekday-heading:hover {
+  background-color: #f9fafb;
+}
+.day-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--cinza-texto);
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+.day-number {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--preto);
+  line-height: 1;
+}
+.day-number.is-today {
+  color: var(--azul-principal);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .custom-weekday-heading {
+    padding: 0.5rem 0;
+    cursor: default;
+  }
+  .custom-weekday-heading:hover {
+    background-color: transparent;
+  }
+  .day-name {
+    font-size: 0.6rem;
+  }
+  .day-number {
+    font-size: 1.25rem;
+  }
+  .vuecal--week-view .vuecal__bg .vuecal__time-column,
+  .vuecal--day-view .vuecal__bg .vuecal__time-column {
+    width: 55px;
+  }
+  .vuecal__time-cell-label {
+    font-size: 0.65rem;
+  }
+  .event-title-short,
+  .event-title-long {
+    font-size: 0.75rem;
+  }
+  .event-time-long {
+    font-size: 0.7rem;
+  }
+}
 </style>
 
 <style scoped>
 .calendar-page-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Ensure full viewport height */
+  height: 100%;
   width: 100%;
   position: relative;
-  background-color: var(--scheduler-bg);
+  background-color: var(--branco);
 }
 
-.calendar-wrapper {
-  flex: 1;
-  overflow: hidden;
-  height: 100%;
+.calendar-toolbar-floating {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 35%;
+  z-index: 40;
+
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(229, 231, 235, 0.7);
+  border-radius: 9999px;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+
+  min-width: 380px;
+  box-sizing: border-box;
+
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: float-in 0.5s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes float-in {
