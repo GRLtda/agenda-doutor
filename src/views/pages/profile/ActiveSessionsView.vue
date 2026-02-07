@@ -1,26 +1,18 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { 
-  Monitor, Smartphone, Globe, Clock, Shield, AlertTriangle 
+  Monitor, Smartphone, Globe, Clock, Shield, AlertTriangle, LogOut, XCircle 
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const toast = useToast()
+const router = useRouter()
+
 const isLoading = ref(false)
-
-const devices = computed(() => {
-  // O backend retorna connectedDevices no objeto user
-  // Vamos garantir que seja um array e ordenar pelo login mais recente
-  const list = authStore.user?.connectedDevices || []
-  return [...list].sort((a, b) => new Date(b.lastLogin) - new Date(a.lastLogin))
-})
-
-const currentDeviceIp = ref('') // Idealmente, o backend poderia retornar qual é o IP atual na resposta do /me, 
-                                // ou o frontend infere se tiver essa info. 
-                                // Por simplicidade, vamos destacar o primeiro da lista se o backend ordenar, 
-                                // ou apenas listar todos.
+const sessions = ref([])
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
@@ -35,6 +27,7 @@ const formatDate = (dateString) => {
 }
 
 const getDeviceIcon = (userAgent) => {
+  if (!userAgent) return Monitor
   const ua = userAgent.toLowerCase()
   if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
     return Smartphone
@@ -43,38 +36,77 @@ const getDeviceIcon = (userAgent) => {
 }
 
 const getBrowserName = (userAgent) => {
+  if (!userAgent) return 'Dispositivo Desconhecido'
   const ua = userAgent.toLowerCase()
   if (ua.includes('chrome')) return 'Google Chrome'
   if (ua.includes('firefox')) return 'Firefox'
   if (ua.includes('safari') && !ua.includes('chrome')) return 'Safari'
   if (ua.includes('edge')) return 'Microsoft Edge'
-  return 'Navegador Desconhecido'
+  return 'Navegador'
 }
 
 const getOSName = (userAgent) => {
+  if (!userAgent) return ''
   const ua = userAgent.toLowerCase()
   if (ua.includes('windows')) return 'Windows'
   if (ua.includes('mac')) return 'macOS'
   if (ua.includes('linux')) return 'Linux'
   if (ua.includes('android')) return 'Android'
   if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) return 'iOS'
-  return 'Sistema Desconhecido'
+  return ''
 }
 
-const refreshDevices = async () => {
+const fetchSessions = async () => {
   isLoading.value = true
   try {
-    await authStore.fetchUser()
+    const result = await authStore.getSessions()
+    if (result.success) {
+      sessions.value = result.sessions || []
+    } else {
+      toast.error(result.error || 'Erro ao carregar sessões')
+    }
   } catch (error) {
-    console.error('Erro ao buscar dispositivos:', error)
+    console.error('Erro ao buscar sessões:', error)
     toast.error('Erro ao atualizar lista de dispositivos')
   } finally {
     isLoading.value = false
   }
 }
 
+const handleRevokeSession = async (sessionId) => {
+  if (!confirm('Tem certeza que deseja desconectar este dispositivo?')) return
+
+  try {
+    const result = await authStore.revokeSession(sessionId)
+    if (result.success) {
+      toast.success('Dispositivo desconectado com sucesso')
+      await fetchSessions()
+    } else {
+      toast.error(result.error || 'Erro ao desconectar dispositivo')
+    }
+  } catch (error) {
+    toast.error('Erro ao tentar desconectar')
+  }
+}
+
+const handleLogoutAll = async () => {
+  if (!confirm('Isso irá desconectar sua conta de TODOS os dispositivos, incluindo este. Deseja continuar?')) return
+
+  try {
+    const result = await authStore.logoutAll()
+    if (result.success) {
+      toast.info('Todas as sessões foram encerradas.')
+      router.push({ name: 'login' })
+    } else {
+      toast.error(result.error || 'Erro ao encerrar sessões')
+    }
+  } catch (error) {
+    toast.error('Erro crítico ao tentar sair de todos os dispositivos')
+  }
+}
+
 onMounted(() => {
-  refreshDevices()
+  fetchSessions()
 })
 </script>
 
@@ -85,40 +117,51 @@ onMounted(() => {
         <h2>Dispositivos Conectados</h2>
         <p>Gerencie as sessões ativas na sua conta</p>
       </div>
+      <button @click="handleLogoutAll" class="logout-all-btn" title="Sair de todos os dispositivos">
+        <LogOut :size="16" />
+        <span>Sair de todos</span>
+      </button>
     </div>
 
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
     </div>
 
-    <div v-else-if="devices.length > 0" class="devices-list">
-      <div v-for="(device, index) in devices" :key="index" class="device-item">
+    <div v-else-if="sessions.length > 0" class="devices-list">
+      <div v-for="session in sessions" :key="session.id" class="device-item" :class="{ 'current-device': session.is_current }">
         <div class="device-icon-wrapper">
-          <component :is="getDeviceIcon(device.userAgent)" :size="24" />
+          <component :is="getDeviceIcon(session.device?.user_agent)" :size="24" />
         </div>
         
         <div class="device-info">
           <div class="device-name">
-            {{ getBrowserName(device.userAgent) }} no {{ getOSName(device.userAgent) }}
-            <span v-if="index === 0" class="current-badge">Atual</span>
+            {{ getBrowserName(session.device?.user_agent) }} 
+            <span v-if="getOSName(session.device?.user_agent)">
+              no {{ getOSName(session.device?.user_agent) }}
+            </span>
+            <span v-if="session.is_current" class="current-badge">Atual</span>
           </div>
           <div class="device-meta">
             <div class="meta-item">
               <Globe :size="14" />
-              <span>{{ device.ip }}</span>
+              <span>{{ session.device?.ip || 'IP não disponível' }}</span>
             </div>
             <div class="meta-item">
               <Clock :size="14" />
-              <span>{{ formatDate(device.lastLogin) }}</span>
+              <span>Último acesso: {{ formatDate(session.last_used_at || session.created_at) }}</span>
             </div>
           </div>
         </div>
+
+        <button v-if="!session.is_current" @click="handleRevokeSession(session.id)" class="revoke-btn" title="Desconectar este dispositivo">
+          <XCircle :size="20" />
+        </button>
       </div>
     </div>
 
     <div v-else class="empty-state">
       <AlertTriangle :size="32" />
-      <p>Nenhuma informação de dispositivo encontrada.</p>
+      <p>Nenhuma sessão ativa encontrada.</p>
     </div>
   </div>
 </template>
@@ -130,7 +173,6 @@ onMounted(() => {
   padding: 2rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   border: 1px solid #f1f5f9;
-  /* max-width removed to fit container */
   height: fit-content;
 }
 
@@ -140,6 +182,7 @@ onMounted(() => {
   align-items: center;
   padding-bottom: 1rem;
   border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1rem;
 }
 
 .header-text h2 {
@@ -155,14 +198,33 @@ onMounted(() => {
   margin: 0;
 }
 
+.logout-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #fee2e2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-all-btn:hover {
+  background-color: #fecaca;
+  border-color: #fca5a5;
+}
+
 .devices-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-top: 1rem;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
-  padding-right: 0.5rem; /* Space for scrollbar */
+  padding-right: 0.5rem;
 }
 
 /* Custom Scrollbar */
@@ -201,6 +263,11 @@ onMounted(() => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
+.current-device {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
 .device-icon-wrapper {
   width: 48px;
   height: 48px;
@@ -211,16 +278,19 @@ onMounted(() => {
   justify-content: center;
   color: #3b82f6;
   border: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .device-info {
   flex: 1;
+  min-width: 0; /* Prevent overflow */
 }
 
 .device-name {
   font-weight: 600;
   color: #0f172a;
   margin-bottom: 0.25rem;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -238,7 +308,8 @@ onMounted(() => {
 
 .device-meta {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.25rem;
   font-size: 0.8rem;
   color: #64748b;
 }
@@ -247,6 +318,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.revoke-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.revoke-btn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
 }
 
 .loading-state, .empty-state {
@@ -273,8 +362,18 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .device-meta {
+  .card-header {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .logout-all-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .device-meta {
     gap: 0.25rem;
   }
 }
