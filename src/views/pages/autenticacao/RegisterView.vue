@@ -52,14 +52,16 @@ onMounted(async () => {
     invitationToken.value = newUserToken
     try {
       const response = await verifyInvitationToken(newUserToken)
-      if (response.data) {
-        name.value = response.data.name || '' // Preenche o nome se ele vier
-        email.value = response.data.email
-        phone.value = response.data.phone || '' // Preenche o telefone se ele vier
-        plan.value = response.data.plan
+      const inviteData = response.data.data || response.data
+
+      if (inviteData) {
+        name.value = inviteData.name || '' // Preenche o nome se ele vier
+        email.value = inviteData.email
+        phone.value = inviteData.phone || '' // Preenche o telefone se ele vier
+        plan.value = inviteData.plan
         emailIsDisabled.value = true
-        phoneIsDisabled.value = !!response.data.phone // Desativa fone se ele veio
-        nameIsDisabled.value = !!response.data.name // Desativa nome se ele veio
+        phoneIsDisabled.value = !!inviteData.phone // Desativa fone se ele veio
+        nameIsDisabled.value = !!inviteData.name // Desativa nome se ele veio
         isStaffInvitation.value = false // É um registro normal, não um convite de staff
         toast.info(`Bem-vindo(a)! Complete seu cadastro.`)
       }
@@ -72,8 +74,10 @@ onMounted(async () => {
     invitationToken.value = staffInviteToken
     try {
       const response = await getInvitationDetails(staffInviteToken)
-      if (response.data) {
-        email.value = response.data.email
+      const inviteData = response.data.data || response.data
+
+      if (inviteData) {
+        email.value = inviteData.email
         emailIsDisabled.value = true
         phoneIsDisabled.value = false // Staff pode preencher o próprio fone
         isStaffInvitation.value = true // É um convite de staff
