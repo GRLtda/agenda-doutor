@@ -158,6 +158,10 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       if (error.response && error.response.status === 403) {
         return user.value
+      } else if (error.response?.data?.error?.code === 'CLINIC_NOT_FOUND') {
+        console.warn('[Auth V2] Usuário autenticado, mas sem clínica vinculada (CLINIC_NOT_FOUND). Mantendo sessão para onboarding.')
+        // Não faz logout, permite que o fluxo siga (ex: para onboarding)
+        return user.value
       } else {
         logout()
         console.error('[Auth V2] Erro ao buscar usuário, token pode ser inválido:', error)
@@ -259,7 +263,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout()
     try {
       const response = await apiRegister(userData)
-      const { token: authToken } = response.data
+      const registerData = response.data.data || response.data
+      const authToken = registerData.token
 
       // Registro ainda usa V1, então salvamos como token simples temporariamente
       // O usuário precisará fazer login após para ter tokens V2
