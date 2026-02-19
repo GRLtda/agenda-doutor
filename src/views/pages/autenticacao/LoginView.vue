@@ -130,7 +130,8 @@ async function handleResetPassword() {
   })
   isLoading.value = false
   if (success) {
-    router.push('/')
+    goToStep('login')
+    notificationMessage.value = 'Senha redefinida com sucesso. Faça login para continuar.'
   } else {
     errorMessage.value = error
   }
@@ -178,6 +179,9 @@ async function handleResetPassword() {
     <Transition name="slide-fade" mode="out-in">
 
       <div v-if="step === 'login'" key="body-login">
+        <div v-if="notificationMessage" class="notification-message">
+          {{ notificationMessage }}
+        </div>
         <form @submit.prevent="handleLogin">
           <FormInput
             ref="emailInputRef"

@@ -389,7 +389,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function requestPasswordReset(emailOrPhone) {
     try {
       const response = await apiForgotPassword(emailOrPhone)
-      return { success: true, message: response.data.message }
+      return { success: true, message: response.data.data.message }
     } catch (error) {
       console.error('[Auth] Erro ao solicitar reset de senha:', error)
       const message = error.response?.data?.message || 'Erro ao solicitar o código.'
@@ -399,18 +399,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function performPasswordReset(data) {
     try {
-      const response = await apiResetPassword(data)
-      const { token: authToken } = response.data
-
-      // Reset ainda usa V1
-      _saveTokens({
-        access_token: authToken,
-        refresh_token: null,
-        expires_in: 86400,
-      })
-
-      const fullUserData = await fetchUser()
-      return { success: true, user: fullUserData }
+      await apiResetPassword(data)
+      // Não fazemos login automático, apenas retornamos sucesso para redirecionar ao login
+      return { success: true }
     } catch (error) {
       console.error('[Auth] Erro ao redefinir senha:', error)
       const message = error.response?.data?.message || 'Código inválido ou expirado.'
