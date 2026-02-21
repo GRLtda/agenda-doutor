@@ -131,7 +131,7 @@ function handleRefresh() {
         </div>
         <div class="header-text">
             <h1 class="title">{{ clinicName }}</h1>
-            <p class="subtitle">Painel de Controle &bull; Visão Geral</p>
+            <p class="subtitle">Painel de Controle &bull; Visão Geral.</p>
         </div>
       </div>
       
