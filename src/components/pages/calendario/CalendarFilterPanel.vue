@@ -45,9 +45,16 @@ const emit = defineEmits([
 const clinicStore = useClinicStore()
 const isDoctorSelectOpen = ref(false)
 
+const filteredStaff = computed(() => {
+    if (!clinicStore.currentClinic?.staff) return []
+    return clinicStore.currentClinic.staff.filter(emp => 
+        emp.role === 'medico' || emp.role === 'owner'
+    )
+})
+
 const selectedDoctor = computed(() => {
-    if (!props.selectedDoctorId || !clinicStore.currentClinic?.staff) return null
-    return clinicStore.currentClinic.staff.find(s => String(s._id) === String(props.selectedDoctorId))
+    if (!props.selectedDoctorId || !filteredStaff.value) return null
+    return filteredStaff.value.find(s => String(s._id) === String(props.selectedDoctorId))
 })
 
 const localDatePickerModel = computed({
@@ -148,7 +155,7 @@ function handleToggleStatus(status) {
                     </div>
                     
                     <div 
-                        v-for="emp in clinicStore.currentClinic?.staff" 
+                        v-for="emp in filteredStaff" 
                         :key="emp._id" 
                         class="select-option"
                         @click="handleSelectDoctor(emp)"
