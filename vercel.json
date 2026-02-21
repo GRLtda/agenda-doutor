@@ -4,5 +4,25 @@
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=86400, stale-while-revalidate=43200"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=0, must-revalidate"
+        }
+      ]
+    }
   ]
 }
