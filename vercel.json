@@ -11,7 +11,25 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=86400, stale-while-revalidate=43200"
+          "value": "public, s-maxage=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(sw.js|service-worker.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=0, must-revalidate, no-cache, no-store"
         }
       ]
     },
@@ -20,7 +38,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=0, must-revalidate"
+          "value": "public, s-maxage=0, must-revalidate, no-cache, no-store"
         }
       ]
     }
