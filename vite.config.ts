@@ -31,18 +31,8 @@ export default defineConfig({
         background_color: '#ffffff',
         theme_color: '#ffffff',
         icons: [
-          {
-            src: './logo_brand.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: './logo_brand.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          { src: './logo_brand.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: './logo_brand.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         screenshots: [
           {
@@ -61,10 +51,28 @@ export default defineConfig({
           },
         ],
       },
+
       workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        navigateFallback: '/index.html',
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60,
+              },
+            },
+          },
+        ],
       },
-    }),
+    })
   ],
   resolve: {
     alias: {
