@@ -20,7 +20,6 @@ export default defineConfig({
     tailwindcss(),
     vueDevTools(),
     VitePWA({
-      selfDestroying: true,
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['logo_brand.png', 'logo_brand.svg'],
@@ -30,8 +29,8 @@ export default defineConfig({
         description: 'Agenda Doutor - Agendamentos e consultas.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#ffffff',
+        background_color: '#ede9e9ff',
+        theme_color: '#ede9e9ff',
         icons: [
           { src: './logo_brand.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: './logo_brand.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
