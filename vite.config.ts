@@ -20,6 +20,7 @@ export default defineConfig({
     tailwindcss(),
     vueDevTools(),
     VitePWA({
+      selfDestroying: true,
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['logo_brand.png', 'logo_brand.svg'],
