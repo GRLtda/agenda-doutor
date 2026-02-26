@@ -21,6 +21,7 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['logo_brand.png', 'logo_brand.svg'],
       manifest: {
         name: 'Agenda Doutor',
@@ -53,24 +54,10 @@ export default defineConfig({
       },
 
       workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallback: '/index.html',
+        cleanupOutdatedCaches: true,
+        globPatterns: [],
         clientsClaim: true,
         skipWaiting: true,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'html',
-              networkTimeoutSeconds: 3,
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60,
-              },
-            },
-          },
-        ],
       },
     })
   ],

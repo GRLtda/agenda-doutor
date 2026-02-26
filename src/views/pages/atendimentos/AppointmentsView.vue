@@ -257,12 +257,6 @@ function closeActionMenu(event) {
       </div>
       <div class="header-actions">
 
-        <!-- ✨ Novo Agendamento Button -->
-        <AppButton @click="openCreateModal" variant="primary">
-          <Plus :size="18" />
-          Novo Agendamento
-        </AppButton>
-
         <!-- ✨ Date Range Picker (VueDatePicker) -->
         <div class="date-picker-wrapper">
           <VueDatePicker
@@ -279,11 +273,6 @@ function closeActionMenu(event) {
                <div class="custom-date-trigger">
                   <div class="date-value">
                      {{ formatDateDisplay(dateRange[0]) }}
-                     <CalendarDays :size="14" class="text-slate-400" />
-                  </div>
-                  <span class="separator">até</span>
-                  <div class="date-value">
-                     {{ formatDateDisplay(dateRange[1]) }}
                      <CalendarDays :size="14" class="text-slate-400" />
                   </div>
                </div>
@@ -691,11 +680,11 @@ function closeActionMenu(event) {
 .custom-date-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-around;
   background-color: var(--branco);
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.5rem;
   cursor: pointer;
   height: 42px;
   transition: all 0.2s ease;

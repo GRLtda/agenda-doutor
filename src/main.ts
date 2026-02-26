@@ -9,7 +9,6 @@ import { cnpjMask } from './directives/cnpj-mask'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
-
 import App from './App.vue'
 import router from './router'
 
