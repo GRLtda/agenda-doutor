@@ -158,7 +158,26 @@ const sidebarSections = computed(() => {
     ]
   }
 
-  return [principalSection, gestaoSection, marketingSection]
+  // Seção Operações — Estoque
+  const estoqueSection = {
+    title: 'Operações',
+    links: [
+      {
+        icon: 'inventory',
+        text: 'Estoque',
+        key: 'estoque',
+        children: [
+          { text: 'Visão Geral',    to: '/estoque',               icon: 'dashboard'  },
+          { text: 'Produtos',       to: '/estoque/produtos',       icon: 'box'        },
+          { text: 'Lotes',          to: '/estoque/lotes',          icon: 'layers'     },
+          { text: 'Movimentações',  to: '/estoque/movimentacoes',  icon: 'history'    },
+          { text: 'Kits',           to: '/estoque/kits',           icon: 'kit'        },
+        ]
+      }
+    ]
+  }
+
+  return [principalSection, gestaoSection, marketingSection, estoqueSection]
 })
 
 </script>
