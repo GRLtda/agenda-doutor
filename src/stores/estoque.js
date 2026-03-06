@@ -28,6 +28,18 @@ export const useEstoqueStore = defineStore('estoque', () => {
     const movimentacaoAtual = ref(null)
     const movimentacoesMeta = ref({ total: 0, page: 1, totalPages: 1 })
 
+    // Estatísticas Consolidadas
+    const stats = ref({
+        totalProdutos: 0,
+        totalLotesAtivos: 0,
+    })
+
+    const healthScore = ref(0)
+    const chartData = ref({
+        trends: [],
+        categorias: []
+    })
+
     // Alertas
     const alertasEstoqueMinimo = ref([])
     const alertasVencimentos = ref([])
@@ -90,8 +102,15 @@ export const useEstoqueStore = defineStore('estoque', () => {
     }
 
     function normalizarItem(responseData) {
-        const item = responseData?.data ?? responseData;
+        let item = responseData?.data ?? responseData;
         if (!item) return null;
+
+        // Se for um wrapper { produto: { ... } }, { lote: { ... } }, etc
+        if (item.produto) item = item.produto;
+        else if (item.lote) item = item.lote;
+        else if (item.kit) item = item.kit;
+        else if (item.movimentacao) item = item.movimentacao;
+
         return { ...item, _id: item._id || item.id };
     }
 
@@ -474,7 +493,33 @@ export const useEstoqueStore = defineStore('estoque', () => {
         }
     }
 
-    // ─── ALERTAS ──────────────────────────────────────────────────────────────
+    // ─── DASHBOARD & ALERTAS ──────────────────────────────────────────────────
+    /**
+     * Busca resumo completo do Dashboard: Alertas + Contadores
+     */
+    async function fetchDashboardSummary(diasVencimento = 30) {
+        loadingAlertas.value = true
+        error.value = null
+        try {
+            const res = await estoqueApi.getDashboardSummary(diasVencimento)
+            if (res.data.success) {
+                const data = res.data.data
+                alertasEstoqueMinimo.value = data.alertas?.estoqueMinimo?.produtos || []
+                alertasVencimentos.value = data.alertas?.vencimentos?.lotes || []
+                stats.value = data.stats || { totalProdutos: 0, totalLotesAtivos: 0 }
+                healthScore.value = data.healthScore || 0
+                chartData.value = data.chartData || { trends: [], categorias: [] }
+                return { success: true }
+            }
+            return { success: false, error: 'Falha ao carregar dashboard' }
+        } catch (err) {
+            console.error('[estoque] fetchDashboardSummary:', err)
+            error.value = extrairMensagemErro(err, 'Erro ao carregar dashboard')
+            return { success: false, error: error.value }
+        } finally {
+            loadingAlertas.value = false
+        }
+    }
 
     async function fetchAlertas(diasVencimento = 30) {
         loadingAlertas.value = true
@@ -484,8 +529,9 @@ export const useEstoqueStore = defineStore('estoque', () => {
                 estoqueApi.getAlertasEstoqueMinimo(),
                 estoqueApi.getAlertasVencimentos(diasVencimento),
             ])
-            alertasEstoqueMinimo.value = resMinimo.data.data || []
-            alertasVencimentos.value = resVenc.data.data || []
+            // Extrai as listas dos objetos de resposta
+            alertasEstoqueMinimo.value = resMinimo.data.data?.produtos || []
+            alertasVencimentos.value = resVenc.data.data?.lotes || []
             return { success: true }
         } catch (err) {
             console.error('[estoque] fetchAlertas:', err)
@@ -522,6 +568,9 @@ export const useEstoqueStore = defineStore('estoque', () => {
         movimentacoes,
         movimentacaoAtual,
         movimentacoesMeta,
+        stats,
+        healthScore,
+        chartData,
         alertasEstoqueMinimo,
         alertasVencimentos,
         sugestaoFEFO,
@@ -565,7 +614,8 @@ export const useEstoqueStore = defineStore('estoque', () => {
         // Ações — FEFO
         fetchSugestaoFEFO,
 
-        // Ações — Alertas
+        // Ações — Alertas & Dashboard
+        fetchDashboardSummary,
         fetchAlertas,
 
         // Helpers

@@ -29,6 +29,11 @@ const formProduto = ref({})
 const formLote = ref(novoLote())
 const formMovAdm = ref(novaMovAdm())
 
+// Component template refs for validation
+const formProdutoRef = ref(null)
+const formLoteRef = ref(null)
+const formMovAdmRef = ref(null)
+
 function novoLote() {
   return { produtoId, numeroLote: '', dataValidade: '', saldoInicial: null, fornecedor: '', notaFiscal: '' }
 }
@@ -74,6 +79,10 @@ function fecharDrawer() {
 
 async function salvarProduto() {
   if (isSaving.value) return
+  if (formProdutoRef.value && !formProdutoRef.value.validate()) {
+    toast.error('Corrija os erros no formulário.')
+    return
+  }
   isSaving.value = true
   try {
     const res = await store.updateProduto(produto.value._id, formProduto.value)
@@ -86,8 +95,8 @@ async function salvarProduto() {
 
 async function salvarLote() {
   if (isSaving.value) return
-  if (!formLote.value.numeroLote || !formLote.value.dataValidade || !formLote.value.saldoInicial) {
-    toast.error('Preencha todos os campos obrigatórios.')
+  if (formLoteRef.value && !formLoteRef.value.validate()) {
+    toast.error('Corrija os erros no formulário.')
     return
   }
   isSaving.value = true
@@ -107,8 +116,8 @@ async function salvarLote() {
 
 async function salvarBaixaAdm() {
   if (isSaving.value) return
-  if (!formMovAdm.value.loteId || !formMovAdm.value.motivo || !formMovAdm.value.quantidade) {
-    toast.error('Preencha: lote, motivo e quantidade.')
+  if (formMovAdmRef.value && !formMovAdmRef.value.validate()) {
+    toast.error('Corrija os erros no formulário.')
     return
   }
   isSaving.value = true
@@ -270,7 +279,7 @@ function formatarData(iso) {
           <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
         </div>
       </template>
-      <EstoqueFormProduto v-model="formProduto" />
+      <EstoqueFormProduto ref="formProdutoRef" v-model="formProduto" />
       <template #footer>
         <div class="drawer-footer">
           <AppButton variant="default" @click="fecharDrawer"><X :size="15" /> Cancelar</AppButton>
@@ -290,7 +299,7 @@ function formatarData(iso) {
           <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
         </div>
       </template>
-      <EstoqueFormLote v-model="formLote" :produtos="produto ? [produto] : []" />
+      <EstoqueFormLote ref="formLoteRef" v-model="formLote" :produtos="produto ? [produto] : []" />
       <template #footer>
         <div class="drawer-footer">
           <AppButton variant="default" @click="fecharDrawer"><X :size="15" /> Cancelar</AppButton>
@@ -310,7 +319,7 @@ function formatarData(iso) {
           <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
         </div>
       </template>
-      <EstoqueFormMovAdm v-model="formMovAdm" :lotes="store.lotes.filter(l => l.status === 'ATIVO')" :produtos="produto ? [produto] : []" />
+      <EstoqueFormMovAdm ref="formMovAdmRef" v-model="formMovAdm" :lotes="store.lotes.filter(l => l.status === 'ATIVO')" :produtos="produto ? [produto] : []" />
       <template #footer>
         <div class="drawer-footer">
           <AppButton variant="default" @click="fecharDrawer"><X :size="15" /> Cancelar</AppButton>

@@ -5,7 +5,7 @@ import { usePatientsStore } from '@/stores/patients'
 import { useEmployeesStore } from '@/stores/employees'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal, AlertCircle } from 'lucide-vue-next'
+import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal, AlertCircle, Package, Box, ClipboardList, Activity } from 'lucide-vue-next'
 import AppTableList from '@/components/global/AppTableList.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
@@ -39,6 +39,10 @@ const entityOptions = ref([
   { value: 'Appointment', label: 'Agendamentos' },
   { value: 'Patient', label: 'Pacientes' },
   { value: 'Clinic', label: 'Clínica' },
+  { value: 'ProdutoCatalogo', label: 'Produtos (Estoque)' },
+  { value: 'Lote', label: 'Lotes (Estoque)' },
+  { value: 'KitProcedimento', label: 'Kits de Procedimento' },
+  { value: 'Movimentacao', label: 'Movimentações' },
 ])
 // ---
 
@@ -130,6 +134,16 @@ function formatAction(action) {
     PATIENT_UPDATE: 'atualizou um paciente',
     PATIENT_DELETE: 'excluiu um paciente',
     CLINIC_UPDATE: 'atualizou os dados da clínica',
+    STOCK_PRODUCT_CREATE: 'cadastrou um produto',
+    STOCK_PRODUCT_UPDATE: 'atualizou um produto',
+    STOCK_PRODUCT_DELETE: 'excluiu um produto',
+    STOCK_LOTE_CREATE: 'registrou entrada de lote',
+    STOCK_LOTE_UPDATE_STATUS: 'alterou status de um lote',
+    STOCK_KIT_CREATE: 'criou um kit de procedimento',
+    STOCK_KIT_UPDATE: 'atualizou um kit de procedimento',
+    STOCK_KIT_DELETE: 'excluiu um kit de procedimento',
+    STOCK_MOVE_BAIXA_ATENDIMENTO: 'realizou baixa de estoque (atendimento)',
+    STOCK_MOVE_BAIXA_ADMIN: 'realizou baixa administrativa (ajuste)',
   }
   return labels[action] || action.replace(/_/g, ' ').toLowerCase()
 }
@@ -139,7 +153,11 @@ function translateEntity(entity) {
     Appointment: 'Agendamento',
     Patient: 'Paciente',
     Clinic: 'Clínica',
-    User: 'Usuário'
+    User: 'Usuário',
+    ProdutoCatalogo: 'Produto',
+    Lote: 'Lote',
+    KitProcedimento: 'Kit',
+    Movimentacao: 'Movimentação'
   }
   return labels[entity] || entity
 }
@@ -169,6 +187,15 @@ function formatLogSummary(log) {
       target = `<strong>${patientName || '...'}</strong>`
     } else if (log.action === 'CLINIC_UPDATE') {
       target = ''
+    } else if (log.action.startsWith('STOCK_')) {
+      if (log.details?.summary) {
+        const parts = log.details.summary.split(': ')
+        if (parts.length > 1) {
+          target = `<strong>${parts[1]}</strong>`
+        } else {
+          target = `<strong>${log.details.summary}</strong>`
+        }
+      }
     }
   } catch (e) {
     console.error('Erro ao formatar resumo do log:', e, log)
@@ -181,6 +208,10 @@ function getEntityIcon(entity) {
   if (entity === 'Appointment') return Calendar
   if (entity === 'Patient') return User
   if (entity === 'Clinic') return FileText
+  if (entity === 'ProdutoCatalogo') return Package
+  if (entity === 'Lote') return Box
+  if (entity === 'KitProcedimento') return ClipboardList
+  if (entity === 'Movimentacao') return Activity
   return Clock
 }
 
@@ -197,7 +228,7 @@ function formatValue(value, field) {
   if (field === 'patient') {
     return patientNameMap.value[value] || `ID ...${String(value).slice(-6)}`
   }
-  if (field === 'startTime' || field === 'endTime') {
+  if (field === 'startTime' || field === 'endTime' || field === 'dataValidade') {
     return formatDateTime(value)
   }
   return value
@@ -215,7 +246,18 @@ function formatChange(change) {
     type: 'Tipo',
     notes: 'Observações',
     isReturn: 'É Retorno?',
-    originAppointment: 'Agendamento Origem'
+    originAppointment: 'Agendamento Origem',
+    categoria: 'Categoria',
+    fabricante: 'Fabricante',
+    unidadeMedida: 'Unidade',
+    aceitaFracao: 'Aceita Fração',
+    estoqueMinimo: 'Estoque Mínimo',
+    ativo: 'Ativo',
+    numeroLote: 'Número do Lote',
+    dataValidade: 'Validade',
+    saldoInicial: 'Saldo Inicial',
+    saldoAtual: 'Saldo Atual',
+    observacao: 'Observação'
   }
 
   const field = fieldLabels[change.field] || change.field

@@ -79,19 +79,20 @@ function irParaPagina(p) { page.value = p; carregar() }
               <th>Produto</th>
               <th>Lote</th>
               <th>Quantidade</th>
-              <th>Motivo</th>
+              <th>Responsável / Origem</th>
+              <th>Motivo / Paciente</th>
               <th>Data</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="store.loadingMovimentacoes && store.movimentacoes.length === 0">
               <tr v-for="n in 8" :key="n" class="skeleton-row">
-                <td v-for="c in 6" :key="c"><div class="skeleton" :style="`width:${30+c*10}%`"></div></td>
+                <td v-for="c in 7" :key="c"><div class="skeleton" :style="`width:${30+c*10}%`"></div></td>
               </tr>
             </template>
 
             <template v-else-if="!store.loadingMovimentacoes && store.movimentacoes.length === 0">
-              <tr><td colspan="6" class="empty-cell">
+              <tr><td colspan="7" class="empty-cell">
                 <div class="empty-state">
                   <div class="empty-icon"><BookOpen :size="28"/></div>
                   <h3>Nenhuma movimentação encontrada</h3>
@@ -108,7 +109,26 @@ function irParaPagina(p) { page.value = p; carregar() }
                 <td class="qtd" :class="mov.tipo === 'ENTRADA' ? 'qtd--entrada' : 'qtd--saida'">
                   {{ mov.tipo === 'ENTRADA' ? '+' : '-' }}{{ mov.quantidade }}
                 </td>
-                <td class="txt-gray">{{ mov.motivo || (mov.atendimentoId ? 'Atendimento' : '—') }}</td>
+                <td>
+                  <div class="user-info">
+                    <img v-if="mov.fotoUrl" :src="mov.fotoUrl" class="user-avatar" loading="lazy" />
+                    <div v-else class="user-avatar-placeholder">{{ mov.usuario?.name?.[0] || '?' }}</div>
+                    <span class="name-truncate" :title="mov.usuario?.name">{{ mov.usuario?.name || 'Sistema' }}</span>
+                  </div>
+                </td>
+                <td class="txt-gray">
+                  <div class="motivo-cell">
+                    <span v-if="mov.motivoSaida" class="motivo-tag">{{ mov.motivoSaida }}</span>
+                    <span v-if="mov.paciente" class="name-truncate patient-link" :title="mov.paciente.name">
+                      👤 {{ mov.paciente.name }}
+                    </span>
+                    <span v-else-if="!mov.motivoSaida && mov.tipo !== 'ENTRADA'">—</span>
+                    <span v-else-if="mov.tipo === 'ENTRADA'">Entrada de estoque</span>
+                    <div v-if="mov.observacao" class="mov-obs" :title="mov.observacao">
+                      {{ mov.observacao }}
+                    </div>
+                  </div>
+                </td>
                 <td class="txt-gray data-cel">{{ formatarData(mov.createdAt) }}</td>
               </tr>
             </template>
@@ -126,14 +146,24 @@ function irParaPagina(p) { page.value = p; carregar() }
         </template>
         <div v-for="mov in store.movimentacoes" :key="mov._id" class="mov-card">
           <div class="mov-card-body">
-            <EstoqueMovimentacaoTipo :tipo="mov.tipo" />
-            <span class="produto-nome">{{ mov.produto?.nome || '—' }}</span>
-            <span class="lote-num">{{ mov.lote?.numeroLote || '—' }}</span>
-            <span class="txt-gray" style="font-size:.78rem">{{ formatarData(mov.createdAt) }}</span>
+            <div class="card-header-flex">
+              <EstoqueMovimentacaoTipo :tipo="mov.tipo" />
+              <span class="txt-gray data-cel-mb">{{ formatarData(mov.createdAt) }}</span>
+            </div>
+            <span class="produto-nome-mb">{{ mov.produto?.nome || '—' }}</span>
+            <span class="lote-num-mb">Lote: {{ mov.lote?.numeroLote || '—' }}</span>
+            <div class="card-meta">
+              <span class="responsible name-truncate" style="max-width:100px">{{ mov.usuario?.name || 'Sistema' }}</span>
+              <span v-if="mov.paciente" class="patient name-truncate" style="max-width:100px">👤 {{ mov.paciente.name }}</span>
+              <span v-else-if="mov.motivoSaida" class="motivo-tag">{{ mov.motivoSaida }}</span>
+            </div>
+            <div v-if="mov.observacao" class="mov-obs-mb">{{ mov.observacao }}</div>
           </div>
-          <span class="qtd" :class="mov.tipo === 'ENTRADA' ? 'qtd--entrada' : 'qtd--saida'">
-            {{ mov.tipo === 'ENTRADA' ? '+' : '-' }}{{ mov.quantidade }}
-          </span>
+          <div class="card-right">
+            <span class="qtd" :class="mov.tipo === 'ENTRADA' ? 'qtd--entrada' : 'qtd--saida'">
+              {{ mov.tipo === 'ENTRADA' ? '+' : '-' }}{{ mov.quantidade }}
+            </span>
+          </div>
         </div>
         <div v-if="!store.loadingMovimentacoes && store.movimentacoes.length === 0" class="empty-cell">
           <div class="empty-state">
@@ -152,7 +182,7 @@ function irParaPagina(p) { page.value = p; carregar() }
     </div>
 
     <!-- Nota legenda -->
-    <p class="legenda">📋 O Livro-Razão é imutável — registros não podem ser editados ou excluídos.</p>
+    <p class="legenda">Registros não podem ser editados ou excluídos.</p>
   </div>
 </template>
 
@@ -190,6 +220,32 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
 .qtd--entrada { color:#059669; }
 .qtd--saida { color:#dc2626; }
 
+.user-info { display:flex; align-items:center; gap:.65rem; }
+.user-avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid #e5e7eb; }
+.user-avatar-placeholder { width:32px; height:32px; border-radius:50%; background:#f3f4f6; color:#9ca3af; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; border:1px solid #e5e7eb; }
+
+.name-truncate {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+
+.motivo-cell { display:flex; flex-direction:column; gap:.25rem; }
+.motivo-tag { font-size:.68rem; font-weight:700; text-transform:uppercase; color:#6b7280; }
+.patient-link { font-size:.82rem; color:var(--azul-principal); font-weight:600; }
+.mov-obs {
+  font-size: .75rem;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 2px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .empty-cell { padding:4rem; text-align:center; }
 .empty-state { display:flex; flex-direction:column; align-items:center; gap:.75rem; max-width:320px; margin:0 auto; }
 .empty-icon { width:56px; height:56px; background:#eff6ff; color:var(--azul-principal); border-radius:50%; display:flex; align-items:center; justify-content:center; }
@@ -219,5 +275,22 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   .mobile-list { display:block; }
   .filtros-bar { flex-direction:column; }
   .date-group { width:100%; }
+  
+  .card-header-flex { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
+  .data-cel-mb { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; }
+  .produto-nome-mb { font-weight:700; color:#111827; font-size:.9rem; }
+  .lote-num-mb { color:#6b7280; font-size:.75rem; margin-bottom:.4rem; }
+  .card-meta { display:flex; gap:.75rem; align-items:center; }
+  .mov-obs-mb {
+    font-size: .7rem;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 2px;
+    border-top: 1px dashed #e5e7eb;
+    padding-top: 4px;
+  }
+  .responsible { font-size:.7rem; color:#9ca3af; font-weight:500; }
+  .patient { font-size:.7rem; color:var(--azul-principal); font-weight:600; }
+  .card-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:center; }
 }
 </style>

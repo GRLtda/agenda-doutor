@@ -13,17 +13,57 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const form = ref({ ...props.modelValue })
+const errors = ref({})
 
 watch(() => props.modelValue, (val) => {
-  form.value = { ...val }
+  if (JSON.stringify(form.value) !== JSON.stringify(val)) {
+    form.value = { ...val }
+  }
 }, { deep: true })
+
+function validate() {
+  const newErrors = {}
+
+  if (!form.value.nome || form.value.nome.trim().length < 2) {
+    newErrors.nome = 'O nome deve ter pelo menos 2 caracteres'
+  } else if (form.value.nome.length > 200) {
+    newErrors.nome = 'Máximo de 200 caracteres'
+  }
+
+  if (!form.value.unidadeMedida) {
+    newErrors.unidadeMedida = 'Selecione uma unidade de medida'
+  } else if (!unidades.includes(form.value.unidadeMedida)) {
+    newErrors.unidadeMedida = 'Unidade de medida inválida'
+  }
+
+  if (form.value.categoria && form.value.categoria.length > 100) {
+    newErrors.categoria = 'Máximo de 100 caracteres'
+  }
+
+  if (form.value.fabricante && form.value.fabricante.length > 200) {
+    newErrors.fabricante = 'Máximo de 200 caracteres'
+  }
+
+  if (form.value.quantidadeMinima < 0) {
+    newErrors.quantidadeMinima = 'Não pode ser negativa'
+  }
+
+  errors.value = newErrors
+  return Object.keys(newErrors).length === 0
+}
 
 function update(field, value) {
   form.value[field] = value
   emit('update:modelValue', { ...form.value })
+  
+  if (errors.value[field]) {
+    delete errors.value[field]
+  }
 }
 
-const unidades = ['ML', 'UN', 'AMP', 'CX', 'FR', 'G', 'MG', 'L', 'KIT']
+defineExpose({ validate })
+
+const unidades = ['UNIDADE', 'ML', 'SERINGA']
 const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio', 'Anestésico', 'Material cirúrgico', 'Descartáveis', 'Outros']
 </script>
 
@@ -34,29 +74,43 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
       <label class="label">Nome do produto <span class="required">*</span></label>
       <input
         class="input"
+        :class="{ 'input--error': errors.nome }"
         type="text"
         placeholder="Ex: Ácido Hialurônico 1ml"
         :value="form.nome"
         @input="update('nome', $event.target.value)"
       />
+      <span v-if="errors.nome" class="error-msg">{{ errors.nome }}</span>
     </div>
 
     <!-- Unidade de Medida -->
     <div class="field">
       <label class="label">Unidade de medida <span class="required">*</span></label>
-      <select class="input" :value="form.unidadeMedida" @change="update('unidadeMedida', $event.target.value)">
+      <select 
+        class="input" 
+        :class="{ 'input--error': errors.unidadeMedida }"
+        :value="form.unidadeMedida" 
+        @change="update('unidadeMedida', $event.target.value)"
+      >
         <option value="" disabled>Selecione...</option>
         <option v-for="u in unidades" :key="u" :value="u">{{ u }}</option>
       </select>
+      <span v-if="errors.unidadeMedida" class="error-msg">{{ errors.unidadeMedida }}</span>
     </div>
 
     <!-- Categoria -->
     <div class="field">
       <label class="label">Categoria</label>
-      <select class="input" :value="form.categoria" @change="update('categoria', $event.target.value)">
+      <select 
+        class="input" 
+        :class="{ 'input--error': errors.categoria }"
+        :value="form.categoria" 
+        @change="update('categoria', $event.target.value)"
+      >
         <option value="">Sem categoria</option>
         <option v-for="c in categorias" :key="c" :value="c">{{ c }}</option>
       </select>
+      <span v-if="errors.categoria" class="error-msg">{{ errors.categoria }}</span>
     </div>
 
     <!-- Fabricante -->
@@ -64,11 +118,13 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
       <label class="label">Fabricante</label>
       <input
         class="input"
+        :class="{ 'input--error': errors.fabricante }"
         type="text"
         placeholder="Ex: Galderma"
         :value="form.fabricante"
         @input="update('fabricante', $event.target.value)"
       />
+      <span v-if="errors.fabricante" class="error-msg">{{ errors.fabricante }}</span>
     </div>
 
     <!-- Estoque mínimo -->
@@ -76,6 +132,7 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
       <label class="label">Estoque mínimo</label>
       <input
         class="input"
+        :class="{ 'input--error': errors.quantidadeMinima }"
         type="number"
         min="0"
         step="0.5"
@@ -83,6 +140,7 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
         :value="form.quantidadeMinima"
         @input="update('quantidadeMinima', parseFloat($event.target.value))"
       />
+      <span v-if="errors.quantidadeMinima" class="error-msg">{{ errors.quantidadeMinima }}</span>
       <p class="hint">O sistema vai alertar quando o saldo total cair abaixo desse valor.</p>
     </div>
 
@@ -104,17 +162,11 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
         <span class="toggle-knob" />
       </button>
     </div>
-
-    <div v-if="!form.nome || !form.unidadeMedida" class="validation-hint">
-      <AlertCircle :size="14" />
-      Nome e unidade de medida são obrigatórios.
-    </div>
   </div>
 </template>
 
 <style scoped>
 .form-produto {
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -208,16 +260,18 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
   transform: translateX(20px);
 }
 
-.validation-hint {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: #f59e0b;
-  font-size: 0.8rem;
+.input--error {
+  border-color: #ef4444 !important;
+}
+
+.input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.error-msg {
+  color: #ef4444;
+  font-size: 0.75rem;
   font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 0.6rem;
+  margin-top: -0.2rem;
 }
 </style>

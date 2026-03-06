@@ -174,8 +174,16 @@ export const registrarBaixaAdministrativa = (data) => {
 }
 
 // ─────────────────────────────────────────────
-// ALERTAS
+// ALERTAS & DASHBOARD
 // ─────────────────────────────────────────────
+
+/**
+ * Resumo completo para o Dashboard (alertas + contadores)
+ * @param {number} dias - 30, 60 ou 90 para vencimentos
+ */
+export const getDashboardSummary = (dias = 30) => {
+    return apiClient.get('/v2/estoque/alertas/dashboard', { params: { dias } })
+}
 
 /**
  * Produtos com saldo total abaixo do estoque mínimo

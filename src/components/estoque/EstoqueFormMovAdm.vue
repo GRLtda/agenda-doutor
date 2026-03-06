@@ -20,15 +20,43 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const form = ref({ ...props.modelValue })
+const errors = ref({})
 
 watch(() => props.modelValue, (val) => {
-  form.value = { ...val }
+  if (JSON.stringify(form.value) !== JSON.stringify(val)) {
+    form.value = { ...val }
+  }
 }, { deep: true })
+
+function validate() {
+  const newErrors = {}
+
+  if (!form.value.produtoId) newErrors.produtoId = 'Selecione um produto'
+  if (!form.value.loteId) newErrors.loteId = 'Selecione um lote'
+  if (!form.value.motivo) newErrors.motivo = 'Selecione o motivo'
+  
+  if (!form.value.quantidade && form.value.quantidade !== 0) {
+    newErrors.quantidade = 'Quantidade é obrigatória'
+  } else if (parseFloat(form.value.quantidade) <= 0) {
+    newErrors.quantidade = 'Deve ser maior que zero'
+  } else if (parseFloat(form.value.quantidade) > saldoMaximo.value) {
+    newErrors.quantidade = `Máximo disponível: ${saldoMaximo.value}`
+  }
+
+  errors.value = newErrors
+  return Object.keys(newErrors).length === 0
+}
 
 function update(field, value) {
   form.value[field] = value
   emit('update:modelValue', { ...form.value })
+  
+  if (errors.value[field]) {
+    delete errors.value[field]
+  }
 }
+
+defineExpose({ validate })
 
 const motivos = [
   { value: 'VENCIMENTO', label: 'Vencimento' },
@@ -49,18 +77,29 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
     <!-- Produto -->
     <div class="field">
       <label class="label">Produto <span class="required">*</span></label>
-      <select class="input" :value="form.produtoId" @change="update('produtoId', $event.target.value)">
+      <select 
+        class="input" 
+        :class="{ 'input--error': errors.produtoId }"
+        :value="form.produtoId" 
+        @change="update('produtoId', $event.target.value)"
+      >
         <option value="" disabled>Selecione o produto...</option>
         <option v-for="p in produtos" :key="p._id" :value="p._id">
           {{ p.nome }} — {{ p.unidadeMedida }}
         </option>
       </select>
+      <span v-if="errors.produtoId" class="error-msg">{{ errors.produtoId }}</span>
     </div>
 
     <!-- Lote -->
     <div class="field">
       <label class="label">Lote <span class="required">*</span></label>
-      <select class="input" :value="form.loteId" @change="update('loteId', $event.target.value)">
+      <select 
+        class="input" 
+        :class="{ 'input--error': errors.loteId }"
+        :value="form.loteId" 
+        @change="update('loteId', $event.target.value)"
+      >
         <option value="" disabled>Selecione o lote...</option>
         <option v-for="l in lotes" :key="l._id" :value="l._id">
           {{ l.numeroLote }} — Saldo: {{ l.saldoAtual }} — Validade: {{ l.dataValidade ? new Date(l.dataValidade).toLocaleDateString('pt-BR') : '—' }}
@@ -69,23 +108,25 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
       <p v-if="loteSelecionado" class="hint">
         Saldo disponível: <strong>{{ loteSelecionado.saldoAtual }}</strong>
       </p>
+      <span v-if="errors.loteId" class="error-msg">{{ errors.loteId }}</span>
     </div>
 
     <!-- Motivo -->
     <div class="field">
       <label class="label">Motivo <span class="required">*</span></label>
-      <div class="motivos-grid">
+      <div class="motivos-grid" :class="{ 'grid--error': errors.motivo }">
         <button
           v-for="m in motivos"
           :key="m.value"
           type="button"
           class="motivo-btn"
-          :class="{ 'motivo-btn--active': form.motivo === m.value }"
+          :class="{ 'motivo-btn--active': form.motivo === m.value, 'motivo-btn--error': errors.motivo }"
           @click="update('motivo', m.value)"
         >
           {{ m.label }}
         </button>
       </div>
+      <span v-if="errors.motivo" class="error-msg">{{ errors.motivo }}</span>
     </div>
 
     <!-- Quantidade -->
@@ -93,6 +134,7 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
       <label class="label">Quantidade a baixar <span class="required">*</span></label>
       <input
         class="input"
+        :class="{ 'input--error': errors.quantidade }"
         type="number"
         min="0.001"
         :max="saldoMaximo"
@@ -101,6 +143,7 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
         :value="form.quantidade"
         @input="update('quantidade', parseFloat($event.target.value))"
       />
+      <span v-if="errors.quantidade" class="error-msg">{{ errors.quantidade }}</span>
     </div>
 
     <!-- Observação -->
@@ -124,7 +167,6 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
 
 <style scoped>
 .form-mov-adm {
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -160,6 +202,22 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
 
 .input:focus {
   border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(82, 130, 255, 0.15);
+}
+
+.input--error {
+  border-color: #ef4444 !important;
+}
+
+.input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.error-msg {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: -0.2rem;
 }
 
 .textarea {
@@ -203,6 +261,10 @@ const saldoMaximo = computed(() => loteSelecionado.value?.saldoAtual ?? Infinity
   background: #eff6ff;
   color: #1d4ed8;
   font-weight: 700;
+}
+
+.motivo-btn--error {
+  border-color: #fca5a5;
 }
 
 .warning-box {

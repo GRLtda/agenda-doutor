@@ -22,7 +22,7 @@ const kitForm = ref(novoKit())
 const page = ref(1)
 
 function novoKit() {
-  return { nome: '', procedimentoId: '', ativo: true, itens: [{ produtoId: '', quantidade: 1 }] }
+  return { nome: '', procedimentoId: '', ativo: true, itens: [{ produtoId: '', quantidadePadrao: 1 }] }
 }
 
 onMounted(async () => {
@@ -41,7 +41,10 @@ function abrirNovo() {
 function abrirEditar(kit) {
   kitForm.value = {
     ...kit,
-    itens: kit.itens?.map((i) => ({ produtoId: i.produtoId?._id || i.produtoId, quantidade: i.quantidade })) || [],
+    itens: kit.itens?.map((i) => ({ 
+      produtoId: i.produtoId?._id || i.produtoId, 
+      quantidadePadrao: i.quantidadePadrao || i.quantidade 
+    })) || [],
   }
   showDrawer.value = true
 }
@@ -49,7 +52,7 @@ function abrirEditar(kit) {
 function fecharDrawer() { showDrawer.value = false }
 
 function adicionarItem() {
-  kitForm.value.itens.push({ produtoId: '', quantidade: 1 })
+  kitForm.value.itens.push({ produtoId: '', quantidadePadrao: 1 })
 }
 
 function removerItem(idx) {
@@ -62,7 +65,7 @@ async function salvar() {
     toast.error('Nome e procedimento são obrigatórios.')
     return
   }
-  if (kitForm.value.itens.length === 0 || kitForm.value.itens.some((i) => !i.produtoId || !i.quantidade)) {
+  if (kitForm.value.itens.length === 0 || kitForm.value.itens.some((i) => !i.produtoId || !i.quantidadePadrao)) {
     toast.error('Todos os itens devem ter produto e quantidade definidos.')
     return
   }
@@ -157,7 +160,7 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
               <tbody>
                 <tr v-for="(item, idx) in kit.itens" :key="idx">
                   <td class="nome-item">{{ item.nomeProduto || nomeProduto(item.produtoId?._id || item.produtoId) }}</td>
-                  <td class="qtd-item">{{ item.quantidade }}</td>
+                  <td class="qtd-item">{{ item.quantidadePadrao }}</td>
                   <td class="txt-gray">{{ item.unidadeMedida || '—' }}</td>
                 </tr>
               </tbody>
@@ -208,7 +211,7 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
               <option value="" disabled>Produto...</option>
               <option v-for="p in store.produtos" :key="p._id" :value="p._id">{{ p.nome }} ({{ p.unidadeMedida }})</option>
             </select>
-            <input class="input qtd-input" type="number" min="0.001" step="0.5" v-model.number="item.quantidade" placeholder="Qtd" />
+            <input class="input qtd-input" type="number" min="0.001" step="0.5" v-model.number="item.quantidadePadrao" placeholder="Qtd" />
             <button class="btn-remove" type="button" @click="removerItem(idx)" :disabled="kitForm.itens.length <= 1">
               <X :size="14" />
             </button>
@@ -297,7 +300,7 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 .drawer-footer { padding:1.25rem 1.5rem; display:flex; gap:.75rem; justify-content:flex-end; border-top:1px solid #f3f4f6; }
 
 /* Kit form */
-.kit-form { padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.kit-form { display:flex; flex-direction:column; gap:1.25rem; }
 .field { display:flex; flex-direction:column; gap:.4rem; }
 .label { font-size:.875rem; font-weight:600; color:#374151; }
 .req { color:#ef4444; }
