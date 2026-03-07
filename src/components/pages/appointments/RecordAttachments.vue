@@ -685,7 +685,7 @@ async function handleMontageComplete(file) {
       v-if="(!record?.attachments?.length || record?.attachments?.length === 0) && !isUploading"
       class="empty-attachments"
     >
-      <ImageIcon :size="48" />
+      <ImageIcon :size="48" class="empty-icon" />
       <h3 class="empty-title">Nenhum anexo ainda</h3>
       <p v-if="!disabled" class="empty-text">Clique em "Adicionar Imagem" para começar.</p>
     </div>
@@ -826,6 +826,12 @@ async function handleMontageComplete(file) {
 .action-card.disabled {
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.empty-icon {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .action-card.disabled:hover {

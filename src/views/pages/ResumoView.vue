@@ -153,7 +153,7 @@ function handleRefresh() {
     <!-- Stats Row (Top Grid) -->
     <div class="top-grid">
       <!-- Anamneses -->
-      <div class="kpi-card" @click="$router.push({ name: 'anamneses-pendentes' })" style="cursor: pointer">
+      <div class="kpi-card" @click="$router.push({ name: 'anamneses-list', query: { status: 'Pendente' } })" style="cursor: pointer">
         <div class="kpi-header">
           <span class="kpi-label">Anamneses Pendentes</span>
           <div class="icon-bg bg-orange-50">

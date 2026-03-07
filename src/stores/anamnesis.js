@@ -12,6 +12,7 @@ import {
   getAnamnesisForPatient as apiGetForPatient,
   updateAnamnesisResponse as apiUpdateResponse,
   getPendingAnamneses as apiGetPendingAnamneses,
+  getAllAnamneses as apiGetAllAnamneses,
   downloadAnamnesisPdf as apiDownloadPdf,
 } from '@/api/anamnesis'
 import { useToast } from 'vue-toastification'
@@ -31,6 +32,13 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
   const pendingPage = ref(1)
   const pendingPages = ref(1)
   const pendingLimit = ref(20)
+
+  // Estado para TODAS as anamneses (Lista Geral)
+  const allAnamnesesList = ref([])
+  const allTotal = ref(0)
+  const allPage = ref(1)
+  const allPages = ref(1)
+  const allLimit = ref(20)
 
   // --- Ações para Templates de Anamnese ---
 
@@ -291,6 +299,29 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     }
   }
 
+  // Busca TODAS as anamneses da clínica (status/buscar texto/página)
+  async function fetchAllAnamneses(page = 1, limit = 20, status = 'Todos', search = '') {
+    isLoading.value = true
+    try {
+      const response = await apiGetAllAnamneses(page, limit, status, search)
+      allAnamnesesList.value = response.data.data || []
+      allTotal.value = response.data.total || 0
+      allPage.value = response.data.page || 1
+      allPages.value = response.data.pages || 1
+      allLimit.value = response.data.limit || 20
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao buscar todas as anamneses:', error)
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Erro desconhecido'
+      toast.error(`Erro ao buscar anamneses: ${errorMessage}`)
+      allAnamnesesList.value = []
+      return { success: false, error }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Download do PDF de uma anamnese respondida
   async function downloadPdf(patientId, anamnesisId, templateName = 'anamnese') {
     isLoading.value = true
@@ -323,12 +354,13 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
 
   // Computed properties
   const answeredAnamneses = computed(() =>
-    // Esta linha agora é segura, pois 'patientAnamneses.value' é sempre um array
     patientAnamneses.value.filter((a) => a.status === 'Preenchido'),
   )
   const pendingAnamneses = computed(() =>
-    // Esta linha agora é segura
     patientAnamneses.value.filter((a) => a.status === 'Pendente'),
+  )
+  const expiredAnamneses = computed(() =>
+    patientAnamneses.value.filter((a) => a.status === 'Expirado'),
   )
 
   return {
@@ -338,6 +370,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     patientAnamneses,
     answeredAnamneses,
     pendingAnamneses,
+    expiredAnamneses,
 
     // Estado de anamneses pendentes da clínica
     pendingAnamnesesList,
@@ -345,6 +378,13 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     pendingPage,
     pendingPages,
     pendingLimit,
+
+    // Estado da lista geral
+    allAnamnesesList,
+    allTotal,
+    allPage,
+    allPages,
+    allLimit,
 
     // Funções de Template
     fetchTemplates,
@@ -361,6 +401,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     fetchAnamnesisForPatient,
     updateAnamnesisResponse,
     fetchPendingAnamneses,
+    fetchAllAnamneses,
     downloadPdf,
     isFetchingTemplates,
   }

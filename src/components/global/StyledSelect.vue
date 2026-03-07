@@ -91,7 +91,10 @@ function selectOption(option) {
         :class="{ 'has-error': error }"
         @click="isOpen = !isOpen"
       >
-        <span>{{ selectedLabel }}</span>
+        <div class="flex items-center overflow-hidden w-full">
+          <slot name="prefix"></slot>
+          <span class="truncate">{{ selectedLabel }}</span>
+        </div>
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
       </button>
 

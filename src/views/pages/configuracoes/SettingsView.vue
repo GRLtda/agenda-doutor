@@ -8,19 +8,26 @@ import ConsentTermsTemplates from '@/views/pages/configuracoes/tabs/ConsentTerms
 import EmployeesSettings from '@/views/pages/configuracoes/tabs/EmployeesSettings.vue'
 import AuditLog from '@/views/pages/configuracoes/tabs/AuditLog.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
+import ClinicConfigSettings from '@/views/pages/configuracoes/tabs/ClinicConfigSettings.vue'
 
-import { SlidersHorizontal, Clock, FileText, FileSignature, Users, History } from 'lucide-vue-next'
+import { Clock, FileText, FileSignature, Users, History, Settings, Building } from 'lucide-vue-next'
 
-const activeTab = ref('geral')
+const activeTab = ref('identidade')
 const route = useRoute()
 const router = useRouter()
 
 const tabs = [
   { 
-    value: 'geral', 
-    label: 'Geral', 
+    value: 'identidade', 
+    label: 'Identidade da Clínica', 
     description: 'Gerencie os dados básicos e a identidade da sua clínica.', 
-    icon: SlidersHorizontal 
+    icon: Building 
+  },
+  { 
+    value: 'configuracoes', 
+    label: 'Configurações', 
+    description: 'Ajustes gerais do sistema e preferências da clínica.', 
+    icon: Settings 
   },
   { 
     value: 'horario', 
@@ -98,7 +105,8 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value) ||
       </div>
       <div class="header-spacer"></div>
 
-      <GeneralSettings v-if="activeTab === 'geral'" />
+      <GeneralSettings v-if="activeTab === 'identidade'" />
+      <ClinicConfigSettings v-if="activeTab === 'configuracoes'" />
       <WorkingHoursSettings v-if="activeTab === 'horario'" />
       <AnamnesisTemplates v-if="activeTab === 'anamnese'" />
       <ConsentTermsTemplates v-if="activeTab === 'termos'" />

@@ -255,7 +255,19 @@ const formatCPF = (cpf) => {
               <div class="patient-avatar">{{ patient.name.charAt(0).toUpperCase() }}</div>
               <div class="patient-details-mobile">
                 <span class="patient-name">{{ patient.name }}</span>
-                <span class="patient-cpf-masked">{{ formatCPF(patient.cpf) }}</span>
+                <div class="patient-sub-details-mobile">
+
+                  <div v-if="patient.phone" class="patient-info-line">
+                    <PatientPhoneDisplay 
+                      :phone="patient.phone" 
+                      :country-code="patient.countryCode" 
+                      :show-flag="true" 
+                      class="mobile-phone-display"
+                    />
+                  </div>
+
+                  <span v-if="!patient.cpf && !patient.phone" class="text-muted text-sm">—</span>
+                </div>
               </div>
             </div>
 
@@ -681,7 +693,7 @@ th.actions-header .th-content {
   .patient-card {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start; /* Alinhamento ao topo para não ficar solto com as 3 linhas */
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     background-color: var(--branco);
@@ -702,25 +714,49 @@ th.actions-header .th-content {
     flex-direction: column;
     min-width: 0;
     flex-grow: 1;
+    gap: 0.25rem;
+  }
+  .patient-sub-details-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem; /* Mais espaçamento entre os itens */
+    margin-top: 0.15rem;
+  }
+  .info-icon {
+    color: #9ca3af;
+    flex-shrink: 0;
   }
   .patient-name {
     font-weight: 600;
+    font-size: 1rem;
+    color: #1f2937;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .patient-cpf-masked {
+  
+  /* Ajustes do componente de telefone para combinar com o CPF */
+  .mobile-phone-display {
     color: var(--cinza-texto);
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    flex-shrink: 1;
-    text-overflow: ellipsis;
-
-    /* Efeito de degradê no final do CPF */
-    mask-image: linear-gradient(to right, black 70%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    font-size: 0.85rem;
+    gap: 0.5rem;
   }
+  .mobile-phone-display :deep(.flag-icon) {
+    width: 16px; /* Bandeira discretamente menor para encaixar com a fonte 0.85rem */
+    height: auto;
+    border-radius: 2px;
+  }
+  .mobile-phone-display :deep(.ddi-text) {
+    color: #9ca3af;
+  }
+
+  .text-muted {
+    color: var(--cinza-texto);
+  }
+  .text-sm {
+    font-size: 0.85rem;
+  }
+
 
   /* ✨ CORREÇÃO CRÍTICA AQUI: Aumentar Z-INDEX e garantir posicionamento superior */
   .actions-wrapper {

@@ -2,6 +2,7 @@
 import { onMounted, computed, ref } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import {
   CalendarDays,
   Plus,
@@ -34,11 +35,13 @@ import { useStatusBadge } from '@/composables/useStatusBadge'
 import AppButton from '@/components/global/AppButton.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AppTableList from '@/components/global/AppTableList.vue'
+import CancelAppointmentSheet from '@/components/pages/dashboard/CancelAppointmentSheet.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const appointmentsStore = useAppointmentsStore()
+const authStore = useAuthStore()
 const router = useRouter()
 const toast = useToast()
 
@@ -168,6 +171,57 @@ async function handleStatusChange(appointment, newStatus) {
     appointmentsStore.updateLocalStatus(appointment._id, oldStatus)
     toast.error('Erro ao atualizar status.')
   }
+}
+
+// Lógica de Cancelamento
+const cancellationConfig = computed(() => {
+  return authStore.user?.clinic?.config?.cancellationReason || 'opcional'
+})
+
+const showCancelInput = ref(false)
+const apptToCancel = ref(null)
+const isCancelling = ref(false)
+
+function initiateCancel(appt) {
+    const requirement = cancellationConfig.value
+    if (requirement === 'desativado') {
+        handleStatusChange(appt, 'Cancelado')
+    } else {
+        apptToCancel.value = appt
+        showCancelInput.value = true
+    }
+}
+
+async function handleCancelConfirm(reason) {
+   const requirement = cancellationConfig.value
+   if (requirement === 'obrigatorio' && (!reason || !String(reason).trim())) {
+      toast.warning('Por favor, informe o motivo do cancelamento.')
+      return
+   }
+   
+   isCancelling.value = true
+   try {
+       const payload = { status: 'Cancelado' }
+       if (reason && String(reason).trim()) payload.cancellationReason = String(reason).trim()
+       
+       const result = await appointmentsStore.updateAppointment(apptToCancel.value._id, payload)
+       if (result.success) {
+           toast.success('Agendamento cancelado com sucesso.')
+           showCancelInput.value = false
+           apptToCancel.value = null
+       } else {
+           throw new Error('Falha ao atualizar')
+       }
+   } catch (error) {
+       toast.error('Erro ao cancelar agendamento.')
+   } finally {
+       isCancelling.value = false
+   }
+}
+
+function cancelCancellation() {
+    showCancelInput.value = false
+    apptToCancel.value = null
 }
 
 function goToAppointmentPage(appointment) {
@@ -425,7 +479,7 @@ function closeActionMenu(event) {
                           <Check :size="16" /> Confirmar
                         </AppButton>
                         <AppButton
-                          @click.stop="handleStatusChange(appt, 'Cancelado')"
+                          @click.stop="initiateCancel(appt)"
                           variant="dangerous"
                           size="sm"
                           title="Cancelar"
@@ -606,6 +660,14 @@ function closeActionMenu(event) {
     v-if="isModalOpen"
     :initial-data="modalInitialData"
     @close="isModalOpen = false"
+  />
+
+  <!-- Modal de Cancelamento (BottomSheet adaptado) -->
+  <CancelAppointmentSheet 
+    v-if="showCancelInput" 
+    :loading="isCancelling"
+    @close="cancelCancellation"
+    @confirm="handleCancelConfirm"
   />
 </template>
 

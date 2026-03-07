@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   ChevronsUpDown,
+  ClipboardList
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -107,6 +108,7 @@ const sidebarSections = computed(() => {
   // Seção Gestão
   const gestaoLinks = [
     { icon: 'users', text: 'Pacientes', to: '/pacientes' },
+    { icon: 'clipboard-list', text: 'Anamneses', to: '/anamneses' },
     { icon: 'stethoscope', text: 'Procedimentos', to: '/procedimentos' },
   ]
   

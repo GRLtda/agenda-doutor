@@ -126,8 +126,10 @@ const reopeningAppointmentId = ref(null)
 
 const patient = computed(() => patientsStore.selectedPatient)
 const clinic = computed(() => authStore.user?.clinic)
-const answeredAnamneses = computed(() => anamnesisStore.answeredAnamneses)
-const pendingAnamneses = computed(() => anamnesisStore.pendingAnamneses)
+const answeredAnamneses = computed(() => anamnesisStore.answeredAnamneses || [])
+const pendingAnamneses = computed(() => anamnesisStore.pendingAnamneses || [])
+const expiredAnamneses = computed(() => anamnesisStore.expiredAnamneses || [])
+const showExpiredAnamneses = ref(false)
 const patientHistory = computed(() => 
   (appointmentsStore.patientAppointments || []).filter(app => app.status !== 'Agendado')
 )
@@ -817,6 +819,23 @@ async function deleteAppointment(appointment) {
                     Aplicar Anamnese
                   </AppButton>
                 </div>
+              </div>
+              <div class="anamnesis-section" v-if="expiredAnamneses && expiredAnamneses.length > 0">
+                <div class="flex items-center justify-between mb-4 mt-2">
+                  <h3 class="section-title !mb-0 text-slate-500"><AlertTriangle class="title-icon" :size="18" /> Expiradas ({{ expiredAnamneses.length }})</h3>
+                  <button @click="showExpiredAnamneses = !showExpiredAnamneses" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                    {{ showExpiredAnamneses ? 'Ocultar' : 'Mostrar' }} expiradas
+                  </button>
+                </div>
+                
+                <ul v-if="showExpiredAnamneses" class="anamnesis-list">
+                  <li v-for="item in expiredAnamneses" :key="item._id" class="anamnesis-item opacity-60">
+                    <div class="anamnesis-info">
+                      <span class="anamnesis-name">{{ item.template?.name || 'Modelo não encontrado' }}</span>
+                      <span class="anamnesis-date">Expirou em {{ formatSimpleDate(item.patientAccessTokenExpires) }}</span>
+                    </div>
+                  </li>
+                </ul>
               </div>
             </div>
 

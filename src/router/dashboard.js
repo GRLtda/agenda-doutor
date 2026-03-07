@@ -13,7 +13,7 @@ import PatientDetailView from '../views/pages/pacientes/PatientDetailView.vue'
 import AppointmentsView from '../views/pages/atendimentos/AppointmentsView.vue'
 import InProgressAppointmentView from '../views/pages/atendimentos/InProgressAppointmentView.vue'
 import AjudaView from '../views/pages/ajuda/AjudaView.vue'
-import PendingAnamnesesView from '../views/pages/resumo/PendingAnamnesesView.vue'
+import AnamnesesListView from '../views/pages/anamneses/AnamnesesListView.vue'
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
 import ProfileView from '../views/pages/ProfileView.vue'
 
@@ -150,10 +150,10 @@ const dashboardRoutes = [
         meta: { title: 'Editor de Workflow', layout: { noPadding: true, fullscreen: true } },
       },
       {
-        path: 'anamneses-pendentes',
-        name: 'anamneses-pendentes',
-        component: PendingAnamnesesView,
-        meta: { title: 'Anamneses Pendentes', layout: { noPadding: true } },
+        path: 'anamneses',
+        name: 'anamneses-list',
+        component: AnamnesesListView,
+        meta: { title: 'Anamneses', layout: { noPadding: true } },
       },
       {
         path: 'aniversariantes',

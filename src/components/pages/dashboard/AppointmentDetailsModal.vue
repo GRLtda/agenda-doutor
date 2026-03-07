@@ -2,6 +2,7 @@
 import { computed, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import {
   X,
@@ -32,7 +33,7 @@ import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
-import BottomSheet from '@/components/global/BottomSheet.vue'
+import CancelAppointmentSheet from '@/components/pages/dashboard/CancelAppointmentSheet.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -45,6 +46,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'edit', 'previous', 'next', 'return', 'reschedule'])
 
 const appointmentsStore = useAppointmentsStore()
+const authStore = useAuthStore()
 const toast = useToast()
 const router = useRouter()
 
@@ -127,82 +129,34 @@ async function updateStatus(status) {
 }
 
 const showCancelInput = ref(false)
-const cancelReason = ref('')
-const reasonOptions = [
-    'Paciente desistiu', 
-    'Imprevisto médico', 
-    'Erro de agendamento', 
-    'Não compareceu',
-    'Duplicidade',
-    'Procedimento contraindicado',
-    'Remarcado',
-    'Outro'
-]
-
-// Scroll Drag Logic for Quick Reasons
-const quickReasonsRef = ref(null)
-const isDown = ref(false)
-const isDragging = ref(false)
-const startX = ref(0)
-const scrollLeft = ref(0)
-
-function startDragging(e) {
-    isDown.value = true
-    isDragging.value = false // Reset drag state on new press
-    startX.value = e.pageX - quickReasonsRef.value.offsetLeft
-    scrollLeft.value = quickReasonsRef.value.scrollLeft
-}
-
-function stopDragging() {
-    isDown.value = false
-    // Don't reset isDragging here immediately to allow click handler to check it
-    // But we need to ensure it doesn't get stuck. 
-    // Actually, click fires immediately after mouseup.
-    // We can reset it shortly after.
-    setTimeout(() => {
-        isDragging.value = false
-    }, 100)
-}
-
-function onDragMove(e) {
-    if (!isDown.value) return
-    e.preventDefault()
-    const x = e.pageX - quickReasonsRef.value.offsetLeft
-    const walk = x - startX.value
-    
-    // Threshold de 5px para considerar arrasto
-    if (Math.abs(walk) > 5) {
-        isDragging.value = true
-        quickReasonsRef.value.scrollLeft = scrollLeft.value - walk * 1.5
-    }
-}
-
-function selectReason(reason) {
-    if (isDragging.value) return 
-    cancelReason.value = reason
-}
-
 const isCancelling = ref(false)
 
+const cancellationConfig = computed(() => {
+  return authStore.user?.clinic?.config?.cancellationReason || 'opcional'
+})
+
 async function handleCancelClick() {
-  if (!showCancelInput.value) {
-    showCancelInput.value = true
-    return
+  const requirement = cancellationConfig.value
+
+  if (requirement === 'desativado') {
+    return performCancellation('')
   }
 
-  if (!cancelReason.value.trim()) {
-    toast.warning('Por favor, informe o motivo do cancelamento.')
-    return
-  }
+  showCancelInput.value = true
+}
 
+async function performCancellation(reasonToCancel) {
   try {
     isCancelling.value = true
     
     const appointmentId = props.event.originalEvent._id
-    const result = await appointmentsStore.updateAppointment(appointmentId, { 
-        status: 'Cancelado', 
-        cancellationReason: cancelReason.value 
-    })
+    
+    const payload = { status: 'Cancelado' }
+    if (reasonToCancel && String(reasonToCancel).trim()) {
+        payload.cancellationReason = String(reasonToCancel).trim()
+    }
+
+    const result = await appointmentsStore.updateAppointment(appointmentId, payload)
 
     if (result.success) {
         toast.success('Agendamento cancelado com sucesso.')
@@ -221,7 +175,15 @@ async function handleCancelClick() {
 
 function cancelCancellation() {
     showCancelInput.value = false
-    cancelReason.value = ''
+}
+
+async function handleCancelConfirm(reason) {
+  const requirement = cancellationConfig.value
+  if (requirement === 'obrigatorio' && (!reason || !String(reason).trim())) {
+    toast.warning('Por favor, informe o motivo do cancelamento.')
+    return
+  }
+  await performCancellation(reason)
 }
 
 const isDeleteConfirming = ref(false)
@@ -550,81 +512,13 @@ function handleApprove() {
          </button>
       </footer>
        <!-- Bottom Sheet de Cancelamento (Inside Footer slot to avoid body overflow clipping) -->
-      <BottomSheet 
+      <CancelAppointmentSheet 
         v-if="showCancelInput" 
-        :title="'Cancelar Atendimento'" 
-        @close="cancelCancellation"
+        :loading="isCancelling"
         :absolute="true"
-      >
-          <template #header>
-              <div class="sheet-header-custom">
-                 <div class="header-icon-wrapper">
-                    <AlertCircle :size="24" class="text-red-600" />
-                 </div>
-                 <div class="header-texts">
-                    <h3 class="header-title">Cancelar Atendimento</h3>
-                    <p class="header-subtitle">O agendamento poderá ser reaberto</p>
-                 </div>
-              </div>
-          </template>
-
-          <div class="cancel-sheet-content mt-2">
-              <p class="text-sm text-gray-500 mb-6">
-                Selecione um motivo rápido ou descreva abaixo o motivo do cancelamento deste agendamento.
-              </p>
-              
-              <div class="flex space-between items-center mb-2">
-                  <label class="block text-sm text-gray-700">Descrever Motivo</label>
-                  <span class="text-xs text-gray-500">{{ cancelReason.length }}/140</span>
-              </div>
-              <textarea 
-                  v-model="cancelReason"
-                  class="cancel-textarea"
-                  placeholder="Informe os detalhes do cancelamento..."
-                  rows="4"
-                  autofocus
-                  maxlength="140"
-              ></textarea>
-
-               <div 
-                ref="quickReasonsRef"
-                class="quick-reasons mb-4"
-                :class="{ 'is-dragging': isDragging }"
-                @mousedown="startDragging"
-                @mouseleave="stopDragging"
-                @mouseup="stopDragging"
-                @mousemove="onDragMove"
-                @dragstart.prevent
-              >
-                  <button 
-                    v-for="reason in reasonOptions" 
-                    :key="reason"
-                    class="reason-chip"
-                    :class="{ 'active': cancelReason === reason }"
-                    @click="selectReason(reason)"
-                  >
-                    {{ reason }}
-                  </button>
-              </div>
-          </div>
-
-          <template #footer>
-            <div class="flex gap-3 pt-2">
-                <AppButton @click="cancelCancellation" variant="outline" class="flex-1">
-                    Voltar
-                </AppButton>
-                <AppButton 
-                    @click="handleCancelClick" 
-                    variant="dangerous" 
-                    class="flex-1"
-                    :loading="isCancelling"
-                    :disabled="isCancelling"
-                >
-                    {{ isCancelling ? 'Cancelando...' : 'Confirmar Cancelamento' }}
-                </AppButton>
-            </div>
-          </template>
-      </BottomSheet>
+        @close="cancelCancellation"
+        @confirm="handleCancelConfirm"
+      />
     </template>
   </SideDrawer>
 </template>
