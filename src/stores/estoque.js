@@ -47,6 +47,10 @@ export const useEstoqueStore = defineStore('estoque', () => {
     // Sugestão FEFO
     const sugestaoFEFO = ref(null)
 
+    // Lotes disponíveis para troca manual de lote no atendimento
+    const lotesDisponiveis = ref([])
+    const loadingLotesDisponiveis = ref(false)
+
     // Loading states granulares
     const loadingProdutos = ref(false)
     const loadingLotes = ref(false)
@@ -474,6 +478,29 @@ export const useEstoqueStore = defineStore('estoque', () => {
         }
     }
 
+    // ─── LOTES DISPONÍVEIS PARA TROCA MANUAL ───────────────────────────────────
+
+    /**
+     * Busca lotes disponíveis (ATIVO, saldo > 0, não vencidos) para um produto.
+     * Ordenados por FEFO. Usado no modal de adição de procedimento para troca de lote.
+     */
+    async function fetchLotesDisponiveis(produtoId) {
+        loadingLotesDisponiveis.value = true
+        error.value = null
+        lotesDisponiveis.value = []
+        try {
+            const response = await estoqueApi.getLotesDisponiveis(produtoId)
+            lotesDisponiveis.value = response.data?.data?.lotes ?? []
+            return { success: true, data: lotesDisponiveis.value }
+        } catch (err) {
+            console.error('[estoque] fetchLotesDisponiveis:', err)
+            error.value = extrairMensagemErro(err, 'Erro ao buscar lotes disponíveis')
+            return { success: false, error: error.value }
+        } finally {
+            loadingLotesDisponiveis.value = false
+        }
+    }
+
     // ─── SUGESTÃO FEFO ────────────────────────────────────────────────────────
 
     async function fetchSugestaoFEFO(procedimentoId) {
@@ -580,6 +607,8 @@ export const useEstoqueStore = defineStore('estoque', () => {
         loadingMovimentacoes,
         loadingAlertas,
         loadingAcao,
+        loadingLotesDisponiveis,
+        lotesDisponiveis,
         error,
 
         // Computed
@@ -613,6 +642,7 @@ export const useEstoqueStore = defineStore('estoque', () => {
 
         // Ações — FEFO
         fetchSugestaoFEFO,
+        fetchLotesDisponiveis,
 
         // Ações — Alertas & Dashboard
         fetchDashboardSummary,

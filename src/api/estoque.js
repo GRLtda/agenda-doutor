@@ -137,6 +137,15 @@ export const getSugestaoFEFO = (procedimentoId) => {
     return apiClient.get(`/v2/estoque/kits/sugestao/${procedimentoId}`)
 }
 
+/**
+ * Retorna lotes disponíveis (ATIVO, saldo > 0, não vencidos) para um produto — ordenados por FEFO
+ * Usado para troca manual de lote no atendimento
+ * @param {string} produtoId - ID do produto
+ */
+export const getLotesDisponiveis = (produtoId) => {
+    return apiClient.get(`/v2/estoque/lotes/disponiveis/${produtoId}`)
+}
+
 // ─────────────────────────────────────────────
 // MOVIMENTAÇÕES
 // ─────────────────────────────────────────────

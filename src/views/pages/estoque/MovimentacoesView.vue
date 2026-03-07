@@ -1,11 +1,13 @@
 <script setup>
 // MovimentacoesView.vue — Livro-Razão de movimentações (imutável)
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
 import { Search, X, BookOpen } from 'lucide-vue-next'
 import EstoqueMovimentacaoTipo from '@/components/estoque/EstoqueMovimentacaoTipo.vue'
 
 const store = useEstoqueStore()
+const router = useRouter()
 
 const tipo = ref('')
 const dataInicio = ref('')
@@ -38,6 +40,24 @@ function formatarData(iso) {
 const temFiltros = computed(() => tipo.value || dataInicio.value || dataFim.value)
 const totalPaginas = computed(() => store.movimentacoesMeta?.totalPages || 1)
 function irParaPagina(p) { page.value = p; carregar() }
+
+// Remove prefixo USO_ do motivo: USO_PACIENTE → PACIENTE
+function formatarMotivo(motivo) {
+  if (!motivo) return null
+  return motivo.replace(/^USO_/, '')
+}
+
+// Navega para o perfil do paciente
+function irParaPaciente(id) {
+  if (id) router.push({ name: 'detalhes-paciente', params: { id } })
+}
+
+// Retorna "#XXXX " com os 4 primeiros chars do atendimentoId
+function prefixoAtendimento(atendimentoId) {
+  if (!atendimentoId) return ''
+  const id = atendimentoId._id ?? atendimentoId
+  return `#${String(id).slice(0, 4).toUpperCase()} `
+}
 </script>
 
 <template>
@@ -76,11 +96,11 @@ function irParaPagina(p) { page.value = p; carregar() }
           <thead>
             <tr>
               <th>Tipo</th>
-              <th>Produto</th>
-              <th>Lote</th>
-              <th>Quantidade</th>
-              <th>Responsável / Origem</th>
+              <th>Produto / Lote</th>
+              <th>Qtd</th>
+              <th>Responsável</th>
               <th>Motivo / Paciente</th>
+              <th>Consumo</th>
               <th>Data</th>
             </tr>
           </thead>
@@ -104,8 +124,11 @@ function irParaPagina(p) { page.value = p; carregar() }
             <template v-else>
               <tr v-for="mov in store.movimentacoes" :key="mov._id" class="mov-row">
                 <td><EstoqueMovimentacaoTipo :tipo="mov.tipo" /></td>
-                <td class="produto-nome">{{ mov.produto?.nome || mov.produtoId || '—' }}</td>
-                <td class="lote-num">{{ mov.lote?.numeroLote || mov.loteId || '—' }}</td>
+                <!-- Produto + Lote consolidados numa coluna -->
+                <td class="produto-lote-cell">
+                  <span class="produto-nome">{{ mov.produto?.nome || mov.produtoId || '—' }}</span>
+                  <span class="lote-num">{{ mov.lote?.numeroLote || (mov.loteId && typeof mov.loteId === 'string' ? mov.loteId.slice(-6) : '—') }}</span>
+                </td>
                 <td class="qtd" :class="mov.tipo === 'ENTRADA' ? 'qtd--entrada' : 'qtd--saida'">
                   {{ mov.tipo === 'ENTRADA' ? '+' : '-' }}{{ mov.quantidade }}
                 </td>
@@ -118,16 +141,30 @@ function irParaPagina(p) { page.value = p; carregar() }
                 </td>
                 <td class="txt-gray">
                   <div class="motivo-cell">
-                    <span v-if="mov.motivoSaida" class="motivo-tag">{{ mov.motivoSaida }}</span>
-                    <span v-if="mov.paciente" class="name-truncate patient-link" :title="mov.paciente.name">
-                      👤 {{ mov.paciente.name }}
-                    </span>
+                    <span v-if="mov.motivoSaida" class="motivo-tag">{{ formatarMotivo(mov.motivoSaida) }}</span>
+                    <!-- Paciente: link clicável com #ID + nome truncado -->
+                    <button
+                      v-if="mov.paciente"
+                      class="patient-link name-truncate"
+                      :title="mov.paciente.name"
+                      @click="irParaPaciente(mov.paciente._id || mov.pacienteId)"
+                    >
+                      {{ prefixoAtendimento(mov.atendimentoId) }}{{ mov.paciente.name }}
+                    </button>
                     <span v-else-if="!mov.motivoSaida && mov.tipo !== 'ENTRADA'">—</span>
                     <span v-else-if="mov.tipo === 'ENTRADA'">Entrada de estoque</span>
                     <div v-if="mov.observacao" class="mov-obs" :title="mov.observacao">
                       {{ mov.observacao }}
                     </div>
                   </div>
+                </td>
+                <!-- Coluna de consumo: snapshot do lote quando existir -->
+                <td class="consumo-cell">
+                  <div v-if="mov.snapshotLote" class="snapshot-info">
+                    <span class="snapshot-produto" :title="mov.snapshotLote.nomeProduto">{{ mov.snapshotLote.nomeProduto }}</span>
+                    <span class="snapshot-lote">Lote {{ mov.snapshotLote.numeroLote }}</span>
+                  </div>
+                  <span v-else class="txt-gray">—</span>
                 </td>
                 <td class="txt-gray data-cel">{{ formatarData(mov.createdAt) }}</td>
               </tr>
@@ -154,8 +191,21 @@ function irParaPagina(p) { page.value = p; carregar() }
             <span class="lote-num-mb">Lote: {{ mov.lote?.numeroLote || '—' }}</span>
             <div class="card-meta">
               <span class="responsible name-truncate" style="max-width:100px">{{ mov.usuario?.name || 'Sistema' }}</span>
-              <span v-if="mov.paciente" class="patient name-truncate" style="max-width:100px">👤 {{ mov.paciente.name }}</span>
-              <span v-else-if="mov.motivoSaida" class="motivo-tag">{{ mov.motivoSaida }}</span>
+              <!-- Paciente: link clicável com #ID + nome truncado no mobile -->
+              <button
+                v-if="mov.paciente"
+                class="patient name-truncate"
+                style="max-width:120px"
+                :title="mov.paciente.name"
+                @click="irParaPaciente(mov.paciente._id || mov.pacienteId)"
+              >
+                {{ prefixoAtendimento(mov.atendimentoId) }}{{ mov.paciente.name }}
+              </button>
+              <span v-else-if="mov.motivoSaida" class="motivo-tag">{{ formatarMotivo(mov.motivoSaida) }}</span>
+            </div>
+            <!-- Snapshot de consumo no mobile -->
+            <div v-if="mov.snapshotLote" class="snapshot-mb">
+              <span>{{ mov.snapshotLote.nomeProduto }} · Lote {{ mov.snapshotLote.numeroLote }} · {{ mov.snapshotLote.quantidadeConsumida }} un</span>
             </div>
             <div v-if="mov.observacao" class="mov-obs-mb">{{ mov.observacao }}</div>
           </div>
@@ -232,9 +282,59 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   display: inline-block;
 }
 
+.produto-lote-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .motivo-cell { display:flex; flex-direction:column; gap:.25rem; }
 .motivo-tag { font-size:.68rem; font-weight:700; text-transform:uppercase; color:#6b7280; }
-.patient-link { font-size:.82rem; color:var(--azul-principal); font-weight:600; }
+
+/* Paciente: botão estilizado como link clicável */
+.patient-link {
+  font-size:.82rem;
+  color: var(--azul-principal);
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.patient-link:hover { opacity: 0.75; text-decoration: underline; }
+
+/* Coluna de consumo / snapshot */
+.consumo-cell { min-width: 140px; }
+.snapshot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.snapshot-produto {
+  font-size: .78rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.snapshot-lote {
+  font-size: .7rem;
+  font-family: monospace;
+  background: #f3f4f6;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  color: #374151;
+  width: fit-content;
+}
+.snapshot-qtd {
+  font-size: .7rem;
+  color: #6b7280;
+}
 .mov-obs {
   font-size: .75rem;
   color: #6b7280;
@@ -280,7 +380,7 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   .data-cel-mb { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; }
   .produto-nome-mb { font-weight:700; color:#111827; font-size:.9rem; }
   .lote-num-mb { color:#6b7280; font-size:.75rem; margin-bottom:.4rem; }
-  .card-meta { display:flex; gap:.75rem; align-items:center; }
+  .card-meta { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
   .mov-obs-mb {
     font-size: .7rem;
     color: #6b7280;
@@ -290,7 +390,28 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
     padding-top: 4px;
   }
   .responsible { font-size:.7rem; color:#9ca3af; font-weight:500; }
-  .patient { font-size:.7rem; color:var(--azul-principal); font-weight:600; }
+  .patient {
+    font-size:.7rem;
+    color:var(--azul-principal);
+    font-weight:600;
+    background:none;
+    border:none;
+    padding:0;
+    cursor:pointer;
+    font-family:inherit;
+  }
   .card-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:center; }
+  .snapshot-mb {
+    font-size: .68rem;
+    color: #6b7280;
+    background: #f9fafb;
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.4rem;
+    margin-top: 0.25rem;
+    border: 1px solid #f3f4f6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>

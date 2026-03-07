@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRecordsStore } from '@/stores/records'
+import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
 import { 
   Syringe, 
@@ -23,6 +24,7 @@ const props = defineProps({
 })
 
 const recordsStore = useRecordsStore()
+const estoqueStore = useEstoqueStore()
 const toast = useToast()
 
 const showAddProcedureModal = ref(false)
@@ -31,10 +33,41 @@ const isAddingProcedure = ref(false)
 
 const procedures = computed(() => props.record?.procedures || [])
 
+/**
+ * Salva um procedimento no prontuário do atendimento.
+ *
+ * Fluxo com estoque:
+ *  1. Se o payload contém `lotesConsumo` (itens de kit vinculado), executa a baixa de estoque PRIMEIRO.
+ *  2. Se a baixa falhar (incluindo conflito de saldo por concorrência), exibe erro e NÃO salva o procedimento.
+ *  3. Se a baixa for bem-sucedida (ou não houver consumo), salva o procedimento no prontuário.
+ *
+ * Garantia de consistência: o procedimento só é registrado se o estoque foi reservado com sucesso.
+ */
 async function handleSaveProcedure(payload) {
   isAddingProcedure.value = true
   try {
-    // O payload já contém appointmentId, procedureId, discountPercentage, quantity
+    // ── Etapa 1: Baixa de Estoque (quando há consumo vinculado) ──
+    if (payload.lotesConsumo && payload.lotesConsumo.length > 0) {
+      const baixaResult = await estoqueStore.registrarBaixa({
+        atendimentoId: props.appointmentId,
+        pacienteId: props.patientId,
+        procedimentoId: payload.procedimentoId,
+        itens: payload.lotesConsumo,
+      })
+
+      if (!baixaResult.success) {
+        // 409 = Conflito de saldo (lote foi consumido por outro usuário)
+        const msgConflito = baixaResult.error?.includes('saldo') || baixaResult.error?.includes('Conflict')
+          ? 'O estoque deste lote foi modificado enquanto você aguardava. Por favor, feche e reabra o modal para atualizar a sugestão.'
+          : (baixaResult.error || 'Erro ao registrar consumo de estoque')
+        toast.error(msgConflito)
+        return // Não avança para salvar o procedimento
+      }
+
+      toast.info('Consumo de estoque registrado.')
+    }
+
+    // ── Etapa 2: Salvar Procedimento no Prontuário ──
     const result = await recordsStore.addProcedureToRecord(payload)
     if (result.success) {
       toast.success('Procedimento adicionado com sucesso!')
@@ -43,7 +76,8 @@ async function handleSaveProcedure(payload) {
       toast.error(result.error || 'Erro ao adicionar procedimento')
     }
   } catch (error) {
-    toast.error('Erro ao adicionar procedimento')
+    console.error('[AttendanceProceduresTab] handleSaveProcedure:', error)
+    toast.error('Erro inesperado ao adicionar procedimento')
   } finally {
     isAddingProcedure.value = false
   }
