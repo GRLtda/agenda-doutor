@@ -7,6 +7,7 @@ import { useToast } from 'vue-toastification'
 import {
   ChevronLeft, Plus, Package, Layers, AlertTriangle,
   X, Check, LoaderCircle, Trash2,
+  FlaskConical, Tag, Building2, PieChart
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
@@ -177,10 +178,10 @@ function formatarData(iso) {
           <div>
             <h1 class="produto-nome">{{ produto.nome }}</h1>
             <div class="produto-tags">
-              <span class="tag-unidade">{{ produto.unidadeMedida }}</span>
-              <span v-if="produto.categoria" class="tag-categoria">{{ produto.categoria }}</span>
-              <span v-if="produto.fabricante" class="tag-fabricante">{{ produto.fabricante }}</span>
-              <span v-if="produto.aceitaFracao" class="tag-fracao">Aceita fração</span>
+              <span class="tag-unidade"><FlaskConical :size="12" /> {{ produto.unidadeMedida }}</span>
+              <span v-if="produto.categoria" class="tag-categoria"><Tag :size="12" /> {{ produto.categoria }}</span>
+              <span v-if="produto.fabricante" class="tag-fabricante"><Building2 :size="12" /> {{ produto.fabricante }}</span>
+              <span v-if="produto.aceitaFracao" class="tag-fracao"><PieChart :size="12" /> Aceita fração</span>
             </div>
           </div>
         </div>
@@ -206,12 +207,17 @@ function formatarData(iso) {
           <span class="saldo-label">Lotes ativos</span>
           <span class="saldo-valor">{{ lotesAtivos.length }}</span>
         </div>
-      </div>
-
-      <!-- Alerta estoque mínimo -->
-      <div v-if="produto.quantidadeMinima && saldoTotal < produto.quantidadeMinima" class="alerta-minimo">
-        <AlertTriangle :size="16" />
-        <span>Estoque abaixo do mínimo definido. Recomenda-se nova entrada de mercadoria.</span>
+        
+        <!-- Alerta estoque mínimo formatado como saldo-card -->
+        <div class="saldo-card saldo-card--danger" v-if="produto.quantidadeMinima && saldoTotal < produto.quantidadeMinima">
+          <div class="saldo-card-danger-content">
+            <AlertTriangle :size="24" class="icon-danger" />
+            <div class="danger-texts">
+              <span class="danger-title">Estoque Baixo</span>
+              <span class="danger-desc">Recomenda-se nova entrada de mercadoria</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tabela de Lotes -->
@@ -275,8 +281,11 @@ function formatarData(iso) {
     <SideDrawer v-if="drawerAtivo === 'editar'" @close="fecharDrawer">
       <template #header>
         <div class="drawer-header">
-          <h2 class="drawer-title">Editar Produto</h2>
-          <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
+          <div class="drawer-header-text">
+            <h2 class="drawer-title">Editar Produto</h2>
+            <p class="drawer-subtitle">Ajuste detalhes e níveis de alerta deste item</p>
+          </div>
+          <button @click="fecharDrawer" class="close-btn-header"><X :size="22" /></button>
         </div>
       </template>
       <EstoqueFormProduto ref="formProdutoRef" v-model="formProduto" />
@@ -295,8 +304,11 @@ function formatarData(iso) {
     <SideDrawer v-if="drawerAtivo === 'lote'" @close="fecharDrawer">
       <template #header>
         <div class="drawer-header">
-          <h2 class="drawer-title">Registrar Entrada</h2>
-          <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
+          <div class="drawer-header-text">
+            <h2 class="drawer-title">Registrar Entrada</h2>
+            <p class="drawer-subtitle">Adicione as informações de um novo lote recebido</p>
+          </div>
+          <button @click="fecharDrawer" class="close-btn-header"><X :size="22" /></button>
         </div>
       </template>
       <EstoqueFormLote ref="formLoteRef" v-model="formLote" :produtos="produto ? [produto] : []" />
@@ -315,8 +327,11 @@ function formatarData(iso) {
     <SideDrawer v-if="drawerAtivo === 'baixa'" @close="fecharDrawer">
       <template #header>
         <div class="drawer-header">
-          <h2 class="drawer-title">Baixa Administrativa</h2>
-          <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
+          <div class="drawer-header-text">
+            <h2 class="drawer-title">Baixa Administrativa</h2>
+            <p class="drawer-subtitle">Registre retiradas por quebra, validade ou perdas</p>
+          </div>
+          <button @click="fecharDrawer" class="close-btn-header"><X :size="22" /></button>
         </div>
       </template>
       <EstoqueFormMovAdm ref="formMovAdmRef" v-model="formMovAdm" :lotes="store.lotes.filter(l => l.status === 'ATIVO')" :produtos="produto ? [produto] : []" />
@@ -354,10 +369,10 @@ function formatarData(iso) {
 }
 .produto-nome { font-size:1.5rem; font-weight:700; color:#111827; margin:0 0 .5rem; }
 .produto-tags { display:flex; flex-wrap:wrap; gap:.4rem; }
-.tag-unidade { background:#e0f2fe; color:#0369a1; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
-.tag-categoria { background:#f0fdf4; color:#16a34a; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
-.tag-fabricante { background:#f5f3ff; color:#7c3aed; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
-.tag-fracao { background:#fef9c3; color:#92400e; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
+.tag-unidade { display:inline-flex; align-items:center; gap:.25rem; background:#e0f2fe; color:#0369a1; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
+.tag-categoria { display:inline-flex; align-items:center; gap:.25rem; background:#f0fdf4; color:#16a34a; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
+.tag-fabricante { display:inline-flex; align-items:center; gap:.25rem; background:#f5f3ff; color:#7c3aed; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
+.tag-fracao { display:inline-flex; align-items:center; gap:.25rem; background:#fef9c3; color:#92400e; padding:.15rem .55rem; border-radius:.4rem; font-size:.72rem; font-weight:700; }
 .produto-header-actions { display:flex; gap:.75rem; flex-wrap:wrap; }
 
 .btn-secondary {
@@ -367,7 +382,7 @@ function formatarData(iso) {
 }
 .btn-secondary:hover { background:#f9fafb; }
 
-.saldo-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; margin-bottom:1.25rem; }
+.saldo-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-bottom:1.25rem; }
 .saldo-card {
   display:flex; flex-direction:column; gap:.35rem;
   padding:1.25rem; background:#fff; border:1.5px solid #e5e7eb; border-radius:1rem;
@@ -376,10 +391,39 @@ function formatarData(iso) {
 .saldo-valor { font-size:1.5rem; font-weight:800; color:#111827; }
 .saldo--alerta { color:#dc2626; }
 
-.alerta-minimo {
-  display:flex; align-items:center; gap:.5rem;
-  padding:.75rem 1rem; background:#fff7ed; border:1px solid #fed7aa; border-radius:.75rem;
-  color:#c2410c; font-size:.875rem; font-weight:500; margin-bottom:1.25rem;
+.saldo-card--danger {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  flex-direction: row;
+  align-items: center;
+  padding: 1rem 1.25rem;
+}
+.saldo-card-danger-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.icon-danger {
+  color: #ea580c;
+  flex-shrink: 0;
+}
+.danger-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.danger-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.danger-desc {
+  font-size: 0.75rem;
+  color: #c2410c;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .section-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; margin-bottom:1rem; }
@@ -430,10 +474,10 @@ th { background:#f9fafb; font-size:.72rem; font-weight:600; color:#6b7280; text-
   font-size:.85rem; font-weight:600;
 }
 
-.drawer-header { padding:1.5rem; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; }
+.drawer-header { padding:1.5rem; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:flex-start; }
+.drawer-header-text { display: flex; flex-direction: column; gap: 0.15rem; }
 .drawer-title { font-size:1.1rem; font-weight:700; color:#111827; margin:0; }
-.close-btn { background:none; border:none; cursor:pointer; color:#6b7280; padding:.25rem; border-radius:.5rem; display:flex; align-items:center; }
-.close-btn:hover { background:#f3f4f6; }
+.drawer-subtitle { font-size: 0.8rem; color: #9ca3af; margin: 0; }
 .drawer-footer { padding:1.25rem 1.5rem; display:flex; gap:.75rem; justify-content:flex-end; border-top:1px solid #f3f4f6; }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }

@@ -7,8 +7,10 @@ import { useToast } from 'vue-toastification'
 import {
   Plus, Search, Package, MoreHorizontal, Eye, Pencil,
   Trash2, SlidersHorizontal, X, Check, LoaderCircle,
+  FlaskConical, Tag, AlertTriangle
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import EstoqueFormProduto from '@/components/estoque/EstoqueFormProduto.vue'
 
@@ -27,6 +29,17 @@ const isSaving = ref(false)
 const produtoForm = ref(novoProdutoVazio())
 
 const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio', 'Anestésico', 'Material cirúrgico', 'Descartáveis', 'Outros']
+
+const ativoOptions = [
+  { label: 'Todos os status', value: '' },
+  { label: 'Ativo', value: 'true' },
+  { label: 'Inativo', value: 'false' },
+]
+
+const categoriaOptions = [
+  { label: 'Todas as categorias', value: '' },
+  ...categorias.map(c => ({ label: c, value: c }))
+]
 
 function novoProdutoVazio() {
   return { nome: '', unidadeMedida: '', aceitaFracao: false, quantidadeMinima: 0, categoria: '', fabricante: '' }
@@ -147,16 +160,21 @@ function irParaPagina(p) {
         />
       </div>
 
-      <select class="filter-select" v-model="categoriaSel" @change="aplicarFiltros">
-        <option value="">Todas as categorias</option>
-        <option v-for="c in categorias" :key="c" :value="c">{{ c }}</option>
-      </select>
+      <div style="width: 200px">
+        <StyledSelect
+          v-model="categoriaSel"
+          :options="categoriaOptions"
+          @update:modelValue="aplicarFiltros"
+        />
+      </div>
 
-      <select class="filter-select" v-model="ativoSel" @change="aplicarFiltros">
-        <option value="">Todos os status</option>
-        <option value="true">Ativo</option>
-        <option value="false">Inativo</option>
-      </select>
+      <div style="width: 170px">
+        <StyledSelect
+          v-model="ativoSel"
+          :options="ativoOptions"
+          @update:modelValue="aplicarFiltros"
+        />
+      </div>
 
       <button v-if="temFiltrosAtivos" class="btn-clear-filters" @click="limparFiltros">
         <X :size="14" /> Limpar
@@ -216,9 +234,24 @@ function irParaPagina(p) {
                     <span v-if="p.fabricante" class="fabricante">{{ p.fabricante }}</span>
                   </div>
                 </td>
-                <td><span class="tag-unidade">{{ p.unidadeMedida }}</span></td>
-                <td class="txt-gray">{{ p.categoria || '—' }}</td>
-                <td class="txt-gray">{{ p.quantidadeMinima ?? '—' }}</td>
+                <td>
+                  <span class="tag-unidade">
+                    <FlaskConical :size="12" /> {{ p.unidadeMedida }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="p.categoria" class="tag-categoria">
+                    <Tag :size="12" /> {{ p.categoria }}
+                  </span>
+                  <span v-else class="txt-gray">—</span>
+                </td>
+                <td>
+                  <div class="alerta-minimo-card" v-if="p.quantidadeMinima != null">
+                    <AlertTriangle :size="13" class="alerta-icon" />
+                    <span>Min: {{ p.quantidadeMinima }}</span>
+                  </div>
+                  <span v-else class="txt-gray">—</span>
+                </td>
                 <td>
                   <span class="badge" :class="p.ativo !== false ? 'badge--ativo' : 'badge--inativo'">
                     {{ p.ativo !== false ? 'Ativo' : 'Inativo' }}
@@ -245,31 +278,57 @@ function irParaPagina(p) {
       <!-- Mobile List -->
       <div class="mobile-list">
         <template v-if="store.loadingProdutos && store.produtos.length === 0">
-          <div v-for="n in 5" :key="`sm-${n}`" class="produto-card skeleton-card">
-            <div class="skeleton" style="width:50%;height:1rem;margin-bottom:0.4rem"></div>
-            <div class="skeleton" style="width:35%;height:0.8rem"></div>
+          <div class="mobile-grid">
+            <div v-for="n in 5" :key="`sm-${n}`" class="produto-card skeleton-card">
+              <div class="skeleton" style="width:50%;height:1rem;margin-bottom:0.4rem"></div>
+              <div class="skeleton" style="width:35%;height:0.8rem"></div>
+            </div>
           </div>
         </template>
         <template v-else>
-          <div
-            v-for="p in store.produtos" :key="p._id"
-            class="produto-card"
-            @click="verDetalhes(p._id)"
-          >
-            <div class="produto-card-info">
-              <span class="nome">{{ p.nome }}</span>
-              <span class="tag-unidade">{{ p.unidadeMedida }}</span>
-              <span class="txt-gray" style="font-size:.78rem">{{ p.categoria || 'Sem categoria' }}</span>
-            </div>
-            <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)" @click.stop>
-              <button class="btn-icon" @click.stop="toggleMenu(p._id)"><MoreHorizontal :size="20" /></button>
-              <Transition name="fade">
-                <div v-if="actionsMenuOpenFor === p._id" class="actions-dropdown">
-                  <button class="dropdown-item" @click.stop="verDetalhes(p._id)"><Eye :size="14" /> Ver detalhes</button>
-                  <button class="dropdown-item" @click.stop="abrirEditar(p)"><Pencil :size="14" /> Editar</button>
-                  <button class="dropdown-item delete" @click.stop="excluir(p._id)"><Trash2 :size="14" /> Excluir</button>
+          <div class="mobile-grid">
+            <div
+              v-for="p in store.produtos" :key="p._id"
+              class="produto-card"
+              @click="verDetalhes(p._id)"
+            >
+              <div class="produto-card-header">
+                <div class="nome-wrapper">
+                  <span class="nome">{{ p.nome }}</span>
+                  <span v-if="p.fabricante" class="fabricante">{{ p.fabricante }}</span>
                 </div>
-              </Transition>
+                <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)" @click.stop>
+                  <button class="btn-icon" @click.stop="toggleMenu(p._id)"><MoreHorizontal :size="20" /></button>
+                  <Transition name="fade">
+                    <div v-if="actionsMenuOpenFor === p._id" class="actions-dropdown">
+                      <button class="dropdown-item" @click.stop="verDetalhes(p._id)"><Eye :size="14" /> Ver detalhes</button>
+                      <button class="dropdown-item" @click.stop="abrirEditar(p)"><Pencil :size="14" /> Editar</button>
+                      <button class="dropdown-item delete" @click.stop="excluir(p._id)"><Trash2 :size="14" /> Excluir</button>
+                    </div>
+                  </Transition>
+                </div>
+              </div>
+
+              <div class="produto-card-tags">
+                <span class="tag-unidade"><FlaskConical :size="12" /> {{ p.unidadeMedida }}</span>
+                <span v-if="p.categoria" class="tag-categoria"><Tag :size="12" /> {{ p.categoria }}</span>
+              </div>
+
+              <div class="produto-card-footer" v-if="p.quantidadeMinima != null">
+                <div class="alerta-minimo-card">
+                  <AlertTriangle :size="14" class="alerta-icon" />
+                  <span>Estoque Mín: {{ p.quantidadeMinima }}</span>
+                </div>
+                <span class="badge" :class="p.ativo !== false ? 'badge--ativo' : 'badge--inativo'">
+                  {{ p.ativo !== false ? 'Ativo' : 'Inativo' }}
+                </span>
+              </div>
+              <div class="produto-card-footer" v-else>
+                <div class="spacer"></div>
+                <span class="badge" :class="p.ativo !== false ? 'badge--ativo' : 'badge--inativo'">
+                  {{ p.ativo !== false ? 'Ativo' : 'Inativo' }}
+                </span>
+              </div>
             </div>
           </div>
         </template>
@@ -294,8 +353,11 @@ function irParaPagina(p) {
     <SideDrawer v-if="showDrawer" @close="fecharDrawer">
       <template #header>
         <div class="drawer-header">
-          <div>
+          <div class="drawer-header-text">
             <h2 class="drawer-title">{{ produtoForm._id ? 'Editar Produto' : 'Novo Produto' }}</h2>
+            <p class="drawer-subtitle">
+              {{ produtoForm._id ? 'Ajuste detalhes e níveis de alerta deste item' : 'Cadastre um novo item do catálogo' }}
+            </p>
             <span v-if="produtoForm._id" class="drawer-id">ID #{{ produtoForm._id.slice(-6).toUpperCase() }}</span>
           </div>
           <button @click="fecharDrawer" class="close-btn-header"><X :size="22" /></button>
@@ -428,7 +490,9 @@ th {
 .txt-gray { color: #6b7280; font-size: .875rem; }
 
 .tag-unidade {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: .15rem .55rem;
   background: #e0f2fe;
   color: #0369a1;
@@ -436,6 +500,32 @@ th {
   font-size: .72rem;
   font-weight: 700;
 }
+
+.tag-categoria {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: .15rem .55rem;
+  border-radius: .4rem;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.alerta-minimo-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.alerta-icon { color: #ea580c; }
 
 .badge {
   display: inline-flex;
@@ -492,15 +582,37 @@ th {
 
 /* Mobile */
 .mobile-list { display: none; }
-.produto-card {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #f3f4f6;
-  cursor: pointer;
+.mobile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
-.produto-card:last-child { border: none; }
-.produto-card:hover { background: #f9fafb; }
-.produto-card-info { display: flex; flex-direction: column; gap: .25rem; }
+.produto-card {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.produto-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.produto-card-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.produto-card-tags {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+}
+.produto-card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #e5e7eb;
+}
 .skeleton-card { pointer-events: none; }
 
 /* Paginação */
@@ -519,10 +631,10 @@ th {
 
 /* Drawer */
 .drawer-header { padding: 1.5rem; border-bottom: 1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:flex-start; }
+.drawer-header-text { display: flex; flex-direction: column; gap: 0.15rem; }
 .drawer-title { font-size:1.1rem; font-weight:700; color:#111827; margin:0; }
+.drawer-subtitle { font-size: 0.8rem; color: #9ca3af; margin: 0; }
 .drawer-id { font-size:.75rem; color:#6b7280; background:#f3f4f6; padding:.15rem .5rem; border-radius:4px; display:inline-block; margin-top:.25rem; }
-.close-btn-header { background:none; border:none; cursor:pointer; color:#6b7280; padding:.25rem; border-radius:.5rem; display:flex; align-items:center; }
-.close-btn-header:hover { background:#f3f4f6; }
 .drawer-footer { padding:1.25rem 1.5rem; display:flex; gap:.75rem; justify-content:flex-end; border-top:1px solid #f3f4f6; }
 
 /* Animations */
@@ -538,6 +650,8 @@ th {
 @media (max-width: 768px) {
   .desktop-only { display: none; }
   .mobile-list { display: block; }
+  .mobile-grid { padding: 0.5rem 0; }
+  .table-wrapper { background: transparent; border: none; box-shadow: none; overflow: visible; }
   .filtros-bar { flex-direction: column; }
   .search-wrapper { min-width: 100%; }
 }

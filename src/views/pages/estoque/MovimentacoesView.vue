@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
 import { Search, X, BookOpen } from 'lucide-vue-next'
 import EstoqueMovimentacaoTipo from '@/components/estoque/EstoqueMovimentacaoTipo.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 
 const store = useEstoqueStore()
 const router = useRouter()
@@ -13,6 +14,14 @@ const tipo = ref('')
 const dataInicio = ref('')
 const dataFim = ref('')
 const page = ref(1)
+
+const tipoOptions = [
+  { label: 'Todos os tipos', value: '' },
+  { label: 'Entrada', value: 'ENTRADA' },
+  { label: 'Saída — Uso', value: 'SAIDA_USO' },
+  { label: 'Saída — Administrativa', value: 'SAIDA_ADMINISTRATIVA' },
+  { label: 'Compensação', value: 'COMPENSACAO' },
+]
 
 onMounted(() => carregar())
 
@@ -71,13 +80,13 @@ function prefixoAtendimento(atendimentoId) {
 
     <!-- Filtros -->
     <div class="filtros-bar">
-      <select class="filter-select" v-model="tipo" @change="carregar()">
-        <option value="">Todos os tipos</option>
-        <option value="ENTRADA">Entrada</option>
-        <option value="SAIDA_USO">Saída — Uso</option>
-        <option value="SAIDA_ADMINISTRATIVA">Saída — Administrativa</option>
-        <option value="COMPENSACAO">Compensação</option>
-      </select>
+      <div style="width: 220px">
+        <StyledSelect
+          v-model="tipo"
+          :options="tipoOptions"
+          @update:modelValue="carregar()"
+        />
+      </div>
 
       <div class="date-group">
         <input class="filter-input" type="date" v-model="dataInicio" @change="carregar()" placeholder="De" title="Data início" />

@@ -161,7 +161,7 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
           </svg>
         </div>
         <div class="gauge-footer">
-          <span class="health-title">Score de Saúde</span>
+          <!-- <span class="health-title">Score de Saúde</span> -->
           <p class="health-desc">Medido por nível de estoque e prazos de validade.</p>
         </div>
       </div>
@@ -311,7 +311,6 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
 
         <div v-else-if="store.alertasVencimentos.length === 0" class="empty-alerta">
           <div class="empty-state-content">
-            <span class="empty-icon">✅</span>
             <p>Sem vencimentos próximos.</p>
           </div>
         </div>
@@ -345,8 +344,8 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
   gap: 1.5rem;
 }
 
-.title { font-size: 2.25rem; font-weight: 800; color: #111827; letter-spacing: -0.025em; margin: 0; }
-.subtitle { color: #6b7280; font-size: 1rem; margin-top: 0.25rem; }
+.title { font-size: 2.25rem; font-weight: 700; color: #0f172a; letter-spacing: -0.025em; margin: 0; }
+.subtitle { color: #64748b; font-size: 1rem; margin-top: 0.25rem; }
 
 .header-actions { display: flex; gap: 0.75rem; align-items: center; }
 .select-vencimento { width: 220px; }
@@ -394,7 +393,7 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
 .gauge-value { font-size: 44px; font-weight: 900; fill: #111827; }
 .gauge-label { font-size: 13px; font-weight: 800; fill: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; }
 
-.gauge-footer { margin-top: -15px; }
+.gauge-footer { margin-top: -6px; }
 .health-title { font-weight: 800; color: #111827; font-size: 1rem; display: block; }
 .health-desc { font-size: 0.75rem; color: #9ca3af; margin-top: 0.15rem; line-height: 1.3; }
 
@@ -413,14 +412,14 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
 .icon-orange { background: #fff7ed; color: #ea580c; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-label { font-size: 0.8rem; font-weight: 600; color: #9ca3af; }
-.stat-value { font-size: 1.1rem; font-weight: 800; color: #111827; margin-top: 2px; }
+.stat-label { font-size: 0.85rem; font-weight: 500; color: #64748b; }
+.stat-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-top: 2px; }
 
 /* Chart Card */
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.chart-title { font-size: 0.95rem; font-weight: 800; color: #111827; margin: 0; }
+.chart-title { font-size: 1.05rem; font-weight: 600; color: #1f2937; margin: 0; }
 .chart-legend { display: flex; gap: 1.25rem; }
-.legend-item { font-size: 0.72rem; font-weight: 700; color: #9ca3af; display: flex; align-items: center; gap: 0.4rem; }
+.legend-item { font-size: 0.72rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 0.4rem; }
 .dot { width: 7px; height: 7px; border-radius: 50%; }
 .dot-in { background: var(--azul-principal); }
 .dot-out { background: #ff4d94; }
@@ -463,19 +462,29 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
 }
 .alerta-icon--red    { background: #fee2e2; color: #dc2626; }
 .alerta-icon--yellow { background: #fef9c3; color: #ca8a04; }
-.alerta-title { font-size: 0.9rem; font-weight: 800; color: #111827; margin: 0; }
-.alerta-count { font-size: 0.75rem; font-weight: 900; padding: 0.2rem 0.5rem; border-radius: 6px; background: #fee2e2; color: #dc2626; }
+.alerta-title { font-size: 1rem; font-weight: 600; color: #1f2937; margin: 0; }
+.alerta-count { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; background: #fee2e2; color: #dc2626; }
 .count--zero { background: #ecfdf5; color: #10b981; }
 
 .alerta-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .alerta-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.8rem 1rem; background: #fcfcfd; border-radius: 0.75rem;
-  border: 1px solid #f3f4f6; transition: all 0.2s;
+  padding: 1rem 1.25rem; background: #ffffff; border-radius: 1rem;
+  border: 1px solid #f3f4f6; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
-.alerta-item:hover { border-color: #e5e7eb; background: white; transform: translateX(2px); }
-.alerta-item-nome { font-size: 0.8rem; font-weight: 800; color: #111827; }
-.alerta-item-detail { font-size: 0.72rem; color: #9ca3af; font-weight: 600; }
+.alerta-item:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transform: translateY(-1px); }
+.alerta-item-info { display: flex; flex-direction: column; gap: 0.25rem; }
+.alerta-item-nome { font-size: 0.9rem; font-weight: 600; color: #1e293b; }
+.alerta-item-detail { font-size: 0.8rem; color: #64748b; font-weight: 500; }
+.btn-link { 
+  display: flex; align-items: center; gap: 0.25rem;
+  background: transparent; color: var(--azul-principal);
+  border: none; cursor: pointer; padding: 0.375rem 0.6rem;
+  font-size: 0.825rem; font-weight: 600; border-radius: 6px;
+  transition: background 0.2s;
+}
+.btn-link:hover { background: #eff6ff; }
 
 .empty-alerta { 
   flex: 1; display: flex; align-items: center; justify-content: center; 

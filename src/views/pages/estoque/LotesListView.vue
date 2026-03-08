@@ -6,6 +6,7 @@ import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
 import { Layers, Search, X, Plus, Trash2, Eye } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import EstoqueBadgeStatus from '@/components/estoque/EstoqueBadgeStatus.vue'
 
 const store = useEstoqueStore()
@@ -15,6 +16,21 @@ const toast = useToast()
 const status = ref('')
 const vencendo = ref('')
 const page = ref(1)
+
+const statusOptions = [
+  { label: 'Todos os status', value: '' },
+  { label: 'Ativos', value: 'ATIVO' },
+  { label: 'Vencidos', value: 'VENCIDO' },
+  { label: 'Zerados', value: 'ZERADO' },
+  { label: 'Descartados', value: 'DESCARTADO' },
+]
+
+const vencendoOptions = [
+  { label: 'Qualquer validade', value: '' },
+  { label: 'Vencendo em 30 dias', value: '30' },
+  { label: 'Vencendo em 60 dias', value: '60' },
+  { label: 'Vencendo em 90 dias', value: '90' },
+]
 
 onMounted(() => carregar())
 
@@ -67,27 +83,25 @@ function irParaPagina(p) { page.value = p; carregar() }
         <h1 class="title">Lotes</h1>
         <p class="subtitle">Estoque físico por lote/validade (política FEFO).</p>
       </div>
-      <AppButton variant="primary" @click="router.push({ name: 'estoque-produtos' })">
-        <Plus :size="16" /> Nova Entrada
-      </AppButton>
     </header>
 
     <!-- Filtros -->
     <div class="filtros-bar">
-      <select class="filter-select" v-model="status" @change="carregar()">
-        <option value="">Todos os status</option>
-        <option value="ATIVO">Ativos</option>
-        <option value="VENCIDO">Vencidos</option>
-        <option value="ZERADO">Zerados</option>
-        <option value="DESCARTADO">Descartados</option>
-      </select>
+      <div style="width: 180px">
+        <StyledSelect
+          v-model="status"
+          :options="statusOptions"
+          @update:modelValue="carregar()"
+        />
+      </div>
 
-      <select class="filter-select" v-model="vencendo" @change="carregar()">
-        <option value="">Qualquer validade</option>
-        <option value="30">Vencendo em 30 dias</option>
-        <option value="60">Vencendo em 60 dias</option>
-        <option value="90">Vencendo em 90 dias</option>
-      </select>
+      <div style="width: 200px">
+        <StyledSelect
+          v-model="vencendo"
+          :options="vencendoOptions"
+          @update:modelValue="carregar()"
+        />
+      </div>
 
       <button v-if="temFiltros" class="btn-clear" @click="limparFiltros"><X :size="14" /> Limpar</button>
     </div>

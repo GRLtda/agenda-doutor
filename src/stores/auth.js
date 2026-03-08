@@ -19,6 +19,8 @@ import {
 } from '@/api/auth-v2'
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
 import apiClient from '@/api/index'
+import { registerFcmToken, markNotificationsAsRead } from '@/api/notifications-v2'
+import { messaging, getToken, onMessage } from '@/services/firebase'
 import { useClinicStore } from './clinic'
 // router import removed to avoid circular dependency
 
@@ -145,6 +147,118 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // --- Funções Firebase Notifications ---
+
+  const notifications = computed(() => user.value?.notifications || [])
+  const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length)
+
+  async function initPushNotifications() {
+    if (!messaging) return
+    try {
+      // Inicializa silenciosamente se já tivermos permissão
+      if ('Notification' in window && Notification.permission === 'granted') {
+        await _registerAndListen()
+      }
+    } catch (e) {
+      console.warn('[FCM] Erro na inicialização silenciosa:', e)
+    }
+  }
+
+  async function requestPushPermission() {
+    if (!messaging || !('Notification' in window)) {
+      alert("Navegador não suporta notificações Push ou SDK não carregou.");
+      return;
+    }
+    try {
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          console.log('[FCM] Permissão concedida. Registrando token...');
+          await _registerAndListen();
+        } else {
+          alert("Permissão para notificações foi negada.");
+        }
+      } else if (Notification.permission === 'granted') {
+        console.log('[FCM] Permissão já estava concedida. Registrando token...');
+        await _registerAndListen();
+      } else {
+        alert("As notificações estão bloqueadas nas configurações do navegador.");
+      }
+    } catch (e) {
+      console.warn('[FCM] Erro ao pedir permissão (user gesture):', e);
+      alert("Erro ao pedir permissão: " + e.message);
+    }
+  }
+
+  async function _registerAndListen() {
+    console.log('[FCM] Solicitando token ao Firebase... Verificando Service Worker...');
+    try {
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      if (!vapidKey) throw new Error("VAPID KEY (.env) está ausente!");
+
+      // Tenta registrar/recuperar o service worker explicitamente
+      let serviceWorkerRegistration = null;
+      if ('serviceWorker' in navigator) {
+        try {
+          serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+            scope: '/firebase-cloud-messaging-push-scope'
+          });
+          console.log('[FCM] Service Worker registrado para push: ', serviceWorkerRegistration.scope);
+        } catch (swError) {
+          console.warn('[FCM] Falha ao registrar Service Worker manualmente:', swError);
+        }
+      }
+
+      console.log('[FCM] Chamando getToken...');
+      // Colocamos um timeout de 15 segundos para não ficar travado para sempre caso falhe silenciosamente
+      const token = await Promise.race([
+        getToken(messaging, {
+          vapidKey,
+          serviceWorkerRegistration
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Firebase getToken após 15s. (Service Worker não respondeu)')), 15000))
+      ]);
+
+      if (token) {
+        console.log('[FCM] Token gerado com sucesso:', token.substring(0, 15) + '...');
+        const response = await registerFcmToken(token);
+        console.log('[FCM] Token salvo no backend:', response.data);
+      } else {
+        console.warn('[FCM] Nenhum token retornado pelo Firebase.');
+        alert("O Firebase não retornou nenhum Token. Verifique o console.");
+      }
+
+      onMessage(messaging, (payload) => {
+        console.log('[FCM] Nova mensagem foreground: ', payload)
+        if (user.value) {
+          const newNotif = {
+            id: payload.messageId || Date.now().toString(),
+            title: payload.notification?.title || payload.data?.title,
+            message: payload.notification?.body || payload.data?.body,
+            type: payload.data?.type || 'info',
+            isRead: false,
+            time: new Date().toISOString(),
+            data: payload.data
+          }
+          user.value.notifications = [newNotif, ...(user.value.notifications || [])]
+        }
+      })
+    } catch (error) {
+      console.error('[FCM] Erro ao registrar e ouvir mensagens:', error)
+    }
+  }
+
+  async function markAllNotificationsAsRead() {
+    try {
+      await markNotificationsAsRead()
+      if (user.value?.notifications) {
+        user.value.notifications.forEach(n => n.isRead = true)
+      }
+    } catch (error) {
+      console.error('[FCM] Erro ao marcar como lidas:', error)
+    }
+  }
+
   // --- Funções Públicas ---
 
   async function fetchUser() {
@@ -154,6 +268,10 @@ export const useAuthStore = defineStore('auth', () => {
       // API V2 retorna { success: true, data: user }
       const userData = response.data.data
       setUser(userData)
+
+      // Initialize Push Notifications once user is fetched
+      initPushNotifications()
+
       return userData
     } catch (error) {
       if (error.response && error.response.status === 403) {
@@ -457,6 +575,12 @@ export const useAuthStore = defineStore('auth', () => {
     expiresAt,
     isAuthenticated,
     hasClinic,
+
+    notifications,
+    unreadCount,
+    markAllNotificationsAsRead,
+    initPushNotifications,
+    requestPushPermission,
 
     // Auth V2
     login,

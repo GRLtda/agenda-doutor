@@ -9,6 +9,7 @@ import {
   Pencil, Trash2, X, Check, LoaderCircle,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const store = useEstoqueStore()
@@ -24,6 +25,16 @@ const page = ref(1)
 function novoKit() {
   return { nome: '', procedimentoId: '', ativo: true, itens: [{ produtoId: '', quantidadePadrao: 1 }] }
 }
+
+const procedimentoOptions = computed(() => [
+  { label: 'Selecione...', value: '' },
+  ...procStore.procedures.map(p => ({ label: p.name, value: p._id }))
+])
+
+const produtoOptions = computed(() => [
+  { label: 'Produto...', value: '' },
+  ...store.produtos.map(p => ({ label: `${p.nome} (${p.unidadeMedida})`, value: p._id }))
+])
 
 onMounted(async () => {
   await Promise.all([store.fetchKits(), procStore.fetchProcedures(), store.fetchProdutos({ limit: 100 })])
@@ -181,8 +192,13 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
     <SideDrawer v-if="showDrawer" @close="fecharDrawer">
       <template #header>
         <div class="drawer-header">
-          <h2 class="drawer-title">{{ kitForm._id ? 'Editar Kit' : 'Novo Kit' }}</h2>
-          <button @click="fecharDrawer" class="close-btn"><X :size="22" /></button>
+          <div class="drawer-header-text">
+            <h2 class="drawer-title">{{ kitForm._id ? 'Editar Kit' : 'Novo Kit' }}</h2>
+            <p class="drawer-subtitle">
+              {{ kitForm._id ? 'Ajuste os insumos e quantidades deste kit' : 'Crie um novo kit de procedimentos' }}
+            </p>
+          </div>
+          <button @click="fecharDrawer" class="close-btn-header"><X :size="22" /></button>
         </div>
       </template>
 
@@ -194,10 +210,10 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 
         <div class="field">
           <label class="label">Procedimento <span class="req">*</span></label>
-          <select class="input" v-model="kitForm.procedimentoId">
-            <option value="" disabled>Selecione...</option>
-            <option v-for="p in procStore.procedures" :key="p._id" :value="p._id">{{ p.name }}</option>
-          </select>
+          <StyledSelect
+            v-model="kitForm.procedimentoId"
+            :options="procedimentoOptions"
+          />
         </div>
 
         <div class="itens-section">
@@ -207,10 +223,12 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
           </div>
 
           <div v-for="(item, idx) in kitForm.itens" :key="idx" class="item-row">
-            <select class="input item-input" v-model="item.produtoId">
-              <option value="" disabled>Produto...</option>
-              <option v-for="p in store.produtos" :key="p._id" :value="p._id">{{ p.nome }} ({{ p.unidadeMedida }})</option>
-            </select>
+            <div class="item-input">
+              <StyledSelect
+                v-model="item.produtoId"
+                :options="produtoOptions"
+              />
+            </div>
             <input class="input qtd-input" type="number" min="0.001" step="0.5" v-model.number="item.quantidadePadrao" placeholder="Qtd" />
             <button class="btn-remove" type="button" @click="removerItem(idx)" :disabled="kitForm.itens.length <= 1">
               <X :size="14" />
@@ -293,10 +311,10 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 .pag-info { font-size:.85rem; color:#6b7280; }
 
 /* Drawer */
-.drawer-header { padding:1.5rem; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; }
+.drawer-header { padding:1.5rem; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:flex-start; }
+.drawer-header-text { display: flex; flex-direction: column; gap: 0.15rem; }
 .drawer-title { font-size:1.1rem; font-weight:700; color:#111827; margin:0; }
-.close-btn { background:none; border:none; cursor:pointer; color:#6b7280; padding:.25rem; border-radius:.5rem; display:flex; align-items:center; }
-.close-btn:hover { background:#f3f4f6; }
+.drawer-subtitle { font-size: 0.8rem; color: #9ca3af; margin: 0; }
 .drawer-footer { padding:1.25rem 1.5rem; display:flex; gap:.75rem; justify-content:flex-end; border-top:1px solid #f3f4f6; }
 
 /* Kit form */
