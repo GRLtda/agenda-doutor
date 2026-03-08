@@ -1,6 +1,7 @@
 <script setup>
 // EstoqueFormLote.vue — Formulário de entrada de mercadoria (criação de lote)
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 
 const props = defineProps({
   modelValue: {
@@ -92,24 +93,27 @@ defineExpose({ validate })
 const amanha = new Date()
 amanha.setDate(amanha.getDate() + 1)
 const amanhaISO = amanha.toISOString().split('T')[0]
+
+const opcoesProdutos = computed(() => 
+  props.produtos.map(p => ({
+    label: `${p.nome} — ${p.unidadeMedida}`,
+    value: p._id
+  }))
+)
 </script>
 
 <template>
   <div class="form-lote">
     <!-- Produto -->
     <div class="field">
-      <label class="label">Produto <span class="required">*</span></label>
-      <select 
-        class="input" 
-        :class="{ 'input--error': errors.produtoId }"
-        :value="form.produtoId" 
-        @change="update('produtoId', $event.target.value)"
-      >
-        <option value="" disabled>Selecione o produto...</option>
-        <option v-for="p in produtos" :key="p._id" :value="p._id">
-          {{ p.nome }} — {{ p.unidadeMedida }}
-        </option>
-      </select>
+      <StyledSelect
+        label="Produto"
+        :required="true"
+        :options="opcoesProdutos"
+        :modelValue="form.produtoId"
+        :error="!!errors.produtoId"
+        @update:modelValue="update('produtoId', $event)"
+      />
       <span v-if="errors.produtoId" class="error-msg">{{ errors.produtoId }}</span>
     </div>
 

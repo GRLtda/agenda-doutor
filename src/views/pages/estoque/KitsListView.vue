@@ -6,7 +6,7 @@ import { useProceduresStore } from '@/stores/procedures'
 import { useToast } from 'vue-toastification'
 import {
   Plus, Package, ChevronDown, ChevronUp, MoreHorizontal,
-  Pencil, Trash2, X, Check, LoaderCircle,
+  Pencil, Trash2, X, Check, LoaderCircle, CircleHelp,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -115,8 +115,16 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 <template>
   <div class="kits-page">
     <header class="page-header">
-      <div>
-        <h1 class="title">Kits de Procedimento</h1>
+      <div class="header-text-container">
+        <div class="title-row">
+          <h1 class="title">Kits de Procedimento</h1>
+          <div class="tooltip-container">
+            <CircleHelp :size="20" class="help-icon" />
+            <div class="tooltip-content">
+              O kit é onde você junta todos os produtos necessários. Quando o procedimento é aplicado, o sistema já desconta automaticamente esses itens do estoque.
+            </div>
+          </div>
+        </div>
         <p class="subtitle">Receitas de insumos por procedimento — usadas para sugestão FEFO.</p>
       </div>
       <AppButton variant="primary" @click="abrirNovo"><Plus :size="16" /> Novo Kit</AppButton>
@@ -253,8 +261,61 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 <style scoped>
 .kits-page { padding: 0; }
 .page-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
-.title { font-size:2rem; font-weight:700; margin-bottom:.25rem; }
-.subtitle { color:var(--cinza-texto); }
+.title { font-size:2rem; font-weight:700; margin-bottom:0.25rem; }
+.subtitle { color:var(--cinza-texto); margin: 0; }
+
+.header-text-container { display: flex; flex-direction: column; gap: 0.25rem; }
+.title-row { display: flex; align-items: center; gap: 0.5rem; }
+
+.tooltip-container { position: relative; cursor: help; display: flex; align-items: center; }
+.help-icon { color: #9ca3af; transition: color 0.2s; }
+.tooltip-container:hover .help-icon { color: var(--azul-principal); }
+
+.tooltip-content {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  background: #fff;
+  color: #374151;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  width: 280px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  font-weight: 500;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 100;
+  border: 1px solid #e2e8f0;
+  pointer-events: none;
+}
+
+.tooltip-content::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 15px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #fff transparent;
+}
+
+.tooltip-container:hover .tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 600px) {
+  .tooltip-content {
+    left: -120px;
+    width: 240px;
+  }
+  .tooltip-content::after {
+    left: 135px;
+  }
+}
 
 /* Kits list */
 .kits-list { display:flex; flex-direction:column; gap:.75rem; }

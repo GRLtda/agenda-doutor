@@ -144,7 +144,11 @@ const doctorOptions = computed(() => {
   
   const doctors = staff.filter((member) => member.role === 'medico' || member.role === 'owner')
   
-  return doctors.map((doctor) => ({ value: doctor._id, label: doctor.name }))
+  return doctors.map((doctor) => ({ 
+    value: doctor._id, 
+    label: doctor.name,
+    image: doctor.profilePhotoUrl 
+  }))
 })
 
 function isTimeInFuture(timeString, selectedDate) {
@@ -827,7 +831,6 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-bottom: 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
   color: #374151;

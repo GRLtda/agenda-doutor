@@ -2,6 +2,7 @@
 // EstoqueFormProduto.vue — Formulário de produto (criar/editar)
 import { ref, watch } from 'vue'
 import { AlertCircle } from 'lucide-vue-next'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 
 const props = defineProps({
   modelValue: {
@@ -32,7 +33,7 @@ function validate() {
 
   if (!form.value.unidadeMedida) {
     newErrors.unidadeMedida = 'Selecione uma unidade de medida'
-  } else if (!unidades.includes(form.value.unidadeMedida)) {
+  } else if (!unidades.find(u => u.value === form.value.unidadeMedida)) {
     newErrors.unidadeMedida = 'Unidade de medida inválida'
   }
 
@@ -63,8 +64,23 @@ function update(field, value) {
 
 defineExpose({ validate })
 
-const unidades = ['UNIDADE', 'ML', 'SERINGA']
-const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio', 'Anestésico', 'Material cirúrgico', 'Descartáveis', 'Outros']
+const unidades = [
+  { label: 'Unidade', value: 'UNIDADE' },
+  { label: 'ML', value: 'ML' },
+  { label: 'Seringa', value: 'SERINGA' }
+]
+
+const categorias = [
+  { label: 'Sem categoria', value: '' },
+  { label: 'Preenchimento', value: 'Preenchimento' },
+  { label: 'Toxina Botulínica', value: 'Toxina Botulínica' },
+  { label: 'Skinbooster', value: 'Skinbooster' },
+  { label: 'Fio', value: 'Fio' },
+  { label: 'Anestésico', value: 'Anestésico' },
+  { label: 'Material cirúrgico', value: 'Material cirúrgico' },
+  { label: 'Descartáveis', value: 'Descartáveis' },
+  { label: 'Outros', value: 'Outros' }
+]
 </script>
 
 <template>
@@ -85,31 +101,26 @@ const categorias = ['Preenchimento', 'Toxina Botulínica', 'Skinbooster', 'Fio',
 
     <!-- Unidade de Medida -->
     <div class="field">
-      <label class="label">Unidade de medida <span class="required">*</span></label>
-      <select 
-        class="input" 
-        :class="{ 'input--error': errors.unidadeMedida }"
-        :value="form.unidadeMedida" 
-        @change="update('unidadeMedida', $event.target.value)"
-      >
-        <option value="" disabled>Selecione...</option>
-        <option v-for="u in unidades" :key="u" :value="u">{{ u }}</option>
-      </select>
+      <StyledSelect
+        label="Unidade de medida"
+        :required="true"
+        :options="unidades"
+        :modelValue="form.unidadeMedida"
+        :error="!!errors.unidadeMedida"
+        @update:modelValue="update('unidadeMedida', $event)"
+      />
       <span v-if="errors.unidadeMedida" class="error-msg">{{ errors.unidadeMedida }}</span>
     </div>
 
     <!-- Categoria -->
     <div class="field">
-      <label class="label">Categoria</label>
-      <select 
-        class="input" 
-        :class="{ 'input--error': errors.categoria }"
-        :value="form.categoria" 
-        @change="update('categoria', $event.target.value)"
-      >
-        <option value="">Sem categoria</option>
-        <option v-for="c in categorias" :key="c" :value="c">{{ c }}</option>
-      </select>
+      <StyledSelect
+        label="Categoria"
+        :options="categorias"
+        :modelValue="form.categoria"
+        :error="!!errors.categoria"
+        @update:modelValue="update('categoria', $event)"
+      />
       <span v-if="errors.categoria" class="error-msg">{{ errors.categoria }}</span>
     </div>
 

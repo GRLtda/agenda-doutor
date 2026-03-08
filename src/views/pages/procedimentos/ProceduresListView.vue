@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProceduresStore } from '@/stores/procedures'
+import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
 import {
   Plus,
@@ -15,11 +16,13 @@ import {
   X,
   Check,
   LoaderCircle,
+  Package,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const proceduresStore = useProceduresStore()
+const estoqueStore = useEstoqueStore()
 const router = useRouter()
 const toast = useToast()
 
@@ -30,11 +33,23 @@ const showFormModal = ref(false)
 const isSaving = ref(false)
 
 onMounted(async () => {
-  await proceduresStore.fetchProcedures()
+  await Promise.all([
+    proceduresStore.fetchProcedures(),
+    estoqueStore.fetchKits({ limit: 100 })
+  ])
 })
 
 function toggleActionsMenu(procedureId) {
   actionsMenuOpenFor.value = actionsMenuOpenFor.value === procedureId ? null : procedureId
+}
+
+function getKitForProcedure(procedureId) {
+  if (!estoqueStore.kits) return null
+  return estoqueStore.kits.find(k => (k.procedimentoId?._id || k.procedimentoId) === procedureId)
+}
+
+function goToKits() {
+  router.push({ name: 'estoque-kits' })
 }
 
 function handleEdit(procedure) {
@@ -161,6 +176,12 @@ const getPricingTypeInfo = (type) => {
                   <span>Nome do Procedimento</span>
                 </div>
               </th>
+              <th class="col-kit">
+                <div class="th-content">
+                  <Package :size="14" />
+                  <span>Kit de Produtos</span>
+                </div>
+              </th>
               <th>
                 <div class="th-content">
                   <DollarSign :size="14" />
@@ -187,6 +208,7 @@ const getPricingTypeInfo = (type) => {
                 <td><div class="skeleton skeleton-text" style="width: 60%"></div></td>
                 <td><div class="skeleton skeleton-text" style="width: 40%"></div></td>
                 <td><div class="skeleton skeleton-text" style="width: 30%"></div></td>
+                <td><div class="skeleton skeleton-text" style="width: 40%"></div></td>
                 <td class="actions-cell"><div class="skeleton skeleton-button"></div></td>
               </tr>
             </template>
@@ -218,6 +240,16 @@ const getPricingTypeInfo = (type) => {
                     <span class="name">{{ procedure.name }}</span>
                     <span v-if="procedure.description" class="description">{{ procedure.description }}</span>
                   </div>
+                </td>
+                <td class="procedure-kit">
+                  <div v-if="getKitForProcedure(procedure._id)" class="kit-link" @click="goToKits">
+                    <Package :size="14" />
+                    <span class="kit-name">{{ getKitForProcedure(procedure._id).nome }}</span>
+                  </div>
+                  <button v-else class="btn-outline-sm" @click="goToKits">
+                    <Plus :size="14" />
+                    <span>Vincular Kit</span>
+                  </button>
                 </td>
                 <td class="procedure-value">{{ formatCurrency(procedure.baseValue) }}</td>
                 <td class="procedure-type">
@@ -280,6 +312,14 @@ const getPricingTypeInfo = (type) => {
                 >
                   {{ getPricingTypeInfo(procedure.pricingType).label }}
                 </span>
+                <div v-if="getKitForProcedure(procedure._id)" class="kit-link mobile-kit-link" @click="goToKits">
+                  <Package :size="12" />
+                  <span class="kit-name">{{ getKitForProcedure(procedure._id).nome }}</span>
+                </div>
+                <button v-else class="btn-outline-sm mobile-kit-btn" @click="goToKits">
+                  <Plus :size="12" />
+                  <span>Sem Kit</span>
+                </button>
               </div>
             </div>
 
@@ -487,6 +527,11 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
+.col-kit {
+  width: 20%;
+  min-width: 150px;
+}
+
 th {
   background-color: #f9fafb;
   color: var(--cinza-texto);
@@ -506,7 +551,7 @@ th.actions-header {
 }
 
 th.col-name {
-  width: 65%;
+  width: 35%;
 }
 
 th.col-type {
@@ -576,6 +621,66 @@ th.actions-header .th-content {
   align-self: flex-start;
   font-size: 0.7rem;
   padding: 0.15rem 0.5rem;
+}
+
+.kit-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--azul-principal);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background-color: #eff6ff;
+  width: fit-content;
+  transition: all 0.2s ease;
+}
+
+.kit-link:hover {
+  background-color: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.kit-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-outline-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1.5px dashed #cbd5e1;
+  background-color: transparent;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-sm:hover {
+  border-color: var(--azul-principal);
+  color: var(--azul-principal);
+  background-color: #eff6ff;
+}
+
+.mobile-kit-link {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.mobile-kit-btn {
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
 }
 
 .state-cell {

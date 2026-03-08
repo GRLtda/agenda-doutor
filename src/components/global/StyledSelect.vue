@@ -16,11 +16,29 @@ const selectButtonRef = ref(null)
 const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
 
-const selectedLabel = computed(() => {
-  if (!props.modelValue) return 'Selecione'
-  const selectedOption = props.options.find((opt) => opt.value === props.modelValue)
-  return selectedOption?.label || 'Selecione'
+const selectedOption = computed(() => {
+  if (!props.modelValue) return null
+  return props.options.find((opt) => opt.value === props.modelValue)
 })
+
+const selectedLabel = computed(() => {
+  return selectedOption.value?.label || 'Selecione'
+})
+
+const selectedImage = computed(() => {
+  return selectedOption.value?.image || null
+})
+
+const hasImages = computed(() => {
+  return props.options.some((opt) => opt.image)
+})
+
+function getInitial(label) {
+  if (!label || label === 'Selecione') return ''
+  // Remove "Dr. " ou "Dra. " para pegar a inicial real do nome se preferir, 
+  // mas por enquanto pegamos a primeira letra da label.
+  return label.trim().charAt(0).toUpperCase()
+}
 
 async function updateDropdownPosition() {
   if (!isOpen.value || !selectButtonRef.value) return
@@ -91,8 +109,14 @@ function selectOption(option) {
         :class="{ 'has-error': error }"
         @click="isOpen = !isOpen"
       >
-        <div class="flex items-center overflow-hidden w-full">
+        <div class="flex items-center overflow-hidden w-full gap-2">
           <slot name="prefix"></slot>
+          <div v-if="selectedImage || hasImages" class="avatar-wrapper">
+            <img v-if="selectedImage" :src="selectedImage" class="select-avatar" alt="" />
+            <div v-else-if="hasImages && selectedOption" class="select-avatar-placeholder">
+              {{ getInitial(selectedLabel) }}
+            </div>
+          </div>
           <span class="truncate">{{ selectedLabel }}</span>
         </div>
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
@@ -111,9 +135,15 @@ function selectOption(option) {
               v-for="option in options"
               :key="option.value"
               @mousedown.prevent="selectOption(option)"
-              class="option-item"
+              class="option-item flex items-center gap-2"
             >
-              {{ option.label }}
+              <div v-if="option.image || hasImages" class="avatar-wrapper">
+                <img v-if="option.image" :src="option.image" class="select-avatar" alt="" />
+                <div v-else class="select-avatar-placeholder">
+                  {{ getInitial(option.label) }}
+                </div>
+              </div>
+              <span>{{ option.label }}</span>
             </li>
           </ul>
         </Transition>
@@ -208,5 +238,47 @@ function selectOption(option) {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-5px);
+}
+
+.select-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.avatar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.select-avatar-placeholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #eff6ff; /* Azul bem claro */
+  color: #2563eb; /* Azul vibrante */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
 }
 </style>
