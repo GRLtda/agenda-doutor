@@ -276,7 +276,6 @@ const rotasKits       = () => router.push({ name: 'estoque-kits' })
 
         <div v-else-if="store.alertasEstoqueMinimo.length === 0" class="empty-alerta">
           <div class="empty-state-content">
-            <span class="empty-icon">✅</span>
             <p>Estoque saudável.</p>
           </div>
         </div>
