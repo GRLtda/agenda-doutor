@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info } from 'lucide-vue-next'
+import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -38,8 +38,44 @@ const authStore = useAuthStore()
 const isUserDropdownOpen = ref(false)
 const isNotificationsOpen = ref(false)
 
-// Dados dummy de notificação (Vazio por enquanto)
-const notifications = ref([])
+const isIPhonePwaNoticeVisible = ref(false)
+
+const checkIfIPhonePwa = () => {
+  const isIPhone = /iPhone/.test(navigator.userAgent) && !window.MSStream
+  const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+  
+  if (isIPhone && !isPwa) {
+    isIPhonePwaNoticeVisible.value = true
+  }
+}
+
+const formatTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const diffDays = Math.round((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const relativeStr = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' }).format(diffDays, 'day')
+  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const relativeCap = relativeStr.charAt(0).toUpperCase() + relativeStr.slice(1)
+  return `${relativeCap} às ${timeStr}`
+}
+
+const handleNotificationsClick = () => {
+  isNotificationsOpen.value = !isNotificationsOpen.value
+  if (isNotificationsOpen.value) {
+    authStore.requestPushPermission()
+  }
+}
+
+const handleNotificationClick = (notif) => {
+  if (notif.data?.url) {
+    if (notif.data.url.startsWith('http')) {
+      window.open(notif.data.url, '_blank')
+    } else {
+      router.push(notif.data.url)
+    }
+    isNotificationsOpen.value = false
+  }
+}
 
 const isGlobalLoading = computed(() => {
   return appointmentsStore.isLoading ||
@@ -166,6 +202,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
+  checkIfIPhonePwa()
 })
 
 onUnmounted(() => {
@@ -296,31 +333,68 @@ onUnmounted(() => {
       >
         <button 
           class="notification-btn" 
-          @click="isNotificationsOpen = !isNotificationsOpen"
+          @click="handleNotificationsClick"
           :class="{ 'is-active': isNotificationsOpen }"
         >
           <Bell :size="20" />
-          <span v-if="notifications.length > 0" class="notification-badge">{{ notifications.length }}</span>
+          <span v-if="authStore.unreadCount > 0" class="notification-badge">{{ authStore.unreadCount }}</span>
         </button>
 
         <Transition name="fade">
           <div v-if="isNotificationsOpen" class="notifications-dropdown">
             <div class="notifications-header">
               <h3>Notificações</h3>
-              <button v-if="notifications.length > 0" class="mark-read-btn">Marcar todas como lidas</button>
+              <button 
+                v-if="authStore.unreadCount > 0" 
+                class="mark-read-btn"
+                @click="authStore.markAllNotificationsAsRead"
+              >
+                <CheckCircle :size="14" />
+                Marcar todas como lidas
+              </button>
+            </div>
+
+            <!-- iOS PWA Installation Notice -->
+            <div v-if="isIPhonePwaNoticeVisible" class="pwa-install-notice">
+              <div class="pwa-notice-content">
+                <div class="pwa-notice-header">
+                  <div class="pwa-icon">
+                    <img src="/logo_brand.svg" alt="App Icon" />
+                  </div>
+                  <div class="pwa-text">
+                    <span class="pwa-title">Instale em seu iPhone</span>
+                    <span class="pwa-desc">Tenha uma experiência nativa e acesse mais rápido.</span>
+                  </div>
+                  <button class="pwa-close" @click="isIPhonePwaNoticeVisible = false">
+                    <X :size="14" />
+                  </button>
+                </div>
+                <div class="pwa-steps">
+                  <span>Toque em <Share :size="14" style="display:inline; vertical-align:middle; margin: 0 2px;" /> e depois em <strong>"Adicionar à Tela de Início"</strong></span>
+                </div>
+              </div>
             </div>
             
-            <div v-if="notifications.length > 0" class="notifications-list">
-              <div v-for="notif in notifications" :key="notif.id" class="notification-item">
-                <div class="notif-icon" :class="notif.type">
-                  <CheckCircle v-if="notif.type === 'success'" :size="16" />
-                  <AlertCircle v-else-if="notif.type === 'warning'" :size="16" />
-                  <Info v-else :size="16" />
+            <div v-if="authStore.notifications.length > 0" class="notifications-list">
+              <div 
+                v-for="notif in authStore.notifications" 
+                :key="notif.id" 
+                class="notification-item"
+                :class="[{ 'is-unread': !notif.isRead, 'is-clickable': !!notif.data?.url }, notif.type || 'info']"
+                @click="handleNotificationClick(notif)"
+              >
+                <div v-if="!notif.isRead" class="unread-dot"></div>
+                
+                <div class="notif-logo">
+                  <img :src="notif.data?.icon || '/logo_brand.svg'" alt="Ícone Notificação" />
                 </div>
+                
                 <div class="notif-content">
-                  <div class="notif-title">{{ notif.title }}</div>
+                  <div class="notif-header">
+                    <span class="notif-title">{{ notif.title }}</span>
+                    <span class="notif-time">{{ formatTime(notif.time) }}</span>
+                  </div>
                   <div class="notif-message">{{ notif.message }}</div>
-                  <div class="notif-time">{{ notif.time }}</div>
                 </div>
               </div>
             </div>
@@ -901,25 +975,34 @@ onUnmounted(() => {
 
 .notification-badge {
   position: absolute;
-  top: 8px; /* Ajuste fino */
-  right: 10px;
+  top: -4px;
+  right: -4px;
   background-color: #ef4444;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1px solid white;
+  color: white;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: bold;
+  border: 2px solid white;
+  padding: 0 4px;
+  line-height: normal;
 }
 
 .notifications-dropdown {
   position: absolute;
   top: calc(100% + 14px);
-  right: -80px; /* Ajuste para alinhar melhor */
+  right: 0px;
   width: 360px;
+  max-width: 90vw; /* Ajuste responsivo */
   background-color: white;
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  z-index: 1000; /* Z-index maior */
+  z-index: 1000;
   overflow: hidden;
   transform-origin: top right;
 }
@@ -929,6 +1012,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px; /* Força espaço entre e evita estourar bordas */
 }
 
 .notifications-header h3 {
@@ -938,10 +1022,155 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.mark-read-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px; /* Substitui margin-right do icone e previne quebra bizarra */
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap; /* Impede pular linha */
+}
+
+.mark-read-btn:hover {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
 .notifications-list {
   max-height: 350px;
   overflow-y: auto;
-  padding: 0.5rem 0;
+  padding: 0;
+}
+
+.notification-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 1rem 1rem 1rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+  cursor: default;
+}
+
+.notification-item:hover {
+  background-color: #f9fafb;
+}
+
+.notification-item.is-clickable {
+  cursor: pointer;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item.is-unread {
+  background-color: #f4f8ff;
+}
+
+.notification-item.is-unread:hover {
+  background-color: #eef2ff;
+}
+
+/* Tipos de Notificação Visual */
+.notification-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
+}
+.notification-item.info::before {
+    background-color: #3b82f6;
+}
+.notification-item.success::before {
+    background-color: #10b981;
+}
+.notification-item.warning::before {
+    background-color: #f59e0b;
+}
+.notification-item.error::before {
+    background-color: #ef4444;
+}
+
+.unread-dot {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+}
+
+.notif-logo {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background-color: white;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.notif-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.notif-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.notif-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.notif-time {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.notif-message {
+  font-size: 0.8125rem;
+  color: #4b5563;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Empty State */
@@ -995,5 +1224,95 @@ onUnmounted(() => {
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* --- iOS PWA Notice --- */
+.pwa-install-notice {
+  padding: 0 1rem 0.75rem;
+}
+
+.pwa-notice-content {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.pwa-notice-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-right: 1.5rem;
+}
+
+.pwa-icon {
+  width: 32px;
+  height: 32px;
+  background-color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pwa-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.pwa-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pwa-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.pwa-desc {
+  font-size: 0.75rem;
+  color: #075985;
+  line-height: 1.2;
+}
+
+.pwa-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: #0ea5e9;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pwa-close:hover {
+  background-color: rgba(14, 165, 233, 0.1);
+}
+
+.pwa-steps {
+  font-size: 0.75rem;
+  color: #0c4a6e;
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.pwa-steps strong {
+  font-weight: 700;
 }
 </style>

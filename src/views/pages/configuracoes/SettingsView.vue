@@ -167,6 +167,9 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value) ||
 }
 
 @media (max-width: 768px) {
+  .header-spacer {
+    display: none;
+  }
   #tab-actions {
     position: fixed;
     bottom: 0;
@@ -198,7 +201,7 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value) ||
     background-color: #fafbfc;
     position: relative;
     z-index: 10;
-    margin: 0 -1rem; /* Extrapola o padding do container pai se houver */
+    margin: 2rem 0 -1rem 0; /* Extrapola o padding do container pai se houver */
     padding: 1rem;
     border-bottom: 1px solid #e5e7eb;
 

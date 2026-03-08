@@ -65,9 +65,7 @@ apiClient.interceptors.request.use(async (config) => {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         }).then(() => {
-          // Atualiza o header com o novo token
-          const { useAuthStore } = require('@/stores/auth')
-          const authStore = useAuthStore()
+          // authStore já está disponível no closure do interceptor
           config.headers.Authorization = `Bearer ${authStore.accessToken}`
           return config
         })

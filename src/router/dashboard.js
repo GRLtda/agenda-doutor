@@ -161,6 +161,45 @@ const dashboardRoutes = [
         component: BirthdayPatientsView,
         meta: { title: 'Aniversariantes do Mês', layout: { noPadding: true } },
       },
+
+      // ─── Estoque v2 ───────────────────────────────────────────────────────
+      {
+        path: 'estoque',
+        name: 'estoque-dashboard',
+        component: () => import('../views/pages/estoque/EstoqueDashboardView.vue'),
+        meta: { title: 'Estoque' },
+      },
+      {
+        path: 'estoque/produtos',
+        name: 'estoque-produtos',
+        component: () => import('../views/pages/estoque/ProdutosListView.vue'),
+        meta: { title: 'Produtos — Estoque' },
+      },
+      {
+        path: 'estoque/produtos/:id',
+        name: 'estoque-produto-detalhe',
+        component: () => import('../views/pages/estoque/ProdutoDetailView.vue'),
+        meta: { title: 'Detalhe do Produto' },
+        props: true,
+      },
+      {
+        path: 'estoque/lotes',
+        name: 'estoque-lotes',
+        component: () => import('../views/pages/estoque/LotesListView.vue'),
+        meta: { title: 'Lotes — Estoque' },
+      },
+      {
+        path: 'estoque/movimentacoes',
+        name: 'estoque-movimentacoes',
+        component: () => import('../views/pages/estoque/MovimentacoesView.vue'),
+        meta: { title: 'Movimentações — Estoque' },
+      },
+      {
+        path: 'estoque/kits',
+        name: 'estoque-kits',
+        component: () => import('../views/pages/estoque/KitsListView.vue'),
+        meta: { title: 'Kits de Procedimento' },
+      },
     ],
   },
 ]

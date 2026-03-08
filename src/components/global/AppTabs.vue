@@ -163,8 +163,6 @@ onMounted(async () => {
   .tab-button.active {
     background: var(--azul-principal, #3b82f6);
     color: white;
-    border-color: var(--azul-principal, #3b82f6);
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);
   }
 }
 </style>
