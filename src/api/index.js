@@ -64,9 +64,9 @@ apiClient.interceptors.request.use(async (config) => {
         // Aguarda o refresh em andamento
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then(() => {
+        }).then(async () => {
           // Atualiza o header com o novo token
-          const { useAuthStore } = require('@/stores/auth')
+          const { useAuthStore } = await import('@/stores/auth')
           const authStore = useAuthStore()
           config.headers.Authorization = `Bearer ${authStore.accessToken}`
           return config
@@ -145,8 +145,8 @@ apiClient.interceptors.response.use(
         // Aguarda o refresh em andamento e reenvia
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then(() => {
-          const { useAuthStore } = require('@/stores/auth')
+        }).then(async () => {
+          const { useAuthStore } = await import('@/stores/auth')
           const authStore = useAuthStore()
           originalRequest.headers.Authorization = `Bearer ${authStore.accessToken}`
           return apiClient(originalRequest)
