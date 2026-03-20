@@ -720,8 +720,8 @@ function openPatientProfile() {
           <div v-if="patient && appointment" class="header-patient-info">
             <div class="patient-name-group">
               <span class="patient-name profile-name" @click="openPatientProfile">{{ patient.name }}</span>
-              <span class="appointment-status-badge" :class="appointment.status.toLowerCase()">
-                {{ appointment.status }}
+              <span class="appointment-status-badge" :class="appointment.status?.toLowerCase() || ''">
+                {{ appointment.status || 'Agendado' }}
               </span>
             </div>
             <div class="appointment-meta">

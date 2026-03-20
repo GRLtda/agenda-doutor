@@ -47,12 +47,12 @@ export function useStatusBadge(status) {
         color: '#7e22ce',
       },
     },
-    // 🟢 Iniciado - Verde (ao vivo, em andamento)
+    // 🟣 Iniciado - Roxo (em atendimento)
     iniciado: {
       class: 'iniciado',
       style: {
-        backgroundColor: '#dcfce7',
-        color: '#16a34a',
+        backgroundColor: '#f5f3ff',
+        color: '#8b5cf6',
       },
     },
     // V-- Alteração aqui --V

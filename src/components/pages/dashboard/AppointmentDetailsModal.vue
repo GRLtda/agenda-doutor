@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
@@ -350,11 +350,11 @@ function handleApprove() {
         <h3 class="section-title">Dados do Paciente</h3>
         <div class="patient-card">
           <div class="patient-avatar">
-            <img v-if="patient.photoUrl" :src="patient.photoUrl" alt="Patient" />
-            <span v-else>{{ patient.name.charAt(0) }}</span>
+            <img v-if="patient?.photoUrl" :src="patient.photoUrl" alt="Patient" />
+            <span v-else>{{ patient?.name?.charAt(0) || '?' }}</span>
           </div>
           <div class="patient-info">
-            <h4 @click="goToPatient" class="patient-name">{{ patient.name }}</h4>
+            <h4 @click="goToPatient" class="patient-name">{{ patient?.name || 'Paciente' }}</h4>
             <div class="contact-row">
                <div class="contact-item">
                   <Phone :size="14" />

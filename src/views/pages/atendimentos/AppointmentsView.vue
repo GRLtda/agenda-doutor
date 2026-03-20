@@ -69,7 +69,7 @@ function getStatusIcon(status) {
     case 'Confirmado': return CheckCircle
     case 'Agendado': return CalendarDays
     case 'Iniciado': return Play
-    case 'Finalizado': return Check
+    case 'Realizado': return Check
     case 'Não Compareceu': return AlertCircle
     case 'Cancelado': return Ban
     default: return Clock
@@ -99,8 +99,10 @@ const appointmentsByStatus = computed(() => {
   })
   
   filteredAppointments.value.forEach(appt => {
-    if (grouped[appt.status]) {
-      grouped[appt.status].push(appt)
+    // Normalize status for matching (case-insensitive)
+    const statusKey = kanbanColumns.find(col => col.key.toLowerCase() === appt.status?.toLowerCase())?.key
+    if (statusKey && grouped[statusKey]) {
+      grouped[statusKey].push(appt)
     }
   })
   
@@ -384,12 +386,12 @@ function closeActionMenu(event) {
                     <div class="card-header">
                       <div class="patient-info">
                         <div class="patient-avatar" :style="{ '--avatar-color': column.color }">
-                          {{ appt.patient.name.charAt(0) }}
+                          {{ appt.patient?.name?.charAt(0) || '?' }}
                         </div>
                         <div class="patient-details">
-                          <span class="patient-name">{{ appt.patient.name }}</span>
+                          <span class="patient-name">{{ appt.patient?.name || 'Paciente' }}</span>
                           <PatientPhoneDisplay 
-                             v-if="appt.patient.phone" 
+                             v-if="appt.patient?.phone" 
                              :phone="appt.patient.phone" 
                              :country-code="appt.patient.countryCode" 
                              :show-flag="false"

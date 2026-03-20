@@ -325,18 +325,17 @@ function formatToVueCalString(dateString) {
 }
 
 const formattedEvents = computed(() => {
-  if (!Array.isArray(weekAppointments.value)) return []
   return weekAppointments.value.map((appt) => {
     const startTime = new Date(appt.startTime)
     const endTime = new Date(appt.endTime)
     const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60) // duração em minutos
 
-    const status = appt.status.toLowerCase().replace(/ /g, '-')
+    const status = appt.status?.toLowerCase().replace(/ /g, '-') || 'agendado'
 
     return {
       start: formatToVueCalString(appt.startTime),
       end: formatToVueCalString(appt.endTime),
-      title: appt.patient.name,
+      title: appt.patient?.name || 'Paciente',
       class: `clinic-event status--${status}`,
       originalEvent: appt,
       duration: duration,
@@ -698,6 +697,11 @@ function handleReturn(appointment) {
   background-color: #fefce8;
   color: #a16207;
   border-color: #fde68a;
+}
+.vuecal__event.status--iniciado {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
 }
 .vuecal__event.status--realizado {
   background-color: #f0fdf4;
