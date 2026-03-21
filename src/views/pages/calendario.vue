@@ -699,14 +699,14 @@ function handleReturn(appointment) {
   border-color: #fde68a;
 }
 .vuecal__event.status--iniciado {
-  background-color: #f0fdf4;
-  color: #16a34a;
-  border-color: #bbf7d0;
+  background-color: #f5f3ff;
+  color: #7e22ce;
+  border-color: #c084fc;
 }
 .vuecal__event.status--realizado {
-  background-color: #f0fdf4;
-  color: #16a34a;
-  border-color: #bbf7d0;
+  background-color: #ecfdf5;
+  color: #10b981;
+  border-color: #6ee7b7;
 }
 .vuecal__event.status--cancelado,
 .vuecal__event.status--não-compareceu {
