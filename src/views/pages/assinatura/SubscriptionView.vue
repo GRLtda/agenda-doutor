@@ -4,6 +4,7 @@ import { useClinicStore } from '@/stores/clinic';
 import { useAuthStore } from '@/stores/auth';
 import { CheckCircle, AlertTriangle, Package, CreditCard, Shield, Clock, X, MessageCircle, Edit3, FileText, Info } from 'lucide-vue-next';
 import choroEmoji from '@/assets/imgs/choro_emoji.png';
+import { trackClarityEvent } from '@/services/clarity';
 
 const clinicStore = useClinicStore();
 const authStore = useAuthStore();
@@ -78,6 +79,7 @@ const fetchSubscription = async () => {
 };
 
 const handleCancelSubscription = async () => {
+  trackClarityEvent('subscription_cancel_confirm_click');
   try {
     actionLoading.value = true;
     const response = await clinicStore.cancelSubscription();
@@ -98,6 +100,7 @@ const handleCancelSubscription = async () => {
 };
 
 const handleUpdatePayment = async () => {
+  trackClarityEvent('subscription_manage_click');
   try {
     actionLoading.value = true;
     const response = await clinicStore.createPortalSession();
@@ -116,12 +119,14 @@ const handleUpdatePayment = async () => {
 };
 
 const handleNeedHelp = () => {
+  trackClarityEvent('subscription_help_click');
   const message = encodeURIComponent('Olá! Preciso de ajuda com minha assinatura.');
   const whatsappNumber = '5511921923978';
   window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
 };
 
 const handleReactivateSubscription = async () => {
+  trackClarityEvent('subscription_reactivate_click');
   try {
     actionLoading.value = true;
     // Redireciona para o checkout para criar nova assinatura
@@ -141,6 +146,7 @@ const handleReactivateSubscription = async () => {
 };
 
 const handleViewInvoice = async () => {
+  trackClarityEvent('subscription_view_invoice_click');
   try {
     actionLoading.value = true;
     const response = await clinicStore.getLatestInvoice();

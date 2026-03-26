@@ -11,6 +11,7 @@ import 'vue-toastification/dist/index.css'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import App from './App.vue'
 import router from './router'
+import { initClarity } from './services/clarity'
 
 // Estilos
 import './assets/css/normalize.css'
@@ -18,6 +19,7 @@ import './assets/css/global.css'
 import './assets/css/custom-toast.css'
 
 const app = createApp(App)
+initClarity()
 
 Sentry.init({
   app,

@@ -21,6 +21,7 @@ import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service
 import apiClient from '@/api/index'
 import { registerFcmToken, markNotificationsAsRead } from '@/api/notifications-v2'
 import { messaging, getToken, onMessage } from '@/services/firebase'
+import { trackClarityEvent } from '@/services/clarity'
 import { useClinicStore } from './clinic'
 // router import removed to avoid circular dependency
 
@@ -405,6 +406,8 @@ export const useAuthStore = defineStore('auth', () => {
    * Logout da sessão atual
    */
   async function logout() {
+    trackClarityEvent('logout_click')
+
     // Tenta invalidar sessão no backend (fire and forget)
     if (refreshToken.value) {
       try {
@@ -433,6 +436,8 @@ export const useAuthStore = defineStore('auth', () => {
    * Logout de TODAS as sessões do usuário
    */
   async function logoutAll() {
+    trackClarityEvent('logout_all_click')
+
     try {
       const response = await logoutAllV2()
       const sessionsRevoked = response.data?.data?.sessions_revoked || 0
@@ -530,6 +535,8 @@ export const useAuthStore = defineStore('auth', () => {
   // --- Funções de Assinatura ---
 
   async function subscribe() {
+    trackClarityEvent('subscribe_click')
+
     try {
       const response = await createCheckoutSession()
       const { url } = response.data
