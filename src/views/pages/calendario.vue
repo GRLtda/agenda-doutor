@@ -91,7 +91,7 @@ const statusOptions = [
   { label: 'Realizado', value: 'Realizado', color: 'bg-green-100 text-green-700' },
   { label: 'Cancelado', value: 'Cancelado', color: 'bg-red-100 text-red-700' },
   { label: 'Não Compareceu', value: 'Não Compareceu', color: 'bg-red-100 text-red-700 line-through' },
-  { label: 'Em Atendimento', value: 'Em Atendimento', color: 'bg-purple-100 text-purple-700' },
+  { label: 'Em Atendimento', value: 'Iniciado', color: 'bg-purple-100 text-purple-700' },
 ]
 
 // --- 🔎 FILTROS ---
@@ -433,7 +433,13 @@ const formattedEvents = computed(() => {
 
   // Filtro por Status
   if (selectedStatuses.value.length > 0) {
-    filtered = filtered.filter(appt => selectedStatuses.value.includes(appt.status))
+    filtered = filtered.filter(appt => {
+      // Se o filtro "Iniciado" (Em Atendimento) estiver ativo, aceita tanto "Iniciado" quanto "Em Atendimento"
+      if (selectedStatuses.value.includes('Iniciado') && appt.status === 'Em Atendimento') {
+        return true
+      }
+      return selectedStatuses.value.includes(appt.status)
+    })
   }
 
   // 2. Mapeamento
@@ -964,6 +970,13 @@ const getDayNumber = (heading) => {
   color: #16a34a;
   border-color: #bbf7d0;
 }
+.vuecal__event.status--iniciado,
+.vuecal__event.status--em-atendimento {
+  background-color: #f5f3ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
 .vuecal__event.status--cancelado,
 .vuecal__event.status--não-compareceu {
   background-color: #fef2f2;
