@@ -3,16 +3,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
-import { Search, X, BookOpen } from 'lucide-vue-next'
+import { Search, X, BookOpen, CalendarDays } from 'lucide-vue-next'
+import { format } from 'date-fns'
 import EstoqueMovimentacaoTipo from '@/components/estoque/EstoqueMovimentacaoTipo.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 const store = useEstoqueStore()
 const router = useRouter()
 
 const tipo = ref('')
-const dataInicio = ref('')
-const dataFim = ref('')
+const today = new Date()
+const dataInicio = ref(today)
+const dataFim = ref(today)
 const page = ref(1)
 
 const tipoOptions = [
@@ -28,15 +32,15 @@ onMounted(() => carregar())
 async function carregar() {
   const params = { page: page.value, limit: 25 }
   if (tipo.value)       params.tipo      = tipo.value
-  if (dataInicio.value) params.dataInicio = dataInicio.value
-  if (dataFim.value)    params.dataFim   = dataFim.value
+  if (dataInicio.value) params.dataInicio = format(dataInicio.value, 'yyyy-MM-dd')
+  if (dataFim.value)    params.dataFim   = format(dataFim.value, 'yyyy-MM-dd')
   await store.fetchMovimentacoes(params)
 }
 
 function limpar() {
   tipo.value = ''
-  dataInicio.value = ''
-  dataFim.value = ''
+  dataInicio.value = null
+  dataFim.value = null
   page.value = 1
   carregar()
 }
@@ -44,6 +48,17 @@ function limpar() {
 function formatarData(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function formatarDataCurta(dateInput) {
+  if (!dateInput) return ''
+  const date = new Date(dateInput)
+  return date.toLocaleDateString('pt-BR')
+}
+
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined) return '—'
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 const temFiltros = computed(() => tipo.value || dataInicio.value || dataFim.value)
@@ -89,9 +104,43 @@ function prefixoAtendimento(atendimentoId) {
       </div>
 
       <div class="date-group">
-        <input class="filter-input" type="date" v-model="dataInicio" @change="carregar()" placeholder="De" title="Data início" />
+        <VueDatePicker
+          v-model="dataInicio"
+          :enable-time-picker="false"
+          locale="pt-BR"
+          format="dd/MM/yyyy"
+          auto-apply
+          :clearable="true"
+          :teleport="true"
+          @update:modelValue="carregar()"
+        >
+          <template #trigger>
+            <button type="button" class="filter-input date-trigger" title="Data início">
+              <span>{{ dataInicio ? formatarDataCurta(dataInicio) : 'De' }}</span>
+              <CalendarDays :size="14" class="text-slate-400" />
+            </button>
+          </template>
+        </VueDatePicker>
+
         <span class="date-sep">→</span>
-        <input class="filter-input" type="date" v-model="dataFim" @change="carregar()" placeholder="Até" title="Data fim" />
+
+        <VueDatePicker
+          v-model="dataFim"
+          :enable-time-picker="false"
+          locale="pt-BR"
+          format="dd/MM/yyyy"
+          auto-apply
+          :clearable="true"
+          :teleport="true"
+          @update:modelValue="carregar()"
+        >
+          <template #trigger>
+            <button type="button" class="filter-input date-trigger" title="Data fim">
+              <span>{{ dataFim ? formatarDataCurta(dataFim) : 'Até' }}</span>
+              <CalendarDays :size="14" class="text-slate-400" />
+            </button>
+          </template>
+        </VueDatePicker>
       </div>
 
       <button v-if="temFiltros" class="btn-clear" @click="limpar"><X :size="14" /> Limpar</button>
@@ -109,6 +158,9 @@ function prefixoAtendimento(atendimentoId) {
               <th>Qtd</th>
               <th>Responsável</th>
               <th>Motivo / Paciente</th>
+              <th>Origem custo</th>
+              <th>Custo unit.</th>
+              <th>Custo total</th>
               <th>Consumo</th>
               <th>Data</th>
             </tr>
@@ -116,12 +168,12 @@ function prefixoAtendimento(atendimentoId) {
           <tbody>
             <template v-if="store.loadingMovimentacoes && store.movimentacoes.length === 0">
               <tr v-for="n in 8" :key="n" class="skeleton-row">
-                <td v-for="c in 7" :key="c"><div class="skeleton" :style="`width:${30+c*10}%`"></div></td>
+                <td v-for="c in 10" :key="c"><div class="skeleton" :style="`width:${25+c*7}%`"></div></td>
               </tr>
             </template>
 
             <template v-else-if="!store.loadingMovimentacoes && store.movimentacoes.length === 0">
-              <tr><td colspan="7" class="empty-cell">
+              <tr><td colspan="10" class="empty-cell">
                 <div class="empty-state">
                   <div class="empty-icon"><BookOpen :size="28"/></div>
                   <h3>Nenhuma movimentação encontrada</h3>
@@ -167,6 +219,9 @@ function prefixoAtendimento(atendimentoId) {
                     </div>
                   </div>
                 </td>
+                <td class="txt-gray">{{ mov.origemCusto || '—' }}</td>
+                <td class="txt-gray">{{ formatarMoeda(mov.custoUnitario ?? mov.snapshotLote?.custoUnitario) }}</td>
+                <td class="txt-gray">{{ formatarMoeda(mov.custoTotal ?? mov.snapshotLote?.custoTotalEstimado) }}</td>
                 <!-- Coluna de consumo: snapshot do lote quando existir -->
                 <td class="consumo-cell">
                   <div v-if="mov.snapshotLote" class="snapshot-info">
@@ -212,6 +267,8 @@ function prefixoAtendimento(atendimentoId) {
               </button>
               <span v-else-if="mov.motivoSaida" class="motivo-tag">{{ formatarMotivo(mov.motivoSaida) }}</span>
             </div>
+            <div class="txt-gray" style="font-size:.75rem">Origem custo: {{ mov.origemCusto || '—' }}</div>
+            <div class="txt-gray" style="font-size:.75rem">Custo: {{ formatarMoeda(mov.custoUnitario ?? mov.snapshotLote?.custoUnitario) }} · Total: {{ formatarMoeda(mov.custoTotal ?? mov.snapshotLote?.custoTotalEstimado) }}</div>
             <!-- Snapshot de consumo no mobile -->
             <div v-if="mov.snapshotLote" class="snapshot-mb">
               <span>{{ mov.snapshotLote.nomeProduto }} · Lote {{ mov.snapshotLote.numeroLote }} · {{ mov.snapshotLote.quantidadeConsumida }} un</span>
@@ -255,9 +312,12 @@ function prefixoAtendimento(atendimentoId) {
 .filter-select, .filter-input {
   padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem;
   font-size:.875rem; color:#374151; background:#fff; cursor:pointer; outline:none;
+  height: 40px;
 }
 .date-group { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
 .date-sep { color:#d1d5db; font-size:.85rem; }
+.date-trigger { display:inline-flex; align-items:center; gap:.5rem; min-width:160px; justify-content:space-between; }
+.date-group :deep(.dp__main) { width:auto; display:inline-flex; }
 .btn-clear { display:inline-flex; align-items:center; gap:.35rem; padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem; font-size:.85rem; font-weight:600; cursor:pointer; background:#fff; color:#6b7280; }
 .btn-clear:hover { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
 
@@ -383,7 +443,7 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   .desktop-only { display:none; }
   .mobile-list { display:block; }
   .filtros-bar { flex-direction:column; }
-  .date-group { width:100%; }
+  .date-group { width:100%; flex-wrap:wrap; }
   
   .card-header-flex { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
   .data-cel-mb { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; }

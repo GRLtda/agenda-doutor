@@ -100,6 +100,7 @@ const dashboardRoutes = [
         path: 'ajuda',
         name: 'ajuda',
         component: AjudaView,
+        meta: { title: 'Ajuda' },
       },
       {
         path: 'atendimentos',

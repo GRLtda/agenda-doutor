@@ -156,7 +156,7 @@ const sidebarSections = computed(() => {
     title: 'Sistema',
     links: [
       { icon: 'settings', text: 'Configurações', to: '/configuracoes' },
-      { icon: 'support', text: 'Suporte', to: '/suporte' },
+      { icon: 'support', text: 'Suporte', to: '/ajuda' },
     ]
   }
 

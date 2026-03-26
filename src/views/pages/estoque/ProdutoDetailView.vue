@@ -36,7 +36,7 @@ const formLoteRef = ref(null)
 const formMovAdmRef = ref(null)
 
 function novoLote() {
-  return { produtoId, numeroLote: '', dataValidade: '', saldoInicial: null, fornecedor: '', notaFiscal: '' }
+  return { produtoId, numeroLote: '', dataValidade: '', saldoInicial: null, custoUnitario: null, fornecedor: '', notaFiscal: '' }
 }
 function novaMovAdm() {
   return { produtoId, loteId: '', motivo: '', quantidade: null, observacao: '' }
@@ -147,6 +147,11 @@ function formatarData(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('pt-BR')
 }
+
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined) return '—'
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 </script>
 
 <template>
@@ -246,6 +251,8 @@ function formatarData(iso) {
                 <th>Nº Lote</th>
                 <th>Validade</th>
                 <th>Saldo atual</th>
+                <th>Custo unit.</th>
+                <th>Custo total</th>
                 <th>Fornecedor</th>
                 <th>Status</th>
                 <th>Ações</th>
@@ -256,6 +263,8 @@ function formatarData(iso) {
                 <td class="lote-num">{{ lote.numeroLote }}</td>
                 <td :class="{ 'vencendo': lote.status === 'VENCIDO' }">{{ formatarData(lote.dataValidade) }}</td>
                 <td class="saldo-cel">{{ lote.saldoAtual }} {{ produto.unidadeMedida }}</td>
+                <td class="txt-gray">{{ formatarMoeda(lote.custoUnitario) }}</td>
+                <td class="txt-gray">{{ formatarMoeda(lote.custoTotalEntrada) }}</td>
                 <td class="txt-gray">{{ lote.fornecedor || '—' }}</td>
                 <td><EstoqueBadgeStatus :status="lote.status" /></td>
                 <td class="actions-cel">

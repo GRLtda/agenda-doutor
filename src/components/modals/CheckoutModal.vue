@@ -1,9 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { X, CreditCard, Banknote, Smartphone, Receipt, DollarSign, Plus, Trash2, Check, Stethoscope, Calendar, User } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
+import { useAuthStore } from '@/stores/auth'
+import * as estoqueApi from '@/api/estoque'
 
 const props = defineProps({
   procedures: {
@@ -35,6 +37,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'confirm'])
 
 const isLoading = ref(false)
+const authStore = useAuthStore()
 
 // Payment methods options
 const paymentMethodOptions = [
@@ -71,6 +74,11 @@ const totalPaid = computed(() => {
 const remainingAmount = computed(() => {
   return totalAmount.value - totalPaid.value
 })
+
+const showStockExpense = computed(() => authStore.user?.clinic?.config?.showCheckoutStockExpense !== false)
+const stockExpenseTotal = ref(0)
+const stockExpenseLoading = ref(false)
+const stockExpenseError = ref('')
 
 // Validation
 const isValid = computed(() => {
@@ -246,6 +254,50 @@ function handleAmountBlur() {
   }
 }
 
+async function carregarDespesaEstoque() {
+  if (!props.appointmentId || !showStockExpense.value) return
+
+  stockExpenseLoading.value = true
+  stockExpenseError.value = ''
+  stockExpenseTotal.value = 0
+
+  try {
+    const limit = 200
+    let page = 1
+    let totalPages = 1
+
+    do {
+      const response = await estoqueApi.getMovimentacoes({
+        atendimentoId: props.appointmentId,
+        tipo: 'SAIDA_USO',
+        page,
+        limit,
+      })
+
+      const dataObj = response.data?.data ?? response.data
+      const movs = dataObj?.movimentacoes ?? []
+      const pagination = dataObj?.pagination ?? dataObj?.meta ?? {}
+
+      stockExpenseTotal.value += movs.reduce(
+        (sum, mov) => sum + Number(mov?.custoTotal || 0),
+        0
+      )
+
+      totalPages = pagination.pages || pagination.totalPages || 1
+      page += 1
+    } while (page <= totalPages)
+  } catch (error) {
+    console.error('[CheckoutModal] Erro ao carregar despesa de estoque:', error)
+    stockExpenseError.value = 'N/A'
+  } finally {
+    stockExpenseLoading.value = false
+  }
+}
+
+watch(showStockExpense, (enabled) => {
+  if (enabled) carregarDespesaEstoque()
+}, { immediate: true })
+
 // Initialize display amount
 displayAmount.value = '0,00'
 </script>
@@ -400,6 +452,12 @@ displayAmount.value = '0,00'
 
         <!-- Resumo Final -->
         <div class="totals-section sticky-footer">
+          <div v-if="showStockExpense" class="total-row">
+            <span>Despesa com produtos:</span>
+            <span class="text-muted">
+              {{ stockExpenseLoading ? 'Carregando...' : (stockExpenseError || formatCurrency(stockExpenseTotal)) }}
+            </span>
+          </div>
           <div class="total-row">
             <span>Total Pago:</span>
             <span :class="{ 'text-green': totalPaid >= totalAmount }">{{ formatCurrency(totalPaid) }}</span>
@@ -672,6 +730,9 @@ displayAmount.value = '0,00'
 
 .text-green {
   color: #059669;
+}
+.text-muted {
+  color: #9ca3af;
 }
 
 /* Actions */

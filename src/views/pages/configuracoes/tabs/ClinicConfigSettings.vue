@@ -3,9 +3,10 @@ import { ref, watch, computed, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
-import { Settings, Save, AlertCircle, ShieldAlert, Clock, PowerOff, Activity } from 'lucide-vue-next'
+import { Settings, Save, AlertCircle, ShieldAlert, Clock, PowerOff, Activity, DollarSign } from 'lucide-vue-next'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import Switch from '@/components/global/Switch.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
 const authStore = useAuthStore()
@@ -17,6 +18,7 @@ const isDataLoaded = ref(false)
 const clinicData = ref({
   config: {
     cancellationReason: 'desativado',
+    showCheckoutStockExpense: true,
     autoStatus: {
       timeInMinutes: 120,
       targetStatus: 'Não Compareceu'
@@ -59,6 +61,7 @@ watch(
         config: {
             ...configObj,
             cancellationReason: configObj.cancellationReason || 'desativado',
+            showCheckoutStockExpense: configObj.showCheckoutStockExpense !== false,
             autoStatus: configObj.autoStatus || {
               timeInMinutes: 120,
               targetStatus: 'Não Compareceu'
@@ -129,8 +132,7 @@ onBeforeRouteLeave((to, from, next) => {
     <form v-if="isDataLoaded" @submit.prevent="handleUpdate">
       <div class="settings-grid">
         <section class="settings-section">
-          <div class="preferences-content">
-            <div class="preference-item">
+          <div class="preferences-content">            <div class="preference-item">
               <div class="preference-info">
                 <div class="preference-label">
                   <ShieldAlert :size="18" class="label-icon" />
@@ -146,8 +148,19 @@ onBeforeRouteLeave((to, from, next) => {
                   placeholder="Selecione o comportamento"
                 />
               </div>
-            </div>
+            </div>            <div class="preference-item">
+              <div class="preference-info">
+                <div class="preference-label">
+                  <DollarSign :size="18" class="label-icon" />
+                  <h4>Despesa de Produtos no Checkout</h4>
+                </div>
+                <p>Mostra o total de despesa com produtos no resumo do checkout do atendimento.</p>
+              </div>
 
+              <div class="preference-input">
+                <Switch v-model="clinicData.config.showCheckoutStockExpense" />
+              </div>
+            </div>
             <div class="preference-item">
               <div class="preference-info">
                 <div class="preference-label">

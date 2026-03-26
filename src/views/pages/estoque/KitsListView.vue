@@ -44,6 +44,11 @@ function toggleExpandir(id) {
   expandido.value = expandido.value === id ? null : id
 }
 
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined) return 'sem custo estimado'
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 function abrirNovo() {
   kitForm.value = novoKit()
   showDrawer.value = true
@@ -155,6 +160,9 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
           </div>
           <div class="kit-header-right">
             <span v-if="!kit.ativo" class="badge badge--inativo">Inativo</span>
+            <span class="kit-cost" :class="{ 'txt-gray': kit.custoEstimadoTotal === null }">
+              {{ kit.custoEstimadoTotal === null ? 'sem custo estimado' : formatarMoeda(kit.custoEstimadoTotal) }}
+            </span>
             <span class="kit-itens-count">{{ kit.itens?.length || 0 }} item(ns)</span>
             <div class="kit-actions" @click.stop>
               <button class="btn-icon" @click="abrirEditar(kit)" title="Editar"><Pencil :size="15" /></button>
@@ -174,6 +182,8 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
                   <th>Produto</th>
                   <th>Qtd. necessária</th>
                   <th>Unidade</th>
+                  <th>Custo unit.</th>
+                  <th>Custo total</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,6 +191,16 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
                   <td class="nome-item">{{ item.nomeProduto || nomeProduto(item.produtoId?._id || item.produtoId) }}</td>
                   <td class="qtd-item">{{ item.quantidadePadrao }}</td>
                   <td class="txt-gray">{{ item.unidadeMedida || '—' }}</td>
+                  <td class="txt-gray">
+                    {{ item.custoUnitarioEstimado === null || item.custoUnitarioEstimado === undefined
+                      ? 'aguardando lote com custo'
+                      : formatarMoeda(item.custoUnitarioEstimado) }}
+                  </td>
+                  <td class="txt-gray">
+                    {{ item.custoTotalEstimado === null || item.custoTotalEstimado === undefined
+                      ? '—'
+                      : formatarMoeda(item.custoTotalEstimado) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -333,6 +353,7 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 
 .kit-header-right { display:flex; align-items:center; gap:.5rem; }
 .kit-itens-count { font-size:.8rem; color:#6b7280; font-weight:600; white-space:nowrap; }
+.kit-cost { font-size:.82rem; font-weight:700; color:#111827; margin-right:.5rem; white-space:nowrap; }
 .expand-icon { color:#9ca3af; }
 .kit-actions { display:flex; gap:.25rem; }
 

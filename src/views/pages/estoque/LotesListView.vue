@@ -70,6 +70,11 @@ function diasAteVencer(iso) {
   return diff
 }
 
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined) return '—'
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 const temFiltros = computed(() => status.value || vencendo.value)
 const totalPaginas = computed(() => store.lotesMeta?.totalPages || 1)
 
@@ -117,6 +122,8 @@ function irParaPagina(p) { page.value = p; carregar() }
               <th>Nº Lote</th>
               <th>Validade</th>
               <th>Saldo</th>
+              <th>Custo unit.</th>
+              <th>Custo entrada</th>
               <th>Fornecedor</th>
               <th>NF</th>
               <th>Status</th>
@@ -126,12 +133,12 @@ function irParaPagina(p) { page.value = p; carregar() }
           <tbody>
             <template v-if="store.loadingLotes && store.lotes.length === 0">
               <tr v-for="n in 7" :key="n" class="skeleton-row">
-                <td v-for="c in 8" :key="c"><div class="skeleton" :style="`width:${40+c*7}%`"></div></td>
+                <td v-for="c in 10" :key="c"><div class="skeleton" :style="`width:${30+c*5}%`"></div></td>
               </tr>
             </template>
 
             <template v-else-if="!store.loadingLotes && store.lotes.length === 0">
-              <tr><td colspan="8" class="empty-cell">
+              <tr><td colspan="10" class="empty-cell">
                 <div class="empty-state">
                   <div class="empty-icon"><Layers :size="28"/></div>
                   <h3>Nenhum lote encontrado</h3>
@@ -159,6 +166,8 @@ function irParaPagina(p) { page.value = p; carregar() }
                   </span>
                 </td>
                 <td class="saldo-cel">{{ lote.saldoAtual }}</td>
+                <td class="txt-gray">{{ formatarMoeda(lote.custoUnitario) }}</td>
+                <td class="txt-gray">{{ formatarMoeda(lote.custoTotalEntrada) }}</td>
                 <td class="txt-gray">{{ lote.fornecedor || '—' }}</td>
                 <td class="txt-gray">{{ lote.notaFiscal || '—' }}</td>
                 <td><EstoqueBadgeStatus :status="lote.status" /></td>
@@ -196,6 +205,8 @@ function irParaPagina(p) { page.value = p; carregar() }
                 <EstoqueBadgeStatus :status="lote.status" />
               </div>
               <span class="saldo-cel">Saldo: {{ lote.saldoAtual }}</span>
+              <span class="txt-gray" style="font-size:.82rem">Custo unit.: {{ formatarMoeda(lote.custoUnitario) }}</span>
+              <span class="txt-gray" style="font-size:.82rem">Entrada: {{ formatarMoeda(lote.custoTotalEntrada) }}</span>
             </div>
             <button v-if="lote.status === 'ATIVO'" class="btn-icon btn-icon--red" @click="descartar(lote._id)">
               <Trash2 :size="16" />

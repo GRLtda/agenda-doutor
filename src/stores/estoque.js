@@ -33,6 +33,13 @@ export const useEstoqueStore = defineStore('estoque', () => {
         totalProdutos: 0,
         totalLotesAtivos: 0,
     })
+    const financeEstoque = ref({
+        periodoDias: 0,
+        valorConsumidoPeriodo: 0,
+        custoMedioPorBaixa: 0,
+        produtosMaiorCusto: [],
+        procedimentosMaiorConsumoDeEstoque: []
+    })
 
     const healthScore = ref(0)
     const chartData = ref({
@@ -536,6 +543,7 @@ export const useEstoqueStore = defineStore('estoque', () => {
                 stats.value = data.stats || { totalProdutos: 0, totalLotesAtivos: 0 }
                 healthScore.value = data.healthScore || 0
                 chartData.value = data.chartData || { trends: [], categorias: [] }
+                financeEstoque.value = data.financeiroEstoque || financeEstoque.value
                 return { success: true }
             }
             return { success: false, error: 'Falha ao carregar dashboard' }
@@ -598,6 +606,7 @@ export const useEstoqueStore = defineStore('estoque', () => {
         stats,
         healthScore,
         chartData,
+        financeEstoque,
         alertasEstoqueMinimo,
         alertasVencimentos,
         sugestaoFEFO,

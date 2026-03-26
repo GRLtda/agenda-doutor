@@ -34,6 +34,11 @@ function formatarData(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('pt-BR')
 }
+
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined) return '—'
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 </script>
 
 <template>
@@ -92,6 +97,11 @@ function formatarData(iso) {
                 <div class="lote-debitado">
                   <span class="debitado-label">Débito:</span>
                   <span class="debitado-valor">{{ lote.quantidadeDebitada }}</span>
+                </div>
+                <div class="lote-custo">
+                  <span class="debitado-label">Custo:</span>
+                  <span class="debitado-valor">{{ formatarMoeda(lote.custoUnitario) }}</span>
+                  <span v-if="lote.custoTotalEstimado" class="txt-gray">· {{ formatarMoeda(lote.custoTotalEstimado) }}</span>
                 </div>
               </div>
             </div>
@@ -293,6 +303,13 @@ function formatarData(iso) {
   display: flex;
   align-items: center;
   gap: 0.3rem;
+}
+.lote-custo {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #6b7280;
 }
 .debitado-label { color: #9ca3af; }
 .debitado-valor { font-weight: 700; color: #7c3aed; }

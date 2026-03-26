@@ -55,7 +55,8 @@ const activeActionMenu = ref(null) // ID of appointment with open menu
 
 // Data Inicial: Hoje
 const today = new Date()
-const dateRange = ref([today, today])
+const startDate = ref(today)
+const endDate = ref(today)
 
 // Definição das colunas do Kanban
 const kanbanColumns = [
@@ -120,11 +121,11 @@ const totalAppointments = computed(() => filteredAppointments.value.length)
 
 // ✨ Fetch appointments based on date range
 async function fetchAppointments() {
-  if (!dateRange.value || !dateRange.value[0]) return
-  
-  const start = format(dateRange.value[0], 'yyyy-MM-dd')
-  const end = dateRange.value[1] ? format(dateRange.value[1], 'yyyy-MM-dd') : start
-  
+  if (!startDate.value) return
+
+  const start = format(startDate.value, 'yyyy-MM-dd')
+  const end = endDate.value ? format(endDate.value, 'yyyy-MM-dd') : start
+
   await appointmentsStore.fetchAppointmentsByDate(start, end)
 }
 
@@ -278,9 +279,9 @@ function handleReturn(event) {
 
 // Watch dates to refetch
 import { watch } from 'vue'
-watch(dateRange, () => {
+watch([startDate, endDate], () => {
   fetchAppointments()
-}, { deep: true })
+})
 
 onMounted(() => {
   fetchAppointments()
@@ -311,25 +312,41 @@ function closeActionMenu(event) {
       </div>
       <div class="header-actions">
 
-        <!-- ✨ Date Range Picker (VueDatePicker) -->
-        <div class="date-picker-wrapper">
+        <!-- Date Range (date-group com calendários) -->
+        <div class="date-group">
           <VueDatePicker
-            v-model="dateRange"
-            range
+            v-model="startDate"
             :enable-time-picker="false"
             locale="pt-BR"
             format="dd/MM/yyyy"
             auto-apply
             :clearable="false"
-            placeholder="Selecione o período"
+            :teleport="true"
           >
             <template #trigger>
-               <div class="custom-date-trigger">
-                  <div class="date-value">
-                     {{ formatDateDisplay(dateRange[0]) }}
-                     <CalendarDays :size="14" class="text-slate-400" />
-                  </div>
-               </div>
+              <button type="button" class="filter-input date-trigger" title="Data início">
+                <span>{{ startDate ? formatDateDisplay(startDate) : 'De' }}</span>
+                <CalendarDays :size="14" class="text-slate-400" />
+              </button>
+            </template>
+          </VueDatePicker>
+
+          <span class="date-sep">→</span>
+
+          <VueDatePicker
+            v-model="endDate"
+            :enable-time-picker="false"
+            locale="pt-BR"
+            format="dd/MM/yyyy"
+            auto-apply
+            :clearable="false"
+            :teleport="true"
+          >
+            <template #trigger>
+              <button type="button" class="filter-input date-trigger" title="Data fim">
+                <span>{{ endDate ? formatDateDisplay(endDate) : 'Até' }}</span>
+                <CalendarDays :size="14" class="text-slate-400" />
+              </button>
             </template>
           </VueDatePicker>
         </div>
@@ -704,8 +721,40 @@ function closeActionMenu(event) {
   min-height: calc(100vh - 280px);
 }
 
-.date-picker-wrapper {
-  width: 290px;
+.date-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
+.filter-input {
+  padding: 0.6rem 0.875rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.date-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: space-between;
+}
+
+.date-group :deep(.dp__main) {
+  width: auto;
+  display: inline-flex;
+}
+
+.date-sep {
+  color: #d1d5db;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 768px) {
@@ -722,7 +771,7 @@ function closeActionMenu(event) {
     gap: 0.75rem;
   }
 
-  .date-picker-wrapper {
+  .date-group {
     width: 100%;
   }
 
@@ -739,38 +788,6 @@ function closeActionMenu(event) {
   }
 }
 
-.custom-date-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background-color: var(--branco);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.5rem;
-  cursor: pointer;
-  height: 42px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.custom-date-trigger:hover {
-  border-color: #cbd5e1;
-}
-
-.date-value {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #1e293b;
-  font-weight: 500;
-}
-
-.separator {
-  color: #94a3b8;
-  font-size: 0.85rem;
-  font-weight: 400;
-}
 
 /* Kanban Container */
 .kanban-container {

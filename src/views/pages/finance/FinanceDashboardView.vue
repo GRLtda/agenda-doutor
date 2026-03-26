@@ -275,16 +275,14 @@ const getGradient = (ctx, chartArea, colorStart, colorEnd) => {
   return gradient
 }
 
-const dailyRevenueChartData = computed(() => {
-  // Quando período é 'day', usa hoursRevenue; caso contrário, usa dailyRevenue
-  const revenueData = selectedPeriod.value === 'day' 
-    ? (financeStore.hoursRevenue || [])
-    : (financeStore.dailyRevenue || [])
-  
+const stockExpenseChartData = computed(() => {
+  const expenseData = selectedPeriod.value === 'day'
+    ? (financeStore.hoursExpense || [])
+    : (financeStore.dailyExpense || [])
+
   return {
-    labels: revenueData.map(d => {
+    labels: expenseData.map(d => {
       if (selectedPeriod.value === 'day') {
-        // Para dia, mostra apenas a hora (ex: "13:00")
         const timePart = d._id.split(' ')[1] || d._id
         return timePart
       }
@@ -293,20 +291,20 @@ const dailyRevenueChartData = computed(() => {
     }),
     datasets: [
       {
-        label: selectedPeriod.value === 'day' ? 'Receita por Hora' : 'Receita',
-        borderColor: '#3b82f6', // Azul Principal
+        label: 'Despesa de estoque',
+        borderColor: '#ef4444',
         backgroundColor: (context) => {
           const chart = context.chart
           const { ctx, chartArea } = chart
           if (!chartArea) return null
-          return getGradient(ctx, chartArea, 'rgba(59, 130, 246, 0.0)', 'rgba(59, 130, 246, 0.2)')
+          return getGradient(ctx, chartArea, 'rgba(239, 68, 68, 0.05)', 'rgba(239, 68, 68, 0.25)')
         },
-        data: revenueData.map(d => d.totalRevenue),
-        tension: 0.4, // Smooth curve
+        data: expenseData.map(d => d.totalStockExpense ?? d.total ?? 0),
+        tension: 0.35,
         fill: true,
         pointRadius: 0,
-        pointHoverRadius: 6,
-        pointBackgroundColor: '#3b82f6',
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#ef4444',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
       }
@@ -441,6 +439,7 @@ const doughnutOptions = {
 
 // Helpers
 const formatCurrency = (value) => {
+  if (value === null || value === undefined) return '—'
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
@@ -631,6 +630,35 @@ const navigateToProcedures = () => {
           </template>
         </div>
       </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Despesa de Estoque</span>
+          <ArrowDownRight :size="18" class="text-rose-500" />
+        </div>
+        <div class="kpi-body">
+          <AppSkeleton v-if="financeStore.isLoading" width="110px" height="28px" />
+          <span v-else class="kpi-value text-rose-600">
+            <AnimatedNumber :value="financeStore.expenseSummary.totalStockExpense" type="currency" />
+          </span>
+          <span class="kpi-sub" v-if="!financeStore.isLoading && financeStore.kpi.stockMovementsCount">
+            {{ financeStore.kpi.stockMovementsCount }} movimentações
+          </span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Lucro Bruto</span>
+          <ArrowUpRight :size="18" class="text-emerald-600" />
+        </div>
+        <div class="kpi-body">
+          <AppSkeleton v-if="financeStore.isLoading" width="110px" height="28px" />
+          <span v-else class="kpi-value text-emerald-700">
+            <AnimatedNumber :value="financeStore.profitSummary.grossProfit" type="currency" />
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Middle Row: Charts -->
@@ -639,15 +667,15 @@ const navigateToProcedures = () => {
       <div class="chart-card main-chart-card">
         <div class="card-header">
           <div class="header-text-group">
-            <h3 class="card-title">Evolução da Receita</h3>
-            <p class="card-subtitle">Acompanhe o crescimento da receita no período selecionado.</p>
+            <h3 class="card-title">Despesa de estoque</h3>
+            <p class="card-subtitle">Usa custo por lote (FEFO). Para filtro diário, exibe por hora.</p>
           </div>
         </div>
         <div class="chart-wrapper">
           <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
              <AppSkeleton width="100%" height="100%" borderRadius="0.5rem" />
           </div>
-          <Line v-else :data="dailyRevenueChartData" :options="mainChartOptions" />
+          <Line v-else :data="stockExpenseChartData" :options="mainChartOptions" />
         </div>
       </div>
 
@@ -894,6 +922,52 @@ const navigateToProcedures = () => {
             ></AppPagination>
         </div>
       </div>
+
+      <!-- Ranking por Procedimento (Despesa de Estoque) -->
+      <div class="table-card">
+        <div class="card-header">
+          <div class="header-text-group">
+            <h3 class="card-title">Consumo de estoque por procedimento</h3>
+            <p class="card-subtitle">Estimado a partir dos lotes consumidos (FEFO).</p>
+          </div>
+        </div>
+
+        <div class="table-responsive desktop-only">
+          <table class="premium-table">
+            <thead>
+              <tr>
+                <th><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
+                <th class="text-right"><div class="th-content right"><Hash :size="14" /> Movs.</div></th>
+                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Despesa</div></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-if="financeStore.isLoading">
+                <tr v-for="i in 4" :key="i">
+                  <td><AppSkeleton width="160px" height="16px" /></td>
+                  <td class="text-right"><AppSkeleton width="40px" height="16px" class="ml-auto" /></td>
+                  <td class="text-right"><AppSkeleton width="90px" height="16px" class="ml-auto" /></td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr v-for="proc in financeStore.stockExpenseByProcedure" :key="proc._id">
+                  <td><span class="font-medium text-slate-700">{{ proc._id || '—' }}</span></td>
+                  <td class="text-right">{{ proc.count || 0 }}</td>
+                  <td class="text-right font-bold text-rose-600">{{ formatCurrency(proc.totalStockExpense) }}</td>
+                </tr>
+                <tr v-if="financeStore.stockExpenseByProcedure.length === 0" class="empty-row">
+                  <td colspan="3">
+                    <div class="empty-state-container">
+                      <Activity :size="48" class="empty-state-icon" />
+                      <span class="empty-state-text">Nenhum dado de consumo encontrado.</span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -1077,7 +1151,7 @@ const navigateToProcedures = () => {
 /* Grid Layouts */
 .top-grid {
   display: grid;
-  grid-template-columns: 1.5fr repeat(3, 1fr);
+  grid-template-columns: 1.5fr repeat(5, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
 }

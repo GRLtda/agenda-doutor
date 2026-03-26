@@ -1,86 +1,66 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Search, ChevronDown, Mail, LifeBuoy } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { BookOpenText, LifeBuoy, LoaderCircle, Mail, Search } from 'lucide-vue-next'
+import MarkdownRenderer from '@/components/pages/ajuda/MarkdownRenderer.vue'
+import { useKnowledgeBaseStore } from '@/stores/knowledge-base'
+
+const knowledgeBaseStore = useKnowledgeBaseStore()
 
 const searchQuery = ref('')
-const openQuestionId = ref(null)
+const selectedSlug = ref('')
+const bootstrapping = ref(true)
 
-const faqs = ref([
-  {
-    category: 'Gerenciamento de Pacientes',
-    items: [
-      {
-        id: 'p1',
-        question: 'Como faço para cadastrar um novo paciente?',
-        answer:
-          'Para cadastrar um novo paciente, vá para a seção "Pacientes" no menu lateral e clique no botão "Adicionar Paciente". Preencha os dados necessários e salve.',
-      },
-      {
-        id: 'p2',
-        question: 'É possível editar as informações de um paciente?',
-        answer:
-          'Sim. Acesse a lista de pacientes, clique no paciente desejado para abrir seu perfil e, em seguida, clique no botão "Editar Paciente".',
-      },
-    ],
-  },
-  {
-    category: 'Agenda e Atendimentos',
-    items: [
-      {
-        id: 'a1',
-        question: 'Como marcar um novo atendimento?',
-        answer:
-          'Você pode marcar um novo atendimento diretamente da tela de "Calendário" ou da tela de "Atendimentos", clicando no botão "Agendar Atendimento". Uma janela modal se abrirá para que você preencha os detalhes.',
-      },
-      {
-        id: 'a2',
-        question: 'Como funcionam os lembretes automáticos de consulta?',
-        answer:
-          'Os lembretes são enviados via WhatsApp para o paciente 1 dia antes e 2 horas antes do horário agendado. Você pode ativar ou desativar essa opção ao criar ou editar um agendamento.',
-      },
-      {
-        id: 'a3',
-        question: 'Onde registro as informações do atendimento (prontuário)?',
-        answer:
-          'Na tela de "Atendimentos", encontre o agendamento do dia e clique em "Iniciar Atendimento". Isso levará você à tela de registro clínico, onde você pode preencher o prontuário eletrônico do paciente.',
-      },
-    ],
-  },
-  {
-    category: 'Configurações da Clínica',
-    items: [
-      {
-        id: 'c1',
-        question: 'Como altero o horário de funcionamento da clínica?',
-        answer:
-          'Vá para "Configurações" no menu lateral e selecione a aba "Horário de Funcionamento". Lá você pode ajustar os dias e horários em que a clínica está aberta.',
-      },
-    ],
-  },
-])
-
-const filteredFaqs = computed(() => {
-  if (!searchQuery.value) {
-    return faqs.value
-  }
-  const lowerCaseQuery = searchQuery.value.toLowerCase()
-  const filtered = []
-  faqs.value.forEach((category) => {
-    const matchingItems = category.items.filter(
-      (item) =>
-        item.question.toLowerCase().includes(lowerCaseQuery) ||
-        item.answer.toLowerCase().includes(lowerCaseQuery),
-    )
-    if (matchingItems.length > 0) {
-      filtered.push({ ...category, items: matchingItems })
+function getFirstAvailableSlug(sourceCategories = knowledgeBaseStore.categories) {
+  for (const category of sourceCategories) {
+    if (Array.isArray(category.pages) && category.pages.length > 0) {
+      return category.pages[0].slug
     }
-  })
-  return filtered
+  }
+  return ''
+}
+
+const filteredCategories = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+
+  if (!query) {
+    return knowledgeBaseStore.categories
+  }
+
+  return knowledgeBaseStore.categories
+    .map((category) => ({
+      ...category,
+      pages: (category.pages || []).filter((page) =>
+        page.title.toLowerCase().includes(query)
+      ),
+    }))
+    .filter((category) => category.pages.length > 0)
 })
 
-function toggleQuestion(id) {
-  openQuestionId.value = openQuestionId.value === id ? null : id
+const hasKnowledgeContent = computed(() =>
+  knowledgeBaseStore.categories.some((category) => Array.isArray(category.pages) && category.pages.length > 0)
+)
+
+async function selectPageBySlug(slug) {
+  if (!slug) return
+  if (slug === selectedSlug.value && knowledgeBaseStore.currentPage?.slug === slug) return
+
+  selectedSlug.value = slug
+  await knowledgeBaseStore.loadPageBySlug(slug)
 }
+
+onMounted(async () => {
+  bootstrapping.value = true
+  const result = await knowledgeBaseStore.loadTree()
+
+  if (result.success) {
+    const firstSlug = getFirstAvailableSlug()
+    if (firstSlug) {
+      await selectPageBySlug(firstSlug)
+    }
+  }
+
+  bootstrapping.value = false
+})
 </script>
 
 <template>
@@ -90,264 +70,337 @@ function toggleQuestion(id) {
         <div class="icon-wrapper">
           <LifeBuoy :size="32" />
         </div>
+
         <h1 class="title">Central de Ajuda</h1>
-        <p class="subtitle">Encontre respostas para as suas dúvidas mais comuns.</p>
+        <p class="subtitle">Navegue por categorias e encontre instruções atualizadas do sistema.</p>
+
         <div class="search-bar">
           <Search :size="18" class="search-icon" />
-          <input type="text" v-model="searchQuery" placeholder="Pesquisar..." />
+          <input v-model="searchQuery" type="text" placeholder="Buscar por tópico..." />
+        </div>
+
+        <div class="category-block">
+          <div v-if="knowledgeBaseStore.isLoadingTree" class="sidebar-loading">
+            <LoaderCircle :size="18" class="spin" />
+            Carregando tópicos...
+          </div>
+
+          <template v-else>
+            <div v-if="filteredCategories.length === 0" class="no-categories">
+              Nenhum artigo encontrado para "{{ searchQuery }}".
+            </div>
+
+            <div v-for="category in filteredCategories" :key="category._id" class="category-group">
+              <h3 class="category-name">{{ category.name }}</h3>
+
+              <button
+                v-for="page in category.pages"
+                :key="page._id"
+                class="page-link"
+                :class="{ active: selectedSlug === page.slug }"
+                @click="selectPageBySlug(page.slug)"
+              >
+                <BookOpenText :size="14" />
+                <span>{{ page.title }}</span>
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </aside>
 
     <main class="main-content">
-      <div class="faq-section">
-        <div v-if="filteredFaqs.length === 0" class="no-results">
-          <h3>Nenhum resultado encontrado para "{{ searchQuery }}"</h3>
-          <p>Tente pesquisar com outros termos ou verifique a ortografia.</p>
-        </div>
-        <div v-for="category in filteredFaqs" :key="category.category" class="faq-category">
-          <h2 class="category-title">{{ category.category }}</h2>
-          <div class="faq-list">
-            <div v-for="item in category.items" :key="item.id" class="faq-item">
-              <button class="faq-question" @click="toggleQuestion(item.id)">
-                <span>{{ item.question }}</span>
-                <ChevronDown class="chevron-icon" :class="{ 'is-open': openQuestionId === item.id }" />
-              </button>
-              <div v-if="openQuestionId === item.id" class="faq-answer" v-auto-animate>
-                <p>{{ item.answer }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div v-if="bootstrapping || knowledgeBaseStore.isLoadingPage" class="loading-state">
+        <LoaderCircle :size="22" class="spin" />
+        Carregando conteúdo...
       </div>
 
-      <div class="support-card">
-        <h3 class="support-title">Não encontrou o que precisava?</h3>
-        <p class="support-text">Nossa equipe de suporte está pronta para te ajudar.</p>
-        <a href="mailto:suporte@clinicacrm.com" class="support-button">
+      <template v-else>
+        <article v-if="knowledgeBaseStore.currentPage" class="doc-article">
+          <header class="article-header">
+            <p class="article-category">{{ knowledgeBaseStore.currentPage.category?.name }}</p>
+            <h2 class="article-title">{{ knowledgeBaseStore.currentPage.title }}</h2>
+          </header>
+
+          <MarkdownRenderer :content="knowledgeBaseStore.currentPage.contentMarkdown" />
+        </article>
+
+        <div v-else-if="hasKnowledgeContent" class="empty-state">
+          <h3>Selecione um artigo para começar</h3>
+          <p>Escolha uma página no menu lateral para visualizar os detalhes.</p>
+        </div>
+
+        <div v-else class="empty-state">
+          <h3>Base de conhecimento em construção</h3>
+          <p>Ainda não há páginas publicadas. Volte em instantes.</p>
+        </div>
+      </template>
+
+      <section class="support-card">
+        <h3 class="support-title">Ainda com dúvidas?</h3>
+        <p class="support-text">Nossa equipe de suporte pode te ajudar com qualquer etapa do sistema.</p>
+        <a href="https://wa.me/5511921923978" class="support-button">
           <Mail :size="16" />
-          Enviar um E-mail
+          Falar com o suporte
         </a>
-      </div>
+      </section>
     </main>
   </div>
 </template>
 
 <style scoped>
 .help-page {
-  display: flex;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1.5rem;
 }
 
 .help-sidebar {
-  width: 320px;
-  flex-shrink: 0;
   border-right: 1px solid #e5e7eb;
-  padding-right: 3rem;
+  padding-right: 1.25rem;
 }
+
 .sidebar-content {
   position: sticky;
-  top: 2rem;
-  text-align: left;
+  top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 64px;
   height: 64px;
   border-radius: 1rem;
-  background-color: #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #eff6ff;
   color: var(--azul-principal);
-  margin-bottom: 1.5rem;
 }
+
 .title {
-  font-size: 2rem;
+  margin: 0;
+  font-size: 1.65rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  color: #0f172a;
 }
+
 .subtitle {
-  font-size: 1rem;
+  margin: 0;
   color: var(--cinza-texto);
-  margin: 0 0 2rem 0;
+  line-height: 1.5;
 }
+
 .search-bar {
   position: relative;
-  width: 100%;
-  margin: 0;
 }
+
 .search-icon {
   position: absolute;
   top: 50%;
-  left: 1rem;
+  left: 0.85rem;
   transform: translateY(-50%);
-  color: var(--cinza-texto);
+  color: #64748b;
 }
+
 .search-bar input {
   width: 100%;
-  padding: 0.875rem 1rem 0.875rem 3rem;
+  border: 1px solid #d1d5db;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-  background-color: #f9fafb;
-  font-size: 1rem;
-  transition: all 0.2s ease;
+  padding: 0.72rem 0.8rem 0.72rem 2.5rem;
+  font-size: 0.93rem;
 }
+
 .search-bar input:focus {
   outline: none;
-  background-color: var(--branco);
-  border-color: var(--azul-principal);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.category-block {
+  max-height: calc(100vh - 290px);
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.category-block::-webkit-scrollbar {
+  width: 4px;
+}
+
+.category-block::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 999px;
+}
+
+.sidebar-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.87rem;
+  color: #64748b;
+}
+
+.category-group {
+  margin-top: 1rem;
+}
+
+.category-name {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.page-link {
+  width: 100%;
+  border: 1px solid transparent;
+  background-color: #ffffff;
+  border-radius: 0.65rem;
+  padding: 0.52rem 0.62rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.42rem;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.86rem;
+  margin-bottom: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.page-link:hover {
+  border-color: #bfdbfe;
+  background-color: #eff6ff;
+}
+
+.page-link.active {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
 }
 
 .main-content {
-  flex-grow: 1;
   min-width: 0;
-  padding-left: 3rem;
-}
-
-.faq-section {
-  padding-bottom: 3rem;
-}
-
-.faq-category {
-  margin-bottom: 2.5rem;
-}
-.category-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-.faq-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
-.faq-item {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  background-color: var(--branco);
-  overflow: hidden;
-  transition: box-shadow 0.2s ease;
-}
-.faq-item:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-}
-.faq-question {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 1rem 1.5rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-.chevron-icon {
-  transition: transform 0.3s ease;
-  flex-shrink: 0;
-  margin-left: 1rem;
-  color: var(--cinza-texto);
-}
-.chevron-icon.is-open {
-  transform: rotate(180deg);
-}
-.faq-answer {
-  padding: 0 1.5rem 1.5rem 1.5rem;
-  color: var(--cinza-texto);
-  line-height: 1.7;
-}
-.faq-answer p {
-  margin: 0;
-}
-.no-results {
-  text-align: center;
-  padding: 4rem 2rem;
-  background-color: #f9fafb;
+
+.loading-state,
+.empty-state {
+  min-height: 280px;
+  border: 1px dashed #d1d5db;
   border-radius: 1rem;
-  color: var(--cinza-texto);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #64748b;
+  background-color: #ffffff;
 }
-.no-results h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.125rem;
-  color: #374151;
+
+.loading-state {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+.doc-article {
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  background-color: #ffffff;
+  padding: 1.2rem 1.3rem;
+}
+
+.article-header {
+  border-bottom: 1px solid #eef2f7;
+  margin-bottom: 1rem;
+  padding-bottom: 0.8rem;
+}
+
+.article-category {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.article-title {
+  margin: 0.4rem 0 0 0;
+  color: #0f172a;
+  font-size: 1.7rem;
+  line-height: 1.2;
 }
 
 .support-card {
-  background-color: #f3f4f6;
   border-radius: 1rem;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  background: linear-gradient(120deg, #eff6ff 0%, #f8fafc 55%, #ffffff 100%);
+  border: 1px solid #dbeafe;
+  padding: 1.1rem;
 }
+
 .support-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e3a8a;
 }
+
 .support-text {
-  color: var(--cinza-texto);
-  margin-bottom: 1.5rem;
+  margin: 0.4rem 0 0.85rem 0;
+  color: #475569;
+  line-height: 1.5;
 }
+
 .support-button {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 250px;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  border: none;
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  font-weight: 600;
-  cursor: pointer;
+  gap: 0.45rem;
   text-decoration: none;
-  transition: background-color 0.2s ease;
-}
-.support-button:hover {
-  background-color: var(--azul-escuro);
+  border: 1px solid #3b82f6;
+  color: #1d4ed8;
+  border-radius: 0.65rem;
+  padding: 0.52rem 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 1024px) {
+.support-button:hover {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1120px) {
   .help-page {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
-  .icon-wrapper {
-    margin: 0 auto;
-    margin-bottom: 20px;
-  }
+
   .help-sidebar {
-    width: 100%;
     border-right: none;
-    padding-right: 0;
-    margin-bottom: 2rem;
     border-bottom: 1px solid #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 1rem;
   }
+
   .sidebar-content {
     position: static;
-    text-align: center;
-    padding-bottom: 2rem;
   }
-  .sidebar-content .subtitle,
-  .sidebar-content .search-bar {
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .main-content {
-    padding-left: 0;
-  }
-  .support-card {
-    margin-top: 2rem;
+
+  .category-block {
+    max-height: 280px;
   }
 }
 </style>

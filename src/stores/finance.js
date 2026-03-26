@@ -8,15 +8,21 @@ export const useFinanceStore = defineStore('finance', () => {
 
   // State
   const revenueSummary = ref({ totalRevenue: 0 })
+  const expenseSummary = ref({ totalStockExpense: 0 })
+  const profitSummary = ref({ grossProfit: 0 })
   const revenueByProcedure = ref([])
   const dailyRevenue = ref([])
   const hoursRevenue = ref([])
   const monthlyRevenue = ref([])
+  const dailyExpense = ref([])
+  const hoursExpense = ref([])
+  const stockExpenseByProcedure = ref([])
   const topClients = ref([])
   const topProcedures = ref([])
   const kpi = ref({
     averageTicket: 0,
-    proceduresCount: 0
+    proceduresCount: 0,
+    stockMovementsCount: 0
   })
   const comparison = ref({
   current: 0,
@@ -36,12 +42,17 @@ async function fetchDashboardData(period = 'month', startDate = null, endDate = 
     const data = response.data
 
     revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
+    expenseSummary.value = data.expenseSummary || { totalStockExpense: 0 }
+    profitSummary.value = data.profitSummary || { grossProfit: 0 }
     revenueByProcedure.value = data.revenueByProcedure || []
     dailyRevenue.value = data.dailyRevenue || []
     hoursRevenue.value = data.hoursRevenue || []
+    dailyExpense.value = data.dailyExpense || []
+    hoursExpense.value = data.hoursExpense || []
+    stockExpenseByProcedure.value = data.stockExpenseByProcedure || []
     monthlyRevenue.value = data.monthlyRevenue || []
     topClients.value = data.topClients || []
-    kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
+    kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0, stockMovementsCount: 0 }
     comparison.value = data.comparison || { current: 0, previous: 0 }
     topProcedures.value = data.topProcedures || []
     lastSynced.value = data.lastSynced || null
@@ -111,10 +122,15 @@ return {
   isLoading,
   error,
   revenueSummary,
+  expenseSummary,
+  profitSummary,
   revenueByProcedure,
   dailyRevenue,
   hoursRevenue,
   monthlyRevenue,
+  dailyExpense,
+  hoursExpense,
+  stockExpenseByProcedure,
   topClients,
   topProcedures,
   kpi,

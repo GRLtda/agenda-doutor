@@ -54,6 +54,13 @@ function validate() {
     newErrors.saldoInicial = 'Quantidade deve ser maior que zero'
   }
 
+  if (form.value.custoUnitario !== null && form.value.custoUnitario !== undefined && form.value.custoUnitario !== '') {
+    const custo = Number(form.value.custoUnitario)
+    if (Number.isNaN(custo) || custo < 0) {
+      newErrors.custoUnitario = 'Custo deve ser zero ou positivo'
+    }
+  }
+
   if (form.value.fornecedor && form.value.fornecedor.length > 200) {
     newErrors.fornecedor = 'Máximo de 200 caracteres'
   }
@@ -78,6 +85,7 @@ function update(field, value) {
 
   const updatedForm = { ...form.value }
   if (field === 'dataValidade') updatedForm.dataValidade = valueToEmit
+  if (field === 'custoUnitario' && value === '') updatedForm.custoUnitario = null
 
   emit('update:modelValue', updatedForm)
   
@@ -159,6 +167,22 @@ const opcoesProdutos = computed(() =>
         @input="update('saldoInicial', parseFloat($event.target.value))"
       />
       <span v-if="errors.saldoInicial" class="error-msg">{{ errors.saldoInicial }}</span>
+    </div>
+
+    <!-- Custo Unitário -->
+    <div class="field">
+      <label class="label">Custo unitário (R$)</label>
+      <input
+        class="input"
+        :class="{ 'input--error': errors.custoUnitario }"
+        type="number"
+        min="0"
+        step="0.01"
+        placeholder="Ex: 120.50"
+        :value="form.custoUnitario ?? ''"
+        @input="update('custoUnitario', $event.target.value === '' ? '' : Number($event.target.value))"
+      />
+      <span v-if="errors.custoUnitario" class="error-msg">{{ errors.custoUnitario }}</span>
     </div>
 
     <!-- Fornecedor -->
