@@ -714,7 +714,8 @@ th {
   border: 1px solid #e2e8f0;
   border-radius: 0.85rem;
   background: #ffffff;
-  padding: 0.85rem;
+  padding: 1rem 0.95rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .mobile-log-top {
@@ -722,11 +723,19 @@ th {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.6rem;
-  margin-bottom: 0.7rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #edf2f7;
 }
 
 .mobile-log-row {
-  margin-top: 0.55rem;
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #e7edf4;
+  border-radius: 0.65rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .mobile-log-label {
@@ -735,11 +744,32 @@ th {
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 0.12rem;
+  margin-bottom: 0;
 }
 
 .mobile-log-value {
   font-size: 0.86rem;
+  color: #1e293b;
+}
+
+.mobile-log-row .trigger-name {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+
+.mobile-log-row .trigger-details {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
 }
 
 .mobile-log-content {
@@ -754,6 +784,8 @@ th {
 
 .mobile-log-footer {
   margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #edf2f7;
   display: flex;
   align-items: center;
   justify-content: space-between;
