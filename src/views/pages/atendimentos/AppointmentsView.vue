@@ -1,7 +1,7 @@
 <script setup>
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   CalendarDays,
@@ -43,6 +43,7 @@ import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 const appointmentsStore = useAppointmentsStore()
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 
 const isModalOpen = ref(false)
@@ -56,6 +57,65 @@ const activeActionMenu = ref(null) // ID of appointment with open menu
 // Data Inicial: Hoje
 const today = new Date()
 const dateRange = ref([today, today])
+const isHydratingAppointmentsFilters = ref(true)
+const APPOINTMENTS_FILTER_QUERY_KEYS = ['from', 'to', 'view', 'q']
+
+const getSingleQueryValue = (queryValue) => {
+  if (Array.isArray(queryValue)) return queryValue[0]
+  return typeof queryValue === 'string' ? queryValue : ''
+}
+
+const parseQueryDate = (value) => {
+  if (!value || typeof value !== 'string') return null
+  const parts = value.split('-')
+  if (parts.length !== 3) return null
+
+  const [year, month, day] = parts.map(Number)
+  if (!year || !month || !day) return null
+
+  const parsedDate = new Date(year, month - 1, day, 12, 0, 0, 0)
+  if (Number.isNaN(parsedDate.getTime())) return null
+  return parsedDate
+}
+
+const normalizeQueryObject = (query) => {
+  return Object.fromEntries(
+    Object.entries(query)
+      .map(([key, value]) => [key, Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '')])
+      .filter(([, value]) => value !== '')
+      .sort(([a], [b]) => a.localeCompare(b))
+  )
+}
+
+const getDateRangeForRequest = () => {
+  if (!dateRange.value || !dateRange.value[0]) return { start: null, end: null }
+
+  const startDateObj = new Date(dateRange.value[0])
+  const endDateObj = new Date(dateRange.value[1] || dateRange.value[0])
+  const from = startDateObj <= endDateObj ? startDateObj : endDateObj
+  const to = startDateObj <= endDateObj ? endDateObj : startDateObj
+
+  return {
+    start: format(from, 'yyyy-MM-dd'),
+    end: format(to, 'yyyy-MM-dd')
+  }
+}
+
+const appointmentsActiveFiltersCount = computed(() => {
+  let count = 0
+  const defaultDay = format(today, 'yyyy-MM-dd')
+  const { start, end } = getDateRangeForRequest()
+
+  if (start && end && (start !== defaultDay || end !== defaultDay)) {
+    count += 1
+  }
+
+  if (searchQuery.value.trim()) {
+    count += 1
+  }
+
+  return count
+})
 
 // Definição das colunas do Kanban
 const kanbanColumns = [
@@ -120,11 +180,9 @@ const totalAppointments = computed(() => filteredAppointments.value.length)
 
 // ✨ Fetch appointments based on date range
 async function fetchAppointments() {
-  if (!dateRange.value || !dateRange.value[0]) return
-  
-  const start = format(dateRange.value[0], 'yyyy-MM-dd')
-  const end = dateRange.value[1] ? format(dateRange.value[1], 'yyyy-MM-dd') : start
-  
+  const { start, end } = getDateRangeForRequest()
+  if (!start || !end) return
+
   await appointmentsStore.fetchAppointmentsByDate(start, end)
 }
 
@@ -276,15 +334,81 @@ function handleReturn(event) {
   isModalOpen.value = true
 }
 
-// Watch dates to refetch
-import { watch } from 'vue'
-watch(dateRange, () => {
-  fetchAppointments()
+const getAppointmentsFiltersFromState = () => {
+  const query = {}
+  const { start, end } = getDateRangeForRequest()
+  const defaultDay = format(today, 'yyyy-MM-dd')
+
+  if (start && end && (start !== defaultDay || end !== defaultDay)) {
+    query.from = start
+    query.to = end
+  }
+
+  if (viewMode.value === 'list') {
+    query.view = viewMode.value
+  }
+
+  if (searchQuery.value.trim()) {
+    query.q = searchQuery.value.trim()
+  }
+
+  return query
+}
+
+const syncAppointmentsFiltersToQuery = async () => {
+  const baseQuery = { ...route.query }
+  APPOINTMENTS_FILTER_QUERY_KEYS.forEach((key) => delete baseQuery[key])
+
+  const nextQuery = { ...baseQuery, ...getAppointmentsFiltersFromState() }
+  const currentNormalized = normalizeQueryObject(route.query)
+  const nextNormalized = normalizeQueryObject(nextQuery)
+
+  if (JSON.stringify(currentNormalized) === JSON.stringify(nextNormalized)) return
+  await router.replace({ query: nextQuery })
+}
+
+const applyAppointmentsFiltersFromQuery = () => {
+  const fromQuery = parseQueryDate(getSingleQueryValue(route.query.from))
+  const toQuery = parseQueryDate(getSingleQueryValue(route.query.to))
+  const viewQuery = getSingleQueryValue(route.query.view)
+  const searchQueryParam = getSingleQueryValue(route.query.q)
+
+  if (fromQuery) {
+    dateRange.value = [fromQuery, toQuery || fromQuery]
+  } else {
+    dateRange.value = [today, today]
+  }
+
+  viewMode.value = viewQuery === 'list' ? 'list' : 'kanban'
+  searchQuery.value = searchQueryParam || ''
+}
+
+watch(dateRange, async () => {
+  if (isHydratingAppointmentsFilters.value) return
+  await fetchAppointments()
+  await syncAppointmentsFiltersToQuery()
 }, { deep: true })
 
-onMounted(() => {
-  fetchAppointments()
+watch(viewMode, async () => {
+  if (isHydratingAppointmentsFilters.value) return
+  await syncAppointmentsFiltersToQuery()
+})
+
+watch(searchQuery, async () => {
+  if (isHydratingAppointmentsFilters.value) return
+  await syncAppointmentsFiltersToQuery()
+})
+
+onMounted(async () => {
+  applyAppointmentsFiltersFromQuery()
+  isHydratingAppointmentsFilters.value = false
+  await syncAppointmentsFiltersToQuery()
+  await fetchAppointments()
   document.addEventListener('click', closeActionMenu)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeActionMenu)
 })
 
 function toggleActionMenu(id, event) {
@@ -332,6 +456,11 @@ function closeActionMenu(event) {
                </div>
             </template>
           </VueDatePicker>
+        </div>
+
+        <div v-if="appointmentsActiveFiltersCount > 0" class="active-filters-indicator">
+          <Filter :size="13" />
+          <span>{{ appointmentsActiveFiltersCount }}</span>
         </div>
 
         <!-- ✨ View Switcher -->
@@ -698,6 +827,23 @@ function closeActionMenu(event) {
   gap: 1rem;
 }
 
+.active-filters-indicator {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 
 
 .content-wrapper {
@@ -724,6 +870,10 @@ function closeActionMenu(event) {
 
   .date-picker-wrapper {
     width: 100%;
+  }
+
+  .active-filters-indicator {
+    align-self: flex-start;
   }
 
   /* Make buttons full width inside header-actions if they aren't already */

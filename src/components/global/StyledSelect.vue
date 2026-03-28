@@ -8,6 +8,12 @@ const props = defineProps({
   options: { type: Array, required: true },
   required: { type: Boolean, default: false },
   error: { type: Boolean, default: false },
+  placeholder: { type: String, default: 'Selecione' },
+  dropdownDirection: {
+    type: String,
+    default: 'auto',
+    validator: (value) => ['auto', 'up', 'down'].includes(value)
+  },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -15,6 +21,7 @@ const isOpen = ref(false)
 const selectButtonRef = ref(null)
 const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
+const isDropdownUpward = ref(false)
 
 const selectedOption = computed(() => {
   if (!props.modelValue) return null
@@ -22,7 +29,7 @@ const selectedOption = computed(() => {
 })
 
 const selectedLabel = computed(() => {
-  return selectedOption.value?.label || 'Selecione'
+  return selectedOption.value?.label || props.placeholder
 })
 
 const selectedImage = computed(() => {
@@ -35,7 +42,7 @@ const hasImages = computed(() => {
 
 function getInitial(label) {
   if (!label || label === 'Selecione') return ''
-  // Remove "Dr. " ou "Dra. " para pegar a inicial real do nome se preferir, 
+  // Remove "Dr. " ou "Dra. " para pegar a inicial real do nome se preferir,
   // mas por enquanto pegamos a primeira letra da label.
   return label.trim().charAt(0).toUpperCase()
 }
@@ -43,12 +50,29 @@ function getInitial(label) {
 async function updateDropdownPosition() {
   if (!isOpen.value || !selectButtonRef.value) return
   await nextTick()
+  if (!optionsListRef.value) return
   const rect = selectButtonRef.value.getBoundingClientRect()
+  const dropdownHeight = optionsListRef.value.offsetHeight || 200
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+  const spaceAbove = rect.top
+  const spaceBelow = viewportHeight - rect.bottom
+
+  const shouldOpenUp =
+    props.dropdownDirection === 'up' ||
+    (props.dropdownDirection === 'auto' && spaceBelow < dropdownHeight + 8 && spaceAbove > spaceBelow)
+
+  isDropdownUpward.value = shouldOpenUp
+
+  const calculatedTop = shouldOpenUp
+    ? Math.max(8, rect.top - dropdownHeight - 4)
+    : Math.min(viewportHeight - dropdownHeight - 8, rect.bottom + 4)
+
   dropdownStyle.value = {
     position: 'absolute',
-    top: `${rect.bottom + 4}px`,
+    top: `${calculatedTop}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
+    transformOrigin: shouldOpenUp ? 'bottom center' : 'top center',
   }
 }
 
@@ -124,7 +148,13 @@ function selectOption(option) {
 
       <Teleport to="body">
         <Transition name="fade">
-          <ul v-if="isOpen" ref="optionsListRef" class="options-list" :style="dropdownStyle">
+          <ul
+            v-if="isOpen"
+            ref="optionsListRef"
+            class="options-list"
+            :class="{ 'opens-upward': isDropdownUpward }"
+            :style="dropdownStyle"
+          >
             <li v-if="options.length === 0" class="no-options">
               <slot name="empty">
                 Nenhum registro encontrado
@@ -202,7 +232,7 @@ function selectOption(option) {
   transform: rotate(180deg);
 }
 .options-list {
-  /* ✨ A posição agora é calculada dinamicamente, mas mantemos o resto ✨ */
+  --dropdown-offset: -5px;
   position: absolute; /* Mudará para 'fixed' ou 'absolute' pelo JS */
   max-height: 200px;
   overflow-y: auto;
@@ -210,10 +240,13 @@ function selectOption(option) {
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
-  z-index: 5000;
+  z-index: 50000;
   padding: 0.5rem;
   list-style: none;
   margin: 0;
+}
+.options-list.opens-upward {
+  --dropdown-offset: 5px;
 }
 .option-item {
   padding: 0.75rem;
@@ -237,7 +270,7 @@ function selectOption(option) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(-5px);
+  transform: translateY(var(--dropdown-offset));
 }
 
 .select-avatar {

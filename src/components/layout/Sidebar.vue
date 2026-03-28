@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { version } from '../../../package.json'
 import { useAuthStore } from '@/stores/auth'
 import { usePlanAccess } from '@/composables/usePlanAccess'
@@ -8,12 +8,9 @@ import UserDropdown from '@/components/global/UserDropdown.vue'
 import ClinicDropdown from '@/components/global/ClinicDropdown.vue'
 import AppIcon from '@/components/global/AppIcon.vue'
 import {
-  Check,
   MoreHorizontal,
   X,
-  ChevronDown,
-  ChevronsUpDown,
-  ClipboardList
+  ChevronDown
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -43,6 +40,7 @@ const indicatorStyle = ref({
   height: '0px',
   opacity: 0
 })
+let indicatorSyncTimeout = null
 
 const toggleExpand = (key) => {
   if (props.isCollapsed) return
@@ -52,9 +50,21 @@ const toggleExpand = (key) => {
   } else {
     expandedItems.value.splice(index, 1)
   }
+  syncIndicatorDuringLayoutChange()
 }
 
 const isExpanded = (key) => expandedItems.value.includes(key)
+
+const isMobileViewport = () => {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches
+}
+
+const closeSidebarOnMobile = () => {
+  if (!isMobileViewport()) return
+  isClinicDropdownOpen.value = false
+  isUserDropdownOpen.value = false
+  emit('close')
+}
 
 // Verifica se um item pai está ativo (se a rota atual é filha dele)
 const isParentActive = (children) => {
@@ -65,15 +75,16 @@ const isParentActive = (children) => {
 const updateIndicator = () => {
   nextTick(() => {
     if (!sidebarNavRef.value) return
-    
+
     const activeLink = sidebarNavRef.value.querySelector('.active-link, .nav-link.active')
-    
+
     if (activeLink) {
       const navRect = sidebarNavRef.value.getBoundingClientRect()
       const linkRect = activeLink.getBoundingClientRect()
-      
+      const navScrollTop = sidebarNavRef.value.scrollTop
+
       indicatorStyle.value = {
-        top: `${linkRect.top - navRect.top}px`,
+        top: `${linkRect.top - navRect.top + navScrollTop}px`,
         height: `${linkRect.height}px`,
         opacity: 1
       }
@@ -83,14 +94,44 @@ const updateIndicator = () => {
   })
 }
 
+const syncIndicatorDuringLayoutChange = () => {
+  updateIndicator()
+  requestAnimationFrame(updateIndicator)
+
+  if (indicatorSyncTimeout) {
+    clearTimeout(indicatorSyncTimeout)
+  }
+
+  indicatorSyncTimeout = setTimeout(() => {
+    updateIndicator()
+    indicatorSyncTimeout = null
+  }, 330)
+}
+
 // Watch na rota para atualizar indicador
 watch(() => route.path, () => {
   updateIndicator()
+  closeSidebarOnMobile()
 }, { immediate: true })
+
+watch(() => expandedItems.value.join('|'), () => {
+  syncIndicatorDuringLayoutChange()
+})
+
+watch(() => props.isCollapsed, () => {
+  syncIndicatorDuringLayoutChange()
+})
 
 // Atualizar ao montar
 onMounted(() => {
   setTimeout(updateIndicator, 100)
+})
+
+onUnmounted(() => {
+  if (indicatorSyncTimeout) {
+    clearTimeout(indicatorSyncTimeout)
+    indicatorSyncTimeout = null
+  }
 })
 
 // Computed para organizar links por seções/módulos
@@ -111,12 +152,12 @@ const sidebarSections = computed(() => {
     { icon: 'clipboard-list', text: 'Anamneses', to: '/anamneses' },
     { icon: 'stethoscope', text: 'Procedimentos', to: '/procedimentos' },
   ]
-  
+
   // Adiciona Financeiro apenas se tiver acesso
   if (hasAccess('finance')) {
     gestaoLinks.push({ icon: 'dollar', text: 'Financeiro', to: '/financeiro' })
   }
-  
+
   const gestaoSection = {
     title: 'Gestão',
     links: gestaoLinks
@@ -129,9 +170,9 @@ const sidebarSections = computed(() => {
     { text: 'Conexão', to: '/marketing/conexao', icon: 'link', feature: 'marketing_connection' },
     { text: 'Histórico', to: '/marketing/logs', icon: 'history', feature: 'marketing_logs' },
   ]
-  
+
   const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))
-  
+
   const marketingLinks = [
     {
       icon: 'megaphone',
@@ -140,12 +181,12 @@ const sidebarSections = computed(() => {
       children: filteredMarketingChildren
     }
   ]
-  
+
   // Adiciona Workflows se tiver acesso
   if (hasAccess('workflows')) {
     marketingLinks.push({ icon: 'workflow', text: 'Workflows', to: '/workflows' })
   }
-  
+
   const marketingSection = {
     title: 'Automação',
     links: marketingLinks
@@ -200,27 +241,35 @@ const sidebarSections = computed(() => {
         </div>
         <h1 v-show="!isCollapsed" class="clinic-name">{{ authStore.user?.clinic?.name || 'Sua Clínica' }}</h1>
         <MoreHorizontal v-show="!isCollapsed" :size="20" class="options-icon" />
+        <button
+          type="button"
+          class="mobile-close-button"
+          aria-label="Fechar menu"
+          @click.stop="emit('close')"
+        >
+          <X :size="18" />
+        </button>
       </div>
     </div>
 
-    <nav ref="sidebarNavRef" class="sidebar-nav">
+    <nav ref="sidebarNavRef" class="sidebar-nav" @scroll.passive="updateIndicator">
       <!-- Indicador flutuante que desliza -->
-      <div 
-        class="sliding-indicator" 
-        :style="{ 
-          top: indicatorStyle.top, 
+      <div
+        class="sliding-indicator"
+        :style="{
+          top: indicatorStyle.top,
           height: indicatorStyle.height,
-          opacity: indicatorStyle.opacity 
+          opacity: indicatorStyle.opacity
         }"
       ></div>
-      
+
       <div v-for="(section, sectionIndex) in sidebarSections" :key="sectionIndex" class="nav-section">
         <!-- Título da seção -->
         <div v-if="section.title && !isCollapsed" class="section-title">
           {{ section.title }}
         </div>
         <div v-else-if="section.title && isCollapsed" class="section-divider"></div>
-        
+
         <ul class="nav-links">
           <li v-for="link in section.links" :key="link.text" class="nav-item">
             <!-- Item com Submenu -->
@@ -245,10 +294,16 @@ const sidebarSections = computed(() => {
               <div
                 class="submenu-wrapper"
                 :class="{ 'is-open': isExpanded(link.key) && !isCollapsed }"
+                @transitionend="updateIndicator"
               >
                 <ul class="submenu">
                   <li v-for="child in link.children" :key="child.text">
-                    <RouterLink :to="child.to" class="submenu-link" active-class="active-child">
+                    <RouterLink
+                      :to="child.to"
+                      class="submenu-link"
+                      active-class="active-child"
+                      @click="closeSidebarOnMobile"
+                    >
                       <AppIcon :name="child.icon" :size="18" class="submenu-icon" />
                       <span class="submenu-text">{{ child.text }}</span>
                     </RouterLink>
@@ -265,6 +320,7 @@ const sidebarSections = computed(() => {
               :title="isCollapsed ? link.text : ''"
               :active-class="link.to === '/' ? '' : 'active-link'"
               :exact-active-class="link.to === '/' ? 'active-link' : ''"
+              @click="closeSidebarOnMobile"
             >
               <AppIcon :name="link.icon" :size="20" />
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
@@ -321,7 +377,7 @@ const sidebarSections = computed(() => {
   display: flex;
   flex-direction: column;
   width: 240px;
-  padding: 1rem;
+  padding: 1rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
   background-color: #ffffff;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
@@ -355,6 +411,23 @@ const sidebarSections = computed(() => {
   justify-content: center;
   padding: 0.5rem;
   cursor: default;
+}
+.mobile-close-button {
+  display: none;
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  color: #64748b;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+.mobile-close-button:active {
+  transform: scale(0.96);
 }
 .clinic-logo {
   width: 32px;
@@ -481,7 +554,12 @@ const sidebarSections = computed(() => {
   border: 1px solid transparent;
   transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
               color 0.2s ease,
-              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-link:active {
+  transform: scale(0.985);
 }
 
 .nav-link svg {
@@ -704,23 +782,120 @@ const sidebarSections = computed(() => {
 }
 
 @media (max-width: 1024px) {
-  .desktop-only {
-    display: none;
+  .sidebar {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    padding: calc(0.625rem + env(safe-area-inset-top, 0px)) 0.9rem
+      calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    background-color: #ffffff;
+  }
+  .sidebar-header-wrapper {
+    margin-bottom: 0.75rem;
+  }
+  .sidebar-header {
+    min-height: 52px;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    background-color: #f8fafc;
+    border: 1px solid #e7edf5;
+  }
+  .sidebar:not(.is-collapsed) .sidebar-header:hover {
+    background-color: #f3f6fb;
+  }
+  .mobile-close-button {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+  }
+  .mobile-close-button:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+  }
+  .clinic-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.625rem;
+  }
+  .clinic-name {
+    font-size: 0.95rem;
+  }
+  .sidebar-nav {
+    padding-right: 0.125rem;
+  }
+  .sliding-indicator {
+    left: 4px;
+    width: 4px;
+    border-radius: 999px;
+  }
+  .section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    padding: 0.72rem 0.72rem 0.36rem;
+  }
+  .nav-links {
+    gap: 0.25rem;
+  }
+  .nav-link {
+    min-height: 46px;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    gap: 0.75rem;
+  }
+  .nav-link:hover {
+    padding-left: 0.75rem;
+  }
+  .submenu {
+    margin: 0.2rem 0 0.3rem 1.2rem;
+  }
+  .submenu-link {
+    min-height: 40px;
+    border-radius: 0.65rem 0 0 0.65rem;
+    padding: 0.5rem 0.65rem 0.5rem 0.85rem;
+    font-size: 0.84rem;
+  }
+  .sidebar-branding {
+    margin-top: 0.35rem;
+    padding: 0.62rem 0.65rem;
+    border-radius: 0.75rem;
+    border: 1px solid #edf2f7;
+    background-color: #fbfcff;
+  }
+  .trial-alert {
+    margin-top: 0.75rem;
   }
   .sidebar-footer {
     display: block;
+    margin-top: auto;
+    padding-top: 0.5rem;
   }
-  .mobile-dropdown-icon {
-    display: block;
-  }
-  /* Em mobile, sidebar sempre expandida quando visível */
   .sidebar.is-collapsed {
-    width: 240px;
-    padding: 1rem;
+    width: 100vw;
+    max-width: 100vw;
+    padding: calc(0.625rem + env(safe-area-inset-top, 0px)) 0.9rem
+      calc(0.9rem + env(safe-area-inset-bottom, 0px));
   }
   .sidebar.is-collapsed .nav-link {
     justify-content: flex-start;
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.75rem;
+  }
+  .user-profile {
+    min-height: 52px;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.45rem;
+  }
+  .user-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 0.88rem;
+  }
+  .user-name {
+    font-size: 0.84rem;
+  }
+  .user-email {
+    font-size: 0.67rem;
   }
   .sidebar.is-collapsed .nav-text,
   .sidebar.is-collapsed .user-details,

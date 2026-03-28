@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useFinanceStore } from '@/stores/finance'
 import { useClinicStore } from '@/stores/clinic'
 import { useEmployeesStore } from '@/stores/employees'
@@ -8,6 +8,7 @@ import AppPagination from '@/components/global/AppPagination.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AnimatedNumber from '@/components/global/AnimatedNumber.vue'
+import BottomSheet from '@/components/global/BottomSheet.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -22,12 +23,12 @@ import {
   Filler
 } from 'chart.js'
 import { Line, Doughnut, Bar } from 'vue-chartjs'
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Users, 
-  Activity, 
-  ArrowUpRight, 
+import {
+  DollarSign,
+  TrendingUp,
+  Users,
+  Activity,
+  ArrowUpRight,
   ArrowDownRight,
   Calendar,
   Search,
@@ -35,6 +36,7 @@ import {
   MoreHorizontal,
   CalendarDays,
   ArrowLeft,
+  ArrowRight,
   User,
   Hash,
   CheckCircle,
@@ -61,8 +63,10 @@ const financeStore = useFinanceStore()
 const employeesStore = useEmployeesStore()
 const clinicStore = useClinicStore()
 const router = useRouter()
+const route = useRoute()
 const selectedPeriod = ref('month')
 const selectedProfessional = ref('')
+const isMobileFiltersOpen = ref(false)
 const clientSearch = ref('')
 let searchTimeout = null
 const procedureSearch = ref('')
@@ -76,24 +80,63 @@ const periods = [
   { label: 'Personalizado', value: 'custom' }
 ]
 
+const periodIcons = {
+  day: Clock,
+  week: Calendar,
+  month: CalendarDays,
+  year: Hash,
+  custom: CalendarDays
+}
+
+const getPeriodIcon = (value) => periodIcons[value] || Calendar
+const isHydratingFinanceFilters = ref(true)
+const FINANCE_FILTER_QUERY_KEYS = ['period', 'professional', 'start', 'end']
+
+const getSingleQueryValue = (queryValue) => {
+  if (Array.isArray(queryValue)) return queryValue[0]
+  return typeof queryValue === 'string' ? queryValue : ''
+}
+
+const parseQueryDate = (value) => {
+  if (!value || typeof value !== 'string') return null
+  const parts = value.split('-')
+  if (parts.length !== 3) return null
+
+  const [year, month, day] = parts.map(Number)
+  if (!year || !month || !day) return null
+
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0)
+  if (Number.isNaN(date.getTime())) return null
+  return date
+}
+
+const normalizeQueryObject = (query) => {
+  return Object.fromEntries(
+    Object.entries(query)
+      .map(([key, value]) => [key, Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '')])
+      .filter(([, value]) => value !== '')
+      .sort(([a], [b]) => a.localeCompare(b))
+  )
+}
+
 const doctorOptions = computed(() => {
     const options = [
         { label: 'Todos os Médicos', value: '' }
     ]
-    
+
     if (clinicStore.currentClinic) {
         const { owner, staff } = clinicStore.currentClinic
         const validRoles = ['owner', 'medico']
-        
+
         // Combinar owner e staff em uma única lista
         const allUsers = []
         if (owner) allUsers.push(owner)
         if (staff && Array.isArray(staff)) allUsers.push(...staff)
-        
+
         // Filtrar por role e garantir unicidade por ID
         const doctorsAndOwners = allUsers
             .filter(u => u && validRoles.includes(u.role))
-            .filter((user, index, self) => 
+            .filter((user, index, self) =>
                 index === self.findIndex((u) => u._id === user._id)
             )
 
@@ -110,7 +153,65 @@ const shouldShowDoctorSelector = computed(() => {
 })
 
 const customDateRange = ref(null)
+const customStartDate = computed({
+  get: () => customDateRange.value?.[0] || null,
+  set: (value) => {
+    const currentEnd = customDateRange.value?.[1] || null
+    if (!value && !currentEnd) {
+      customDateRange.value = null
+      return
+    }
+    customDateRange.value = [value || null, currentEnd]
+  }
+})
+
+const customEndDate = computed({
+  get: () => customDateRange.value?.[1] || null,
+  set: (value) => {
+    const currentStart = customDateRange.value?.[0] || null
+    if (!currentStart && !value) {
+      customDateRange.value = null
+      return
+    }
+    customDateRange.value = [currentStart, value || null]
+  }
+})
+
+const financeActiveFiltersCount = computed(() => {
+  let count = 0
+
+  if (selectedProfessional.value) {
+    count += 1
+  }
+
+  const hasCustomRange = Boolean(customStartDate.value && customEndDate.value)
+  if (selectedPeriod.value !== 'month' && (selectedPeriod.value !== 'custom' || hasCustomRange)) {
+    count += 1
+  }
+
+  return count
+})
+
 const previousPeriod = ref('month') // Store previous period to restore on back
+
+const getCustomPeriodDates = () => {
+  const startRaw = customDateRange.value?.[0]
+  const endRaw = customDateRange.value?.[1]
+
+  if (!startRaw || !endRaw) {
+    return { startDate: null, endDate: null }
+  }
+
+  const startDateObj = new Date(startRaw)
+  const endDateObj = new Date(endRaw)
+  const from = startDateObj <= endDateObj ? startDateObj : endDateObj
+  const to = startDateObj <= endDateObj ? endDateObj : startDateObj
+
+  return {
+    startDate: from.toISOString().split('T')[0],
+    endDate: to.toISOString().split('T')[0]
+  }
+}
 
 const formatDateDisplay = (dateInput) => {
   if (!dateInput) return ''
@@ -118,19 +219,74 @@ const formatDateDisplay = (dateInput) => {
   return date.toLocaleDateString('pt-BR')
 }
 
+const getFinanceFiltersFromState = () => {
+  const query = {}
+
+  if (selectedProfessional.value) {
+    query.professional = selectedProfessional.value
+  }
+
+  if (selectedPeriod.value && selectedPeriod.value !== 'month') {
+    query.period = selectedPeriod.value
+  }
+
+  if (selectedPeriod.value === 'custom') {
+    const { startDate, endDate } = getCustomPeriodDates()
+    if (startDate && endDate) {
+      query.start = startDate
+      query.end = endDate
+    }
+  }
+
+  return query
+}
+
+const syncFinanceFiltersToQuery = async () => {
+  const baseQuery = { ...route.query }
+  FINANCE_FILTER_QUERY_KEYS.forEach((key) => delete baseQuery[key])
+
+  const nextQuery = { ...baseQuery, ...getFinanceFiltersFromState() }
+  const currentNormalized = normalizeQueryObject(route.query)
+  const nextNormalized = normalizeQueryObject(nextQuery)
+
+  if (JSON.stringify(currentNormalized) === JSON.stringify(nextNormalized)) return
+  await router.replace({ query: nextQuery })
+}
+
+const applyFinanceFiltersFromQuery = () => {
+  const periodFromQuery = getSingleQueryValue(route.query.period)
+  const professionalFromQuery = getSingleQueryValue(route.query.professional)
+  const startFromQuery = parseQueryDate(getSingleQueryValue(route.query.start))
+  const endFromQuery = parseQueryDate(getSingleQueryValue(route.query.end))
+  const validPeriods = periods.map((period) => period.value)
+
+  selectedProfessional.value = professionalFromQuery || ''
+  selectedPeriod.value = validPeriods.includes(periodFromQuery) ? periodFromQuery : 'month'
+
+  if (selectedPeriod.value === 'custom' && startFromQuery && endFromQuery) {
+    customDateRange.value = [startFromQuery, endFromQuery]
+  } else {
+    if (selectedPeriod.value === 'custom') {
+      selectedPeriod.value = 'month'
+    }
+    customDateRange.value = null
+  }
+
+  previousPeriod.value = selectedPeriod.value === 'custom' ? 'month' : selectedPeriod.value
+}
+
 onMounted(async () => {
   await employeesStore.fetchEmployees()
+  applyFinanceFiltersFromQuery()
+  isHydratingFinanceFilters.value = false
+  await syncFinanceFiltersToQuery()
   await refreshDashboard()
 })
 
 const refreshDashboard = async () => {
-    let startDate = null
-    let endDate = null
-
-    if (selectedPeriod.value === 'custom' && customDateRange.value) {
-        startDate = customDateRange.value[0].toISOString().split('T')[0]
-        endDate = customDateRange.value[1].toISOString().split('T')[0]
-    }
+    const { startDate, endDate } = selectedPeriod.value === 'custom'
+      ? getCustomPeriodDates()
+      : { startDate: null, endDate: null }
 
     const commonParams = {
         period: selectedPeriod.value,
@@ -146,8 +302,10 @@ const refreshDashboard = async () => {
     ])
 }
 
-watch(selectedProfessional, () => {
-    refreshDashboard()
+watch(selectedProfessional, async () => {
+    if (isHydratingFinanceFilters.value) return
+    await refreshDashboard()
+    await syncFinanceFiltersToQuery()
 })
 
 const handlePeriodChange = async (period) => {
@@ -156,11 +314,17 @@ const handlePeriodChange = async (period) => {
     selectedPeriod.value = period
     // Reset range when switching to custom
     customDateRange.value = null
+    if (!isHydratingFinanceFilters.value) {
+      await syncFinanceFiltersToQuery()
+    }
     return
   }
 
   selectedPeriod.value = period
   await refreshDashboard()
+  if (!isHydratingFinanceFilters.value) {
+    await syncFinanceFiltersToQuery()
+  }
 }
 
 const cancelCustomMode = () => {
@@ -168,48 +332,54 @@ const cancelCustomMode = () => {
 }
 
 const applyCustomFilter = async () => {
-  if (!customDateRange.value || !customDateRange.value[0] || !customDateRange.value[1]) return
-  
+  if (!customStartDate.value || !customEndDate.value) return
+
   isLoadingCustom.value = true
   await refreshDashboard()
+  await syncFinanceFiltersToQuery()
   isLoadingCustom.value = false
+}
+
+const handlePeriodChangeFromSheet = async (period) => {
+  await handlePeriodChange(period)
+  if (period !== 'custom') {
+    isMobileFiltersOpen.value = false
+  }
+}
+
+const applyCustomFilterFromSheet = async () => {
+  if (!customStartDate.value || !customEndDate.value) return
+  await applyCustomFilter()
+  isMobileFiltersOpen.value = false
 }
 
 const isLoadingCustom = ref(false)
 
 const handlePageChange = async (page) => {
-    let startDate = null
-    let endDate = null
-    
-    if (selectedPeriod.value === 'custom' && customDateRange.value) {
-        startDate = customDateRange.value[0].toISOString().split('T')[0]
-        endDate = customDateRange.value[1].toISOString().split('T')[0]
-    }
+    const { startDate, endDate } = selectedPeriod.value === 'custom'
+      ? getCustomPeriodDates()
+      : { startDate: null, endDate: null }
 
-    await financeStore.fetchTopClients({ 
-        period: selectedPeriod.value, 
+    await financeStore.fetchTopClients({
+        period: selectedPeriod.value,
         startDate,
         endDate,
-        page, 
+        page,
         search: clientSearch.value,
         professionalId: selectedProfessional.value || null
     })
 }
 
 const handleProcedurePageChange = async (page) => {
-    let startDate = null
-    let endDate = null
-    
-    if (selectedPeriod.value === 'custom' && customDateRange.value) {
-        startDate = customDateRange.value[0].toISOString().split('T')[0]
-        endDate = customDateRange.value[1].toISOString().split('T')[0]
-    }
+    const { startDate, endDate } = selectedPeriod.value === 'custom'
+      ? getCustomPeriodDates()
+      : { startDate: null, endDate: null }
 
-    await financeStore.fetchTopProcedures({ 
-        period: selectedPeriod.value, 
+    await financeStore.fetchTopProcedures({
+        period: selectedPeriod.value,
         startDate,
         endDate,
-        page, 
+        page,
         search: procedureSearch.value,
         professionalId: selectedProfessional.value || null
     })
@@ -218,22 +388,18 @@ const handleProcedurePageChange = async (page) => {
 const handleSearch = (event) => {
     const query = event.target.value
     clientSearch.value = query
-    
+
     clearTimeout(searchTimeout)
     searchTimeout = setTimeout(async () => {
-        let startDate = null
-        let endDate = null
-        
-        if (selectedPeriod.value === 'custom' && customDateRange.value) {
-            startDate = customDateRange.value[0].toISOString().split('T')[0]
-            endDate = customDateRange.value[1].toISOString().split('T')[0]
-        }
+        const { startDate, endDate } = selectedPeriod.value === 'custom'
+          ? getCustomPeriodDates()
+          : { startDate: null, endDate: null }
 
-        await financeStore.fetchTopClients({ 
+        await financeStore.fetchTopClients({
             period: selectedPeriod.value,
             startDate,
-            endDate, 
-            page: 1, 
+            endDate,
+            page: 1,
             search: query,
             professionalId: selectedProfessional.value || null
         })
@@ -243,22 +409,18 @@ const handleSearch = (event) => {
 const handleProcedureSearch = (event) => {
     const query = event.target.value
     procedureSearch.value = query
-    
+
     clearTimeout(procedureSearchTimeout)
     procedureSearchTimeout = setTimeout(async () => {
-        let startDate = null
-        let endDate = null
-        
-        if (selectedPeriod.value === 'custom' && customDateRange.value) {
-            startDate = customDateRange.value[0].toISOString().split('T')[0]
-            endDate = customDateRange.value[1].toISOString().split('T')[0]
-        }
+        const { startDate, endDate } = selectedPeriod.value === 'custom'
+          ? getCustomPeriodDates()
+          : { startDate: null, endDate: null }
 
-        await financeStore.fetchTopProcedures({ 
+        await financeStore.fetchTopProcedures({
             period: selectedPeriod.value,
             startDate,
-            endDate, 
-            page: 1, 
+            endDate,
+            page: 1,
             search: query,
             professionalId: selectedProfessional.value || null
         })
@@ -277,10 +439,10 @@ const getGradient = (ctx, chartArea, colorStart, colorEnd) => {
 
 const dailyRevenueChartData = computed(() => {
   // Quando período é 'day', usa hoursRevenue; caso contrário, usa dailyRevenue
-  const revenueData = selectedPeriod.value === 'day' 
+  const revenueData = selectedPeriod.value === 'day'
     ? (financeStore.hoursRevenue || [])
     : (financeStore.dailyRevenue || [])
-  
+
   return {
     labels: revenueData.map(d => {
       if (selectedPeriod.value === 'day') {
@@ -484,13 +646,22 @@ const navigateToProcedures = () => {
             <p class="subtitle">Visão geral do desempenho da sua clínica.</p>
         </div>
       </div>
-      
+
       <div class="header-right">
+        <button class="mobile-filter-trigger" type="button" @click="isMobileFiltersOpen = true">
+          <Filter :size="16" />
+          <span>Filtros</span>
+          <span v-if="financeActiveFiltersCount > 0" class="mobile-filter-count-badge">
+            {{ financeActiveFiltersCount }}
+          </span>
+        </button>
+
+        <div class="desktop-filters">
         <!-- Professional Select -->
         <div class="professional-select-wrapper" v-if="shouldShowDoctorSelector">
-            <StyledSelect 
-                v-model="selectedProfessional" 
-                :options="doctorOptions" 
+            <StyledSelect
+                v-model="selectedProfessional"
+                :options="doctorOptions"
                 placeholder="Selecione o Médico"
             />
         </div>
@@ -498,8 +669,8 @@ const navigateToProcedures = () => {
         <Transition name="slide-fade" mode="out-in">
             <!-- Normal Tabs -->
             <div v-if="selectedPeriod !== 'custom'" class="period-tabs" key="tabs">
-                <button 
-                v-for="period in periods" 
+                <button
+                v-for="period in periods"
                 :key="period.value"
                 @click="handlePeriodChange(period.value)"
                 class="tab-btn"
@@ -514,7 +685,7 @@ const navigateToProcedures = () => {
                 <button class="back-btn" @click="cancelCustomMode" title="Voltar">
                     <ArrowLeft :size="18" />
                 </button>
-                
+
                 <div class="date-picker-wrapper-inline">
                     <VueDatePicker
                         v-model="customDateRange"
@@ -540,8 +711,8 @@ const navigateToProcedures = () => {
                     </VueDatePicker>
                 </div>
 
-                <button 
-                    class="apply-btn-inline" 
+                <button
+                    class="apply-btn-inline"
                     @click="applyCustomFilter"
                     :disabled="!customDateRange || !customDateRange[0] || !customDateRange[1] || isLoadingCustom"
                 >
@@ -550,8 +721,131 @@ const navigateToProcedures = () => {
                 </button>
             </div>
         </Transition>
+        </div>
       </div>
     </header>
+
+    <BottomSheet
+      v-if="isMobileFiltersOpen"
+      class="finance-mobile-filters-sheet"
+      title="Filtros do Dashboard"
+      @close="isMobileFiltersOpen = false"
+    >
+      <template #header>
+        <div class="mobile-sheet-header">
+          <div class="mobile-sheet-header-icon">
+            <Filter :size="16" />
+          </div>
+          <div class="mobile-sheet-header-text">
+            <h3 class="mobile-sheet-title">Filtros do Dashboard</h3>
+            <p class="mobile-sheet-subtitle">Ajuste medico e periodo para refinar os dados.</p>
+          </div>
+        </div>
+      </template>
+
+      <div class="mobile-filter-sheet">
+        <div v-if="doctorOptions.length > 0" class="mobile-filter-section">
+          <span class="mobile-filter-label">
+            <User :size="14" />
+            <span>Medico</span>
+          </span>
+          <div class="mobile-doctor-select">
+            <StyledSelect
+              v-model="selectedProfessional"
+              :options="doctorOptions"
+              placeholder="Selecione o medico"
+              dropdown-direction="up"
+            />
+          </div>
+        </div>
+
+        <div class="mobile-filter-section">
+          <span class="mobile-filter-label">
+            <Calendar :size="14" />
+            <span>Periodo</span>
+          </span>
+          <div class="mobile-period-grid">
+            <button
+              v-for="period in periods"
+              :key="`sheet-${period.value}`"
+              class="mobile-period-btn"
+              :class="{ 'active': selectedPeriod === period.value }"
+              @click="handlePeriodChangeFromSheet(period.value)"
+            >
+              <component :is="getPeriodIcon(period.value)" :size="14" class="mobile-period-icon" />
+              <span class="mobile-period-text">{{ period.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <Transition name="custom-period-transition">
+          <div v-if="selectedPeriod === 'custom'" class="mobile-filter-section custom-period-section">
+            <span class="mobile-filter-label">Periodo personalizado</span>
+
+            <div class="mobile-date-trigger">
+              <div class="mobile-date-input-group">
+                <span class="mobile-date-input-label">Inicio</span>
+                <VueDatePicker
+                  v-model="customStartDate"
+                  :enable-time-picker="false"
+                  locale="pt-BR"
+                  format="dd/MM/yyyy"
+                  auto-apply
+                  teleport="body"
+                  :z-index="12000"
+                  :clearable="false"
+                  placeholder="DD/MM/AAAA"
+                >
+                  <template #trigger>
+                    <button class="mobile-single-date-trigger" type="button">
+                      <CalendarDays :size="14" />
+                      <span>{{ customStartDate ? formatDateDisplay(customStartDate) : 'DD/MM/AAAA' }}</span>
+                    </button>
+                  </template>
+                </VueDatePicker>
+              </div>
+
+              <ArrowRight :size="14" class="mobile-date-arrow" />
+
+              <div class="mobile-date-input-group">
+                <span class="mobile-date-input-label">Fim</span>
+                <VueDatePicker
+                  v-model="customEndDate"
+                  :enable-time-picker="false"
+                  locale="pt-BR"
+                  format="dd/MM/yyyy"
+                  auto-apply
+                  teleport="body"
+                  :z-index="12000"
+                  :clearable="false"
+                  placeholder="DD/MM/AAAA"
+                >
+                  <template #trigger>
+                    <button class="mobile-single-date-trigger" type="button">
+                      <CalendarDays :size="14" />
+                      <span>{{ customEndDate ? formatDateDisplay(customEndDate) : 'DD/MM/AAAA' }}</span>
+                    </button>
+                  </template>
+                </VueDatePicker>
+              </div>
+            </div>
+
+            <div class="mobile-filter-actions">
+              <button class="mobile-filter-secondary" type="button" @click="cancelCustomMode">Cancelar</button>
+              <button
+                class="mobile-filter-primary"
+                type="button"
+                @click="applyCustomFilterFromSheet"
+                :disabled="!customStartDate || !customEndDate || isLoadingCustom"
+              >
+                <span v-if="isLoadingCustom">...</span>
+                <span v-else>Aplicar</span>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </BottomSheet>
 
     <!-- Top Row: Balance & KPIs -->
     <div class="top-grid">
@@ -695,15 +989,15 @@ const navigateToProcedures = () => {
           </div>
           <div class="search-box">
             <Search :size="14" />
-            <input 
-                type="text" 
-                placeholder="Buscar..." 
+            <input
+                type="text"
+                placeholder="Buscar..."
                 v-model="clientSearch"
                 @input="handleSearch"
             />
           </div>
         </div>
-        
+
         <!-- Mobile Cards View -->
         <div class="mobile-cards-list">
           <template v-if="financeStore.topClientsPaginated.isLoading">
@@ -807,9 +1101,9 @@ const navigateToProcedures = () => {
           </div>
           <div class="search-box">
             <Search :size="14" />
-            <input 
-                type="text" 
-                placeholder="Buscar..." 
+            <input
+                type="text"
+                placeholder="Buscar..."
                 v-model="procedureSearch"
                 @input="handleProcedureSearch"
             />
@@ -926,6 +1220,49 @@ const navigateToProcedures = () => {
     display: flex;
     align-items: center;
     min-height: 52px; /* Prevent layout shift */
+}
+
+.desktop-filters {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-filter-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  gap: 0.45rem;
+  height: 40px;
+  border: 1px solid #dbe3ef;
+  background-color: #ffffff;
+  color: #334155;
+  border-radius: 0.7rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.mobile-filter-count-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: var(--azul-principal);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mobile-filter-trigger:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .title {
@@ -1054,6 +1391,261 @@ const navigateToProcedures = () => {
     background-color: #cbd5e1;
     cursor: not-allowed;
     opacity: 0.7;
+}
+
+/* Mobile Filters Sheet */
+.mobile-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.mobile-sheet-header-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 0.55rem;
+  background: #eff6ff;
+  color: var(--azul-principal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.mobile-sheet-title {
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mobile-sheet-subtitle {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: #64748b;
+  margin: 0;
+}
+
+.mobile-filter-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 42vh;
+}
+
+.mobile-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.mobile-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #64748b;
+}
+
+.mobile-doctor-select {
+  width: 100%;
+  position: relative;
+  z-index: 12020;
+}
+
+.mobile-doctor-select :deep(.options-list) {
+  z-index: 12030 !important;
+}
+
+.mobile-period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.mobile-period-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  gap: 0.35rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0.7rem;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 500;
+  padding: 0.6rem 0.45rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-period-icon {
+  flex-shrink: 0;
+}
+
+.mobile-period-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.mobile-period-btn.active {
+  border-color: var(--azul-principal);
+  background: #eff6ff;
+  color: var(--azul-principal);
+}
+
+.custom-period-section {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+  overflow: visible;
+}
+
+.mobile-date-trigger {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 0.45rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 0.7rem;
+  min-height: 58px;
+  padding: 0.5rem;
+}
+
+.mobile-date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mobile-date-input-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #94a3b8;
+  padding-left: 0.15rem;
+}
+
+.mobile-single-date-trigger {
+  width: 100%;
+  min-height: 33px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  background-color: #f8fafc;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 400;
+  padding: 0.4rem 0.65rem;
+}
+
+.mobile-date-arrow {
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-filter-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mobile-filter-secondary,
+.mobile-filter-primary {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 0.65rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+:deep(.sheet-title) {
+  font-weight: 500;
+}
+
+:deep(.bottom-sheet-body) {
+  overflow: visible;
+}
+
+.finance-mobile-filters-sheet :deep(.bottom-sheet-panel) {
+  max-height: 90vh;
+}
+
+.mobile-filter-secondary {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+}
+
+.mobile-filter-primary {
+  background: var(--azul-principal);
+  color: #ffffff;
+}
+
+.mobile-filter-primary:disabled {
+  background-color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.custom-period-transition-enter-active,
+.custom-period-transition-leave-active {
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    padding-top 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    padding-bottom 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-top-width 0.24s ease,
+    border-bottom-width 0.24s ease;
+  overflow: hidden;
+  transform-origin: top center;
+}
+
+.custom-period-transition-enter-from,
+.custom-period-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.985);
+  max-height: 0;
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+}
+
+.custom-period-transition-enter-to,
+.custom-period-transition-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  max-height: 360px;
+  margin-top: 0.1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
 }
 
 /* Animations */
@@ -1298,15 +1890,15 @@ const navigateToProcedures = () => {
   .chart-wrapper {
     height: 250px;
   }
-  
+
   .doughnut-wrapper {
     height: 280px;
   }
-  
+
   .chart-card {
     padding: 1rem;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1319,11 +1911,11 @@ const navigateToProcedures = () => {
   .chart-wrapper {
     height: 200px;
   }
-  
+
   .doughnut-wrapper {
     height: 220px;
   }
-  
+
   .card-title {
     font-size: 0.95rem;
   }
@@ -1434,7 +2026,7 @@ const navigateToProcedures = () => {
 }
 
 .clickable-row:hover td {
-  background-color: #f8fafc !important; 
+  background-color: #f8fafc !important;
 }
 
 .client-name {
@@ -1584,6 +2176,21 @@ const navigateToProcedures = () => {
     font-size: 0.875rem;
   }
 
+  .header-right {
+    width: 100%;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .desktop-filters {
+    display: none;
+  }
+
+  .mobile-filter-trigger {
+    display: inline-flex;
+    width: 100%;
+  }
+
   /* Period Tabs Mobile */
   .period-tabs {
     width: 100%;
@@ -1678,6 +2285,21 @@ const navigateToProcedures = () => {
 
 /* Extra small devices */
 @media (max-width: 480px) {
+  .mobile-period-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-period-btn {
+    font-size: 0.8rem;
+    padding: 0.56rem 0.4rem;
+    gap: 0.28rem;
+  }
+
+  .mobile-period-icon {
+    width: 13px;
+    height: 13px;
+  }
+
   .title {
     font-size: 1.5rem;
   }

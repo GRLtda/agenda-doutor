@@ -37,6 +37,12 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => route.fullPath,
+  () => {
+    isMobileSidebarOpen.value = false
+  }
+)
 
 </script>
 
@@ -74,11 +80,13 @@ watch(
 
     <SubscriptionModal />
 
-    <div
-      v-if="isMobileSidebarOpen"
-      @click="isMobileSidebarOpen = false"
-      class="sidebar-overlay"
-    ></div>
+    <Transition name="sidebar-overlay-fade">
+      <div
+        v-if="isMobileSidebarOpen"
+        @click="isMobileSidebarOpen = false"
+        class="sidebar-overlay"
+      ></div>
+    </Transition>
   </div>
 </template>
 
@@ -124,14 +132,22 @@ watch(
 }
 
 .sidebar-overlay {
-  display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
   z-index: 4999;
+}
+
+.sidebar-overlay-fade-enter-active,
+.sidebar-overlay-fade-leave-active {
+  transition: opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sidebar-overlay-fade-enter-from,
+.sidebar-overlay-fade-leave-to {
+  opacity: 0;
 }
 
 /* Breakpoint para tablets e celulares */
@@ -153,20 +169,30 @@ watch(
   }
   .sidebar-component {
     position: fixed;
-    left: 0;
-    top: 0;
+    inset: 0 auto 0 0;
+    width: 100vw;
+    max-width: 100vw;
     border-radius: 0;
-    bottom: 0;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translate3d(-104%, 0, 0) scale(0.985);
+    transform-origin: left center;
+    opacity: 0.92;
+    transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 5000;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+    will-change: transform, opacity;
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.2);
   }
   .sidebar-component.is-mobile-open {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
   }
-  .sidebar-overlay {
-    display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-component,
+  .sidebar-overlay-fade-enter-active,
+  .sidebar-overlay-fade-leave-active {
+    transition: none !important;
   }
 }
 </style>
