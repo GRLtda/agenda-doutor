@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { usePatientNotesStore } from '@/stores/patientNotes'
 import { useAuthStore } from '@/stores/auth'
@@ -10,11 +10,11 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { Markdown } from 'tiptap-markdown'
 import EditorToolbar from '@/components/shared/EditorToolbar.vue'
-import { 
-  Plus, 
-  Pin, 
-  PinOff, 
-  Trash2, 
+import {
+  Plus,
+  Pin,
+  PinOff,
+  Trash2,
   MessageSquare,
   Send,
   Calendar,
@@ -93,7 +93,7 @@ const sortedNotes = computed(() => notesStore.notes)
 
 async function handleCreateNote() {
   const content = editor.value.storage.markdown.getMarkdown()
-  
+
   if (!content || content.trim() === '') {
     toast.warning('O conteúdo da nota não pode estar vazio.')
     return
@@ -101,7 +101,7 @@ async function handleCreateNote() {
 
   isSubmitting.value = true
   const { success } = await notesStore.createNote(props.patientId, content)
-  
+
   if (success) {
     editor.value.commands.setContent('')
     toast.success('Anotação postada com sucesso!')
@@ -143,7 +143,7 @@ function formatDate(dateString) {
 // Function to render content: Always use marked for consistent Markdown rendering
 function renderContent(content) {
   if (!content) return ''
-  
+
   try {
     // Tiptap with markdown extension saves clean markdown.
     // marked is now the instance of Marked()
@@ -160,14 +160,14 @@ function renderContent(content) {
   <div class="patient-notes-redesign" :class="{ 'is-compact': compactMode }">
     <!-- Main Content Grid -->
     <div class="notes-grid">
-      
+
       <!-- LEFT COLUMN: EXISTING NOTES FEED -->
       <section class="notes-column list-column" :class="{ 'hidden-mobile': showEditorMobile }">
         <div class="column-header">
           <h3><MessageSquare class="title-icon" :size="20" /> Histórico de Notas</h3>
           <span class="count-badge">{{ notesStore.pagination.totalCount }}</span>
-          
-          
+
+
           <!-- Mobile Only Add Button -->
           <button @click="showEditorMobile = true" class="mobile-add-btn ml-auto" :class="{ 'md:hidden': !compactMode }">
             <Plus :size="20" />
@@ -179,15 +179,15 @@ function renderContent(content) {
           <p>Carregando anotações...</p>
         </div>
 
-        <TransitionGroup 
-          v-else-if="sortedNotes.length > 0" 
-          name="list" 
-          tag="div" 
+        <TransitionGroup
+          v-else-if="sortedNotes.length > 0"
+          name="list"
+          tag="div"
           class="notes-feed"
         >
-          <div 
-            v-for="note in sortedNotes" 
-            :key="note._id" 
+          <div
+            v-for="note in sortedNotes"
+            :key="note._id"
             class="note-card"
             :class="{ 'pinned': note.isPinned }"
           >
@@ -204,9 +204,9 @@ function renderContent(content) {
                 </div>
               </div>
               <div class="note-actions">
-                <button 
-                  @click="handleTogglePin(note)" 
-                  class="action-btn" 
+                <button
+                  @click="handleTogglePin(note)"
+                  class="action-btn"
                   :title="note.isPinned ? 'Desafixar' : 'Fixar'"
                   :class="{ 'active': note.isPinned }"
                 >
@@ -221,9 +221,9 @@ function renderContent(content) {
 
             <div class="note-content prose" v-html="renderContent(note.content)"></div>
           </div>
-          <div 
-            key="sentinel" 
-            ref="loadMoreSentinel" 
+          <div
+            key="sentinel"
+            ref="loadMoreSentinel"
             class="load-more-sentinel"
             :class="{ 'hidden': !notesStore.pagination.hasMore }"
           >
@@ -251,6 +251,16 @@ function renderContent(content) {
             <ArrowLeft :size="20" />
           </button>
           <h3><Plus class="title-icon" :size="20" /> Nova Anotação</h3>
+          <AppButton
+            @click="handleCreateNote"
+            variant="primary"
+            size="sm"
+            class="header-save-btn"
+            :disabled="isSubmitting || !editor || editor.isEmpty"
+          >
+            <Send :size="14" />
+            <span class="header-save-label">Salvar</span>
+          </AppButton>
         </div>
 
         <div class="editor-container-card">
@@ -264,18 +274,7 @@ function renderContent(content) {
             <div class="editor-scroll-area" @click="editor?.commands.focus()">
               <EditorContent :editor="editor" />
             </div>
-            
-            <div class="editor-footer">
-              <span class="hint">Use o editor acima para formatar sua nota.</span>
-              <AppButton 
-                @click="handleCreateNote" 
-                variant="primary" 
-                :disabled="isSubmitting || !editor || editor.isEmpty"
-              >
-                <Send :size="16" />
-                Postar Nota
-              </AppButton>
-            </div>
+
           </div>
         </div>
 
@@ -324,7 +323,7 @@ function renderContent(content) {
     grid-template-columns: 1fr 1fr;
     align-items: start;
   }
-  
+
   /* On desktop, keep list on left and editor on right as per user's split request */
   .patient-notes-redesign:not(.is-compact) .list-column { order: 1; height: 560px; } /* Altura fixa na coluna */
   .patient-notes-redesign:not(.is-compact) .editor-column { order: 2; }
@@ -336,13 +335,16 @@ function renderContent(content) {
 }
 
 .patient-notes-redesign.is-compact .editor-column { order: 1; }
-.patient-notes-redesign.is-compact .list-column { order: 2; height: 550px; }
+.patient-notes-redesign.is-compact .list-column {
+  order: 2;
+  height: clamp(280px, 52vh, 550px);
+}
 
 .patient-notes-redesign.is-compact .hidden-mobile {
     display: none !important;
 }
 
-.patient-notes-redesign.is-compact .mobile-add-btn, 
+.patient-notes-redesign.is-compact .mobile-add-btn,
 .patient-notes-redesign.is-compact .mobile-back-btn {
     display: flex;
 }
@@ -356,10 +358,10 @@ function renderContent(content) {
     justify-content: center;
 }
 
-/* ✨ Compact Mode: Ensure editor footer is always visible */
+/* Compact Mode: Ensure editor footer is always visible */
 .patient-notes-redesign.is-compact .editor-container-card {
-    height: 400px;
-    max-height: 400px;
+    height: clamp(300px, 58vh, 460px);
+    max-height: clamp(300px, 58vh, 460px);
     display: flex;
     flex-direction: column;
 }
@@ -378,10 +380,6 @@ function renderContent(content) {
     overflow-y: auto;
 }
 
-.patient-notes-redesign.is-compact .editor-footer {
-    flex-shrink: 0;
-}
-
 .patient-notes-redesign.is-compact :deep(.ProseMirror) {
     min-height: 100px;
     padding: 1rem;
@@ -394,7 +392,7 @@ function renderContent(content) {
 
   /* On mobile, make the editor appear on top */
   .editor-column { order: 1; }
-  .list-column { order: 2; height: 550px; } /* Altura fixa também no mobile se desejado, ou auto */
+  .list-column { order: 2; height: clamp(280px, 52vh, 550px); }
 
   .hidden-mobile {
     display: none !important;
@@ -406,6 +404,7 @@ function renderContent(content) {
   background: none;
   border: none;
   color: var(--azul-principal);
+  background-color: #e0e7ff;
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 50%;
@@ -418,7 +417,7 @@ function renderContent(content) {
     align-items: center;
     justify-content: center;
   }
-  
+
   /* Push add button to right */
   .mobile-add-btn {
     margin-left: auto;
@@ -451,6 +450,15 @@ function renderContent(content) {
   gap: 0.5rem;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.header-save-btn {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.header-save-btn :deep(.button-content) {
+  gap: 0.35rem;
 }
 
 .count-badge {
@@ -670,29 +678,29 @@ function renderContent(content) {
   padding: 1.5rem;
 }
 
-:deep(.ProseMirror strong), 
-:deep(.ProseMirror b) { 
-  font-weight: 800 !important; 
-  color: #000 !important; 
+:deep(.ProseMirror strong),
+:deep(.ProseMirror b) {
+  font-weight: 800 !important;
+  color: #000 !important;
 }
 
-:deep(.ProseMirror em), 
-:deep(.ProseMirror i) { 
-  font-style: italic !important; 
+:deep(.ProseMirror em),
+:deep(.ProseMirror i) {
+  font-style: italic !important;
 }
 
-:deep(.ProseMirror del), 
-:deep(.ProseMirror s), 
-:deep(.ProseMirror strike) { 
-  text-decoration: line-through !important; 
-  color: #94a3b8 !important; 
+:deep(.ProseMirror del),
+:deep(.ProseMirror s),
+:deep(.ProseMirror strike) {
+  text-decoration: line-through !important;
+  color: #94a3b8 !important;
 }
 
-:deep(.ProseMirror code) { 
-  background: #f1f5f9 !important; 
+:deep(.ProseMirror code) {
+  background: #f1f5f9 !important;
   color: #1e293b !important; /* Cor mais neutra, removendo o vermelho */
-  padding: 0.2rem 0.4rem !important; 
-  border-radius: 4px !important; 
+  padding: 0.2rem 0.4rem !important;
+  border-radius: 4px !important;
   font-family: monospace !important;
   font-size: 0.9em !important;
 }
@@ -703,17 +711,6 @@ function renderContent(content) {
   color: #adb5bd;
   pointer-events: none;
   height: 0;
-}
-
-.editor-footer {
-  padding: 1rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  gap: 1rem;
-  flex-wrap: wrap;
-  flex-shrink: 0; /* Garante que o footer nunca encolha/suma */
 }
 
 .hint {
@@ -727,17 +724,27 @@ function renderContent(content) {
   .hint {
     display: none;
   }
-  .editor-footer {
-    justify-content: flex-end;
-  }
-  .editor-footer :deep(.app-button) {
-    width: 100%;
-    justify-content: center;
-  }
 }
 
-.editor-footer :deep(.app-button) {
-  flex-shrink: 0;
+
+
+
+@media (max-width: 480px) {
+  .header-save-btn {
+    min-width: 34px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 999px;
+  }
+
+  .header-save-label {
+    display: none;
+  }
+
+  .header-save-btn :deep(.button-content) {
+    gap: 0;
+  }
 }
 
 .tips-card {
@@ -787,11 +794,11 @@ function renderContent(content) {
 .prose :deep(strong), .prose :deep(b) { font-weight: 800 !important; color: #000 !important; display: inline !important; }
 .prose :deep(em), .prose :deep(i) { font-style: italic !important; display: inline !important; }
 .prose :deep(del), .prose :deep(s), .prose :deep(strike) { text-decoration: line-through !important; color: #94a3b8 !important; }
-.prose :deep(code) { 
-  background: #f1f5f9 !important; 
+.prose :deep(code) {
+  background: #f1f5f9 !important;
   color: #1e293b !important; /* Cor mais neutra aqui também */
-  padding: 0.2rem 0.4rem !important; 
-  border-radius: 4px !important; 
+  padding: 0.2rem 0.4rem !important;
+  border-radius: 4px !important;
   font-family: monospace !important;
   font-size: 0.9em !important;
 }
@@ -876,3 +883,5 @@ function renderContent(content) {
   100% { transform: rotate(360deg); }
 }
 </style>
+
+
