@@ -226,13 +226,14 @@ const getFinanceFiltersFromState = () => {
     query.professional = selectedProfessional.value
   }
 
-  if (selectedPeriod.value && selectedPeriod.value !== 'month') {
+  if (selectedPeriod.value && selectedPeriod.value !== 'month' && selectedPeriod.value !== 'custom') {
     query.period = selectedPeriod.value
   }
 
   if (selectedPeriod.value === 'custom') {
     const { startDate, endDate } = getCustomPeriodDates()
     if (startDate && endDate) {
+      query.period = 'custom'
       query.start = startDate
       query.end = endDate
     }
@@ -259,11 +260,18 @@ const applyFinanceFiltersFromQuery = () => {
   const startFromQuery = parseQueryDate(getSingleQueryValue(route.query.start))
   const endFromQuery = parseQueryDate(getSingleQueryValue(route.query.end))
   const validPeriods = periods.map((period) => period.value)
+  const hasCustomDates = Boolean(startFromQuery && endFromQuery)
 
   selectedProfessional.value = professionalFromQuery || ''
-  selectedPeriod.value = validPeriods.includes(periodFromQuery) ? periodFromQuery : 'month'
+  if (validPeriods.includes(periodFromQuery)) {
+    selectedPeriod.value = periodFromQuery
+  } else if (hasCustomDates) {
+    selectedPeriod.value = 'custom'
+  } else {
+    selectedPeriod.value = 'month'
+  }
 
-  if (selectedPeriod.value === 'custom' && startFromQuery && endFromQuery) {
+  if (selectedPeriod.value === 'custom' && hasCustomDates) {
     customDateRange.value = [startFromQuery, endFromQuery]
   } else {
     if (selectedPeriod.value === 'custom') {
