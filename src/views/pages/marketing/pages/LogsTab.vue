@@ -727,6 +727,35 @@ th {
   border-bottom: 1px solid #edf2f7;
 }
 
+.mobile-log-top .patient-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-log-top .patient-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-log-top .patient-name {
+  max-width: 100%;
+}
+
+.mobile-log-top .patient-phone {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-log-top .status-badge {
+  flex-shrink: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mobile-log-row {
   margin-top: 0.6rem;
   padding: 0.6rem 0.7rem;
