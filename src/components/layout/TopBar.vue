@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
@@ -23,6 +23,17 @@ defineProps({
 // Emite eventos para o DefaultLayout.vue
 const emit = defineEmits(['toggle-sidebar', 'open-schedule-modal', 'toggle-collapse'])
 const router = useRouter()
+const route = useRoute()
+
+const openSettingsModal = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      settings: '1',
+      tab: 'identidade',
+    },
+  })
+}
 
 const searchQuery = ref('')
 const isSearchFocused = ref(false)
@@ -90,7 +101,7 @@ const allShortcuts = ref([
   { name: 'Novo paciente', icon: UserPlus, path: '/pacientes/novo' },
   { name: 'Novo agendamento', icon: CalendarPlus, action: () => emit('open-schedule-modal') },
   //{ name: 'Novo bloqueio na agenda', icon: CalendarOff, action: () => emit('open-schedule-modal') },
-  { name: 'Configurações', icon: Settings, path: '/configuracoes' },
+  { name: 'Configurações', icon: Settings, action: openSettingsModal },
 ])
 
 // Estado de seleção com teclado

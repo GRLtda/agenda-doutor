@@ -1,11 +1,22 @@
 <script setup>
-import { useRouter } from 'vue-router'
-import { Settings, UserPlus, Info } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { Settings, Info } from 'lucide-vue-next'
 
 const router = useRouter()
+const route = useRoute()
 
 function navigateTo(path, query = {}) {
   router.push({ path, query })
+}
+
+function openSettingsModal() {
+  router.replace({
+    query: {
+      ...route.query,
+      settings: '1',
+      tab: 'identidade',
+    },
+  })
 }
 </script>
 
@@ -13,7 +24,7 @@ function navigateTo(path, query = {}) {
   <div class="dropdown-menu">
     <ul>
       <li>
-        <button @click="navigateTo('/configuracoes')" class="dropdown-item">
+        <button @click="openSettingsModal" class="dropdown-item">
           <Settings :size="16" />
           <span>Configurações</span>
         </button>

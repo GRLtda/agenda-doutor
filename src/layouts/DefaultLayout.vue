@@ -1,36 +1,46 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { computed, ref, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
-import TopBar from '@/components/layout/TopBar.vue' // ✨ 1. Importar a TopBar
-import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue' // ✨ 2. Importar o Modal
+import TopBar from '@/components/layout/TopBar.vue'
+import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
-
+import SettingsView from '@/views/pages/configuracoes/SettingsView.vue'
 import { useLayoutStore } from '@/stores/layout'
 import { useToast } from 'vue-toastification'
-import { useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
 const toast = useToast()
+
 const isMobileSidebarOpen = ref(false)
-const isAppointmentModalOpen = ref(false) // ✨ 3. Estado para o modal global
+const isAppointmentModalOpen = ref(false)
 
+const isSettingsModalOpen = computed(() => {
+  const queryValue = route.query.settings
+  const normalized = Array.isArray(queryValue) ? queryValue[0] : queryValue
+  return normalized === '1' || normalized === 'true'
+})
 
-
+const closeSettingsModal = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      settings: undefined,
+      tab: undefined,
+    },
+  })
+}
 
 watch(
   () => route.query,
   (query) => {
     if (query.success === 'true') {
       toast.success('Assinatura realizada com sucesso!')
-      // Remove os parâmetros da URL
       router.replace({ query: { ...query, success: undefined } })
     } else if (query.canceled === 'true') {
-      toast.info('Assinatura cancelada ou não finalizada.')
+      toast.info('Assinatura cancelada ou nao finalizada.')
       router.replace({ query: { ...query, canceled: undefined } })
     }
   },
@@ -43,7 +53,6 @@ watch(
     isMobileSidebarOpen.value = false
   }
 )
-
 </script>
 
 <template>
@@ -79,6 +88,7 @@ watch(
     />
 
     <SubscriptionModal />
+    <SettingsView v-if="isSettingsModalOpen" @close="closeSettingsModal" />
 
     <Transition name="sidebar-overlay-fade">
       <div
@@ -97,7 +107,6 @@ watch(
   height: 100dvh;
 }
 
-/* Container unificado para sidebar e top bar */
 .unified-container {
   display: flex;
   flex: 1;
@@ -105,13 +114,11 @@ watch(
   background-color: #fafbfc;
 }
 
-/* ✨ 6. Estilo para o novo Main Panel */
 .main-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Garante que o painel não ultrapasse a tela */
-  /* Isso garante que o painel não fique por baixo da sidebar */
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -120,13 +127,13 @@ watch(
   padding: 1.5rem;
   border-radius: 1rem 0 0 0rem;
   border: 1px solid #e5e7eb;
-  overflow-y: auto; /* O scroll fica apenas no conteúdo principal */
+  overflow-y: auto;
 }
+
 .main-content.no-padding {
   padding: 0;
 }
 
-/* Remove o header mobile antigo, pois foi integrado na TopBar */
 .mobile-header {
   display: none;
 }
@@ -150,23 +157,26 @@ watch(
   opacity: 0;
 }
 
-/* Breakpoint para tablets e celulares */
 @media (max-width: 1024px) {
   .unified-container {
     border: none;
     border-radius: 0;
     margin: 0;
   }
+
   .main-panel {
-    width: 100%; /* Ocupa toda a largura no mobile */
+    width: 100%;
   }
+
   .main-content {
     padding: 1.5rem 1rem;
     border-radius: 0;
   }
+
   .main-content.no-padding {
     padding: 0;
   }
+
   .sidebar-component {
     position: fixed;
     inset: 0 auto 0 0;
@@ -182,6 +192,7 @@ watch(
     will-change: transform, opacity;
     box-shadow: 0 28px 60px rgba(15, 23, 42, 0.2);
   }
+
   .sidebar-component.is-mobile-open {
     transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;

@@ -6,7 +6,6 @@ import DefaultLayout from '../layouts/DefaultLayout.vue'
 // Views do Dashboard
 import Calendario from '../views/pages/calendario.vue'
 import ResumoView from '../views/pages/ResumoView.vue'
-import SettingsView from '../views/pages/configuracoes/SettingsView.vue'
 import PatientsListView from '../views/pages/pacientes/PatientsListView.vue'
 import CreatePatientView from '../views/pages/pacientes/CreatePatientView.vue'
 import PatientDetailView from '../views/pages/pacientes/PatientDetailView.vue'
@@ -45,8 +44,13 @@ const dashboardRoutes = [
       {
         path: 'configuracoes',
         name: 'configuracoes',
-        component: SettingsView,
-        meta: { title: 'Configurações' },
+        redirect: (to) => ({
+          name: 'resumo-dashboard',
+          query: {
+            ...to.query,
+            settings: '1',
+          },
+        }),
       },
       {
         path: 'assinatura',
