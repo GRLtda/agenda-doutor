@@ -369,6 +369,7 @@ const handleMobileBack = () => {
   width: 36px;
   height: 36px;
   border-radius: 999px;
+  z-index: 10;
   border: 1px solid #d1d5db;
   background: rgba(255, 255, 255, 0.96);
   color: #4b5563;
