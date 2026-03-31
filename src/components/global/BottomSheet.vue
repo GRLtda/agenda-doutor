@@ -167,7 +167,8 @@ onUnmounted(() => {
   max-height: 85vh; /* Máximo 85% da altura da tela */
   position: relative;
   /* Smooth reset transition when not dragging */
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bottom-sheet-panel.is-dragging {

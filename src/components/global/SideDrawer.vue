@@ -120,6 +120,8 @@ const widthClass = computed(() => {
   }
   .drawer-content {
     max-width: 100% !important; /* Force full width on mobile */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .drawer-body {
     padding: 1rem;
