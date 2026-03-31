@@ -145,6 +145,7 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: flex-end;
   animation: fadeIn 0.3s ease;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .bottom-sheet-overlay.is-absolute {
