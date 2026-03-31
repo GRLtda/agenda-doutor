@@ -723,6 +723,10 @@ function handleApprove() {
   color: #374151;
   line-height: 1.5;
   margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 /* Grid Sections */

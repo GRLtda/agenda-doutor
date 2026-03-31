@@ -205,15 +205,17 @@ function selectOption(option) {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  height: 40px;
-  padding: 0 1rem;
+  min-height: 44px;
+  padding: 0 0.875rem;
   background-color: var(--branco);
   border: 1px solid #d1d5db;
   border-radius: 0.75rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.2;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 .select-button.has-error {
   border-color: #ef4444;
@@ -222,7 +224,7 @@ function selectOption(option) {
 .select-button:focus-visible {
   outline: none;
   border-color: var(--azul-principal);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
 }
 .arrow-icon {
   color: #6b7281;
@@ -239,9 +241,9 @@ function selectOption(option) {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   z-index: 50000;
-  padding: 0.5rem;
+  padding: 0.375rem;
   list-style: none;
   margin: 0;
 }
@@ -249,7 +251,7 @@ function selectOption(option) {
   --dropdown-offset: 5px;
 }
 .option-item {
-  padding: 0.75rem;
+  padding: 0.75rem 0.875rem;
   border-radius: 0.5rem;
   cursor: pointer;
   font-weight: 500;

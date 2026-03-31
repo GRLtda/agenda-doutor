@@ -44,6 +44,7 @@ const router = useRouter()
 let debounceTimeout = null
 const currentStep = ref(1)
 const errors = ref({})
+const patientSearchQuery = ref('')
 
 // ✨ 2. Novos estados para verificação de conflito
 const conflictError = ref(null)
@@ -100,6 +101,7 @@ const steps = [
 const appointmentData = ref({
   patient: null,
   doctor: null,
+  notes: '',
   date: new Date(),
   startTime: null,
   endTime: null,
@@ -110,9 +112,22 @@ const appointmentData = ref({
   },
 })
 
-onMounted(() => {
+async function hydrateExistingAppointment() {
+  if (!props.initialData?._id) return
+
+  const { success, data } = await appointmentsStore.fetchAppointmentById(props.initialData._id)
+  if (!success || !data) return
+
+  appointmentData.value.patient = data.patient?._id || data.patient || appointmentData.value.patient
+  appointmentData.value.doctor = data.doctor?._id || data.doctor || appointmentData.value.doctor
+  appointmentData.value.notes = data.notes || appointmentData.value.notes || ''
+}
+
+onMounted(async () => {
   if (props.initialData) {
     appointmentData.value.patient = props.initialData.patient?._id || props.initialData.patient
+    appointmentData.value.doctor = props.initialData.doctor?._id || props.initialData.doctor || null
+    appointmentData.value.notes = props.initialData.notes || ''
 
     if (isEditMode.value) {
       currentStep.value = 2
@@ -133,10 +148,16 @@ onMounted(() => {
       })
     }
   }
+
+  await hydrateExistingAppointment()
 })
 
 const patientOptions = computed(() => {
-  return (patientsStore.searchResults || []).map((p) => ({ value: p._id, label: p.name }))
+  const source =
+    patientSearchQuery.value.trim().length > 0
+      ? patientsStore.searchResults
+      : patientsStore.allPatients
+  return (source || []).map((p) => ({ value: p._id, label: p.name }))
 })
 
 const doctorOptions = computed(() => {
@@ -239,6 +260,15 @@ function getDayOfWeek(date) {
 }
 
 function handlePatientSearch(query) {
+  patientSearchQuery.value = query || ''
+
+  if (!query) {
+    if (patientsStore.allPatients.length === 0 && !patientsStore.isLoading) {
+      patientsStore.fetchAllPatients(1, 100)
+    }
+    return
+  }
+
   clearTimeout(debounceTimeout)
   debounceTimeout = setTimeout(() => {
     patientsStore.searchPatients(query)
@@ -483,6 +513,7 @@ async function handleSubmit() {
     const payload = {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
+      notes: appointmentData.value.notes.trim(),
       sendReminder: appointmentData.value.sendReminder,
       reminderEnabled: appointmentData.value.remindersSent,
     }
@@ -501,6 +532,7 @@ async function handleSubmit() {
     const payload = {
       patient: appointmentData.value.patient,
       doctor: appointmentData.value.doctor, // NOVO: ID do médico
+      notes: appointmentData.value.notes.trim(),
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       sendReminder: appointmentData.value.sendReminder,
@@ -565,7 +597,7 @@ async function handleSubmit() {
     </template>
 
     <template #default>
-      <div v-auto-animate class="flex-1 flex flex-col">
+      <div v-auto-animate class="appointment-form">
         <div v-if="currentStep === 1" class="step-content">
           <SearchableSelect
             v-model="appointmentData.patient"
@@ -595,6 +627,21 @@ async function handleSubmit() {
             <p v-if="errors.doctor" class="error-message">{{ errors.doctor }}</p>
           </div>
 
+          <div class="form-group">
+            <label class="form-label">
+              <Stethoscope :size="16" />
+              Motivo / Queixa
+            </label>
+            <textarea
+              v-model="appointmentData.notes"
+              class="notes-input"
+              rows="4"
+              maxlength="250"
+              placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
+            />
+            <p class="helper-text">{{ appointmentData.notes.length }}/250</p>
+          </div>
+
           <template v-if="!isEditMode">
             <div class="divider">
               <span>OU</span>
@@ -607,10 +654,26 @@ async function handleSubmit() {
         </div>
 
         <div v-if="currentStep === 2" class="step-content">
+          <div v-if="isEditMode" class="form-group">
+            <label class="form-label">
+              <Stethoscope :size="16" />
+               Motivo / Queixa
+            </label>
+            <textarea
+              v-model="appointmentData.notes"
+              class="notes-input"
+              rows="4"
+              maxlength="250"
+              placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
+            />
+            <p class="helper-text">{{ appointmentData.notes.length }}/250</p>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Data do Atendimento</label>
             <Datepicker
               v-model="appointmentData.date"
+              class="appointment-datepicker"
               locale="pt-BR"
               format="dd/MM/yyyy"
               :enable-time-picker="false"
@@ -750,7 +813,7 @@ async function handleSubmit() {
 <style scoped>
 /* Header */
 .drawer-header {
-  padding: 1.5rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
   border-bottom: 1px solid #e5e7eb; /* Updated color for better visibility */
   display: flex;
   flex-direction: column;
@@ -761,6 +824,7 @@ async function handleSubmit() {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
 }
 
 .header-texts {
@@ -777,6 +841,7 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .header-subtitle {
@@ -784,6 +849,8 @@ async function handleSubmit() {
   color: #6b7280;
   margin: 0;
   margin-left: 2rem; /* Indent subtitle to align with text start (icon width approx) */
+  max-width: 42rem;
+  line-height: 1.5;
 }
 
 .header-icon-wrapper {
@@ -819,13 +886,22 @@ async function handleSubmit() {
 }
 
 /* --- Estilos Internos (Mantidos) --- */
+.appointment-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .step-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 .form-group {
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 .form-label {
   display: flex;
@@ -834,10 +910,43 @@ async function handleSubmit() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #374151;
+  margin: 0;
 }
 .required-asterisk {
   color: #ef4444;
 }
+
+.notes-input {
+  width: 100%;
+  min-height: 6.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  background-color: #fff;
+  color: #111827;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notes-input:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
+}
+
+.notes-input::placeholder {
+  color: #9ca3af;
+}
+
+.helper-text {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: right;
+}
+
 .error-message {
   color: #ef4444;
   font-size: 0.875rem;
@@ -847,13 +956,15 @@ async function handleSubmit() {
 .time-inputs {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 .time-inputs span {
   color: var(--cinza-texto);
 }
 .time-inputs .time-select {
   flex-grow: 1;
+  min-width: 0;
 }
 
 .spinner {
@@ -1043,11 +1154,35 @@ async function handleSubmit() {
   color: var(--azul-principal);
 }
 
+:deep(.appointment-datepicker) {
+  width: 100%;
+}
+
+:deep(.appointment-datepicker .dp__input_wrap) {
+  width: 100%;
+}
+
+:deep(.appointment-datepicker .dp__input) {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 0.75rem;
+  border-color: #d1d5db;
+  font-size: 0.95rem;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:deep(.appointment-datepicker .dp__input:focus) {
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
+}
+
 /* Footer */
 .drawer-footer {
   display: flex;
   align-items: center;
-  padding: 1.5rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
   border-top: 1px solid #e5e7eb;
   background: #fff;
 }
@@ -1085,9 +1220,32 @@ async function handleSubmit() {
   
   .drawer-header {
     padding: 1rem;
+    gap: 1rem;
   }
   .drawer-body {
     padding: 1rem;
+  }
+
+  .header-top {
+    align-items: flex-start;
+  }
+
+  .header-subtitle {
+    margin-left: 0;
+    max-width: none;
+  }
+
+  .step-content {
+    gap: 1rem;
+  }
+
+  .time-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .time-inputs span {
+    align-self: center;
   }
 }
 </style>

@@ -107,7 +107,7 @@ const widthClass = computed(() => {
 .drawer-body {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -120,6 +120,10 @@ const widthClass = computed(() => {
   }
   .drawer-content {
     max-width: 100% !important; /* Force full width on mobile */
+  }
+  .drawer-body {
+    padding: 1rem;
+    gap: 0.875rem;
   }
 }
 
