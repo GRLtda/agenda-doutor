@@ -612,8 +612,10 @@ function closeActionMenu(event) {
                           variant="dangerous"
                           size="sm"
                           title="Cancelar"
+                          class="cancel-btn"
                         >
                           <X :size="18" />
+                          <span class="btn-text">Cancelar</span>
                         </AppButton>
                       </template>
                       <template v-else-if="appt.status === 'Confirmado'">
@@ -1139,6 +1141,39 @@ function closeActionMenu(event) {
   margin-top: auto;
   padding-top: 0.4rem;
   border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap; /* ✨ Allow buttons to wrap on small screens */
+}
+
+/* ✨ Responsive Button Text and Layout */
+.cancel-btn {
+  flex-grow: 1; /* Allow it to fill space if needed */
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.cancel-btn .btn-text {
+  display: inline; /* ✨ Show text by default as requested */
+  font-size: 0.85rem;
+}
+
+/* Force buttons to fill width when they wrap */
+.card-footer > button {
+  flex: 1 1 120px; /* Base width before wrapping */
+  justify-content: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .card-footer {
+    gap: 0.5rem;
+  }
+
+  .card-footer > button {
+    flex: 1 1 100%; /* Force buttons to stack on smaller mobile-like views */
+  }
 }
 
 .flex-grow {
