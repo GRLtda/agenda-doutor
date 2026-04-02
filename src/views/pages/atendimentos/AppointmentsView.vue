@@ -144,7 +144,7 @@ const filteredAppointments = computed(() => {
   // ✨ Switch to generic appointments list
   const source = appointmentsStore.appointments
   if (!source || source.length === 0) return []
-  
+
   const query = searchQuery.value.toLowerCase()
   const filtered = source.filter((appt) =>
     appt.patient?.name?.toLowerCase().includes(query)
@@ -160,18 +160,18 @@ const appointmentsByStatus = computed(() => {
   kanbanColumns.forEach(col => {
     grouped[col.key] = []
   })
-  
+
   filteredAppointments.value.forEach(appt => {
     if (grouped[appt.status]) {
       grouped[appt.status].push(appt)
     }
   })
-  
+
   // Ordena cada grupo pelo horário
   Object.keys(grouped).forEach(status => {
     grouped[status].sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
   })
-  
+
   return grouped
 })
 
@@ -220,9 +220,9 @@ function closeDetailsModal() {
 async function handleStatusChange(appointment, newStatus) {
   const oldStatus = appointment.status
   appointmentsStore.updateLocalStatus(appointment._id, newStatus)
-  
+
   const { success } = await appointmentsStore.updateAppointmentStatus(appointment._id, newStatus)
-  
+
   if (success) {
     toast.success(`Status alterado para "${newStatus}"`)
   } else {
@@ -256,12 +256,12 @@ async function handleCancelConfirm(reason) {
       toast.warning('Por favor, informe o motivo do cancelamento.')
       return
    }
-   
+
    isCancelling.value = true
    try {
        const payload = { status: 'Cancelado' }
        if (reason && String(reason).trim()) payload.cancellationReason = String(reason).trim()
-       
+
        const result = await appointmentsStore.updateAppointment(apptToCancel.value._id, payload)
        if (result.success) {
            toast.success('Agendamento cancelado com sucesso.')
@@ -307,7 +307,7 @@ function handleEditAction(eventData) {
 
 function handleReschedule(appointment) {
   const patientId = typeof appointment.patient === 'object' ? appointment.patient._id : appointment.patient
-  
+
   modalInitialData.value = {
     patient: patientId,
     _id: appointment._id,
@@ -316,7 +316,7 @@ function handleReschedule(appointment) {
     endTime: appointment.endTime,
     date: appointment.startTime
   }
-  
+
   isDetailsModalOpen.value = false
   isModalOpen.value = true
 }
@@ -324,12 +324,12 @@ function handleReschedule(appointment) {
 function handleReturn(event) {
   const appointment = event.originalEvent
   const patientId = typeof appointment.patient === 'object' ? appointment.patient._id : appointment.patient
-  
+
   modalInitialData.value = {
     patient: patientId,
     _mode: 'reschedule'
   }
-  
+
   isDetailsModalOpen.value = false
   isModalOpen.value = true
 }
@@ -458,24 +458,24 @@ function closeActionMenu(event) {
           </VueDatePicker>
         </div>
 
-        <div v-if="appointmentsActiveFiltersCount > 0" class="active-filters-indicator">
+        <!-- <div v-if="appointmentsActiveFiltersCount > 0" class="active-filters-indicator">
           <Filter :size="13" />
           <span>{{ appointmentsActiveFiltersCount }}</span>
-        </div>
+        </div> -->
 
         <!-- ✨ View Switcher -->
         <div class="view-switcher">
-          <button 
-            @click="viewMode = 'kanban'" 
-            class="view-btn" 
+          <button
+            @click="viewMode = 'kanban'"
+            class="view-btn"
             :class="{ active: viewMode === 'kanban' }"
             title="Visualização Kanban"
           >
             <LayoutGrid :size="18" />
           </button>
-          <button 
-            @click="viewMode = 'list'" 
-            class="view-btn" 
+          <button
+            @click="viewMode = 'list'"
+            class="view-btn"
             :class="{ active: viewMode === 'list' }"
             title="Visualização em Lista"
           >
@@ -560,10 +560,10 @@ function closeActionMenu(event) {
                         </div>
                         <div class="patient-details">
                           <span class="patient-name">{{ appt.patient.name }}</span>
-                          <PatientPhoneDisplay 
-                             v-if="appt.patient.phone" 
-                             :phone="appt.patient.phone" 
-                             :country-code="appt.patient.countryCode" 
+                          <PatientPhoneDisplay
+                             v-if="appt.patient.phone"
+                             :phone="appt.patient.phone"
+                             :country-code="appt.patient.countryCode"
                              :show-flag="false"
                              class="patient-phone"
                           />
@@ -706,12 +706,12 @@ function closeActionMenu(event) {
                       </div>
                       <div class="patient-info-col">
                          <span class="patient-name-list">{{ appt.patient?.name || 'Sem nome' }}</span>
-                         <PatientPhoneDisplay 
-                            v-if="appt.patient?.phone" 
-                            :phone="appt.patient.phone" 
-                            :country-code="appt.patient.countryCode" 
+                         <PatientPhoneDisplay
+                            v-if="appt.patient?.phone"
+                            :phone="appt.patient.phone"
+                            :country-code="appt.patient.countryCode"
                             :show-flag="false"
-                            class="patient-phone-list" 
+                            class="patient-phone-list"
                          />
                          <span v-else class="patient-phone-list">Sem telefone</span>
                       </div>
@@ -749,7 +749,7 @@ function closeActionMenu(event) {
                        <button @click="(e) => toggleActionMenu(appt._id, e)" class="action-dots-btn">
                           <MoreHorizontal :size="20" />
                        </button>
-                       
+
                        <div v-if="activeActionMenu === appt._id" class="action-dropdown">
                           <template v-if="appt.status === 'Agendado'">
                               <button @click.stop="handleStatusChange(appt, 'Confirmado')" class="dropdown-item success">
@@ -792,8 +792,8 @@ function closeActionMenu(event) {
   />
 
   <!-- Modal de Cancelamento (BottomSheet adaptado) -->
-  <CancelAppointmentSheet 
-    v-if="showCancelInput" 
+  <CancelAppointmentSheet
+    v-if="showCancelInput"
     :loading="isCancelling"
     @close="cancelCancellation"
     @confirm="handleCancelConfirm"
@@ -831,6 +831,7 @@ function closeActionMenu(event) {
   height: 34px;
   min-width: 34px;
   padding: 0 0.55rem;
+  display: none;
   border-radius: 999px;
   border: 1px solid #dbeafe;
   background: #eff6ff;
@@ -860,7 +861,7 @@ function closeActionMenu(event) {
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .header-actions {
     width: 100%;
     flex-direction: column;
@@ -874,6 +875,7 @@ function closeActionMenu(event) {
 
   .active-filters-indicator {
     align-self: flex-start;
+    display: none;
   }
 
   /* Make buttons full width inside header-actions if they aren't already */
@@ -1335,7 +1337,7 @@ function closeActionMenu(event) {
   border-radius: 0.75rem;
   overflow: hidden;
   /* Make container fill remaining space but with a safe bottom margin */
-  height: calc(100vh - 220px); 
+  height: calc(100vh - 220px);
   display: flex;
   flex-direction: column;
 }
@@ -1644,9 +1646,9 @@ function closeActionMenu(event) {
     display: none;
   }
 
-  .appointments-table, 
-  .appointments-table tbody, 
-  .appointments-table tr, 
+  .appointments-table,
+  .appointments-table tbody,
+  .appointments-table tr,
   .appointments-table td {
     display: block;
     width: 100%;
@@ -1705,11 +1707,11 @@ function closeActionMenu(event) {
   .patient-cell .patient-avatar-sm {
     display: none;
   }
-  
+
   .patient-cell {
      justify-content: flex-end; /* Align text to right on mobile */
   }
-  
+
   .patient-info-col {
      align-items: stretch; /* Align text stack to right on mobile */
      max-width: 160px; /* Fixed width to force ellipsis on long names */

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { 
   User, Mail, Briefcase, Building2, MapPin, 
@@ -9,6 +9,19 @@ import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import { useToast } from 'vue-toastification'
+
+const props = defineProps({
+  activeTab: {
+    type: String,
+    default: 'personal',
+  },
+  hideTabs: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits(['update:activeTab'])
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -22,7 +35,21 @@ const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
 // Tab state: 'personal' | 'clinic'
-const activeTab = ref('personal')
+const activeTab = ref(props.activeTab || 'personal')
+
+watch(
+  () => props.activeTab,
+  (value) => {
+    if (value === 'personal' || value === 'clinic') {
+      activeTab.value = value
+    }
+  }
+)
+
+const setActiveTab = (value) => {
+  activeTab.value = value
+  emit('update:activeTab', value)
+}
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
@@ -223,10 +250,10 @@ async function handlePhotoDelete() {
       </header>
 
       <!-- Tabs Navigation -->
-      <nav class="tabs-container">
+      <nav v-if="!hideTabs" class="tabs-container">
         <AppTabs 
           :model-value="activeTab" 
-          @update:model-value="activeTab = $event"
+          @update:model-value="setActiveTab"
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
             { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }

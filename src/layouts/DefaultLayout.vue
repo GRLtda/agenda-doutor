@@ -6,6 +6,7 @@ import TopBar from '@/components/layout/TopBar.vue'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
 import SettingsView from '@/views/pages/configuracoes/SettingsView.vue'
+import ProfileModal from '@/views/pages/profile/ProfileModal.vue'
 import { useLayoutStore } from '@/stores/layout'
 import { useToast } from 'vue-toastification'
 
@@ -23,12 +24,27 @@ const isSettingsModalOpen = computed(() => {
   return normalized === '1' || normalized === 'true'
 })
 
+const isProfileModalOpen = computed(() => {
+  const queryValue = route.query.profile
+  const normalized = Array.isArray(queryValue) ? queryValue[0] : queryValue
+  return normalized === '1' || normalized === 'true'
+})
+
 const closeSettingsModal = () => {
   router.replace({
     query: {
       ...route.query,
       settings: undefined,
       tab: undefined,
+    },
+  })
+}
+
+const closeProfileModal = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: undefined,
     },
   })
 }
@@ -89,6 +105,7 @@ watch(
 
     <SubscriptionModal />
     <SettingsView v-if="isSettingsModalOpen" @close="closeSettingsModal" />
+    <ProfileModal v-if="isProfileModalOpen" @close="closeProfileModal" />
 
     <Transition name="sidebar-overlay-fade">
       <div

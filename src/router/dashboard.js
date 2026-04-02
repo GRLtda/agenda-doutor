@@ -14,7 +14,6 @@ import InProgressAppointmentView from '../views/pages/atendimentos/InProgressApp
 import AjudaView from '../views/pages/ajuda/AjudaView.vue'
 import AnamnesesListView from '../views/pages/anamneses/AnamnesesListView.vue'
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
-import ProfileView from '../views/pages/ProfileView.vue'
 
 
 import MessagesTab from '../views/pages/marketing/pages/MessagesTab.vue'
@@ -61,8 +60,15 @@ const dashboardRoutes = [
       {
         path: 'perfil',
         name: 'perfil',
-        component: ProfileView,
-        meta: { title: 'Meu Perfil' },
+        redirect: (to) => ({
+          name: 'resumo-dashboard',
+          query: {
+            ...to.query,
+            profile: '1',
+            settings: undefined,
+            tab: undefined,
+          },
+        }),
       },
 
       {

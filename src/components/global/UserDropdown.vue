@@ -1,7 +1,7 @@
 <script setup>
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
-import { LogOut, User, CreditCard, Settings, LifeBuoy } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { LogOut, User, CreditCard, LifeBuoy } from 'lucide-vue-next'
 
 const props = defineProps({
   direction: {
@@ -13,6 +13,18 @@ const props = defineProps({
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+
+function openProfileModal() {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: '1',
+      settings: undefined,
+      tab: undefined,
+    },
+  })
+}
 
 function handleLogout() {
   authStore.logout()
@@ -24,7 +36,7 @@ function handleLogout() {
   <div class="dropdown-menu" :class="`direction-${direction}`">
     <ul>
       <li>
-        <button class="dropdown-item" @click="router.push('/perfil')">
+        <button class="dropdown-item" @click="openProfileModal">
           <User :size="16" />
           <span>Perfil</span>
         </button>
