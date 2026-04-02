@@ -19,46 +19,83 @@ const toast = useToast()
 
 const localAnswers = ref({})
 const isSaving = ref(false)
+const resolvedTemplate = ref(null)
+
+function getTemplateId(anamnesis) {
+  return (
+    anamnesis?.template?._id ||
+    anamnesis?.templateId ||
+    anamnesis?.template?.id ||
+    anamnesis?.template?.templateId ||
+    null
+  )
+}
 
 // Initialize localAnswers when anamnesis changes
-watch(() => props.anamnesis, (newVal) => {
-  if (newVal && newVal.template) {
-    const map = {}
-    
-    // 1. Populate with existing answers
-    if (newVal.answers) {
-      newVal.answers.forEach(ans => {
-        map[ans.qId] = { ...ans } // Clone
-      })
+watch(
+  () => props.anamnesis,
+  async (newVal) => {
+    localAnswers.value = {}
+    resolvedTemplate.value = null
+
+    if (!newVal) return
+
+    let template = newVal.template || null
+    const templateId = getTemplateId(newVal)
+
+    if ((!template || !template.questions) && templateId) {
+      template =
+        anamnesisStore.templates.find((t) => t._id === templateId) ||
+        (await anamnesisStore.fetchTemplateById(templateId))
     }
 
-    // 2. Ensure all questions from template have an entry (for v-model binding)
-    const initQuestions = (questions) => {
-      questions.forEach(q => {
-        if (!map[q.qId]) {
-          // Initialize empty answer
-          map[q.qId] = { 
-            qId: q.qId, 
-            questionTitle: q.title, 
-            answer: q.questionType === 'checkbox' ? [] : '' 
+    if (template) {
+      resolvedTemplate.value = template
+
+      const map = {}
+      
+      // 1. Populate with existing answers
+      if (newVal.answers) {
+        newVal.answers.forEach(ans => {
+          map[ans.qId] = { ...ans } // Clone
+        })
+      }
+
+      // 2. Ensure all questions from template have an entry (for v-model binding)
+      const initQuestions = (questions) => {
+        questions.forEach(q => {
+          if (!map[q.qId]) {
+            // Initialize empty answer
+            map[q.qId] = { 
+              qId: q.qId, 
+              questionTitle: q.title, 
+              answer: q.questionType === 'checkbox' ? [] : '' 
+            }
           }
-        }
-        // Recursively init conditional questions
-        if (q.conditionalQuestions) {
-           q.conditionalQuestions.forEach(group => initQuestions(group.questions))
-        }
-      })
+          // Recursively init conditional questions
+          if (q.conditionalQuestions) {
+             q.conditionalQuestions.forEach(group => initQuestions(group.questions))
+          }
+        })
+      }
+      
+      if (template.questions) {
+        initQuestions(template.questions)
+      }
+      
+      localAnswers.value = map
     }
-    
-    if (newVal.template.questions) {
-      initQuestions(newVal.template.questions)
-    }
-    
-    localAnswers.value = map
-  }
-}, { immediate: true, deep: true })
+  },
+  { immediate: true, deep: true },
+)
 
-const template = computed(() => props.anamnesis.template || {})
+const template = computed(
+  () =>
+    resolvedTemplate.value ||
+    props.anamnesis.template ||
+    (props.anamnesis.templateName ? { name: props.anamnesis.templateName } : {}) ||
+    {},
+)
 const patientName = computed(() => props.anamnesis.patient?.name || 'Paciente')
 const date = computed(() => {
     if(!props.anamnesis.updatedAt) return 'N/A'

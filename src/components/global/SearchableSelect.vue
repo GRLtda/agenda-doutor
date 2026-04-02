@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { ChevronDown, Search, LoaderCircle } from 'lucide-vue-next';
+import { ChevronDown, LoaderCircle } from 'lucide-vue-next';
 
 const props = defineProps({
   modelValue: [String, Number, null],
@@ -54,7 +54,6 @@ function handleSearch() {
     </label>
     <div class="select-container" v-click-outside="() => isOpen = false">
       <div class="input-wrapper" :class="{ 'is-open': isOpen }" @click="openDropdown">
-        <Search :size="18" class="search-icon" />
         <input
           type="text"
           v-model="searchQuery"
@@ -77,6 +76,9 @@ function handleSearch() {
             class="option-item"
           >
             {{ option.label }}
+          </li>
+          <li v-if="$slots.footer" class="options-footer">
+            <slot name="footer"></slot>
           </li>
         </ul>
       </Transition>
@@ -115,7 +117,7 @@ function handleSearch() {
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
 }
-.search-icon, .chevron-icon { color: #6b7280; }
+.chevron-icon { color: #6b7280; }
 .chevron-icon { transition: transform 0.2s; }
 .chevron-icon.is-open { transform: rotate(180deg); }
 .select-input {
@@ -151,6 +153,11 @@ function handleSearch() {
 .option-item { padding: 0.75rem 0.875rem; border-radius: 0.5rem; cursor: pointer; }
 .option-item:hover { background-color: #f3f4f6; }
 .no-options { padding: 0.75rem; color: #6b7280; }
+.options-footer {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

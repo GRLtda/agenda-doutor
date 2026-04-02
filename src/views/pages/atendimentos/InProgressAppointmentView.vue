@@ -149,11 +149,18 @@ function openAnamnesisModal(anamnesis, editMode = false) {
   showAnamnesisModal.value = true
 }
 
-function handleAnamnesisSaved(updatedData) {
+async function handleAnamnesisSaved(updatedData) {
   isEditingAnamnesis.value = false
-  // Atualiza o objeto selecionado com os novos dados (ex: status, updatedAt)
+  await anamnesisStore.fetchAnamnesisForPatient(patientId)
+
   if (selectedAnamnesis.value) {
-    selectedAnamnesis.value = { ...selectedAnamnesis.value, ...updatedData }
+    const refreshed = anamnesisStore.patientAnamneses.find(
+      (anamnesis) => anamnesis._id === (updatedData?._id || selectedAnamnesis.value._id),
+    )
+
+    selectedAnamnesis.value = refreshed
+      ? { ...refreshed }
+      : { ...selectedAnamnesis.value, ...updatedData }
   }
 }
 
@@ -171,10 +178,9 @@ const showImportBudgetModal = ref(false)
 // ✨ Send Anamnesis Modal State
 const showAssignAnamnesisModal = ref(false)
 
-function handleAnamnesisAssigned() {
-  showAssignAnamnesisModal.value = false
+async function handleAnamnesisAssigned() {
   // Recarregar anamneses do paciente
-  anamnesisStore.fetchPatientAnamneses(patientId)
+  await anamnesisStore.fetchAnamnesisForPatient(patientId)
 }
 
 async function handleDeleteProcedure(procedure) {
@@ -248,6 +254,15 @@ const recordModels = ref([
   { label: 'Retorno', value: 'retorno' },
   { label: 'Avaliação Inicial', value: 'avaliacao-inicial' },
 ])
+
+function getAnamnesisTemplateName(anamnesis) {
+  return (
+    anamnesis?.template?.name ||
+    anamnesis?.templateName ||
+    anamnesis?.template?.title ||
+    'Anamnese Sem Título'
+  )
+}
 
 // ✨ FUNÇÃO ATUALIZADA PARA CALCULAR A POSIÇÃO CORRETA EM TEMPO REAL ✨
 const handleViewportChange = () => {
@@ -935,7 +950,7 @@ function openPatientProfile() {
                         class="anamnesis-item pending"
                       >
                         <div class="anamnesis-info">
-                          <span class="anamnesis-name">{{ anamnesis.template?.name || 'Anamnese Sem Título' }}</span>
+                          <span class="anamnesis-name">{{ getAnamnesisTemplateName(anamnesis) }}</span>
                           <span class="anamnesis-date">Enviada em: {{ new Date(anamnesis.createdAt).toLocaleDateString('pt-BR') }}</span>
                         </div>
                         <div class="anamnesis-actions">
@@ -968,7 +983,7 @@ function openPatientProfile() {
                         class="anamnesis-item completed"
                       >
                         <div class="anamnesis-info">
-                          <span class="anamnesis-name">{{ anamnesis.template?.name || 'Anamnese Sem Título' }}</span>
+                          <span class="anamnesis-name">{{ getAnamnesisTemplateName(anamnesis) }}</span>
                           <span class="anamnesis-date">Respondida em: {{ new Date(anamnesis.updatedAt).toLocaleDateString('pt-BR') }}</span>
                         </div>
                         <AppButton variant="default" size="sm" @click="openAnamnesisModal(anamnesis)">
@@ -1071,7 +1086,8 @@ function openPatientProfile() {
     <AssignAnamnesisModal
       v-if="showAssignAnamnesisModal"
       :patient-id="patientId"
-      @close="handleAnamnesisAssigned"
+      @close="showAssignAnamnesisModal = false"
+      @saved="handleAnamnesisAssigned"
     />
 
 

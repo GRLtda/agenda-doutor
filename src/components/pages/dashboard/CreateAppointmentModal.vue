@@ -6,7 +6,17 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
 // ✨ 1. Importar o LoaderCircle e a nova função da API
-import { User, Calendar, Bell, Plus, X, DoorClosed, Info, LoaderCircle, Stethoscope } from 'lucide-vue-next'
+import {
+  User,
+  Calendar,
+  Bell,
+  Clock,
+  Plus,
+  X,
+  DoorClosed,
+  Info,
+  LoaderCircle,
+} from 'lucide-vue-next'
 import { checkConflict } from '@/api/appointments'
 import {
   isToday,
@@ -53,6 +63,15 @@ let conflictCheckDebounce = null
 
 // 💡 NOVO ESTADO: Armazena os horários sugeridos
 const suggestedTimes = ref([])
+const isAutoAdvancingTime = ref(false)
+
+const requiresDoctorSelection = computed(() => {
+  return Boolean(
+    clinicStore.currentClinic &&
+      clinicStore.currentClinic.plan !== 'basic' &&
+      doctorOptions.value.length > 0,
+  )
+})
 
 const isRescheduleMode = computed(() => {
   return !!props.initialData?.patient && props.initialData?._mode === 'reschedule'
@@ -156,7 +175,7 @@ const patientOptions = computed(() => {
   const source =
     patientSearchQuery.value.trim().length > 0
       ? patientsStore.searchResults
-      : patientsStore.allPatients
+      : patientsStore.allPatients.slice(0, 3)
   return (source || []).map((p) => ({ value: p._id, label: p.name }))
 })
 
@@ -259,6 +278,33 @@ function getDayOfWeek(date) {
   return days[dayIndex]
 }
 
+function getEndTimeFromStartTime(startTime) {
+  if (!startTime) return null
+
+  const [hour, minute] = startTime.split(':').map(Number)
+  const baseDate = new Date(appointmentData.value.date)
+  baseDate.setHours(hour, minute, 0, 0)
+  baseDate.setMinutes(baseDate.getMinutes() + 30)
+
+  const endHour = String(baseDate.getHours()).padStart(2, '0')
+  const endMinute = String(baseDate.getMinutes()).padStart(2, '0')
+  const endTime = `${endHour}:${endMinute}`
+
+  return endTimeOptions.value.some((opt) => opt.value === endTime) ? endTime : null
+}
+
+function applyDefaultTimeSelection() {
+  if (isEditMode.value || appointmentData.value.startTime || timeOptions.value.length === 0) {
+    return
+  }
+
+  const defaultStartTime = timeOptions.value[0]?.value
+  if (!defaultStartTime) return
+
+  appointmentData.value.startTime = defaultStartTime
+  appointmentData.value.endTime = getEndTimeFromStartTime(defaultStartTime)
+}
+
 function handlePatientSearch(query) {
   patientSearchQuery.value = query || ''
 
@@ -305,6 +351,37 @@ function findNextAvailableTimes(conflictingTime) {
   suggestedTimes.value = allTimes.slice(conflictIndex + 1, conflictIndex + 4)
 }
 
+async function findNextFreeTime(conflictingTime) {
+  const allTimes = timeOptions.value
+  const conflictIndex = allTimes.findIndex((t) => t.value === conflictingTime)
+
+  if (conflictIndex === -1) {
+    return null
+  }
+
+  for (let i = conflictIndex + 1; i < allTimes.length; i++) {
+    const candidate = allTimes[i].value
+    const candidateEnd = getEndTimeFromStartTime(candidate)
+
+    if (!candidateEnd) continue
+
+    try {
+      const startTimeISO = getISOString(appointmentData.value.date, candidate)
+      const endTimeISO = getISOString(appointmentData.value.date, candidateEnd)
+      const response = await checkConflict(appointmentData.value.patient, startTimeISO, endTimeISO)
+
+      if (!response.data?.conflict) {
+        return candidate
+      }
+    } catch (error) {
+      console.error('Erro ao buscar próximo horário livre:', error)
+      return null
+    }
+  }
+
+  return null
+}
+
 // 💡 NOVA FUNÇÃO: Define o horário ao clicar na sugestão
 function handleSuggestionClick(timeValue) {
   // Define o novo horário de início
@@ -316,21 +393,7 @@ function handleSuggestionClick(timeValue) {
   if (errors.value.time) errors.value.time = null
 
   // Recalcula o horário de término (baseado na lógica existente no watcher)
-  const [hour, minute] = timeValue.split(':').map(Number)
-  const baseDate = new Date(appointmentData.value.date)
-  baseDate.setHours(hour, minute, 0, 0)
-  baseDate.setMinutes(baseDate.getMinutes() + 30) // Adiciona 30 minutos
-
-  const endHour = String(baseDate.getHours()).padStart(2, '0')
-  const endMinute = String(baseDate.getMinutes()).padStart(2, '0')
-  const endTime = `${endHour}:${endMinute}`
-
-  // Define o horário de término
-  if (endTimeOptions.value.some((opt) => opt.value === endTime)) {
-    appointmentData.value.endTime = endTime
-  } else {
-    appointmentData.value.endTime = null
-  }
+  appointmentData.value.endTime = getEndTimeFromStartTime(timeValue)
 
   // O watcher do 'endTime' será acionado automaticamente e chamará a verificação de conflito
 }
@@ -366,6 +429,23 @@ async function checkAppointmentConflict() {
         conflictError.value = response.data.message
         errors.value.time = response.data.message // Para destacar os campos
         findNextAvailableTimes(appointmentData.value.startTime) // 💡 Chama as sugestões
+
+        if (!isAutoAdvancingTime.value) {
+          isAutoAdvancingTime.value = true
+          const nextFreeTime = await findNextFreeTime(appointmentData.value.startTime)
+
+          if (nextFreeTime) {
+            appointmentData.value.startTime = nextFreeTime
+            appointmentData.value.endTime = getEndTimeFromStartTime(nextFreeTime)
+            conflictError.value = null
+            errors.value.time = null
+            toast.info(`Horário ocupado. Ajustamos para o próximo livre: ${nextFreeTime}.`)
+          } else {
+            toast.error('Não encontramos um próximo horário livre neste dia.')
+          }
+
+          isAutoAdvancingTime.value = false
+        }
       } else {
         conflictError.value = null
         suggestedTimes.value = [] // 💡 Limpa sugestões se não houver conflito
@@ -399,25 +479,19 @@ watch(
 )
 
 watch(
+  [() => appointmentData.value.date, () => timeOptions.value.length],
+  () => {
+    applyDefaultTimeSelection()
+  },
+  { immediate: true },
+)
+
+watch(
   () => appointmentData.value.startTime,
   (newStartTime) => {
     suggestedTimes.value = [] // 💡 Limpa sugestões ao trocar o início
     if (newStartTime) {
-      const [hour, minute] = newStartTime.split(':').map(Number)
-      // Usamos a data selecionada como base, não a data atual!
-      const baseDate = new Date(appointmentData.value.date)
-      baseDate.setHours(hour, minute, 0, 0) // Define hora e minuto na data selecionada
-      baseDate.setMinutes(baseDate.getMinutes() + 30) // Adiciona 30 minutos
-
-      const endHour = String(baseDate.getHours()).padStart(2, '0')
-      const endMinute = String(baseDate.getMinutes()).padStart(2, '0')
-      const endTime = `${endHour}:${endMinute}`
-
-      if (endTimeOptions.value.some((opt) => opt.value === endTime)) {
-        appointmentData.value.endTime = endTime
-      } else {
-        appointmentData.value.endTime = null
-      }
+      appointmentData.value.endTime = getEndTimeFromStartTime(newStartTime)
     } else {
       appointmentData.value.endTime = null // Limpa o endTime se o startTime for limpo
     }
@@ -433,6 +507,10 @@ watch(
     () => appointmentData.value.endTime, // Aciona quando o endTime é definido
   ],
   () => {
+    if (currentStep.value < 2) {
+      return
+    }
+
     // Limpa erros anteriores e inicia a verificação
     conflictError.value = null
     if (
@@ -454,7 +532,7 @@ function validateStep() {
       errors.value.patient = 'Por favor, selecione um paciente para continuar.'
       return false
     }
-    if (!appointmentData.value.doctor && clinicStore.currentClinic?.plan !== 'basic') {
+    if (!appointmentData.value.doctor && requiresDoctorSelection.value) {
       errors.value.doctor = 'Por favor, selecione um médico responsável.'
       return false
     }
@@ -467,14 +545,16 @@ function validateStep() {
     return false
   }
 
-  // ✨ Nova verificação de conflito e carregamento
-  if (isCheckingConflict.value) {
-    errors.value.time = 'Verificando disponibilidade...'
-    return false
-  }
-  if (conflictError.value) {
-    errors.value.time = conflictError.value
-    return false
+  // A verificação de conflito só bloqueia a etapa de horário e o envio final
+  if (currentStep.value >= 2) {
+    if (isCheckingConflict.value) {
+      errors.value.time = 'Verificando disponibilidade...'
+      return false
+    }
+    if (conflictError.value) {
+      errors.value.time = conflictError.value
+      return false
+    }
   }
 
   return true
@@ -610,14 +690,23 @@ async function handleSubmit() {
             placeholder="Digite para buscar um paciente"
             :disabled="isEditMode"
           >
+            <template v-if="!isEditMode" #footer>
+              <button
+                type="button"
+                class="create-patient-action"
+                @mousedown.prevent
+                @click="goToCreatePatient"
+              >
+                <Plus :size="16" />
+                Cadastrar novo paciente
+              </button>
+            </template>
           </SearchableSelect>
           <p v-if="errors.patient" class="error-message">{{ errors.patient }}</p>
 
           <!-- Seletor de Médico (Apenas para planos acima do Básico) -->
           <div v-if="clinicStore.currentClinic?.plan !== 'basic'" class="form-group">
-            <label class="form-label">
-              Médico Responsável <span class="required-asterisk">*</span>
-            </label>
+            <label class="form-label">Médico Responsável <span class="required-asterisk">*</span></label>
             <StyledSelect
               v-model="appointmentData.doctor"
               :options="doctorOptions"
@@ -628,10 +717,7 @@ async function handleSubmit() {
           </div>
 
           <div class="form-group">
-            <label class="form-label">
-              <Stethoscope :size="16" />
-              Motivo / Queixa
-            </label>
+            <label class="form-label">Motivo / Queixa</label>
             <textarea
               v-model="appointmentData.notes"
               class="notes-input"
@@ -641,24 +727,11 @@ async function handleSubmit() {
             />
             <p class="helper-text">{{ appointmentData.notes.length }}/250</p>
           </div>
-
-          <template v-if="!isEditMode">
-            <div class="divider">
-              <span>OU</span>
-            </div>
-            <AppButton variant="default" @click="goToCreatePatient" class="w-full">
-              <Plus :size="16" />
-              Cadastrar novo paciente
-            </AppButton>
-          </template>
         </div>
 
         <div v-if="currentStep === 2" class="step-content">
           <div v-if="isEditMode" class="form-group">
-            <label class="form-label">
-              <Stethoscope :size="16" />
-               Motivo / Queixa
-            </label>
+            <label class="form-label">Motivo / Queixa</label>
             <textarea
               v-model="appointmentData.notes"
               class="notes-input"
@@ -670,20 +743,27 @@ async function handleSubmit() {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Data do Atendimento</label>
+            <label class="form-label">
+              <Calendar :size="16" />
+              Data do Atendimento
+            </label>
             <Datepicker
               v-model="appointmentData.date"
               class="appointment-datepicker"
               locale="pt-BR"
               format="dd/MM/yyyy"
               :enable-time-picker="false"
+              :hide-input-icon="true"
               auto-apply
               :teleport="true"
               placeholder="Selecione a data"
             />
           </div>
           <div class="form-group">
-            <label class="form-label">Horário</label>
+            <label class="form-label">
+              <Clock :size="16" />
+              Horário
+            </label>
             <div v-if="!noTimeSlotsAvailable && timeOptions.length > 0" class="time-inputs">
               <StyledSelect
                 v-model="appointmentData.startTime"
@@ -983,24 +1063,25 @@ async function handleSubmit() {
   background-color: #fef2f2;
 }
 
-.divider {
-  text-align: center;
-  margin: 0.5rem 0;
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
-  font-weight: 500;
+.create-patient-action {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  color: var(--azul-principal);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.divider::before,
-.divider::after {
-  content: '';
-  flex-grow: 1;
-  height: 1px;
-  background-color: #e5e7eb;
-}
-.divider span {
-  padding: 0 1rem;
+
+.create-patient-action:hover {
+  background: #eff6ff;
+  border-color: var(--azul-principal);
 }
 
 .closed-message {
@@ -1160,6 +1241,14 @@ async function handleSubmit() {
 
 :deep(.appointment-datepicker .dp__input_wrap) {
   width: 100%;
+}
+
+:deep(.appointment-datepicker .dp__input_icon) {
+  display: none !important;
+}
+
+:deep(.appointment-datepicker .dp__input_icon_pad) {
+  padding-inline-start: 0 !important;
 }
 
 :deep(.appointment-datepicker .dp__input) {
