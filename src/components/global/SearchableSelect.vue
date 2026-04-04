@@ -68,15 +68,21 @@ function handleSearch() {
       </div>
       <Transition name="fade">
         <ul v-if="isOpen" class="options-list">
-          <li v-if="options.length === 0 && !loading" class="no-options">Nenhum resultado encontrado.</li>
-          <li
-            v-for="option in options"
-            :key="option.value"
-            @click="selectOption(option)"
-            class="option-item"
-          >
-            {{ option.label }}
+          <li v-if="loading" class="no-options loading-state">
+            <LoaderCircle :size="18" class="spinner" />
+            <span>Buscando...</span>
           </li>
+          <li v-else-if="options.length === 0" class="no-options">Nenhum resultado encontrado.</li>
+          <template v-else>
+            <li
+              v-for="option in options"
+              :key="option.value"
+              @click="selectOption(option)"
+              class="option-item"
+            >
+              {{ option.label }}
+            </li>
+          </template>
           <li v-if="$slots.footer" class="options-footer">
             <slot name="footer"></slot>
           </li>
@@ -152,7 +158,15 @@ function handleSearch() {
 }
 .option-item { padding: 0.75rem 0.875rem; border-radius: 0.5rem; cursor: pointer; }
 .option-item:hover { background-color: #f3f4f6; }
-.no-options { padding: 0.75rem; color: #6b7280; }
+.no-options { padding: 0.75rem; color: #6b7280; text-align: center; }
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  padding: 1rem;
+}
 .options-footer {
   margin-top: 0.25rem;
   padding-top: 0.5rem;
