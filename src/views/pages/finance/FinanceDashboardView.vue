@@ -577,19 +577,12 @@ const mainChartOptions = {
 const doughnutOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '75%', // Thinner ring
-  borderRadius: 20, // Rounded ends
+  cutout: '80%', // Thinner ring to fit text
+  borderRadius: 10, // Rounded ends
   spacing: 5,
   plugins: {
     legend: {
-      position: 'bottom',
-      labels: {
-        usePointStyle: true,
-        pointStyle: 'circle',
-        padding: 20,
-        font: { family: "'Montserrat', sans-serif", size: 12 },
-        color: '#64748b'
-      }
+      display: false // We will use a custom html legend
     },
     tooltip: {
       backgroundColor: '#fff',
@@ -961,11 +954,31 @@ const navigateToProcedures = () => {
             <p class="card-subtitle">Distribuição da receita gerada por tipo de serviço.</p>
           </div>
         </div>
-        <div class="doughnut-wrapper">
-          <div v-if="financeStore.isLoading" class="w-full h-full flex items-center justify-center">
-             <AppSkeleton width="200px" height="200px" borderRadius="50%" />
+        <div class="doughnut-content-wrapper h-full flex flex-col">
+          <div v-if="financeStore.isLoading" class="w-full h-full flex flex-col items-center justify-center min-h-[300px]">
+             <AppSkeleton width="200px" height="200px" borderRadius="50%" class="mb-4" />
+             <AppSkeleton width="80%" height="20px" class="mb-2" />
+             <AppSkeleton width="60%" height="20px" />
           </div>
-          <Doughnut v-else :data="proceduresChartData" :options="doughnutOptions" />
+          <template v-else>
+            <div class="doughnut-wrapper relative" style="height: 240px; margin-bottom: 1rem; flex-shrink: 0;">
+              <Doughnut :data="proceduresChartData" :options="doughnutOptions" />
+              <div class="doughnut-center-text absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif;">
+                <span class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-widest mb-0.5">Total</span>
+                <span class="text-lg font-bold text-[#0f172a]">{{ formatCurrency(proceduresChartData.datasets[0].data.reduce((acc, val) => acc + val, 0)) }}</span>
+              </div>
+            </div>
+            
+            <div class="custom-doughnut-legend grid grid-cols-2 gap-x-3 gap-y-3 px-2 overflow-y-auto custom-scrollbar" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif; max-height: 120px;">
+              <div v-for="(label, index) in proceduresChartData.labels" :key="index" class="flex items-start gap-2 overflow-hidden">
+                <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" :style="{ backgroundColor: proceduresChartData.datasets[0].backgroundColor[index] }"></div>
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="text-[0.82rem] font-medium text-slate-700 truncate leading-snug" :title="label">{{ label }}</span>
+                  <span class="text-[0.75rem] text-slate-500">{{ formatCurrency(proceduresChartData.datasets[0].data[index]) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1021,15 +1034,15 @@ const navigateToProcedures = () => {
             </div>
           </template>
           <template v-else>
-            <div v-for="client in financeStore.topClientsPaginated.data" :key="client._id" class="mobile-card">
-              <div class="mobile-card-header">
-                <div class="client-avatar">{{ client.name.charAt(0) }}</div>
-                <div class="mobile-card-info">
-                  <span class="mobile-card-name">{{ client.name }}</span>
+            <div v-for="client in financeStore.topClientsPaginated.data" :key="client._id" class="mobile-card w-full max-w-full">
+              <div class="mobile-card-header min-w-0">
+                <div class="client-avatar shrink-0">{{ client.name.charAt(0) }}</div>
+                <div class="mobile-card-info min-w-0">
+                  <span class="mobile-card-name block truncate" :title="client.name">{{ client.name }}</span>
                   <span class="mobile-card-sub">{{ client.appointmentsCount }} procedimentos</span>
                 </div>
               </div>
-              <span class="mobile-card-value">{{ formatCurrency(client.totalRevenue) }}</span>
+              <span class="mobile-card-value font-semibold text-emerald-600 shrink-0">{{ formatCurrency(client.totalRevenue) }}</span>
             </div>
             <div v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-state-container">
               <Users :size="32" class="empty-state-icon" />
@@ -1040,13 +1053,13 @@ const navigateToProcedures = () => {
 
         <!-- Desktop Table View -->
         <div class="table-responsive desktop-only">
-          <table class="premium-table">
+          <table class="premium-table fixed-table">
             <thead>
               <tr>
-                <th><div class="th-content"><User :size="14" /> Cliente</div></th>
-                <th class="text-center"><div class="th-content center"><Activity :size="14" /> Procedimento</div></th>
-                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Total Gasto</div></th>
-                <th class="text-right"><div class="th-content right"><CheckCircle :size="14" /> Status</div></th>
+                <th style="width: 45%;"><div class="th-content"><User :size="14" /> Cliente</div></th>
+                <th style="width: 20%;" class="text-center"><div class="th-content center"><Activity :size="14" /> Procedimento</div></th>
+                <th style="width: 20%;" class="text-right"><div class="th-content right"><DollarSign :size="14" /> Total Gasto</div></th>
+                <th style="width: 15%;" class="text-right"><div class="th-content right"><CheckCircle :size="14" /> Status</div></th>
               </tr>
             </thead>
             <tbody>
@@ -1064,17 +1077,21 @@ const navigateToProcedures = () => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id" @click="navigateToPatient(client._id)" class="clickable-row" title="Ver detalhes do paciente">
+                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id" @click="navigateToPatient(client._id)" class="clickable-row modern-row" title="Ver detalhes do paciente">
                     <td>
                     <div class="client-info">
-                        <div class="client-avatar">{{ client.name.charAt(0) }}</div>
-                        <span class="client-name">{{ client.name }}</span>
+                        <div class="client-avatar shrink-0">{{ client.name.charAt(0) }}</div>
+                        <span class="client-name truncate" :title="client.name">{{ client.name }}</span>
                     </div>
                     </td>
-                    <td class="text-center">{{ client.appointmentsCount }}</td>
-                    <td class="text-right font-bold">{{ formatCurrency(client.totalRevenue) }}</td>
+                    <td class="text-center">
+                      <span class="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-slate-100 text-slate-600 font-medium text-sm border border-slate-200">
+                        {{ client.appointmentsCount }}
+                      </span>
+                    </td>
+                    <td class="text-right font-semibold text-emerald-600">{{ formatCurrency(client.totalRevenue) }}</td>
                     <td class="text-right">
-                        <span class="status-badge success">Ativo</span>
+                        <span class="status-badge modern-badge">Ativo</span>
                     </td>
                 </tr>
                 <tr v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-row">
@@ -1132,14 +1149,14 @@ const navigateToProcedures = () => {
             </div>
           </template>
           <template v-else>
-            <div v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" class="mobile-card">
-              <div class="mobile-card-header">
-                <div class="mobile-card-info">
-                  <span class="mobile-card-name">{{ proc._id }}</span>
+            <div v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" class="mobile-card w-full max-w-full">
+              <div class="mobile-card-header min-w-0">
+                <div class="mobile-card-info min-w-0">
+                  <span class="mobile-card-name block truncate" :title="proc._id">{{ proc._id }}</span>
                   <span class="mobile-card-sub">{{ proc.count }} realizados</span>
                 </div>
               </div>
-              <span class="mobile-card-value text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</span>
+              <span class="mobile-card-value font-semibold text-emerald-600 shrink-0">{{ formatCurrency(proc.totalRevenue) }}</span>
             </div>
             <div v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-state-container">
                <Activity :size="32" class="empty-state-icon" />
@@ -1150,12 +1167,12 @@ const navigateToProcedures = () => {
 
         <!-- Desktop Table View -->
         <div class="table-responsive desktop-only">
-          <table class="premium-table">
+          <table class="premium-table fixed-table">
             <thead>
               <tr>
-                <th><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
-                <th class="text-right"><div class="th-content right"><Hash :size="14" /> Qtd.</div></th>
-                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Receita</div></th>
+                <th style="width: 50%;"><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
+                <th style="width: 20%;" class="text-right"><div class="th-content right"><Hash :size="14" /> Qtd.</div></th>
+                <th style="width: 30%;" class="text-right"><div class="th-content right"><DollarSign :size="14" /> Receita</div></th>
               </tr>
             </thead>
             <tbody>
@@ -1167,12 +1184,16 @@ const navigateToProcedures = () => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" @click="navigateToProcedures()" class="clickable-row" title="Ver lista de procedimentos">
+                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" @click="navigateToProcedures()" class="clickable-row modern-row" title="Ver lista de procedimentos">
                     <td>
-                    <span class="font-medium text-slate-700">{{ proc._id }}</span>
+                    <span class="font-medium text-slate-700 block truncate" :title="proc._id">{{ proc._id }}</span>
                     </td>
-                    <td class="text-right">{{ proc.count }}</td>
-                    <td class="text-right font-bold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
+                    <td class="text-right">
+                      <span class="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-slate-100 text-slate-600 font-medium text-sm border border-slate-200">
+                        {{ proc.count }}
+                      </span>
+                    </td>
+                    <td class="text-right font-semibold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
                 </tr>
                 <tr v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-row">
                     <td colspan="3">
@@ -1244,7 +1265,8 @@ const navigateToProcedures = () => {
   height: 40px;
   border: 1px solid #dbe3ef;
   background-color: #ffffff;
-  color: #334155;
+  color: var;
+  color: var();
   border-radius: 0.7rem;
   font-size: 0.86rem;
   font-weight: 600;
@@ -1978,9 +2000,14 @@ const navigateToProcedures = () => {
   overflow-y: auto;
 }
 
+.fixed-table {
+  table-layout: fixed;
+}
+
 .premium-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
 }
 
 .premium-table th {
@@ -1988,44 +2015,63 @@ const navigateToProcedures = () => {
   top: 0;
   z-index: 10;
   text-align: left;
-  padding: 1rem;
-  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  background: var(--branco);
   color: #64748b;
   font-weight: 600;
-  font-size: 0.85rem;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #f1f5f9;
 }
 
 .premium-table td {
   padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  font-size: 0.95rem;
+  background-color: transparent;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
 }
 
-.premium-table tr:not(.empty-row):hover td {
+.modern-row td:first-child {
+  border-top-left-radius: 0.6rem;
+  border-bottom-left-radius: 0.6rem;
+  border-left: 1px solid transparent;
+}
+
+.modern-row td:last-child {
+  border-top-right-radius: 0.6rem;
+  border-bottom-right-radius: 0.6rem;
+  border-right: 1px solid transparent;
+}
+
+.premium-table tr.modern-row:hover td {
     background-color: #f8fafc;
+    border-color: #f1f5f9;
 }
 
 .client-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .client-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #eff6ff;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
   color: var(--azul-principal);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .clickable-row {
@@ -2050,14 +2096,17 @@ const navigateToProcedures = () => {
   font-weight: 600;
 }
 
-.status-badge.success {
-  background-color: #ecfdf5;
+.status-badge.modern-badge {
+  background-color: transparent;
+  border: 1px solid rgba(16, 185, 129, 0.3);
   color: #059669;
+  letter-spacing: 0.02em;
 }
 
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
 .text-muted { color: var(--cinza-texto); }
 .font-medium { font-weight: 500; }
 
@@ -2069,7 +2118,6 @@ const navigateToProcedures = () => {
 .text-slate-700 { color: #334155; }
 /* Card Footer */
 .card-footer {
-  padding: 1rem;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -2121,6 +2169,7 @@ const navigateToProcedures = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 .mobile-card-sub {
@@ -2339,6 +2388,7 @@ const navigateToProcedures = () => {
 
   .mobile-card-name {
     font-size: 0.85rem;
+    max-width: 120px;
   }
 
   .mobile-card-value {

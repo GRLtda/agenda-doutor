@@ -65,7 +65,7 @@ const summaryText = computed(() => {
 <template>
   <div class="pagination-container">
     <div class="summary-desktop">
-      <span class="text-sm text-gray-600">{{ summaryText }}</span>
+      <span class="summary-text">{{ summaryText }}</span>
     </div>
 
     <div class="nav-desktop">
@@ -74,8 +74,8 @@ const summaryText = computed(() => {
         :disabled="isFirstPage"
         class="btn-nav"
       >
-        <ChevronLeft class="h-5 w-5" />
-        <span>Anterior</span>
+        <ChevronLeft class="h-4 w-4 shrink-0" />
+        <span class="hidden sm:inline">Anterior</span>
       </button>
 
       <div class="page-numbers">
@@ -96,12 +96,10 @@ const summaryText = computed(() => {
         :disabled="isLastPage"
         class="btn-nav"
       >
-        <span>Próximo</span>
-        <ChevronRight class="h-5 w-5" />
+        <span class="hidden sm:inline">Próximo</span>
+        <ChevronRight class="h-4 w-4 shrink-0" />
       </button>
     </div>
-
-    <div class="empty-desktop"></div>
 
     <div class="nav-mobile">
       <button
@@ -109,10 +107,10 @@ const summaryText = computed(() => {
         :disabled="isFirstPage"
         class="btn-nav"
       >
-        <ChevronLeft class="h-5 w-5" />
+        <ChevronLeft class="h-4 w-4" />
       </button>
 
-      <span class="mobile-summary text-sm text-gray-600">
+      <span class="mobile-summary">
         Página {{ currentPage }} / {{ totalPages }}
       </span>
 
@@ -121,7 +119,7 @@ const summaryText = computed(() => {
         :disabled="isLastPage"
         class="btn-nav"
       >
-        <ChevronRight class="h-5 w-5" />
+        <ChevronRight class="h-4 w-4" />
       </button>
     </div>
   </div>
@@ -131,117 +129,120 @@ const summaryText = computed(() => {
 /* Container principal */
 .pagination-container {
   display: flex;
-  justify-content: space-between; /* 3 colunas: Esquerda, Centro, Direita */
+  justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--cinza-borda);
-  background-color: var(--branco);
+  padding: 0.5rem 0.25rem;
+  background-color: transparent;
   width: 100%;
+  border-top: none; /* Remove border to clean up layout inside cards */
 }
 
-/* --- Layout Desktop (3 Colunas) --- */
+/* --- Layout Desktop --- */
 .summary-desktop {
   display: flex;
-  flex: 1;
-  justify-content: flex-start; /* Alinha sumário à esquerda */
+  align-items: center;
   color: var(--cinza-texto);
+}
+
+.summary-text {
+  font-size: 0.82rem;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 .nav-desktop {
   display: flex;
-  flex: 1;
-  justify-content: center; /* 🎯 Centraliza a navegação */
   align-items: center;
-  gap: 0.5rem;
-}
-
-.empty-desktop {
-  display: flex;
-  flex: 1;
-  /* Este slot fica vazio para balancear o flex: 1 do sumário */
+  gap: 0.25rem;
 }
 
 .page-numbers {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0 0.5rem; /* Espaço entre números e botões de navegação */
+  gap: 0.2rem;
+  margin: 0 0.5rem;
 }
 
 /* --- Navegação Mobile --- */
 .nav-mobile {
-  display: none; /* Escondido no Desktop */
+  display: none;
   width: 100%;
   justify-content: space-between;
   align-items: center;
 }
 
 .mobile-summary {
-  color: var(--cinza-texto);
+  color: #64748b;
   font-weight: 500;
+  font-size: 0.8rem;
 }
 
 /* --- Estilos Gerais de Botões --- */
 .btn-nav,
 .btn-page {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--cinza-borda);
+  border: 1px solid transparent;
   border-radius: 0.375rem;
-  /* Botões ficam brancos para contrastar com o novo fundo */
-  background-color: var(--branco);
-  color: var(--cinza-texto-escuro);
+  background-color: transparent;
+  color: #475569;
   font-weight: 500;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
+
 .btn-nav {
-  padding: 0.5rem 1rem;
-  gap: 0.25rem; /* Espaço entre ícone e texto */
+  padding: 0.3rem 0.5rem;
+  gap: 0.25rem;
 }
+
 .btn-page {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
 }
-.btn-nav:hover,
-.btn-page:hover {
-  background-color: #f3f4f6;
-  border-color: #9ca3af;
+
+.btn-nav:hover:not(:disabled),
+.btn-page:hover:not(.active) {
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
+
 .btn-nav:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
+
 .btn-page.active {
-  background-color: var(--azul-principal);
-  color: var(--branco);
-  border-color: var(--azul-principal);
+  background-color: var(--azul-principal, #3b82f6);
+  color: #ffffff;
+  border-color: var(--azul-principal, #3b82f6);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
 }
+
 .dots {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  color: var(--cinza-texto);
+  width: 24px;
+  height: 28px;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 
 /* ✨ INÍCIO DOS ESTILOS RESPONSIVOS ✨ */
 @media (max-width: 768px) {
   .pagination-container {
-    padding: 1rem; /* Menor padding no mobile */
-    /* A cor de fundo #f9fafb é herdada */
+    padding: 0.5rem 0;
   }
 
-  /* Esconde os elementos de desktop */
   .summary-desktop,
-  .nav-desktop,
-  .empty-desktop {
+  .nav-desktop {
     display: none;
   }
 
-  /* Mostra a navegação mobile */
   .nav-mobile {
     display: flex;
   }
