@@ -10,13 +10,16 @@ export const useFinanceStore = defineStore('finance', () => {
   const revenueSummary = ref({ totalRevenue: 0 })
   const revenueByProcedure = ref([])
   const dailyRevenue = ref([])
+  const previousDailyRevenue = ref([])
   const hoursRevenue = ref([])
+  const previousHoursRevenue = ref([])
   const monthlyRevenue = ref([])
   const topClients = ref([])
   const topProcedures = ref([])
   const kpi = ref({
     averageTicket: 0,
-    proceduresCount: 0
+    proceduresCount: 0,
+    appointmentsCount: 0
   })
   const comparison = ref({
   current: 0,
@@ -38,10 +41,12 @@ async function fetchDashboardData(period = 'month', startDate = null, endDate = 
     revenueSummary.value = data.revenueSummary || { totalRevenue: 0 }
     revenueByProcedure.value = data.revenueByProcedure || []
     dailyRevenue.value = data.dailyRevenue || []
+    previousDailyRevenue.value = data.previousDailyRevenue || []
     hoursRevenue.value = data.hoursRevenue || []
+    previousHoursRevenue.value = data.previousHoursRevenue || []
     monthlyRevenue.value = data.monthlyRevenue || []
     topClients.value = data.topClients || []
-    kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0 }
+    kpi.value = data.kpi || { averageTicket: 0, proceduresCount: 0, appointmentsCount: 0 }
     comparison.value = data.comparison || { current: 0, previous: 0 }
     topProcedures.value = data.topProcedures || []
     lastSynced.value = data.lastSynced || null
@@ -113,7 +118,9 @@ return {
   revenueSummary,
   revenueByProcedure,
   dailyRevenue,
+  previousDailyRevenue,
   hoursRevenue,
+  previousHoursRevenue,
   monthlyRevenue,
   topClients,
   topProcedures,
