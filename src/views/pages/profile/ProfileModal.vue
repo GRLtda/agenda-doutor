@@ -306,7 +306,7 @@ watch(
 .profile-modal-frame {
   position: relative;
   width: min(1160px, 100%);
-  height: min(88dvh, 920px);
+  height: min(82dvh, 880px);
   z-index: 1;
   animation: profile-modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: center;
@@ -410,8 +410,8 @@ watch(
   align-items: center;
   justify-content: center;
   border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.8);
-  color: #4b5563;
+  background: #eef2ff;
+  color: var(--azul-principal);
   flex-shrink: 0;
 }
 
@@ -442,8 +442,8 @@ watch(
   width: 34px;
   height: 34px;
   border-radius: 0.7rem;
-  background: #f3f4f6;
-  color: #374151;
+  background: #eef2ff;
+  color: var(--azul-principal);
   display: inline-flex;
   align-items: center;
   justify-content: center;

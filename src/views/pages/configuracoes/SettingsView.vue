@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -32,6 +32,12 @@ const getIsMobileViewport = () => {
 }
 const isMobile = ref(getIsMobileViewport())
 const mobileStage = ref('menu')
+const settingsSidebarNavRef = ref(null)
+const settingsIndicatorStyle = ref({
+  top: '0px',
+  height: '0px',
+  opacity: 0,
+})
 let mobileMediaQuery = null
 let mobileMediaListener = null
 let previousBodyOverflow = ''
@@ -152,6 +158,32 @@ const unlockBackgroundScroll = () => {
   document.documentElement.style.overflow = previousHtmlOverflow
 }
 
+const updateSettingsSidebarIndicator = () => {
+  nextTick(() => {
+    if (!settingsSidebarNavRef.value || isMobile.value) {
+      settingsIndicatorStyle.value = { ...settingsIndicatorStyle.value, opacity: 0 }
+      return
+    }
+
+    const activeItem = settingsSidebarNavRef.value.querySelector('.sidebar-item.active')
+
+    if (!activeItem) {
+      settingsIndicatorStyle.value = { ...settingsIndicatorStyle.value, opacity: 0 }
+      return
+    }
+
+    const navRect = settingsSidebarNavRef.value.getBoundingClientRect()
+    const itemRect = activeItem.getBoundingClientRect()
+    const navScrollTop = settingsSidebarNavRef.value.scrollTop
+
+    settingsIndicatorStyle.value = {
+      top: `${itemRect.top - navRect.top + navScrollTop}px`,
+      height: `${itemRect.height}px`,
+      opacity: 1,
+    }
+  })
+}
+
 onMounted(() => {
   lockBackgroundScroll()
 
@@ -165,6 +197,7 @@ onMounted(() => {
 
   syncMobileStage(mobileMediaQuery.matches)
   mobileMediaQuery.addEventListener('change', mobileMediaListener)
+  updateSettingsSidebarIndicator()
 })
 
 onBeforeUnmount(() => {
@@ -193,6 +226,14 @@ watch(
     }
   }
 )
+
+watch(activeTab, () => {
+  updateSettingsSidebarIndicator()
+})
+
+watch(isMobile, () => {
+  updateSettingsSidebarIndicator()
+})
 
 const currentTab = computed(() => tabs.find((tab) => tab.value === activeTab.value) || tabs[0])
 
@@ -242,7 +283,19 @@ const handleMobileBack = () => {
                   <p>Ajustes da clínica em um painel central.</p>
                 </div>
 
-                <nav class="sidebar-nav">
+                <nav
+                  ref="settingsSidebarNavRef"
+                  class="sidebar-nav"
+                  @scroll.passive="updateSettingsSidebarIndicator"
+                >
+                  <div
+                    class="settings-sliding-indicator"
+                    :style="{
+                      top: settingsIndicatorStyle.top,
+                      height: settingsIndicatorStyle.height,
+                      opacity: settingsIndicatorStyle.opacity,
+                    }"
+                  ></div>
                   <button
                     v-for="tab in tabs"
                     :key="tab.value"
@@ -252,7 +305,7 @@ const handleMobileBack = () => {
                     @click="openTab(tab.value)"
                   >
                     <span class="sidebar-item-icon">
-                      <component :is="tab.icon" :size="18" />
+                      <component :is="tab.icon" :size="20" />
                     </span>
                     <span class="sidebar-item-label">{{ tab.label }}</span>
                   </button>
@@ -446,33 +499,58 @@ const handleMobileBack = () => {
   flex-direction: column;
   gap: 0.35rem;
   overflow-y: auto;
+  position: relative;
+}
+
+.settings-sliding-indicator {
+  position: absolute;
+  left: 3px;
+  width: 3px;
+  background-color: var(--azul-principal);
+  border-radius: 0 2px 2px 0;
+  transition:
+    top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  pointer-events: none;
+  transform: scaleY(0.6);
+  transform-origin: center;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.75rem;
   width: 100%;
   border: 1px solid transparent;
   background: transparent;
   color: #3f4752;
-  padding: 0.7rem 0.85rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 0.8rem;
-  font-size: 0.89rem;
-  font-weight: 600;
+  min-height: 2.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   text-align: left;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s ease,
+    padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
 }
 
-.sidebar-item:hover {
-  background: #eef1f4;
-  color: #111827;
+.sidebar-item:active {
+  transform: scale(0.985);
 }
 
 .sidebar-item.active {
-  background: #e5e7eb;
-  border-color: #dde2e8;
-  color: #111827;
+  background: #eef2ff;
+  border-color: transparent;
+  color: var(--azul-principal);
+  font-weight: 600;
 }
 
 .sidebar-item-icon {
@@ -481,10 +559,14 @@ const handleMobileBack = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.8);
-  color: #4b5563;
+  background: transparent;
+  color: inherit;
   flex-shrink: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-item.active .sidebar-item-icon {
+  color: var(--azul-principal);
 }
 
 .settings-content {
@@ -513,9 +595,8 @@ const handleMobileBack = () => {
 .content-tab-icon {
   width: 34px;
   height: 34px;
-  border-radius: 0.7rem;
-  background: #f3f4f6;
-  color: #374151;
+  background: transparent;
+  color: var(--azul-principal);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -588,13 +669,11 @@ const handleMobileBack = () => {
 .mobile-head-icon {
   width: 32px;
   height: 32px;
-  border-radius: 0.7rem;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: var(--azul-principal);
   flex-shrink: 0;
 }
 
@@ -648,8 +727,7 @@ const handleMobileBack = () => {
 .mobile-nav-icon {
   width: 32px;
   height: 32px;
-  border-radius: 0.7rem;
-  background: #f3f4f6;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
