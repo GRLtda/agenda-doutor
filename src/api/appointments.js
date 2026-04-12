@@ -42,9 +42,9 @@ export const getAppointmentById = (appointmentId) => {
  * @param {string} endTime - Data e hora de fim (ISO String).
  * @returns {Promise}
  */
-export const checkConflict = (patientId, startTime, endTime) => {
+export const checkConflict = (patientId, startTime, endTime, doctorId = null, ignoreId = null) => {
   return apiClient.get('/appointments/check-conflict', {
-    params: { patientId, startTime, endTime },
+    params: { patientId, startTime, endTime, doctorId, ignoreId },
   })
 }
 

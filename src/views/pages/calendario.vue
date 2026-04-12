@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useRouter } from 'vue-router'
-import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X } from 'lucide-vue-next'
+import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X, CalendarMinus, CalendarPlus } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
+import ScheduleBlockModal from '@/components/pages/calendario/ScheduleBlockModal.vue'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
 import VueDatePicker from '@vuepic/vue-datepicker'
@@ -29,6 +31,7 @@ import SideDrawer from '@/components/global/SideDrawer.vue'
 import CalendarFilterPanel from '@/components/pages/calendario/CalendarFilterPanel.vue'
 
 const appointmentsStore = useAppointmentsStore()
+const scheduleBlocksStore = useScheduleBlocksStore()
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
 const router = useRouter()
@@ -73,9 +76,11 @@ const datePickerModel = computed({
 })
 
 const isModalOpen = ref(false)
+const isBlockModalOpen = ref(false)
 const isDetailsModalOpen = ref(false)
 const selectedEventForDetails = ref(null)
 const initialAppointmentData = ref(null)
+const initialBlockData = ref(null)
 const selectedDate = ref(new Date())
 const currentTime = ref(new Date())
 const vueCalRef = ref(null)
@@ -84,6 +89,7 @@ const calendarView = ref('week')
 const isMobile = ref(window.innerWidth <= 768)
 const isInitialLoad = ref(true)
 const isFilterDrawerOpen = ref(false)
+const isQuickActionMenuOpen = ref(false)
 
 const statusOptions = [
   { label: 'Agendado', value: 'Agendado', color: 'bg-blue-100 text-blue-700' },
@@ -115,6 +121,7 @@ function selectDoctor(doc) {
 
 
 const weekAppointments = computed(() => appointmentsStore.appointments)
+const weekBlocks = computed(() => scheduleBlocksStore.blocks)
 
 const weekStart = computed(() => startOfWeek(selectedDate.value, { weekStartsOn: 1 }))
 const weekEnd = computed(() => endOfWeek(selectedDate.value, { weekStartsOn: 1 }))
@@ -322,7 +329,10 @@ async function fetchDataForView() {
     startDate = format(weekStart.value, 'yyyy-MM-dd')
     endDate = format(endOfWeek(selectedDate.value), 'yyyy-MM-dd')
   }
-  await appointmentsStore.fetchAppointmentsByDate(startDate, endDate)
+  await Promise.all([
+    appointmentsStore.fetchAppointmentsByDate(startDate, endDate),
+    scheduleBlocksStore.fetchBlocksByDate(startDate, endDate),
+  ])
 }
 
 function handleEditAction(eventData) {
@@ -334,7 +344,30 @@ function handleEditAction(eventData) {
   //   initialAppointmentData.value,
   // )
 
+  isQuickActionMenuOpen.value = false
   isModalOpen.value = true
+}
+
+function openCreateBlockDrawer(baseDate = null) {
+  const start = baseDate ? new Date(baseDate) : new Date()
+  const end = new Date(start)
+  end.setMinutes(end.getMinutes() + 30)
+
+  initialBlockData.value = {
+    startAt: start,
+    endAt: end,
+    doctor: selectedDoctorId.value || null,
+  }
+  isQuickActionMenuOpen.value = false
+  isBlockModalOpen.value = true
+}
+
+function openCreateAppointmentFromMenu() {
+  handleEditAction(null)
+}
+
+function openCreateBlockFromMenu() {
+  openCreateBlockDrawer(selectedDate.value)
 }
 
 function goToPrevious() {
@@ -470,8 +503,44 @@ const formattedEvents = computed(() => {
   }).filter(evt => evt !== null) // Remove nulos gerados por dados inválidos
 })
 
+const formattedBlockEvents = computed(() => {
+  if (!Array.isArray(weekBlocks.value)) return []
+
+  let filtered = weekBlocks.value
+
+  if (selectedDoctorId.value) {
+    filtered = filtered.filter((block) => {
+      const doctorId = block?.doctor?._id || block?.doctor
+      return String(doctorId) === String(selectedDoctorId.value)
+    })
+  }
+
+  return filtered
+    .map((block) => {
+      if (!block?.startAt || !block?.endAt) return null
+
+      const startTime = new Date(block.startAt)
+      const endTime = new Date(block.endAt)
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return null
+
+      const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+
+      return {
+        start: formatToVueCalString(block.startAt),
+        end: formatToVueCalString(block.endAt),
+        title: block.title || 'Bloqueio',
+        class: 'clinic-closed-event clinic-doctor-block-event',
+        originalEvent: block,
+        duration,
+        status: 'bloqueio',
+        isScheduleBlock: true,
+      }
+    })
+    .filter((event) => event !== null)
+})
+
 const allCalendarEvents = computed(() => {
-  return [...formattedEvents.value, ...closedTimeEvents.value]
+  return [...formattedEvents.value, ...formattedBlockEvents.value, ...closedTimeEvents.value]
 })
 
 // Mapa de contagem de agendamentos por dia (yyyy-MM-dd -> count)
@@ -567,6 +636,12 @@ function handleEventClick(event, e) {
   // Prevent propagation if needed, though vue-cal usually handles this
   if (e && e.stopPropagation) e.stopPropagation()
 
+  if (event?.isScheduleBlock) {
+    initialBlockData.value = event.originalEvent
+    isBlockModalOpen.value = true
+    return
+  }
+
   if (event.class && event.class.includes('clinic-closed-event')) {
     return
   }
@@ -597,6 +672,16 @@ function handleAppointmentSaved() {
 function closeDetailsModal() {
   isDetailsModalOpen.value = false
   fetchDataForView()
+}
+
+function closeBlockModal() {
+  isBlockModalOpen.value = false
+  initialBlockData.value = null
+}
+
+function handleBlockSaved() {
+  fetchDataForView()
+  closeBlockModal()
 }
 
 function handleReschedule(appointmentToReschedule) {
@@ -707,14 +792,20 @@ const getDayNumber = (heading) => {
                <Filter :size="18" />
              </button>
 
-             <CreateAppointmentModal
-                v-if="isModalOpen"
-                :initial-data="initialAppointmentData"
-                @close="closeModal"
-                @saved="handleAppointmentSaved"
-                />
-            <AppointmentDetailsModal
-                v-if="isDetailsModalOpen"
+	             <CreateAppointmentModal
+	                v-if="isModalOpen"
+	                :initial-data="initialAppointmentData"
+	                @close="closeModal"
+	                @saved="handleAppointmentSaved"
+	                />
+	            <ScheduleBlockModal
+	              v-if="isBlockModalOpen"
+	              :initial-data="initialBlockData"
+	              @close="closeBlockModal"
+	              @saved="handleBlockSaved"
+	            />
+	            <AppointmentDetailsModal
+	                v-if="isDetailsModalOpen"
                 :event="selectedEventForDetails"
                 :has-previous="hasPreviousAppointment"
                 :has-next="hasNextAppointment"
@@ -728,8 +819,8 @@ const getDayNumber = (heading) => {
                 @reschedule="handleReschedule(selectedEventForDetails.originalEvent)"
             />
 
-            <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading }">
-                <div v-if="appointmentsStore.isLoading" class="loading-overlay">
+	            <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading || scheduleBlocksStore.isLoading }">
+	                <div v-if="appointmentsStore.isLoading || scheduleBlocksStore.isLoading" class="loading-overlay">
                     <div class="loading-animation">
                     <LoaderCircle :size="32" class="animate-spin" />
                     <span>Carregando...</span>
@@ -762,12 +853,16 @@ const getDayNumber = (heading) => {
                     </div>
                     </template>
 
-                    <template #event="{ event }">
-                    <div v-if="event.class === 'clinic-closed-event'" class="closed-event-content">
-                        {{ event.title }}
-                    </div>
+	                    <template #event="{ event }">
+	                    <div v-if="event.class?.includes('clinic-closed-event') && !event.isScheduleBlock" class="closed-event-content">
+	                        {{ event.title || 'Fechado' }}
+	                    </div>
 
-                    <div
+	                    <div v-else-if="event.isScheduleBlock" class="closed-event-content">
+	                        {{ event.title }}
+	                    </div>
+
+	                    <div
                         v-else-if="event.duration <= 30"
                         class="custom-event-content-short"
                         :title="`${event.title} (${event.status})`"
@@ -831,13 +926,26 @@ const getDayNumber = (heading) => {
                 <ChevronRight :size="20" />
                 </button>
 
-                <div class="separator-vertical"></div>
-                <button class="new-appointment-btn" @click="handleEditAction(null)" title="Novo Agendamento">
-                    <Plus :size="20" />
-                </button>
-            </div>
-            </footer>
-        </main>
+	                <div class="separator-vertical"></div>
+	                <div class="quick-actions-wrapper" v-click-outside="() => (isQuickActionMenuOpen = false)">
+	                  <button class="new-appointment-btn" @click.stop="isQuickActionMenuOpen = !isQuickActionMenuOpen" title="Novo">
+	                    <Plus :size="20" />
+	                  </button>
+
+	                  <div v-if="isQuickActionMenuOpen" class="quick-actions-menu">
+	                    <button class="quick-action-item" @click="openCreateAppointmentFromMenu">
+	                      <CalendarPlus :size="14" />
+	                      Criar agendamento
+	                    </button>
+	                    <button class="quick-action-item" @click="openCreateBlockFromMenu">
+	                      <CalendarMinus :size="14" />
+	                      Adicionar Bloqueio
+	                    </button>
+	                  </div>
+	                </div>
+	            </div>
+	            </footer>
+	        </main>
 
         <!-- SIDEBAR - Lado Direito -->
         <aside class="calendar-sidebar-panel">
@@ -951,6 +1059,16 @@ const getDayNumber = (heading) => {
   transform: none;
   box-shadow: none;
   opacity: 0.8;
+}
+.vuecal__event.clinic-closed-event.clinic-doctor-block-event {
+  cursor: pointer;
+  opacity: 0.95;
+  z-index: 4;
+}
+.vuecal__event.clinic-closed-event.clinic-doctor-block-event:hover {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  opacity: 1;
 }
 .vuecal__event.clinic-closed-event::before {
   display: none; /* Esconde a barra lateral */
@@ -1379,6 +1497,47 @@ const getDayNumber = (heading) => {
 .new-appointment-btn:hover {
   background-color: #2563eb;
   transform: scale(1.05);
+}
+
+.quick-actions-wrapper {
+  position: relative;
+}
+
+.quick-actions-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  min-width: 236px;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.9rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+  padding: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 50;
+}
+
+.quick-action-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.quick-action-item:hover {
+  background-color: #eef2ff;
+  color: #1d4ed8;
 }
 
 .calendar-container {

@@ -36,8 +36,16 @@ const selectedImage = computed(() => {
   return selectedOption.value?.image || null
 })
 
+const selectedIcon = computed(() => {
+  return selectedOption.value?.icon || null
+})
+
 const hasImages = computed(() => {
   return props.options.some((opt) => opt.image)
+})
+
+const hasIcons = computed(() => {
+  return props.options.some((opt) => opt.icon)
 })
 
 function getInitial(label) {
@@ -141,6 +149,8 @@ function selectOption(option) {
               {{ getInitial(selectedLabel) }}
             </div>
           </div>
+          <component v-if="selectedIcon" :is="selectedIcon" :size="16" class="option-icon" />
+          <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
           <span class="truncate">{{ selectedLabel }}</span>
         </div>
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
@@ -173,6 +183,8 @@ function selectOption(option) {
                   {{ getInitial(option.label) }}
                 </div>
               </div>
+              <component v-if="option.icon" :is="option.icon" :size="16" class="option-icon" />
+              <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
               <span>{{ option.label }}</span>
             </li>
           </ul>
@@ -301,6 +313,16 @@ function selectOption(option) {
   font-size: 0.75rem;
   font-weight: 700;
   border: none;
+}
+
+.option-icon {
+  color: #4b5563;
+  flex-shrink: 0;
+}
+
+.option-icon-placeholder {
+  width: 16px;
+  height: 16px;
 }
 
 .gap-2 {
