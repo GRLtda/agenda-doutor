@@ -9,6 +9,7 @@ import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, Chevr
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
 import ScheduleBlockModal from '@/components/pages/calendario/ScheduleBlockModal.vue'
+import ScheduleBlockConflictResolutionDrawer from '@/components/pages/calendario/ScheduleBlockConflictResolutionDrawer.vue'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
 import VueDatePicker from '@vuepic/vue-datepicker'
@@ -90,6 +91,11 @@ const isMobile = ref(window.innerWidth <= 768)
 const isInitialLoad = ref(true)
 const isFilterDrawerOpen = ref(false)
 const isQuickActionMenuOpen = ref(false)
+const isConflictResolutionDrawerOpen = ref(false)
+const conflictResolutionBlockId = ref(undefined)
+const conflictResolutionBlockTitle = ref('')
+const conflictResolutionItems = ref([])
+const conflictResolutionPendingPayload = ref(null)
 
 const statusOptions = [
   { label: 'Agendado', value: 'Agendado', color: 'bg-blue-100 text-blue-700' },
@@ -362,12 +368,12 @@ function openCreateBlockDrawer(baseDate = null) {
   isBlockModalOpen.value = true
 }
 
-function openCreateAppointmentFromMenu() {
-  handleEditAction(null)
-}
-
 function openCreateBlockFromMenu() {
   openCreateBlockDrawer(selectedDate.value)
+}
+
+function openCreateAppointmentFromMenu() {
+  handleEditAction(null)
 }
 
 function goToPrevious() {
@@ -679,9 +685,93 @@ function closeBlockModal() {
   initialBlockData.value = null
 }
 
-function handleBlockSaved() {
+function handleBlockSaved(blockPayload = null) {
   fetchDataForView()
   closeBlockModal()
+  const conflicts = blockPayload?.conflictSummary?.conflicts || []
+  if (!Array.isArray(conflicts) || conflicts.length === 0) return
+
+  openConflictResolutionDrawer({
+    blockId: blockPayload?._id || undefined,
+    title: blockPayload?.title || 'Bloqueio de Agenda',
+    conflicts,
+    pendingPayload: null,
+  })
+}
+
+function handleResolveBeforeSaveBlock({ operation = 'create', blockId = null, payload, conflicts }) {
+  closeBlockModal()
+
+  openConflictResolutionDrawer({
+    blockId: undefined,
+    title: payload?.title || 'Bloqueio de Agenda',
+    conflicts: conflicts || [],
+    pendingPayload: payload ? { operation, blockId, payload } : null,
+  })
+}
+
+function openConflictResolutionDrawer({ blockId = undefined, title = 'Bloqueio de Agenda', conflicts = [], pendingPayload = null }) {
+  if (!Array.isArray(conflicts) || conflicts.length === 0) return
+
+  conflictResolutionBlockId.value = blockId
+  conflictResolutionBlockTitle.value = title
+  conflictResolutionPendingPayload.value = pendingPayload
+  conflictResolutionItems.value = conflicts
+  isConflictResolutionDrawerOpen.value = true
+}
+
+function closeConflictResolutionDrawer() {
+  isConflictResolutionDrawerOpen.value = false
+  conflictResolutionBlockId.value = undefined
+  conflictResolutionBlockTitle.value = ''
+  conflictResolutionPendingPayload.value = null
+  conflictResolutionItems.value = []
+  fetchDataForView()
+}
+
+async function handleConflictsResolved() {
+  if (conflictResolutionPendingPayload.value?.payload) {
+    const { operation = 'create', blockId = null, payload: basePayload } = conflictResolutionPendingPayload.value
+    const payload = { ...basePayload, requireNoConflicts: true }
+
+    const result =
+      operation === 'update' && blockId
+        ? await scheduleBlocksStore.updateBlock(blockId, payload)
+        : await scheduleBlocksStore.createBlock(payload)
+    const { success, error } = result
+
+    if (!success) {
+      const conflictSummary = error?.response?.data?.conflictSummary
+      const conflictItems = conflictSummary?.conflicts || []
+
+      if (error?.response?.status === 409 && conflictItems.length > 0) {
+        toast.warning(
+          operation === 'update'
+            ? 'Ainda existem conflitos pendentes. Resolva-os para concluir a atualização do bloqueio.'
+            : 'Ainda existem conflitos pendentes. Resolva-os para concluir a criação do bloqueio.'
+        )
+        openConflictResolutionDrawer({
+          blockId: undefined,
+          title: payload.title || 'Bloqueio de Agenda',
+          conflicts: conflictItems,
+          pendingPayload: conflictResolutionPendingPayload.value,
+        })
+        return
+      }
+
+      toast.error(
+        error?.response?.data?.message ||
+          (operation === 'update'
+            ? 'Não foi possível atualizar o bloqueio após resolver os conflitos.'
+            : 'Não foi possível criar o bloqueio após resolver os conflitos.')
+      )
+      return
+    }
+
+    toast.success(operation === 'update' ? 'Bloqueio atualizado com sucesso.' : 'Bloqueio criado com sucesso.')
+  }
+
+  closeConflictResolutionDrawer()
 }
 
 function handleReschedule(appointmentToReschedule) {
@@ -803,7 +893,17 @@ const getDayNumber = (heading) => {
 	              :initial-data="initialBlockData"
 	              @close="closeBlockModal"
 	              @saved="handleBlockSaved"
+                @resolve-before-save="handleResolveBeforeSaveBlock"
 	            />
+              <ScheduleBlockConflictResolutionDrawer
+                v-if="isConflictResolutionDrawerOpen"
+                :block-id="conflictResolutionBlockId"
+                :block-title="conflictResolutionBlockTitle"
+                :initial-conflicts="conflictResolutionItems"
+                :pending-block-payload="conflictResolutionPendingPayload"
+                @close="closeConflictResolutionDrawer"
+                @resolved="handleConflictsResolved"
+              />
 	            <AppointmentDetailsModal
 	                v-if="isDetailsModalOpen"
                 :event="selectedEventForDetails"

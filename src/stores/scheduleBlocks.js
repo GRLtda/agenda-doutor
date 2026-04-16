@@ -2,8 +2,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
   getScheduleBlocks as apiGetScheduleBlocks,
+  previewScheduleBlockConflicts as apiPreviewScheduleBlockConflicts,
   createScheduleBlock as apiCreateScheduleBlock,
   updateScheduleBlock as apiUpdateScheduleBlock,
+  getScheduleBlockConflicts as apiGetScheduleBlockConflicts,
   deleteScheduleBlock as apiDeleteScheduleBlock,
 } from '@/api/schedule-blocks'
 
@@ -57,6 +59,16 @@ export const useScheduleBlocksStore = defineStore('scheduleBlocks', () => {
     }
   }
 
+  async function previewBlockConflicts(payload) {
+    try {
+      const response = await apiPreviewScheduleBlockConflicts(payload)
+      return { success: true, data: response.data }
+    } catch (error) {
+      console.error('Erro ao prever conflitos do bloqueio:', error)
+      return { success: false, error }
+    }
+  }
+
   async function updateBlock(blockId, payload) {
     isLoading.value = true
     try {
@@ -85,12 +97,24 @@ export const useScheduleBlocksStore = defineStore('scheduleBlocks', () => {
     }
   }
 
+  async function fetchBlockConflicts(blockId) {
+    try {
+      const response = await apiGetScheduleBlockConflicts(blockId)
+      return { success: true, data: response.data }
+    } catch (error) {
+      console.error('Erro ao buscar conflitos do bloqueio:', error)
+      return { success: false, error }
+    }
+  }
+
   return {
     blocks,
     isLoading,
     fetchBlocksByDate,
     createBlock,
+    previewBlockConflicts,
     updateBlock,
+    fetchBlockConflicts,
     deleteBlock,
   }
 })

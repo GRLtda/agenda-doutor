@@ -20,7 +20,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'saved'])
+const emit = defineEmits(['close', 'saved', 'resolve-before-save'])
 
 const toast = useToast()
 const scheduleBlocksStore = useScheduleBlocksStore()
@@ -28,6 +28,7 @@ const clinicStore = useClinicStore()
 const authStore = useAuthStore()
 
 const errors = ref({})
+const ALL_DOCTORS_OPTION = '__ALL_DOCTORS__'
 
 const isEditMode = computed(() => !!props.initialData?._id)
 
@@ -41,13 +42,19 @@ const blockTypes = [
 
 const doctorOptions = computed(() => {
   const staff = clinicStore.currentClinic?.staff || []
-  return staff
+  const options = staff
     .filter((member) => member.role === 'medico' || member.role === 'owner')
     .map((member) => ({
       value: member._id,
       label: member.name,
       image: member.profilePhotoUrl,
     }))
+
+  if (!isEditMode.value && !isCurrentUserDoctor.value) {
+    return [{ value: ALL_DOCTORS_OPTION, label: 'Todos os médicos' }, ...options]
+  }
+
+  return options
 })
 
 const isCurrentUserDoctor = computed(() => authStore.user?.role === 'medico')
@@ -152,9 +159,11 @@ function validateForm() {
 function getPayload() {
   const start = mergeDateAndTime(form.value.startDate, form.value.isAllDay ? '00:00' : form.value.startTime)
   const end = mergeDateAndTime(form.value.endDate, form.value.isAllDay ? '23:59' : form.value.endTime)
+  const applyToAllDoctors = !isEditMode.value && !isCurrentUserDoctor.value && form.value.doctor === ALL_DOCTORS_OPTION
 
   return {
-    doctor: form.value.doctor,
+    ...(applyToAllDoctors ? {} : { doctor: form.value.doctor }),
+    ...(applyToAllDoctors ? { applyToAllDoctors: true } : {}),
     title: form.value.title.trim(),
     type: form.value.type,
     notes: form.value.notes?.trim() || '',
@@ -168,26 +177,120 @@ async function handleSubmit() {
   if (!validateForm()) return
 
   const payload = getPayload()
-  const action = isEditMode.value
-    ? scheduleBlocksStore.updateBlock(props.initialData._id, payload)
-    : scheduleBlocksStore.createBlock(payload)
+  const previewPayload = {
+    ...(payload.doctor ? { doctor: payload.doctor } : {}),
+    ...(payload.applyToAllDoctors ? { applyToAllDoctors: true } : {}),
+    startAt: payload.startAt,
+    endAt: payload.endAt,
+  }
 
-  const { success, error, data } = await action
+  if (isEditMode.value) {
+    const previewResult = await scheduleBlocksStore.previewBlockConflicts(previewPayload)
+    if (!previewResult.success) {
+      toast.error(previewResult.error?.response?.data?.message || 'Não foi possível validar conflitos do bloqueio.')
+      return
+    }
 
-  if (!success) {
-    const message = error?.response?.data?.message || 'Não foi possível salvar o bloqueio.'
+    const previewConflicts = previewResult.data?.conflictSummary?.conflicts || []
+    if (previewConflicts.length > 0) {
+      toast.info('Resolva os agendamentos em conflito para concluir a atualização do bloqueio.')
+      emit('resolve-before-save', {
+        operation: 'update',
+        blockId: props.initialData._id,
+        payload,
+        conflicts: previewConflicts,
+        conflictSummary: previewResult.data?.conflictSummary,
+      })
+      emit('close')
+      return
+    }
+
+    const { success, error, data } = await scheduleBlocksStore.updateBlock(props.initialData._id, {
+      ...payload,
+      requireNoConflicts: true,
+    })
+
+    if (!success) {
+      const conflictSummary = error?.response?.data?.conflictSummary
+      const conflictItems = conflictSummary?.conflicts || []
+
+      if (error?.response?.status === 409 && conflictItems.length > 0) {
+        toast.warning('Novos conflitos surgiram durante a atualização. Resolva-os para finalizar.')
+        emit('resolve-before-save', {
+          operation: 'update',
+          blockId: props.initialData._id,
+          payload,
+          conflicts: conflictItems,
+          conflictSummary,
+        })
+        emit('close')
+        return
+      }
+
+      const message = error?.response?.data?.message || 'Não foi possível salvar o bloqueio.'
+      toast.error(message)
+      return
+    }
+
+    const conflicts = data?.conflictSummary?.conflictingAppointmentsCount || 0
+    if (conflicts > 0) {
+      toast.warning(`Bloqueio salvo com ${conflicts} agendamento(s) em conflito.`)
+    } else {
+      toast.success('Bloqueio atualizado com sucesso.')
+    }
+
+    emit('saved', data)
+    emit('close')
+    return
+  }
+
+  const previewResult = await scheduleBlocksStore.previewBlockConflicts(previewPayload)
+  if (!previewResult.success) {
+    toast.error(previewResult.error?.response?.data?.message || 'Não foi possível validar conflitos do bloqueio.')
+    return
+  }
+
+  const previewConflicts = previewResult.data?.conflictSummary?.conflicts || []
+  if (previewConflicts.length > 0) {
+    toast.info('Resolva os agendamentos em conflito para concluir a criação do bloqueio.')
+    emit('resolve-before-save', {
+      operation: 'create',
+      payload,
+      conflicts: previewConflicts,
+      conflictSummary: previewResult.data?.conflictSummary,
+    })
+    emit('close')
+    return
+  }
+
+  const createResult = await scheduleBlocksStore.createBlock({
+    ...payload,
+    requireNoConflicts: true,
+  })
+
+  if (!createResult.success) {
+    const conflictSummary = createResult.error?.response?.data?.conflictSummary
+    const conflictItems = conflictSummary?.conflicts || []
+
+    if (createResult.error?.response?.status === 409 && conflictItems.length > 0) {
+      toast.warning('Novos conflitos surgiram durante a criação. Resolva-os para finalizar.')
+      emit('resolve-before-save', {
+        operation: 'create',
+        payload,
+        conflicts: conflictItems,
+        conflictSummary,
+      })
+      emit('close')
+      return
+    }
+
+    const message = createResult.error?.response?.data?.message || 'Não foi possível salvar o bloqueio.'
     toast.error(message)
     return
   }
 
-  const conflicts = data?.conflictSummary?.conflictingAppointmentsCount || 0
-  if (conflicts > 0) {
-    toast.warning(`Bloqueio salvo com ${conflicts} agendamento(s) em conflito.`)
-  } else {
-    toast.success(isEditMode.value ? 'Bloqueio atualizado com sucesso.' : 'Bloqueio criado com sucesso.')
-  }
-
-  emit('saved')
+  toast.success('Bloqueio criado com sucesso.')
+  emit('saved', createResult.data)
   emit('close')
 }
 
@@ -203,7 +306,7 @@ async function handleDelete() {
   }
 
   toast.success('Bloqueio excluído com sucesso.')
-  emit('saved')
+  emit('saved', null)
   emit('close')
 }
 </script>
