@@ -630,6 +630,80 @@ function formatTime(dateString) {
   })
 }
 
+function parseCalendarDateTime(value) {
+  if (!value) return null
+  const date =
+    value instanceof Date ? value : new Date(String(value).includes(' ') ? String(value).replace(' ', 'T') : value)
+  return isNaN(date.getTime()) ? null : date
+}
+
+function getBlockLabelTopPercent(blockEvent) {
+  const blockStart = parseCalendarDateTime(blockEvent?.start)
+  const blockEnd = parseCalendarDateTime(blockEvent?.end)
+  if (!blockStart || !blockEnd || blockEnd <= blockStart) return 50
+
+  const blockDurationMinutes = (blockEnd.getTime() - blockStart.getTime()) / (1000 * 60)
+  if (blockDurationMinutes <= 0) return 50
+
+  const occupiedRanges = formattedEvents.value
+    .map((appointment) => {
+      const appointmentStart = parseCalendarDateTime(appointment?.start)
+      const appointmentEnd = parseCalendarDateTime(appointment?.end)
+      if (!appointmentStart || !appointmentEnd) return null
+      if (appointmentEnd <= blockStart || appointmentStart >= blockEnd) return null
+
+      const overlapStart = appointmentStart > blockStart ? appointmentStart : blockStart
+      const overlapEnd = appointmentEnd < blockEnd ? appointmentEnd : blockEnd
+      if (overlapEnd <= overlapStart) return null
+
+      return {
+        start: (overlapStart.getTime() - blockStart.getTime()) / (1000 * 60),
+        end: (overlapEnd.getTime() - blockStart.getTime()) / (1000 * 60),
+      }
+    })
+    .filter((range) => range !== null)
+    .sort((a, b) => a.start - b.start)
+
+  if (occupiedRanges.length === 0) return 50
+
+  const mergedRanges = []
+  for (const range of occupiedRanges) {
+    const last = mergedRanges[mergedRanges.length - 1]
+    if (!last || range.start > last.end) {
+      mergedRanges.push({ ...range })
+      continue
+    }
+    last.end = Math.max(last.end, range.end)
+  }
+
+  const freeRanges = []
+  let cursor = 0
+  for (const range of mergedRanges) {
+    if (range.start > cursor) freeRanges.push({ start: cursor, end: range.start })
+    cursor = Math.max(cursor, range.end)
+  }
+  if (cursor < blockDurationMinutes) freeRanges.push({ start: cursor, end: blockDurationMinutes })
+
+  if (freeRanges.length === 0) return 8
+
+  const minUsefulSlot = 20
+  const bestRange =
+    freeRanges
+      .filter((range) => range.end - range.start >= minUsefulSlot)
+      .sort((a, b) => b.end - b.start - (a.end - a.start))[0] ||
+    freeRanges.sort((a, b) => b.end - b.start - (a.end - a.start))[0]
+
+  const centerMinute = (bestRange.start + bestRange.end) / 2
+  const topPercent = (centerMinute / blockDurationMinutes) * 100
+  return Math.max(8, Math.min(92, topPercent))
+}
+
+function getScheduleBlockLabelStyle(blockEvent) {
+  return {
+    '--block-label-top': `${getBlockLabelTopPercent(blockEvent)}%`,
+  }
+}
+
 // ✨ CORREÇÃO: Função ajustada para enviar os dados corretos ao modal
 function handleCellClick(date) {
   const now = new Date()
@@ -964,8 +1038,12 @@ const getDayNumber = (heading) => {
 	                        {{ event.title || 'Fechado' }}
 	                    </div>
 
-	                    <div v-else-if="event.isScheduleBlock" class="closed-event-content">
-	                        {{ event.title }}
+	                    <div
+                        v-else-if="event.isScheduleBlock"
+                        class="schedule-block-content"
+                        :style="getScheduleBlockLabelStyle(event)"
+                      >
+                        <span class="schedule-block-title">{{ event.title }}</span>
 	                    </div>
 
 	                    <div
@@ -1706,6 +1784,27 @@ const getDayNumber = (heading) => {
   opacity: 0.9;
   padding: 4px;
   box-sizing: border-box;
+}
+.schedule-block-content {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  color: inherit;
+  overflow: hidden;
+}
+.schedule-block-title {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: var(--block-label-top, 50%);
+  transform: translateY(-50%);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .custom-event-content-short,
 .custom-event-content-long {
