@@ -236,6 +236,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
       continue // Próximo dia
     }
@@ -250,6 +251,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
       continue
     }
@@ -261,6 +263,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(dayStartMinutes)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
     }
 
@@ -271,6 +274,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(dayEndMinutes)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
     }
   }
@@ -536,6 +540,7 @@ const formattedBlockEvents = computed(() => {
         end: formatToVueCalString(block.endAt),
         title: block.title || 'Bloqueio',
         class: 'clinic-closed-event clinic-doctor-block-event',
+        background: true,
         originalEvent: block,
         duration,
         status: 'bloqueio',
@@ -546,7 +551,8 @@ const formattedBlockEvents = computed(() => {
 })
 
 const allCalendarEvents = computed(() => {
-  return [...formattedEvents.value, ...formattedBlockEvents.value, ...closedTimeEvents.value]
+  // Mantém eventos de fundo primeiro para não influenciar visualmente os cards de agendamento.
+  return [...closedTimeEvents.value, ...formattedBlockEvents.value, ...formattedEvents.value]
 })
 
 // Mapa de contagem de agendamentos por dia (yyyy-MM-dd -> count)
@@ -1163,11 +1169,11 @@ const getDayNumber = (heading) => {
 .vuecal__event.clinic-closed-event.clinic-doctor-block-event {
   cursor: pointer;
   opacity: 0.95;
-  z-index: 4;
+  z-index: 0 !important;
 }
 .vuecal__event.clinic-closed-event.clinic-doctor-block-event:hover {
-  transform: scale(0.98);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transform: none;
+  box-shadow: none;
   opacity: 1;
 }
 .vuecal__event.clinic-closed-event::before {
@@ -1177,6 +1183,7 @@ const getDayNumber = (heading) => {
   background-color: #eef2ff;
   color: #3b82f6;
   border-color: #dbeafe;
+  z-index: 2;
 }
 .vuecal__event.status--confirmado {
   background-color: #fefce8;
