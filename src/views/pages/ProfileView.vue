@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { 
-  User, Building2, MapPin, 
-  Pencil, Check, X, ShieldCheck, Monitor, Camera, Loader2, Trash2
+import {
+  User, Building2, MapPin,
+  Pencil, Check, X, ShieldCheck, Shield, KeyRound, Monitor, Camera, Loader2, Trash2
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
@@ -34,13 +34,13 @@ const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'devices' | 'clinic'
+// Tab state: 'personal' | 'security' | 'devices' | 'clinic'
 const activeTab = ref(props.activeTab || 'personal')
 
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'devices' || value === 'clinic') {
+    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'clinic') {
       activeTab.value = value
     }
   }
@@ -49,10 +49,6 @@ watch(
 const setActiveTab = (value) => {
   activeTab.value = value
   emit('update:activeTab', value)
-}
-
-const goToDevices = () => {
-  setActiveTab('devices')
 }
 
 const user = computed(() => authStore.user)
@@ -71,6 +67,14 @@ const formData = reactive({
   name: '',
   email: ''
 })
+
+const resetPasswordData = reactive({
+  token: '',
+  newPassword: '',
+})
+
+const isSendingResetCode = ref(false)
+const isResettingPassword = ref(false)
 
 const roleLabels = {
   owner: 'Proprietário',
@@ -99,10 +103,10 @@ const getInitials = (name) => {
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
-  return date.toLocaleDateString('pt-BR', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
   })
 }
 
@@ -134,6 +138,46 @@ const saveProfile = async () => {
     isEditing.value = false
   } else {
     toast.error(result.error)
+  }
+}
+
+const sendResetCode = async () => {
+  const accountEmail = user.value?.email
+  if (!accountEmail) {
+    toast.error('Não foi possível identificar o email da conta.')
+    return
+  }
+
+  isSendingResetCode.value = true
+  const result = await authStore.requestPasswordReset(accountEmail)
+  isSendingResetCode.value = false
+
+  if (result.success) {
+    toast.success('Código de redefinição enviado')
+  } else {
+    toast.error(result.error || 'Erro ao enviar código de redefinição.')
+  }
+}
+
+const resetPassword = async () => {
+  if (!resetPasswordData.token || !resetPasswordData.newPassword) {
+    toast.error('Informe o código e a nova senha.')
+    return
+  }
+
+  isResettingPassword.value = true
+  const result = await authStore.performPasswordReset({
+    token: resetPasswordData.token,
+    newPassword: resetPasswordData.newPassword,
+  })
+  isResettingPassword.value = false
+
+  if (result.success) {
+    toast.success('Senha redefinida com sucesso!')
+    resetPasswordData.token = ''
+    resetPasswordData.newPassword = ''
+  } else {
+    toast.error(result.error || 'Não foi possível redefinir sua senha.')
   }
 }
 
@@ -176,9 +220,9 @@ async function handlePhotoUpload(event) {
   showPhotoMenu.value = false
 
   const result = await authStore.uploadProfilePhoto(file)
-  
+
   isUploadingPhoto.value = false
-  
+
   if (result.success) {
     toast.success('Foto atualizada com sucesso!')
   } else {
@@ -195,9 +239,9 @@ async function handlePhotoDelete() {
   showPhotoMenu.value = false
 
   const result = await authStore.deleteProfilePhoto()
-  
+
   isUploadingPhoto.value = false
-  
+
   if (result.success) {
     toast.success('Foto removida com sucesso!')
   } else {
@@ -221,12 +265,12 @@ async function handlePhotoDelete() {
               <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
                 <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
                 <span v-else>{{ getInitials(user?.name) }}</span>
-                
+
                 <!-- Loading overlay -->
                 <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
                   <Loader2 :size="28" class="animate-spin" />
                 </div>
-                
+
                 <!-- Hover overlay with actions -->
                 <Transition name="fade">
                   <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
@@ -240,7 +284,7 @@ async function handlePhotoDelete() {
                 </Transition>
               </div>
               <div class="online-status"></div>
-              
+
               <!-- Hidden file input -->
               <input
                 ref="photoInput"
@@ -267,11 +311,12 @@ async function handlePhotoDelete() {
 
       <!-- Tabs Navigation -->
       <nav v-if="!hideTabs" class="tabs-container">
-        <AppTabs 
-          :model-value="activeTab" 
+        <AppTabs
+          :model-value="activeTab"
           @update:model-value="setActiveTab"
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
+            { value: 'security', label: 'Segurança', icon: Shield },
             { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
             { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
           ]"
@@ -281,7 +326,7 @@ async function handlePhotoDelete() {
 
       <!-- Tab Content Area -->
       <main class="tab-content">
-        
+
         <!-- Personal Info Tab -->
         <transition name="fade" mode="out-in">
           <div v-if="activeTab === 'personal'" class="personal-layout">
@@ -291,7 +336,7 @@ async function handlePhotoDelete() {
                   <h2>Informações pessoais</h2>
                   <p>Dados básicos da sua conta</p>
                 </div>
-                
+
                 <div class="header-actions">
                   <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
                     <Pencil :size="16" />
@@ -313,9 +358,9 @@ async function handlePhotoDelete() {
                 <div class="simple-info-item">
                   <span class="simple-label">Nome completo</span>
                   <div v-if="!isEditing" class="simple-value">{{ user?.name || 'Não informado' }}</div>
-                  <FormInput 
-                    v-else 
-                    v-model="formData.name" 
+                  <FormInput
+                    v-else
+                    v-model="formData.name"
                     placeholder="Seu nome completo"
                   />
                 </div>
@@ -323,9 +368,9 @@ async function handlePhotoDelete() {
                 <div class="simple-info-item">
                   <span class="simple-label">Email de acesso</span>
                   <div v-if="!isEditing" class="simple-value">{{ user?.email || 'Não informado' }}</div>
-                  <FormInput 
-                    v-else 
-                    v-model="formData.email" 
+                  <FormInput
+                    v-else
+                    v-model="formData.email"
                     placeholder="Seu email"
                     type="email"
                   />
@@ -342,15 +387,57 @@ async function handlePhotoDelete() {
                 </div>
               </div>
             </section>
+          </div>
 
-            <section class="content-card simple-section security-section">
+          <div v-else-if="activeTab === 'security'" class="security-layout">
+            <section class="content-card simple-section">
               <div class="card-header simple-header">
                 <div class="header-text">
-                  <h2>Segurança</h2>
-                  <p>Controle sessões ativas e acessos da sua conta</p>
+                  <h2>Autenticação em duas etapas</h2>
+                  <p>Adicione uma camada extra de proteção para sua conta.</p>
                 </div>
-                <button type="button" class="action-btn edit-btn" @click="goToDevices">
-                  Gerenciar dispositivos
+                <span class="status-pill disabled">Desabilitado</span>
+              </div>
+
+              <div class="security-message">
+                <p>O 2FA ainda não está disponível nesta versão. Em breve você poderá ativar por aplicativo autenticador.</p>
+              </div>
+            </section>
+
+            <section class="content-card simple-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Redefinir senha</h2>
+                  <p>Envie um código de confirmação e cadastre uma nova senha.</p>
+                </div>
+                <button type="button" class="action-btn" :disabled="isSendingResetCode" @click="sendResetCode">
+                  <KeyRound :size="15" />
+                  <span>{{ isSendingResetCode ? 'Enviando código...' : 'Enviar código' }}</span>
+                </button>
+              </div>
+
+              <div class="security-form-grid">
+                <div class="simple-info-item">
+                  <span class="simple-label">Código de verificação</span>
+                  <FormInput
+                    v-model="resetPasswordData.token"
+                    placeholder="Digite o código recebido"
+                  />
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Nova senha</span>
+                  <FormInput
+                    v-model="resetPasswordData.newPassword"
+                    type="password"
+                    placeholder="Digite sua nova senha"
+                  />
+                </div>
+              </div>
+
+              <div class="security-actions">
+                <button type="button" class="action-btn save-btn" :disabled="isResettingPassword" @click="resetPassword">
+                  <span>{{ isResettingPassword ? 'Redefinindo...' : 'Redefinir senha' }}</span>
                 </button>
               </div>
             </section>
@@ -376,9 +463,9 @@ async function handlePhotoDelete() {
               <!-- Clinic Branding -->
               <div class="branding-section">
                 <div class="clinic-logo-wrapper">
-                  <img 
-                    v-if="clinic.logoUrl" 
-                    :src="clinic.logoUrl" 
+                  <img
+                    v-if="clinic.logoUrl"
+                    :src="clinic.logoUrl"
                     :alt="clinic.name"
                   />
                   <div v-else class="logo-placeholder">
@@ -420,7 +507,7 @@ async function handlePhotoDelete() {
                 </div>
               </div>
             </div>
-            
+
             <div v-else class="empty-state">
               <p>Nenhuma informação de clínica vinculada.</p>
             </div>
@@ -675,10 +762,48 @@ async function handlePhotoDelete() {
   word-break: break-word;
 }
 
-.security-section .simple-header {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+.security-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.24rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-pill.disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.security-message p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.security-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.25rem;
+}
+
+.security-actions {
+  margin-top: 0.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .devices-tab-wrapper {
@@ -899,21 +1024,25 @@ async function handlePhotoDelete() {
   .simple-info-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  .security-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .fields-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .card-header {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .action-btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .branding-section {
     flex-direction: column;
     text-align: center;
