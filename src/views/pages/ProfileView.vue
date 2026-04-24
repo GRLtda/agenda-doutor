@@ -2,8 +2,8 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { 
-  User, Mail, Briefcase, Building2, MapPin, 
-  Calendar, Pencil, Check, X, ShieldCheck, Monitor, Camera, Loader2, Trash2
+  User, Building2, MapPin, 
+  Pencil, Check, X, ShieldCheck, Monitor, Camera, Loader2, Trash2
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
@@ -34,13 +34,13 @@ const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'clinic'
+// Tab state: 'personal' | 'devices' | 'clinic'
 const activeTab = ref(props.activeTab || 'personal')
 
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'clinic') {
+    if (value === 'personal' || value === 'devices' || value === 'clinic') {
       activeTab.value = value
     }
   }
@@ -51,8 +51,21 @@ const setActiveTab = (value) => {
   emit('update:activeTab', value)
 }
 
+const goToDevices = () => {
+  setActiveTab('devices')
+}
+
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
+const userLocation = computed(() => {
+  const city = clinic.value?.address?.city
+  const state = clinic.value?.address?.state
+
+  if (city && state) return `${city}, ${state}`
+  if (city) return city
+  if (state) return state
+  return 'Localização não informada'
+})
 
 const formData = reactive({
   name: '',
@@ -203,47 +216,50 @@ async function handlePhotoDelete() {
       <!-- Profile Header -->
       <header class="profile-header">
         <div class="header-content">
-          <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
-            <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
-              <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
-              <span v-else>{{ getInitials(user?.name) }}</span>
-              
-              <!-- Loading overlay -->
-              <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
-                <Loader2 :size="28" class="animate-spin" />
-              </div>
-              
-              <!-- Hover overlay with actions -->
-              <Transition name="fade">
-                <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
-                  <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
-                    <Camera :size="20" />
-                  </button>
-                  <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
-                    <Trash2 :size="18" />
-                  </button>
+          <div class="profile-identity">
+            <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
+              <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
+                <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
+                <span v-else>{{ getInitials(user?.name) }}</span>
+                
+                <!-- Loading overlay -->
+                <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
+                  <Loader2 :size="28" class="animate-spin" />
                 </div>
-              </Transition>
+                
+                <!-- Hover overlay with actions -->
+                <Transition name="fade">
+                  <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
+                    <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
+                      <Camera :size="20" />
+                    </button>
+                    <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
+                      <Trash2 :size="18" />
+                    </button>
+                  </div>
+                </Transition>
+              </div>
+              <div class="online-status"></div>
+              
+              <!-- Hidden file input -->
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style="display: none;"
+                @change="handlePhotoUpload"
+              />
             </div>
-            <div class="online-status"></div>
-            
-            <!-- Hidden file input -->
-            <input
-              ref="photoInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              style="display: none;"
-              @change="handlePhotoUpload"
-            />
-          </div>
-          
-          <div class="user-info">
-            <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
-            <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
-            <div class="user-badges">
-              <span class="badge role-badge">
-                {{ roleLabels[user?.role] || 'Membro' }}
-              </span>
+
+            <div class="user-info">
+              <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
+              <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
+              <p class="user-location">{{ userLocation }}</p>
+              <div class="user-badges">
+                <span class="badge role-badge">
+                  {{ roleLabels[user?.role] || 'Membro' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -256,6 +272,7 @@ async function handlePhotoDelete() {
           @update:model-value="setActiveTab"
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
+            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
             { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
           ]"
         />
@@ -267,79 +284,79 @@ async function handlePhotoDelete() {
         
         <!-- Personal Info Tab -->
         <transition name="fade" mode="out-in">
-          <div v-if="activeTab === 'personal'" class="cards-grid">
-            <!-- Coluna da Esquerda: Dados do Perfil -->
-            <div class="content-card">
-              <div class="card-header">
+          <div v-if="activeTab === 'personal'" class="personal-layout">
+            <section class="content-card simple-section">
+              <div class="card-header simple-header">
                 <div class="header-text">
-                  <h2>Dados do Perfil</h2>
-                <p>Gerencie suas informações de acesso e identificação</p>
+                  <h2>Informações pessoais</h2>
+                  <p>Dados básicos da sua conta</p>
+                </div>
+                
+                <div class="header-actions">
+                  <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
+                    <Pencil :size="16" />
+                    <span>Editar</span>
+                  </button>
+                  <div v-else class="edit-actions">
+                    <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
+                      <X :size="16" />
+                    </button>
+                    <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
+                      <Check :size="16" />
+                      <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              
-              <div class="header-actions">
-                <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
-                  <Pencil :size="16" />
-                  <span>Editar</span>
+
+              <div class="simple-info-grid">
+                <div class="simple-info-item">
+                  <span class="simple-label">Nome completo</span>
+                  <div v-if="!isEditing" class="simple-value">{{ user?.name || 'Não informado' }}</div>
+                  <FormInput 
+                    v-else 
+                    v-model="formData.name" 
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Email de acesso</span>
+                  <div v-if="!isEditing" class="simple-value">{{ user?.email || 'Não informado' }}</div>
+                  <FormInput 
+                    v-else 
+                    v-model="formData.email" 
+                    placeholder="Seu email"
+                    type="email"
+                  />
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Função no sistema</span>
+                  <div class="simple-value">{{ roleLabels[user?.role] || 'Não informado' }}</div>
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Membro desde</span>
+                  <div class="simple-value">{{ formatDate(clinic?.createdAt) }}</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="content-card simple-section security-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Segurança</h2>
+                  <p>Controle sessões ativas e acessos da sua conta</p>
+                </div>
+                <button type="button" class="action-btn edit-btn" @click="goToDevices">
+                  Gerenciar dispositivos
                 </button>
-                <div v-else class="edit-actions">
-                  <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
-                    <X :size="16" />
-                  </button>
-                  <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
-                    <Check :size="16" />
-                    <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
-                  </button>
-                </div>
               </div>
-            </div>
+            </section>
+          </div>
 
-            <div class="fields-grid">
-              <div class="field-group">
-                <label>Nome Completo</label>
-                <div v-if="!isEditing" class="read-only-field">
-                  <User :size="18" class="field-icon" />
-                  <span>{{ user?.name || 'Não informado' }}</span>
-                </div>
-                <FormInput 
-                  v-else 
-                  v-model="formData.name" 
-                  placeholder="Seu nome completo"
-                />
-              </div>
-
-              <div class="field-group">
-                <label>Email de Acesso</label>
-                <div v-if="!isEditing" class="read-only-field">
-                  <Mail :size="18" class="field-icon" />
-                  <span>{{ user?.email || 'Não informado' }}</span>
-                </div>
-                <FormInput 
-                  v-else 
-                  v-model="formData.email" 
-                  placeholder="Seu email"
-                  type="email"
-                />
-              </div>
-
-              <div class="field-group">
-                <label>Função no Sistema</label>
-                <div class="read-only-field disabled">
-                  <Briefcase :size="18" class="field-icon" />
-                  <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label>Membro Desde</label>
-                <div class="read-only-field disabled">
-                  <Calendar :size="18" class="field-icon" />
-                  <span>{{ formatDate(clinic?.createdAt) }}</span>
-                </div>
-              </div>
-            </div>
-            </div>
-            
-            <!-- Coluna da Direita: Dispositivos -->
+          <div v-else-if="activeTab === 'devices'" class="devices-tab-wrapper">
             <ActiveSessionsView />
           </div>
 
@@ -444,38 +461,45 @@ async function handlePhotoDelete() {
 /* Header Styles */
 .profile-header {
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .header-content {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: space-between;
   gap: 1rem;
+}
+
+.profile-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
 }
 
 .avatar-container {
   position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .avatar {
-  width: 96px;
-  height: 96px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  width: 68px;
+  height: 68px;
+  background: #f1f5f9;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: white;
-  border: 4px solid white;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  color: #0f172a;
+  border: 1px solid #dbe1e8;
   overflow: hidden;
+  position: relative;
 }
 
 .avatar.has-photo {
@@ -526,13 +550,63 @@ async function handlePhotoDelete() {
 }
 
 .avatar-action-btn:hover {
-  background-color: var(--azul-principal);
-  color: white;
-  transform: scale(1.1);
+  background-color: #f3f4f6;
+  color: #111827;
 }
 
 .avatar-action-btn.delete:hover {
-  background-color: #ef4444;
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.user-info {
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.user-email {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0.2rem 0 0;
+}
+
+.user-location {
+  color: #9ca3af;
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0.55rem;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.online-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
+  background: #22c55e;
+  border: 2px solid white;
+  border-radius: 50%;
 }
 
 .animate-spin {
@@ -549,76 +623,73 @@ async function handlePhotoDelete() {
   opacity: 0;
 }
 
-.avatar-container {
-  position: relative;
-  cursor: pointer;
-}
-
-.avatar {
-  position: relative;
-}
-
-.online-status {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  background: #22c55e;
-  border: 3px solid white;
-  border-radius: 50%;
-}
-
-.user-name {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a; /* Slate 900 */
-  margin: 0;
-}
-
-.user-email {
-  color: #64748b; /* Slate 500 */
-  font-size: 0.95rem;
-  margin: 0.25rem 0 0.75rem 0;
-}
-
-.badge {
-  display: inline-flex;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.role-badge {
-  background: #eff6ff;
-  color: #3b82f6;
-  border: 1px solid #dbeafe;
-}
-
 /* Tabs Navigation */
 .tabs-container {
   display: flex;
-  justify-content: center; /* Center the tabs container */
+  justify-content: flex-start;
 }
 
 
 /* Content Area */
-.cards-grid {
+.personal-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.simple-section {
+  padding: 1.35rem 1.5rem;
+}
+
+.simple-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+}
+
+.simple-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem 1.8rem;
+}
+
+.simple-info-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.simple-label {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.simple-value {
+  color: #111827;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.security-section .simple-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.devices-tab-wrapper {
   animation: slideIn 0.3s ease-out;
 }
 
 .content-card {
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -626,21 +697,21 @@ async function handlePhotoDelete() {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #eceff3;
+  padding-bottom: 1rem;
 }
 
 .header-text h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
   margin: 0 0 0.25rem 0;
 }
 
 .header-text p {
-  color: #64748b;
-  font-size: 0.875rem;
+  color: #6b7280;
+  font-size: 0.84rem;
   margin: 0;
 }
 
@@ -655,31 +726,31 @@ async function handlePhotoDelete() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.46rem 0.9rem;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #d1d5db;
   background: white;
-  font-weight: 600; /* Updated from 500 */
-  font-size: 0.875rem;
+  font-weight: 500;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s;
-  color: #0f172a; /* Updated from #475569 */
+  color: #374151;
 }
 
 .action-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: #f9fafb;
+  border-color: #c4c9d2;
 }
 
 .save-btn {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #16a34a;
+  border-color: #16a34a;
   color: white;
 }
 
 .save-btn:hover {
-  background: #16a34a;
-  border-color: #16a34a;
+  background: #15803d;
+  border-color: #15803d;
   color: white;
 }
 
@@ -817,7 +888,15 @@ async function handlePhotoDelete() {
     padding: 1rem 0.5rem;
   }
 
-  .cards-grid {
+  .header-content {
+    align-items: flex-start;
+  }
+
+  .profile-identity {
+    width: 100%;
+  }
+
+  .simple-info-grid {
     grid-template-columns: 1fr;
   }
   

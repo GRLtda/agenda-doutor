@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Building2, ChevronRight, User, X } from 'lucide-vue-next'
+import { ArrowLeft, Building2, ChevronRight, Monitor, User, X } from 'lucide-vue-next'
 import ProfileView from '@/views/pages/ProfileView.vue'
 
 const emit = defineEmits(['close'])
@@ -15,8 +15,14 @@ const tabs = [
   {
     value: 'personal',
     label: 'Informações Pessoais',
-    description: 'Dados do perfil e sessões conectadas.',
+    description: 'Dados do perfil e identificação de acesso.',
     icon: User,
+  },
+  {
+    value: 'devices',
+    label: 'Dispositivos Conectados',
+    description: 'Gerencie as sessões ativas da sua conta.',
+    icon: Monitor,
   },
   {
     value: 'clinic',
