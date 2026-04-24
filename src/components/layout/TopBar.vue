@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
+import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share, Apple } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -37,6 +37,7 @@ const openSettingsModal = () => {
 
 const searchQuery = ref('')
 const isSearchFocused = ref(false)
+const isMacPlatform = ref(false)
 
 const appointmentsStore = useAppointmentsStore()
 const patientsStore = usePatientsStore()
@@ -54,7 +55,7 @@ const isIPhonePwaNoticeVisible = ref(false)
 const checkIfIPhonePwa = () => {
   const isIPhone = /iPhone/.test(navigator.userAgent) && !window.MSStream
   const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
-  
+
   if (isIPhone && !isPwa) {
     isIPhonePwaNoticeVisible.value = true
   }
@@ -126,7 +127,7 @@ const recentPatients = computed(() => {
     return patients.slice(0, 5)
   }
   const query = searchQuery.value.toLowerCase()
-  return patients.filter(p => 
+  return patients.filter(p =>
     p.name?.toLowerCase().includes(query) ||
     p.phone?.includes(query) ||
     p.email?.toLowerCase().includes(query)
@@ -144,6 +145,7 @@ const allItems = computed(() => {
 const showPatients = computed(() => recentPatients.value.length > 0)
 const showShortcuts = computed(() => filteredShortcuts.value.length > 0)
 const hasNoResults = computed(() => searchQuery.value && !showPatients.value && !showShortcuts.value)
+const searchShortcutLabel = computed(() => (isMacPlatform.value ? 'Command + K' : 'Ctrl + K'))
 
 // Reset selection quando busca muda
 watch(searchQuery, () => {
@@ -183,7 +185,7 @@ function handleSearchSubmit() {
 
 function handleKeyNavigation(e) {
   if (!isSearchFocused.value) return
-  
+
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     selectedIndex.value = Math.min(selectedIndex.value + 1, allItems.value.length - 1)
@@ -201,17 +203,25 @@ function handleGlobalKeydown(e) {
     isSearchFocused.value = true
     nextTick(() => searchInputRef.value?.focus())
   }
-  
+
   // Escape para fechar
   if (e.key === 'Escape' && isSearchFocused.value) {
     closeCommandPalette()
   }
-  
+
   // Arrow navigation
   handleKeyNavigation(e)
 }
 
+function detectMacPlatform() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || ''
+  const userAgent = navigator.userAgent || ''
+  isMacPlatform.value = true
+  // isMacPlatform.value = /(Mac|iPhone|iPad|iPod)/i.test(platform) || /(Mac|iPhone|iPad|iPod)/i.test(userAgent)
+}
+
 onMounted(() => {
+  detectMacPlatform()
   window.addEventListener('keydown', handleGlobalKeydown)
   checkIfIPhonePwa()
 })
@@ -239,7 +249,10 @@ onUnmounted(() => {
       <button class="search-trigger" @click="isSearchFocused = true">
         <Search :size="18" class="search-icon" />
         <span class="search-placeholder">Pesquisar...</span>
-        <kbd class="search-kbd">Ctrl K</kbd>
+        <kbd class="search-kbd">
+          <Apple v-if="isMacPlatform" :size="12" class="search-kbd-apple" />
+          {{ searchShortcutLabel }}
+        </kbd>
       </button>
     </div>
 
@@ -338,12 +351,12 @@ onUnmounted(() => {
 
 
       <!-- Notification Button -->
-      <div 
+      <div
         class="notification-container"
         v-click-outside="() => isNotificationsOpen = false"
       >
-        <button 
-          class="notification-btn" 
+        <button
+          class="notification-btn"
           @click="handleNotificationsClick"
           :class="{ 'is-active': isNotificationsOpen }"
         >
@@ -355,8 +368,8 @@ onUnmounted(() => {
           <div v-if="isNotificationsOpen" class="notifications-dropdown">
             <div class="notifications-header">
               <h3>Notificações</h3>
-              <button 
-                v-if="authStore.unreadCount > 0" 
+              <button
+                v-if="authStore.unreadCount > 0"
                 class="mark-read-btn"
                 @click="authStore.markAllNotificationsAsRead"
               >
@@ -385,21 +398,21 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-            
+
             <div v-if="authStore.notifications.length > 0" class="notifications-list">
-              <div 
-                v-for="notif in authStore.notifications" 
-                :key="notif.id" 
+              <div
+                v-for="notif in authStore.notifications"
+                :key="notif.id"
                 class="notification-item"
                 :class="[{ 'is-unread': !notif.isRead, 'is-clickable': !!notif.data?.url }, notif.type || 'info']"
                 @click="handleNotificationClick(notif)"
               >
                 <div v-if="!notif.isRead" class="unread-dot"></div>
-                
+
                 <div class="notif-logo">
                   <img :src="notif.data?.icon || '/logo_brand.svg'" alt="Ícone Notificação" />
                 </div>
-                
+
                 <div class="notif-content">
                   <div class="notif-header">
                     <span class="notif-title">{{ notif.title }}</span>
@@ -431,9 +444,9 @@ onUnmounted(() => {
       >
         <UserDropdown v-if="isUserDropdownOpen" direction="down" />
         <div class="user-avatar">
-          <img 
-            v-if="authStore.user?.profilePhotoUrl" 
-            :src="authStore.user.profilePhotoUrl" 
+          <img
+            v-if="authStore.user?.profilePhotoUrl"
+            :src="authStore.user.profilePhotoUrl"
             alt="Foto de perfil"
             class="avatar-image"
           />
@@ -540,6 +553,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
   height: 20px;
   padding: 0 0.375rem;
   font-size: 0.75rem;
@@ -549,6 +563,11 @@ onUnmounted(() => {
   background-color: white;
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
+  white-space: nowrap;
+}
+
+.search-kbd-apple {
+  color: #6b7280;
 }
 
 /* --- Command Palette Overlay --- */
@@ -894,7 +913,7 @@ onUnmounted(() => {
   .top-bar-center {
     justify-content: center;
   }
-  
+
   .separator {
     display: none;
   }

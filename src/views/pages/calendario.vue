@@ -129,6 +129,66 @@ function selectDoctor(doc) {
 const weekAppointments = computed(() => appointmentsStore.appointments)
 const weekBlocks = computed(() => scheduleBlocksStore.blocks)
 
+const activeDoctorIds = computed(() => {
+  const staff = clinicStore.currentClinic?.staff || []
+  return staff
+    .filter((member) => (member.role === 'medico' || member.role === 'owner') && member.isActive !== false)
+    .map((member) => String(member._id))
+})
+
+function getBlockDoctorId(block) {
+  return block?.doctor?._id || block?.doctor || null
+}
+
+function normalizeDateForSignature(dateLike) {
+  if (!dateLike) return ''
+  const date = new Date(dateLike)
+  return isNaN(date.getTime()) ? String(dateLike) : date.toISOString()
+}
+
+function buildBlockSignature(block) {
+  if (!block) return ''
+  const title = String(block.title || '').trim()
+  const type = String(block.type || '').trim()
+  const notes = String(block.notes || '').trim()
+  const isAllDay = block.isAllDay ? '1' : '0'
+  const start = normalizeDateForSignature(block.startAt)
+  const end = normalizeDateForSignature(block.endAt)
+  const createdBy = String(block.createdBy || '')
+  return `${title}|${type}|${notes}|${isAllDay}|${start}|${end}|${createdBy}`
+}
+
+const allDoctorsBlockSignatures = computed(() => {
+  if (!Array.isArray(weekBlocks.value) || weekBlocks.value.length === 0) return new Set()
+
+  const doctorIds = activeDoctorIds.value
+  if (doctorIds.length <= 1) return new Set()
+
+  const signatureToDoctorSet = new Map()
+  for (const block of weekBlocks.value) {
+    const doctorId = getBlockDoctorId(block)
+    if (!doctorId) continue
+
+    const signature = buildBlockSignature(block)
+    if (!signature) continue
+
+    if (!signatureToDoctorSet.has(signature)) {
+      signatureToDoctorSet.set(signature, new Set())
+    }
+    signatureToDoctorSet.get(signature).add(String(doctorId))
+  }
+
+  const result = new Set()
+  for (const [signature, blockDoctorIds] of signatureToDoctorSet.entries()) {
+    const isAllDoctorsBlock = doctorIds.every((doctorId) => blockDoctorIds.has(String(doctorId)))
+    if (isAllDoctorsBlock) {
+      result.add(signature)
+    }
+  }
+
+  return result
+})
+
 const weekStart = computed(() => startOfWeek(selectedDate.value, { weekStartsOn: 1 }))
 const weekEnd = computed(() => endOfWeek(selectedDate.value, { weekStartsOn: 1 }))
 
@@ -520,9 +580,23 @@ const formattedBlockEvents = computed(() => {
 
   if (selectedDoctorId.value) {
     filtered = filtered.filter((block) => {
-      const doctorId = block?.doctor?._id || block?.doctor
+      const doctorId = getBlockDoctorId(block)
       return String(doctorId) === String(selectedDoctorId.value)
     })
+  } else {
+    const sharedSignatures = allDoctorsBlockSignatures.value
+    const hasMultipleDoctors = activeDoctorIds.value.length > 1
+    if (hasMultipleDoctors) {
+      const uniqueBlocksBySignature = new Map()
+      for (const block of filtered) {
+        const signature = buildBlockSignature(block)
+        if (!sharedSignatures.has(signature)) continue
+        if (!uniqueBlocksBySignature.has(signature)) {
+          uniqueBlocksBySignature.set(signature, block)
+        }
+      }
+      filtered = Array.from(uniqueBlocksBySignature.values())
+    }
   }
 
   return filtered
