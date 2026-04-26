@@ -32,7 +32,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'confirm'])
+const emit = defineEmits(['close', 'confirm', 'schedule-return'])
 
 const isLoading = ref(false)
 
@@ -417,15 +417,25 @@ displayAmount.value = '0,00'
         <AppButton variant="default" @click="$emit('close')" :disabled="isLoading">
           Cancelar
         </AppButton>
-        <AppButton
-          variant="primary"
-          @click="handleSubmit"
-          :disabled="!isValid || isLoading"
-          :loading="isLoading"
-        >
-          <Check :size="18" />
-          Finalizar
-        </AppButton>
+        <div class="footer-actions-right">
+          <AppButton
+            variant="default"
+            @click="emit('schedule-return')"
+            :disabled="isLoading"
+          >
+            <Calendar :size="18" />
+            Agendar Retorno
+          </AppButton>
+          <AppButton
+            variant="primary"
+            @click="handleSubmit"
+            :disabled="!isValid || isLoading"
+            :loading="isLoading"
+          >
+            <Check :size="18" />
+            Finalizar
+          </AppButton>
+        </div>
       </div>
     </template>
   </SideDrawer>
@@ -707,6 +717,12 @@ displayAmount.value = '0,00'
 
 .drawer-footer.space-between {
   justify-content: space-between;
+}
+
+.footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 /* Hide number spinners */

@@ -55,6 +55,7 @@ import { useToast } from 'vue-toastification'
 import AddProcedureModal from '@/components/modals/AddProcedureModal.vue' // ✨ Import Modal
 import CheckoutModal from '@/components/modals/CheckoutModal.vue' // ✨ Import Checkout Modal
 import ImportBudgetModal from '@/components/modals/ImportBudgetModal.vue' // ✨ Import Budget Modal
+import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AttendanceConsentTermsTab from '@/components/pages/atendimentos/AttendanceConsentTermsTab.vue' // ✨ Import Consent Terms Tab
 import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnamnesisModal.vue' // ✨ Import Anamnesis Modal
 import AttendanceProceduresTab from '@/components/pages/atendimentos/AttendanceProceduresTab.vue' // ✨ Import Procedures Tab
@@ -86,7 +87,7 @@ const isLoadingData = ref(true)
 const isMobile = ref(false)
 const isKeyboardOpen = ref(false)
 const mobileToolbarStyle = ref({})
-const isSidebarOpen = ref(false) 
+const isSidebarOpen = ref(false)
 
 const currentRecord = computed(() => recordsStore.currentRecord)
 const saveStatus = ref('idle')
@@ -103,14 +104,14 @@ const indicatorStyle = ref({
 const updateIndicator = () => {
   nextTick(() => {
     if (!sideMenuRef.value) return
-    
+
     // Find active button
     const activeBtn = sideMenuRef.value.querySelector('.is-active')
-    
+
     if (activeBtn) {
       const navRect = sideMenuRef.value.getBoundingClientRect()
       const btnRect = activeBtn.getBoundingClientRect()
-      
+
       indicatorStyle.value = {
         top: `${btnRect.top - navRect.top}px`,
         height: `${btnRect.height}px`,
@@ -172,6 +173,10 @@ const isAddingProcedure = ref(false)
 const showCheckoutModal = ref(false)
 const isProcessingCheckout = ref(false)
 
+// ✨ Return Appointment State
+const showReturnAppointmentModal = ref(false)
+const returnAppointmentInitialData = ref(null)
+
 // ✨ Import Budget State
 const showImportBudgetModal = ref(false)
 
@@ -187,11 +192,11 @@ async function handleDeleteProcedure(procedure) {
   if (!confirm('Tem certeza que deseja remover este procedimento?')) {
     return
   }
-  
+
   // ✨ FIX: Use recordsStore instead of patientsStore because we are effectively editing the Record
   // The procedure ID here corresponds to the subdocument in the Record, not the Patient document
   const result = await recordsStore.removeProcedureFromRecord(currentRecord.value._id, procedure._id)
-  
+
   if (result.success) {
       toast.success('Procedimento removido com sucesso!')
       // Record is automatically updated via store
@@ -379,7 +384,7 @@ onMounted(async () => {
   ])
 
   patient.value = patientsStore.selectedPatient
-  
+
   if (!appointmentResult.success || !appointmentResult.data) {
     toast.error('Agendamento não encontrado.')
     router.push('/atendimentos')
@@ -395,7 +400,7 @@ onMounted(async () => {
   const statusPromise = !isViewMode.value && appointment.value.status !== 'Iniciado'
     ? appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
     : Promise.resolve()
-  
+
   await Promise.all([
     statusPromise,
     recordsStore.fetchRecordByAppointmentId(appointmentId)
@@ -430,7 +435,7 @@ onMounted(async () => {
     window.visualViewport.addEventListener('resize', handleResize)
     window.visualViewport.addEventListener('scroll', handleViewportChange)
   }
-  
+
   // Initial update
   setTimeout(updateIndicator, 100)
   handleViewportChange() // Verificação inicial
@@ -500,13 +505,40 @@ async function saveAndFinish() {
   showCheckoutModal.value = true
 }
 
+function openReturnAppointmentModal() {
+  if (!patientId) {
+    toast.error('Paciente não encontrado para agendar retorno.')
+    return
+  }
+
+  showCheckoutModal.value = false
+
+  returnAppointmentInitialData.value = {
+    patient: patient.value?._id || patientId,
+    doctor: appointment.value?.doctor?._id || appointment.value?.doctor || null,
+    notes: '',
+    _mode: 'reschedule',
+  }
+
+  showReturnAppointmentModal.value = true
+}
+
+function closeReturnAppointmentModal() {
+  showReturnAppointmentModal.value = false
+  returnAppointmentInitialData.value = null
+}
+
+function handleReturnAppointmentSaved() {
+  closeReturnAppointmentModal()
+}
+
 // ✨ Handle Checkout Confirmation
 async function handleCheckoutConfirm(checkoutData) {
   isProcessingCheckout.value = true
-  
+
   try {
     const result = await patientsStore.checkout(checkoutData)
-    
+
     if (result.success) {
       toast.success('Atendimento finalizado com sucesso!')
       showCheckoutModal.value = false
@@ -557,15 +589,15 @@ async function reopenAppointment() {
   try {
     isLoadingData.value = true
     const result = await appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
-    
+
     if (result.success) {
       toast.success('Atendimento reaberto!')
-      
+
       // Reset timer if it was stopped
       if (timerInterval.value) {
         clearInterval(timerInterval.value)
       }
-      
+
       timerInterval.value = setInterval(() => {
         elapsedTimeInSeconds.value++
       }, 1000)
@@ -626,6 +658,7 @@ function openPatientProfile() {
       :appointment-date="currentRecord?.appointmentDate || new Date().toLocaleDateString('pt-BR')"
       :appointment-time="currentRecord?.appointmentTime || '00:00'"
       @close="showCheckoutModal = false"
+      @schedule-return="openReturnAppointmentModal"
       @confirm="handleCheckoutConfirm"
     />
 
@@ -635,6 +668,13 @@ function openPatientProfile() {
       :appointment-id="appointmentId"
       @close="showImportBudgetModal = false"
       @imported="handleBudgetImported"
+    />
+
+    <CreateAppointmentModal
+      v-if="showReturnAppointmentModal"
+      :initial-data="returnAppointmentInitialData"
+      @close="closeReturnAppointmentModal"
+      @saved="handleReturnAppointmentSaved"
     />
 
     <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="sidebar-overlay"></div>
@@ -668,12 +708,12 @@ function openPatientProfile() {
       </div>
       <nav class="side-menu" ref="sideMenuRef">
         <!-- Indicador flutuante que desliza -->
-        <div 
-          class="sliding-indicator" 
-          :style="{ 
-            top: indicatorStyle.top, 
+        <div
+          class="sliding-indicator"
+          :style="{
+            top: indicatorStyle.top,
             height: indicatorStyle.height,
-            opacity: indicatorStyle.opacity 
+            opacity: indicatorStyle.opacity
           }"
         ></div>
 
@@ -708,7 +748,7 @@ function openPatientProfile() {
           <ArrowLeft :size="16" />
           Voltar
         </AppButton>
-        
+
         <!-- ✨ Finalizar Atendimento (Mobile Sidebar) -->
         <AppButton
           v-if="!isViewMode"
@@ -731,7 +771,7 @@ function openPatientProfile() {
           <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle">
             <Menu :size="24" />
           </button>
-          
+
           <div v-if="patient && appointment" class="header-patient-info">
             <div class="patient-name-group">
               <span class="patient-name profile-name" @click="openPatientProfile">{{ patient.name }}</span>
@@ -844,7 +884,7 @@ function openPatientProfile() {
             <!-- Left Column: General Info -->
             <div class="info-column">
               <h3 class="column-title"><User class="title-icon" :size="20" /> Dados do Paciente</h3>
-              
+
               <!-- Patient Card -->
               <div class="patient-profile-card">
                 <div class="profile-header">
@@ -899,22 +939,22 @@ function openPatientProfile() {
             <div class="anamnesis-column">
               <div class="anamnesis-header">
                 <h3 class="column-title"><FileText class="title-icon" :size="20" /> Anamneses</h3>
-                <AppButton 
-                  v-if="!isViewMode" 
-                  @click="showAssignAnamnesisModal = true" 
-                  variant="primary" 
+                <AppButton
+                  v-if="!isViewMode"
+                  @click="showAssignAnamnesisModal = true"
+                  variant="primary"
                   size="sm"
                 >
                   <Send :size="14" />
                   Aplicar Anamnese
                 </AppButton>
               </div>
-              
+
               <div class="anamnesis-scroll-area info-card">
                 <!-- Tabs Header -->
                 <div class="anamnesis-tabs">
-                  <button 
-                    class="tab-btn" 
+                  <button
+                    class="tab-btn"
                     :class="{ active: anamnesisTab === 'pending' }"
                     @click="anamnesisTab = 'pending'"
                   >
@@ -924,8 +964,8 @@ function openPatientProfile() {
                       {{ anamnesisStore.pendingAnamneses.length }}
                     </span>
                   </button>
-                  <button 
-                    class="tab-btn" 
+                  <button
+                    class="tab-btn"
                     :class="{ active: anamnesisTab === 'answered' }"
                     @click="anamnesisTab = 'answered'"
                   >
@@ -944,9 +984,9 @@ function openPatientProfile() {
                   </div>
                   <div v-else class="list-wrapper">
                     <ul class="anamnesis-list">
-                      <li 
-                        v-for="anamnesis in anamnesisStore.pendingAnamneses" 
-                        :key="anamnesis._id" 
+                      <li
+                        v-for="anamnesis in anamnesisStore.pendingAnamneses"
+                        :key="anamnesis._id"
                         class="anamnesis-item pending"
                       >
                         <div class="anamnesis-info">
@@ -955,11 +995,11 @@ function openPatientProfile() {
                         </div>
                         <div class="anamnesis-actions">
                             <span class="status-badge pending">Pendente</span>
-                            <AppButton 
-                              v-if="!isViewMode" 
-                              variant="ghost" 
-                              size="sm" 
-                              @click="openAnamnesisModal(anamnesis, true)" 
+                            <AppButton
+                              v-if="!isViewMode"
+                              variant="ghost"
+                              size="sm"
+                              @click="openAnamnesisModal(anamnesis, true)"
                               title="Responder"
                             >
                                 <Pencil :size="14" />
@@ -977,9 +1017,9 @@ function openPatientProfile() {
                   </div>
                   <div v-else class="list-wrapper">
                     <ul class="anamnesis-list">
-                      <li 
-                        v-for="anamnesis in anamnesisStore.answeredAnamneses" 
-                        :key="anamnesis._id" 
+                      <li
+                        v-for="anamnesis in anamnesisStore.answeredAnamneses"
+                        :key="anamnesis._id"
                         class="anamnesis-item completed"
                       >
                         <div class="anamnesis-info">
@@ -1513,6 +1553,8 @@ function openPatientProfile() {
 .profile-name {
   font-size: 1.25rem;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #111827;
 }
 
@@ -2409,7 +2451,7 @@ function openPatientProfile() {
   .header-right .btn-finish-appointment {
     display: none;
   }
-  
+
   .header-right {
     display: flex; /* Ensure container is visible for mobile timer */
     align-items: center;
@@ -2427,7 +2469,7 @@ function openPatientProfile() {
 
   /* Center: Patient Name */
   .header-center {
-    position: absolute; /* ✨ Absolute positioning for perfect center */  
+    position: absolute; /* ✨ Absolute positioning for perfect center */
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -2544,7 +2586,7 @@ function openPatientProfile() {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .mobile-finish-btn {
     width: 100%;
     justify-content: center;
