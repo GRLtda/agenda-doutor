@@ -1536,6 +1536,11 @@ function openPatientProfile() {
 .profile-avatar {
   width: 64px;
   height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 64px;
+  flex-shrink: 0;
   border-radius: 50%;
   background-color: #e0e7ff;
   color: var(--azul-principal);
@@ -1548,9 +1553,14 @@ function openPatientProfile() {
 
 .profile-info {
   flex-grow: 1;
+  min-width: 0;
 }
 
 .profile-name {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
   font-size: 1.25rem;
   font-weight: 700;
   overflow: hidden;
