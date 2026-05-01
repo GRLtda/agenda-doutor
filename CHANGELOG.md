@@ -10,7 +10,7 @@ Todas as mudanças notáveis para o projeto **Agenda Doutor** serão documentada
 - **Filtros Mobile:** Adicionado Drawer lateral (`SideDrawer`) para acesso rápido aos filtros em dispositivos móveis através de um botão flutuante (FAB).
 - **Contador Mensal:** Exibição do número de agendamentos diários na visualização mensal, com design otimizado e centralizado para mobile.
 
-### 🛠️ Corrigido/Melhorado
+### 🛠️ Corrigido/Melhorado;
 - **UX da Toolbar:** A barra de ferramentas flutuante agora trunca datas longas com reticências (`...`) para evitar quebra de layout em telas pequenas.
 - **Navegação de Agendamentos:** Ajustes na lógica de navegação "Próximo/Anterior" dentro do modal de detalhes para maior consistência.
 - **Visualização Mensal:** Ajuste na altura da grade mensal no mobile para evitar scrolls desnecessários no container.
