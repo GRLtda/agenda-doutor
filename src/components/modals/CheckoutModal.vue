@@ -420,7 +420,7 @@ displayAmount.value = '0,00'
           @click="$emit('close')"
           :disabled="isLoading"
         >
-          Cancelar
+          <span class="footer-btn-label">Cancelar</span>
         </AppButton>
         <div class="footer-actions-right">
           <AppButton
@@ -430,7 +430,7 @@ displayAmount.value = '0,00'
             :disabled="isLoading"
           >
             <Calendar :size="18" />
-            Agendar Retorno
+            <span class="footer-btn-label">Agendar Retorno</span>
           </AppButton>
           <AppButton
             variant="primary"
@@ -440,7 +440,7 @@ displayAmount.value = '0,00'
             :loading="isLoading"
           >
             <Check :size="18" />
-            Finalizar
+            <span class="footer-btn-label">Finalizar</span>
           </AppButton>
         </div>
       </div>
@@ -664,9 +664,7 @@ displayAmount.value = '0,00'
 }
 
 .totals-section.sticky-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
+  position: static;
   background: #fff;
 }
 
@@ -730,6 +728,32 @@ displayAmount.value = '0,00'
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.footer-btn-cancel,
+.footer-btn-return,
+.footer-btn-finish {
+  min-width: 0;
+}
+
+.footer-btn-cancel :deep(.button-content),
+.footer-btn-return :deep(.button-content),
+.footer-btn-finish :deep(.button-content) {
+  width: 100%;
+  min-width: 0;
+}
+
+.footer-btn-return :deep(svg),
+.footer-btn-finish :deep(svg) {
+  flex-shrink: 0;
+}
+
+.footer-btn-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
