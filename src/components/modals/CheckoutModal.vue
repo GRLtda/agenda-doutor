@@ -414,12 +414,18 @@ displayAmount.value = '0,00'
 
     <template #footer>
       <div class="drawer-footer space-between">
-        <AppButton variant="default" @click="$emit('close')" :disabled="isLoading">
+        <AppButton
+          variant="default"
+          class="footer-btn-cancel"
+          @click="$emit('close')"
+          :disabled="isLoading"
+        >
           Cancelar
         </AppButton>
         <div class="footer-actions-right">
           <AppButton
             variant="default"
+            class="footer-btn-return"
             @click="emit('schedule-return')"
             :disabled="isLoading"
           >
@@ -428,6 +434,7 @@ displayAmount.value = '0,00'
           </AppButton>
           <AppButton
             variant="primary"
+            class="footer-btn-finish"
             @click="handleSubmit"
             :disabled="!isValid || isLoading"
             :loading="isLoading"
@@ -723,6 +730,27 @@ displayAmount.value = '0,00'
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .drawer-footer.space-between {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .footer-btn-cancel {
+    width: 100%;
+  }
+
+  .footer-actions-right {
+    width: 100%;
+  }
+
+  .footer-btn-return,
+  .footer-btn-finish {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* Hide number spinners */
