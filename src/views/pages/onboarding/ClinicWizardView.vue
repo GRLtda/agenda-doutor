@@ -42,11 +42,14 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(quoteInterval)
 })
+
+const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
+
 </script>
 
 <template>
   <AuthCard
-    image-url="https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=1168&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    :image-url="imageUrl"
     panel-width="large"
   >
     <template #image-content>

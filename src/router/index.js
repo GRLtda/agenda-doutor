@@ -16,15 +16,6 @@ const routes = [
     name: 'register',
     component: RegisterView,
     meta: { public: true, title: 'Cadastro' },
-    beforeEnter: (to, from, next) => {
-      const hasToken = to.query.token || to.query.invitationToken
-
-      if (!hasToken) {
-        next({ name: 'landing' })
-      } else {
-        next()
-      }
-    },
   },
   {
     path: '/onboarding/clinic',

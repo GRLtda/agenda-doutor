@@ -44,6 +44,14 @@ const formattedPlanName = computed(() => {
   return plan.value.charAt(0).toUpperCase() + plan.value.slice(1).toLowerCase()
 })
 
+const successMessage = computed(() => {
+  if (isStaffInvitation.value) {
+    return 'Sua conta foi criada. Você já pode acessar a clínica.'
+  }
+
+  return 'Sua conta foi criada. Agora vamos configurar sua clinica.'
+})
+
 onMounted(async () => {
   const newUserToken = route.query.token // Pega ?token=
   const staffInviteToken = route.query.invitationToken // Pega ?invitationToken=
@@ -68,6 +76,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('Erro ao verificar convite de registro:', error)
       toast.error(error.response?.data?.message || 'Convite inválido ou expirado!')
+      invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
   } else if (staffInviteToken) {
@@ -86,6 +95,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('Erro ao buscar detalhes do convite de staff:', error)
       toast.error('Seu link de convite é inválido ou já expirou!')
+      invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
   }
@@ -121,13 +131,9 @@ async function handleRegister() {
     return
   }
 
-  // O token (seja de staff ou registro) é obrigatório e será enviado aqui
+  // Envia o token apenas quando o cadastro veio de convite.
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
-  } else {
-    errorMessage.value = 'Registro permitido apenas através de um convite válido.'
-    isLoading.value = false
-    return
   }
 
   const { success, error } = await authStore.register(payload)
@@ -137,7 +143,7 @@ async function handleRegister() {
     registrationSuccess.value = true
   } else {
     errorMessage.value =
-      error.response?.data?.message || 'Não foi possível criar a conta. Verifique os dados.'
+      error?.response?.data?.message || error || 'Nao foi possivel criar a conta. Verifique os dados.'
   }
 }
 
@@ -158,9 +164,7 @@ function handleRegistrationComplete() {
       <div class="success-content">
         <CheckCircle2 :size="64" class="success-icon" />
         <h2 class="title">Conta criada com sucesso!</h2>
-        <p class="message">
-          Sua conta foi criada. Agora vamos configurar sua clínica.
-        </p>
+        <p class="message">{{ successMessage }}</p>
         <button @click="handleRegistrationComplete" class="confirm-button">
           Continuar
         </button>

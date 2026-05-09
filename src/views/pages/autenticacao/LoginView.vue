@@ -310,7 +310,7 @@ async function handleResetPassword() {
       <Transition name="fade" mode="out-in">
         <div v-if="step === 'login'" key="footer-login" class="footer-text">
           Não tem uma conta?
-          <a @click.prevent="goToStep('contact')" href="#" class="link-purple">Entre em contato</a>
+          <router-link to="/register" class="link-purple">Crie sua conta</router-link>
         </div>
 
         <div v-else-if="step === 'forgot' || step === 'contact'" key="footer-back" class="footer-text">
