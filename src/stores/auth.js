@@ -379,7 +379,14 @@ export const useAuthStore = defineStore('auth', () => {
    * Registro de novo usuário (ainda usa V1 pois não há V2 para register)
    */
   async function register(userData) {
-    logout()
+    // Limpa sessão local sem redirecionar para evitar salto para /login durante cadastro.
+    user.value = null
+    _clearTokens()
+    localStorage.removeItem(STORAGE_KEY_USER)
+    Sentry.setUser(null)
+    const clinicStore = useClinicStore()
+    clinicStore.setClinic(null)
+
     try {
       const response = await apiRegister(userData)
       const registerData = response.data.data || response.data

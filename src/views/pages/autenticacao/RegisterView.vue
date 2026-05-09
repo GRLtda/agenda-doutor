@@ -153,7 +153,7 @@ function handleRegistrationComplete() {
     router.push('/')
   } else {
     // Se for registro (com convite de ?token), vai para o onboarding
-    router.push('/onboarding/clinic') 
+    router.push('/onboarding/clinic')
   }
 }
 </script>
@@ -239,7 +239,7 @@ function handleRegistrationComplete() {
         <div class="terms-checkbox">
           <label class="checkbox-container">
             <input type="checkbox" v-model="termsAccepted" />
-            <span class="custom-checkbox" :class="{ 'checked': termsAccepted }">
+            <span class="custom-checkbox" :class="{ checked: termsAccepted }">
               <Check v-if="termsAccepted" :size="14" stroke-width="3" />
             </span>
           </label>
@@ -249,7 +249,13 @@ function handleRegistrationComplete() {
         </div>
 
         <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-        <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 1rem;">
+        <AppButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          :loading="isLoading"
+          style="width: 100%; margin-top: 1rem"
+        >
           Criar conta
         </AppButton>
       </form>
@@ -293,7 +299,8 @@ function handleRegistrationComplete() {
 }
 .success-icon {
   color: #10b981;
-  margin-bottom: 1.5rem;
+  margin: 0 auto 1.5rem;
+  display: block;
 }
 .title {
   font-size: 2rem;

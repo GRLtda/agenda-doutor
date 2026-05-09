@@ -26,9 +26,9 @@ function nextStep() {
 // --- ROTATING TEXT LOGIC ---
 const currentQuoteIndex = ref(0)
 const quotes = [
-  "Falta pouco para sua rotina automatizada",
-  "Gestão simplificada e eficiente para sua clínica",
-  "Tecnologia que transforma o seu dia a dia"
+  'Falta pouco para sua rotina automatizada',
+  'Gestão simplificada e eficiente para sua clínica',
+  'Tecnologia que transforma o seu dia a dia',
 ]
 
 let quoteInterval
@@ -44,23 +44,17 @@ onUnmounted(() => {
 })
 
 const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
-
 </script>
 
 <template>
-  <AuthCard
-    :image-url="imageUrl"
-    panel-width="large"
-  >
+  <AuthCard :image-url="imageUrl" panel-width="large">
     <template #image-content>
       <div class="brand-logo">
         <ClinicLogo size="120px" />
       </div>
       <div class="testimonial-overlay">
         <Transition name="fade" mode="out-in">
-          <p :key="currentQuoteIndex" class="quote">
-            “{{ quotes[currentQuoteIndex] }}”
-          </p>
+          <p :key="currentQuoteIndex" class="quote">“{{ quotes[currentQuoteIndex] }}”</p>
         </Transition>
       </div>
     </template>
@@ -138,7 +132,7 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
   font-weight: 600;
   line-height: 1.3;
   color: white; /* Ensure text is white on image */
-  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin: 0;
 }
 
