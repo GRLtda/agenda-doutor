@@ -84,10 +84,28 @@ const router = createRouter({
 
 // --- GUARDAS GLOBAIS (afterEach e beforeEach) ---
 
-router.beforeEach((to, from, next) => {
+const activeSubscriptionStatuses = ['active', 'trialing', 'lifetime', 'past_due']
+
+function hasActiveAccess(clinic) {
+  if (!clinic) {
+    return false
+  }
+
+  if (activeSubscriptionStatuses.includes(clinic.subscriptionStatus)) {
+    return true
+  }
+
+  if (clinic.isTrialAccount && clinic.trialEndsAt) {
+    return new Date(clinic.trialEndsAt) > new Date()
+  }
+
+  return false
+}
+
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const isAuthenticated = authStore.isAuthenticated
-  const hasClinic = authStore.hasClinic
+  let hasClinic = authStore.hasClinic
 
   if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
     return next({ name: 'resumo-dashboard' })
@@ -102,6 +120,11 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !to.meta.public) {
+    if (isAuthenticated && hasClinic) {
+      await authStore.fetchUser()
+      hasClinic = authStore.hasClinic
+    }
+
     if (isAuthenticated && !hasClinic) {
       if (to.name !== 'clinic-wizard') {
         return next({ name: 'clinic-wizard' })
@@ -109,8 +132,17 @@ router.beforeEach((to, from, next) => {
     }
 
     if (isAuthenticated && hasClinic) {
+      const hasActiveSubscription = hasActiveAccess(authStore.user?.clinic)
+
       if (to.name === 'clinic-wizard') {
-        return next({ name: 'resumo-dashboard' })
+        if (hasActiveSubscription) {
+          return next({ name: 'resumo-dashboard' })
+        }
+        return next()
+      }
+
+      if (!hasActiveSubscription) {
+        return next({ name: 'clinic-wizard' })
       }
 
       const requiredFeature = getRouteFeature(to.name)

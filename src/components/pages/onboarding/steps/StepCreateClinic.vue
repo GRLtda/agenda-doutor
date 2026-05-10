@@ -147,20 +147,22 @@ async function handleCreateClinic() {
 /* Estilos permanecem os mesmos */
 .form-header {
   text-align: left;
-  margin-bottom: 2rem;
+  margin-bottom: 0.9rem;
 }
 h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
 }
 p {
   color: var(--cinza-texto);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 0;
 }
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem 1.5rem;
+  gap: 0.7rem 1rem;
 }
 .error-message {
   color: #ef4444;
@@ -171,8 +173,8 @@ p {
 .auth-button {
   width: 100%;
   padding: 0.875rem;
-  margin-top: 2rem;
-  border-radius: 0.75rem;
+  margin-top: 0.9rem;
+  border-radius: 8px;
   border: none;
   background-color: var(--azul-principal);
   color: var(--branco);
