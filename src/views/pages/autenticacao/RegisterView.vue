@@ -53,8 +53,23 @@ const successMessage = computed(() => {
 })
 
 onMounted(async () => {
-  const newUserToken = route.query.token // Pega ?token=
-  const staffInviteToken = route.query.invitationToken // Pega ?invitationToken=
+  const routeParamToken = Array.isArray(route.params.token)
+    ? route.params.token[0]
+    : route.params.token
+  const shortRouteToken = typeof routeParamToken === 'string' ? routeParamToken : null
+
+  const currentPath = String(route.path || '')
+  const isShortAdminRoute =
+    currentPath.startsWith('/r/') || route.name === 'register-admin-short'
+  const isShortEmployeeRoute =
+    currentPath.startsWith('/e/') || route.name === 'register-employee-short'
+
+  const newUserToken = isShortAdminRoute
+    ? shortRouteToken
+    : route.query.token // legado: ?token=
+  const staffInviteToken = isShortEmployeeRoute
+    ? shortRouteToken
+    : route.query.invitationToken // legado: ?invitationToken=
 
   if (newUserToken) {
     invitationToken.value = newUserToken

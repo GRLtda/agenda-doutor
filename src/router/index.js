@@ -18,6 +18,18 @@ const routes = [
     meta: { public: true, title: 'Cadastro' },
   },
   {
+    path: '/r/:token',
+    name: 'register-admin',
+    component: RegisterView,
+    meta: { public: true, title: 'Cadastro' },
+  },
+  {
+    path: '/e/:token',
+    name: 'register-employee',
+    component: RegisterView,
+    meta: { public: true, title: 'Cadastro' },
+  },
+  {
     path: '/onboarding/clinic',
     name: 'clinic-wizard',
     component: ClinicWizardView,

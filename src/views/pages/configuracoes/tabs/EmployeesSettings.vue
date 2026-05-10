@@ -103,7 +103,7 @@ function copyInviteLink(token) {
   if (!token) return
   
   const origin = window.location.origin
-  const link = `${origin}/register?invitationToken=${token}`
+  const link = `${origin}/e/${token}`
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard
