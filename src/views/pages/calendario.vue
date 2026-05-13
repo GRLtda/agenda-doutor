@@ -1,12 +1,15 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useRouter } from 'vue-router'
-import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X } from 'lucide-vue-next'
+import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X, CalendarMinus, CalendarPlus } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
+import ScheduleBlockModal from '@/components/pages/calendario/ScheduleBlockModal.vue'
+import ScheduleBlockConflictResolutionDrawer from '@/components/pages/calendario/ScheduleBlockConflictResolutionDrawer.vue'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
 import VueDatePicker from '@vuepic/vue-datepicker'
@@ -29,6 +32,7 @@ import SideDrawer from '@/components/global/SideDrawer.vue'
 import CalendarFilterPanel from '@/components/pages/calendario/CalendarFilterPanel.vue'
 
 const appointmentsStore = useAppointmentsStore()
+const scheduleBlocksStore = useScheduleBlocksStore()
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
 const router = useRouter()
@@ -73,9 +77,11 @@ const datePickerModel = computed({
 })
 
 const isModalOpen = ref(false)
+const isBlockModalOpen = ref(false)
 const isDetailsModalOpen = ref(false)
 const selectedEventForDetails = ref(null)
 const initialAppointmentData = ref(null)
+const initialBlockData = ref(null)
 const selectedDate = ref(new Date())
 const currentTime = ref(new Date())
 const vueCalRef = ref(null)
@@ -84,6 +90,12 @@ const calendarView = ref('week')
 const isMobile = ref(window.innerWidth <= 768)
 const isInitialLoad = ref(true)
 const isFilterDrawerOpen = ref(false)
+const isQuickActionMenuOpen = ref(false)
+const isConflictResolutionDrawerOpen = ref(false)
+const conflictResolutionBlockId = ref(undefined)
+const conflictResolutionBlockTitle = ref('')
+const conflictResolutionItems = ref([])
+const conflictResolutionPendingPayload = ref(null)
 
 const statusOptions = [
   { label: 'Agendado', value: 'Agendado', color: 'bg-blue-100 text-blue-700' },
@@ -115,6 +127,67 @@ function selectDoctor(doc) {
 
 
 const weekAppointments = computed(() => appointmentsStore.appointments)
+const weekBlocks = computed(() => scheduleBlocksStore.blocks)
+
+const activeDoctorIds = computed(() => {
+  const staff = clinicStore.currentClinic?.staff || []
+  return staff
+    .filter((member) => (member.role === 'medico' || member.role === 'owner') && member.isActive !== false)
+    .map((member) => String(member._id))
+})
+
+function getBlockDoctorId(block) {
+  return block?.doctor?._id || block?.doctor || null
+}
+
+function normalizeDateForSignature(dateLike) {
+  if (!dateLike) return ''
+  const date = new Date(dateLike)
+  return isNaN(date.getTime()) ? String(dateLike) : date.toISOString()
+}
+
+function buildBlockSignature(block) {
+  if (!block) return ''
+  const title = String(block.title || '').trim()
+  const type = String(block.type || '').trim()
+  const notes = String(block.notes || '').trim()
+  const isAllDay = block.isAllDay ? '1' : '0'
+  const start = normalizeDateForSignature(block.startAt)
+  const end = normalizeDateForSignature(block.endAt)
+  const createdBy = String(block.createdBy || '')
+  return `${title}|${type}|${notes}|${isAllDay}|${start}|${end}|${createdBy}`
+}
+
+const allDoctorsBlockSignatures = computed(() => {
+  if (!Array.isArray(weekBlocks.value) || weekBlocks.value.length === 0) return new Set()
+
+  const doctorIds = activeDoctorIds.value
+  if (doctorIds.length <= 1) return new Set()
+
+  const signatureToDoctorSet = new Map()
+  for (const block of weekBlocks.value) {
+    const doctorId = getBlockDoctorId(block)
+    if (!doctorId) continue
+
+    const signature = buildBlockSignature(block)
+    if (!signature) continue
+
+    if (!signatureToDoctorSet.has(signature)) {
+      signatureToDoctorSet.set(signature, new Set())
+    }
+    signatureToDoctorSet.get(signature).add(String(doctorId))
+  }
+
+  const result = new Set()
+  for (const [signature, blockDoctorIds] of signatureToDoctorSet.entries()) {
+    const isAllDoctorsBlock = doctorIds.every((doctorId) => blockDoctorIds.has(String(doctorId)))
+    if (isAllDoctorsBlock) {
+      result.add(signature)
+    }
+  }
+
+  return result
+})
 
 const weekStart = computed(() => startOfWeek(selectedDate.value, { weekStartsOn: 1 }))
 const weekEnd = computed(() => endOfWeek(selectedDate.value, { weekStartsOn: 1 }))
@@ -223,6 +296,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
       continue // Próximo dia
     }
@@ -237,6 +311,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
       continue
     }
@@ -248,6 +323,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(globalMinStart)}`,
         end: `${dateString} ${minutesToTime(dayStartMinutes)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
     }
 
@@ -258,6 +334,7 @@ const closedTimeEvents = computed(() => {
         start: `${dateString} ${minutesToTime(dayEndMinutes)}`,
         end: `${dateString} ${minutesToTime(globalMaxEnd)}`,
         class: 'clinic-closed-event',
+        background: true,
       })
     }
   }
@@ -322,7 +399,10 @@ async function fetchDataForView() {
     startDate = format(weekStart.value, 'yyyy-MM-dd')
     endDate = format(endOfWeek(selectedDate.value), 'yyyy-MM-dd')
   }
-  await appointmentsStore.fetchAppointmentsByDate(startDate, endDate)
+  await Promise.all([
+    appointmentsStore.fetchAppointmentsByDate(startDate, endDate),
+    scheduleBlocksStore.fetchBlocksByDate(startDate, endDate),
+  ])
 }
 
 function handleEditAction(eventData) {
@@ -334,7 +414,30 @@ function handleEditAction(eventData) {
   //   initialAppointmentData.value,
   // )
 
+  isQuickActionMenuOpen.value = false
   isModalOpen.value = true
+}
+
+function openCreateBlockDrawer(baseDate = null) {
+  const start = baseDate ? new Date(baseDate) : new Date()
+  const end = new Date(start)
+  end.setMinutes(end.getMinutes() + 30)
+
+  initialBlockData.value = {
+    startAt: start,
+    endAt: end,
+    doctor: selectedDoctorId.value || null,
+  }
+  isQuickActionMenuOpen.value = false
+  isBlockModalOpen.value = true
+}
+
+function openCreateBlockFromMenu() {
+  openCreateBlockDrawer(selectedDate.value)
+}
+
+function openCreateAppointmentFromMenu() {
+  handleEditAction(null)
 }
 
 function goToPrevious() {
@@ -470,8 +573,60 @@ const formattedEvents = computed(() => {
   }).filter(evt => evt !== null) // Remove nulos gerados por dados inválidos
 })
 
+const formattedBlockEvents = computed(() => {
+  if (!Array.isArray(weekBlocks.value)) return []
+
+  let filtered = weekBlocks.value
+
+  if (selectedDoctorId.value) {
+    filtered = filtered.filter((block) => {
+      const doctorId = getBlockDoctorId(block)
+      return String(doctorId) === String(selectedDoctorId.value)
+    })
+  } else {
+    const sharedSignatures = allDoctorsBlockSignatures.value
+    const hasMultipleDoctors = activeDoctorIds.value.length > 1
+    if (hasMultipleDoctors) {
+      const uniqueBlocksBySignature = new Map()
+      for (const block of filtered) {
+        const signature = buildBlockSignature(block)
+        if (!sharedSignatures.has(signature)) continue
+        if (!uniqueBlocksBySignature.has(signature)) {
+          uniqueBlocksBySignature.set(signature, block)
+        }
+      }
+      filtered = Array.from(uniqueBlocksBySignature.values())
+    }
+  }
+
+  return filtered
+    .map((block) => {
+      if (!block?.startAt || !block?.endAt) return null
+
+      const startTime = new Date(block.startAt)
+      const endTime = new Date(block.endAt)
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return null
+
+      const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+
+      return {
+        start: formatToVueCalString(block.startAt),
+        end: formatToVueCalString(block.endAt),
+        title: block.title || 'Bloqueio',
+        class: 'clinic-closed-event clinic-doctor-block-event',
+        background: true,
+        originalEvent: block,
+        duration,
+        status: 'bloqueio',
+        isScheduleBlock: true,
+      }
+    })
+    .filter((event) => event !== null)
+})
+
 const allCalendarEvents = computed(() => {
-  return [...formattedEvents.value, ...closedTimeEvents.value]
+  // Mantém eventos de fundo primeiro para não influenciar visualmente os cards de agendamento.
+  return [...closedTimeEvents.value, ...formattedBlockEvents.value, ...formattedEvents.value]
 })
 
 // Mapa de contagem de agendamentos por dia (yyyy-MM-dd -> count)
@@ -549,6 +704,80 @@ function formatTime(dateString) {
   })
 }
 
+function parseCalendarDateTime(value) {
+  if (!value) return null
+  const date =
+    value instanceof Date ? value : new Date(String(value).includes(' ') ? String(value).replace(' ', 'T') : value)
+  return isNaN(date.getTime()) ? null : date
+}
+
+function getBlockLabelTopPercent(blockEvent) {
+  const blockStart = parseCalendarDateTime(blockEvent?.start)
+  const blockEnd = parseCalendarDateTime(blockEvent?.end)
+  if (!blockStart || !blockEnd || blockEnd <= blockStart) return 50
+
+  const blockDurationMinutes = (blockEnd.getTime() - blockStart.getTime()) / (1000 * 60)
+  if (blockDurationMinutes <= 0) return 50
+
+  const occupiedRanges = formattedEvents.value
+    .map((appointment) => {
+      const appointmentStart = parseCalendarDateTime(appointment?.start)
+      const appointmentEnd = parseCalendarDateTime(appointment?.end)
+      if (!appointmentStart || !appointmentEnd) return null
+      if (appointmentEnd <= blockStart || appointmentStart >= blockEnd) return null
+
+      const overlapStart = appointmentStart > blockStart ? appointmentStart : blockStart
+      const overlapEnd = appointmentEnd < blockEnd ? appointmentEnd : blockEnd
+      if (overlapEnd <= overlapStart) return null
+
+      return {
+        start: (overlapStart.getTime() - blockStart.getTime()) / (1000 * 60),
+        end: (overlapEnd.getTime() - blockStart.getTime()) / (1000 * 60),
+      }
+    })
+    .filter((range) => range !== null)
+    .sort((a, b) => a.start - b.start)
+
+  if (occupiedRanges.length === 0) return 50
+
+  const mergedRanges = []
+  for (const range of occupiedRanges) {
+    const last = mergedRanges[mergedRanges.length - 1]
+    if (!last || range.start > last.end) {
+      mergedRanges.push({ ...range })
+      continue
+    }
+    last.end = Math.max(last.end, range.end)
+  }
+
+  const freeRanges = []
+  let cursor = 0
+  for (const range of mergedRanges) {
+    if (range.start > cursor) freeRanges.push({ start: cursor, end: range.start })
+    cursor = Math.max(cursor, range.end)
+  }
+  if (cursor < blockDurationMinutes) freeRanges.push({ start: cursor, end: blockDurationMinutes })
+
+  if (freeRanges.length === 0) return 8
+
+  const minUsefulSlot = 20
+  const bestRange =
+    freeRanges
+      .filter((range) => range.end - range.start >= minUsefulSlot)
+      .sort((a, b) => b.end - b.start - (a.end - a.start))[0] ||
+    freeRanges.sort((a, b) => b.end - b.start - (a.end - a.start))[0]
+
+  const centerMinute = (bestRange.start + bestRange.end) / 2
+  const topPercent = (centerMinute / blockDurationMinutes) * 100
+  return Math.max(8, Math.min(92, topPercent))
+}
+
+function getScheduleBlockLabelStyle(blockEvent) {
+  return {
+    '--block-label-top': `${getBlockLabelTopPercent(blockEvent)}%`,
+  }
+}
+
 // ✨ CORREÇÃO: Função ajustada para enviar os dados corretos ao modal
 function handleCellClick(date) {
   const now = new Date()
@@ -566,6 +795,12 @@ function handleCellClick(date) {
 function handleEventClick(event, e) {
   // Prevent propagation if needed, though vue-cal usually handles this
   if (e && e.stopPropagation) e.stopPropagation()
+
+  if (event?.isScheduleBlock) {
+    initialBlockData.value = event.originalEvent
+    isBlockModalOpen.value = true
+    return
+  }
 
   if (event.class && event.class.includes('clinic-closed-event')) {
     return
@@ -597,6 +832,100 @@ function handleAppointmentSaved() {
 function closeDetailsModal() {
   isDetailsModalOpen.value = false
   fetchDataForView()
+}
+
+function closeBlockModal() {
+  isBlockModalOpen.value = false
+  initialBlockData.value = null
+}
+
+function handleBlockSaved(blockPayload = null) {
+  fetchDataForView()
+  closeBlockModal()
+  const conflicts = blockPayload?.conflictSummary?.conflicts || []
+  if (!Array.isArray(conflicts) || conflicts.length === 0) return
+
+  openConflictResolutionDrawer({
+    blockId: blockPayload?._id || undefined,
+    title: blockPayload?.title || 'Bloqueio de Agenda',
+    conflicts,
+    pendingPayload: null,
+  })
+}
+
+function handleResolveBeforeSaveBlock({ operation = 'create', blockId = null, payload, conflicts }) {
+  closeBlockModal()
+
+  openConflictResolutionDrawer({
+    blockId: undefined,
+    title: payload?.title || 'Bloqueio de Agenda',
+    conflicts: conflicts || [],
+    pendingPayload: payload ? { operation, blockId, payload } : null,
+  })
+}
+
+function openConflictResolutionDrawer({ blockId = undefined, title = 'Bloqueio de Agenda', conflicts = [], pendingPayload = null }) {
+  if (!Array.isArray(conflicts) || conflicts.length === 0) return
+
+  conflictResolutionBlockId.value = blockId
+  conflictResolutionBlockTitle.value = title
+  conflictResolutionPendingPayload.value = pendingPayload
+  conflictResolutionItems.value = conflicts
+  isConflictResolutionDrawerOpen.value = true
+}
+
+function closeConflictResolutionDrawer() {
+  isConflictResolutionDrawerOpen.value = false
+  conflictResolutionBlockId.value = undefined
+  conflictResolutionBlockTitle.value = ''
+  conflictResolutionPendingPayload.value = null
+  conflictResolutionItems.value = []
+  fetchDataForView()
+}
+
+async function handleConflictsResolved() {
+  if (conflictResolutionPendingPayload.value?.payload) {
+    const { operation = 'create', blockId = null, payload: basePayload } = conflictResolutionPendingPayload.value
+    const payload = { ...basePayload, requireNoConflicts: true }
+
+    const result =
+      operation === 'update' && blockId
+        ? await scheduleBlocksStore.updateBlock(blockId, payload)
+        : await scheduleBlocksStore.createBlock(payload)
+    const { success, error } = result
+
+    if (!success) {
+      const conflictSummary = error?.response?.data?.conflictSummary
+      const conflictItems = conflictSummary?.conflicts || []
+
+      if (error?.response?.status === 409 && conflictItems.length > 0) {
+        toast.warning(
+          operation === 'update'
+            ? 'Ainda existem conflitos pendentes. Resolva-os para concluir a atualização do bloqueio.'
+            : 'Ainda existem conflitos pendentes. Resolva-os para concluir a criação do bloqueio.'
+        )
+        openConflictResolutionDrawer({
+          blockId: undefined,
+          title: payload.title || 'Bloqueio de Agenda',
+          conflicts: conflictItems,
+          pendingPayload: conflictResolutionPendingPayload.value,
+        })
+        return
+      }
+
+      toast.error(
+        error?.response?.data?.message ||
+          (operation === 'update'
+            ? 'Não foi possível atualizar o bloqueio após resolver os conflitos.'
+            : 'Não foi possível criar o bloqueio após resolver os conflitos.')
+      )
+      return
+    }
+
+    toast.success(operation === 'update' ? 'Bloqueio atualizado com sucesso.' : 'Bloqueio criado com sucesso.')
+  }
+
+  closeConflictResolutionDrawer()
 }
 
 function handleReschedule(appointmentToReschedule) {
@@ -709,14 +1038,30 @@ const getDayNumber = (heading) => {
                <Filter :size="18" />
              </button>
 
-             <CreateAppointmentModal
-                v-if="isModalOpen"
-                :initial-data="initialAppointmentData"
-                @close="closeModal"
-                @saved="handleAppointmentSaved"
-                />
-            <AppointmentDetailsModal
-                v-if="isDetailsModalOpen"
+	             <CreateAppointmentModal
+	                v-if="isModalOpen"
+	                :initial-data="initialAppointmentData"
+	                @close="closeModal"
+	                @saved="handleAppointmentSaved"
+	                />
+	            <ScheduleBlockModal
+	              v-if="isBlockModalOpen"
+	              :initial-data="initialBlockData"
+	              @close="closeBlockModal"
+	              @saved="handleBlockSaved"
+                @resolve-before-save="handleResolveBeforeSaveBlock"
+	            />
+              <ScheduleBlockConflictResolutionDrawer
+                v-if="isConflictResolutionDrawerOpen"
+                :block-id="conflictResolutionBlockId"
+                :block-title="conflictResolutionBlockTitle"
+                :initial-conflicts="conflictResolutionItems"
+                :pending-block-payload="conflictResolutionPendingPayload"
+                @close="closeConflictResolutionDrawer"
+                @resolved="handleConflictsResolved"
+              />
+	            <AppointmentDetailsModal
+	                v-if="isDetailsModalOpen"
                 :event="selectedEventForDetails"
                 :has-previous="hasPreviousAppointment"
                 :has-next="hasNextAppointment"
@@ -730,8 +1075,8 @@ const getDayNumber = (heading) => {
                 @reschedule="handleReschedule(selectedEventForDetails.originalEvent)"
             />
 
-            <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading }">
-                <div v-if="appointmentsStore.isLoading" class="loading-overlay">
+	            <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading || scheduleBlocksStore.isLoading }">
+	                <div v-if="appointmentsStore.isLoading || scheduleBlocksStore.isLoading" class="loading-overlay">
                     <div class="loading-animation">
                     <LoaderCircle :size="32" class="animate-spin" />
                     <span>Carregando...</span>
@@ -764,12 +1109,20 @@ const getDayNumber = (heading) => {
                     </div>
                     </template>
 
-                    <template #event="{ event }">
-                    <div v-if="event.class === 'clinic-closed-event'" class="closed-event-content">
-                        {{ event.title }}
-                    </div>
+	                    <template #event="{ event }">
+	                    <div v-if="event.class?.includes('clinic-closed-event') && !event.isScheduleBlock" class="closed-event-content">
+	                        {{ event.title || 'Fechado' }}
+	                    </div>
 
-                    <div
+	                    <div
+                        v-else-if="event.isScheduleBlock"
+                        class="schedule-block-content"
+                        :style="getScheduleBlockLabelStyle(event)"
+                      >
+                        <span class="schedule-block-title">{{ event.title }}</span>
+	                    </div>
+
+	                    <div
                         v-else-if="event.duration <= 30"
                         class="custom-event-content-short"
                         :title="`${event.title} (${event.status})`"
@@ -833,13 +1186,26 @@ const getDayNumber = (heading) => {
                 <ChevronRight :size="20" />
                 </button>
 
-                <div class="separator-vertical"></div>
-                <button class="new-appointment-btn" @click="handleEditAction(null)" title="Novo Agendamento">
-                    <Plus :size="20" />
-                </button>
-            </div>
-            </footer>
-        </main>
+	                <div class="separator-vertical"></div>
+	                <div class="quick-actions-wrapper" v-click-outside="() => (isQuickActionMenuOpen = false)">
+	                  <button class="new-appointment-btn" @click.stop="isQuickActionMenuOpen = !isQuickActionMenuOpen" title="Novo">
+	                    <Plus :size="20" />
+	                  </button>
+
+	                  <div v-if="isQuickActionMenuOpen" class="quick-actions-menu">
+	                    <button class="quick-action-item" @click="openCreateAppointmentFromMenu">
+	                      <CalendarPlus :size="14" />
+	                      Criar agendamento
+	                    </button>
+	                    <button class="quick-action-item" @click="openCreateBlockFromMenu">
+	                      <CalendarMinus :size="14" />
+	                      Adicionar Bloqueio
+	                    </button>
+	                  </div>
+	                </div>
+	            </div>
+	            </footer>
+	        </main>
 
         <!-- SIDEBAR - Lado Direito -->
         <aside class="calendar-sidebar-panel">
@@ -954,6 +1320,16 @@ const getDayNumber = (heading) => {
   box-shadow: none;
   opacity: 0.8;
 }
+.vuecal__event.clinic-closed-event.clinic-doctor-block-event {
+  cursor: pointer;
+  opacity: 0.95;
+  z-index: 0 !important;
+}
+.vuecal__event.clinic-closed-event.clinic-doctor-block-event:hover {
+  transform: none;
+  box-shadow: none;
+  opacity: 1;
+}
 .vuecal__event.clinic-closed-event::before {
   display: none; /* Esconde a barra lateral */
 }
@@ -961,6 +1337,7 @@ const getDayNumber = (heading) => {
   background-color: #eef2ff;
   color: #3b82f6;
   border-color: #dbeafe;
+  z-index: 2;
 }
 .vuecal__event.status--confirmado {
   background-color: #fefce8;
@@ -1383,6 +1760,47 @@ const getDayNumber = (heading) => {
   transform: scale(1.05);
 }
 
+.quick-actions-wrapper {
+  position: relative;
+}
+
+.quick-actions-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  min-width: 236px;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.9rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+  padding: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 50;
+}
+
+.quick-action-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.quick-action-item:hover {
+  background-color: #eef2ff;
+  color: #1d4ed8;
+}
+
 .calendar-container {
   height: 100%;
   width: 100%;
@@ -1442,6 +1860,27 @@ const getDayNumber = (heading) => {
   opacity: 0.9;
   padding: 4px;
   box-sizing: border-box;
+}
+.schedule-block-content {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  color: inherit;
+  overflow: hidden;
+}
+.schedule-block-title {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: var(--block-label-top, 50%);
+  transform: translateY(-50%);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .custom-event-content-short,
 .custom-event-content-long {

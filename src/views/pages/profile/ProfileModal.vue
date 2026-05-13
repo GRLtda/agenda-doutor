@@ -1,99 +1,54 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  ArrowLeft,
-  Building,
-  ChevronRight,
-  Clock,
-  FileSignature,
-  FileText,
-  History,
-  Settings,
-  X,
-  Users,
-} from 'lucide-vue-next'
-import GeneralSettings from '@/views/pages/configuracoes/tabs/GeneralSettings.vue'
-import WorkingHoursSettings from '@/views/pages/configuracoes/tabs/WorkingHoursSettings.vue'
-import AnamnesisTemplates from '@/views/pages/configuracoes/tabs/AnamnesisTemplates.vue'
-import ConsentTermsTemplates from '@/views/pages/configuracoes/tabs/ConsentTermsTemplates.vue'
-import EmployeesSettings from '@/views/pages/configuracoes/tabs/EmployeesSettings.vue'
-import AuditLog from '@/views/pages/configuracoes/tabs/AuditLog.vue'
-import ClinicConfigSettings from '@/views/pages/configuracoes/tabs/ClinicConfigSettings.vue'
+import { ArrowLeft, Building2, ChevronRight, Monitor, Shield, User, X } from 'lucide-vue-next'
+import ProfileView from '@/views/pages/ProfileView.vue'
 
 const emit = defineEmits(['close'])
 const route = useRoute()
 const router = useRouter()
-const activeTab = ref('identidade')
+
+const activeTab = ref('personal')
 const MOBILE_BREAKPOINT = 1024
+
+const tabs = [
+  {
+    value: 'personal',
+    label: 'Informações Pessoais',
+    description: 'Dados do perfil e identificação de acesso.',
+    icon: User,
+  },
+  {
+    value: 'security',
+    label: 'Segurança',
+    description: '2FA, redefinição de senha e proteção de conta.',
+    icon: Shield,
+  },
+  {
+    value: 'devices',
+    label: 'Dispositivos Conectados',
+    description: 'Gerencie as sessões ativas da sua conta.',
+    icon: Monitor,
+  },
+  {
+    value: 'clinic',
+    label: 'Dados da Clínica',
+    description: 'Informações institucionais da clínica.',
+    icon: Building2,
+  },
+]
+
 const getIsMobileViewport = () => {
   if (typeof window === 'undefined') return false
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches
 }
+
 const isMobile = ref(getIsMobileViewport())
 const mobileStage = ref('menu')
-const settingsSidebarNavRef = ref(null)
-const settingsIndicatorStyle = ref({
-  top: '0px',
-  height: '0px',
-  opacity: 0,
-})
 let mobileMediaQuery = null
 let mobileMediaListener = null
 let previousBodyOverflow = ''
 let previousHtmlOverflow = ''
-
-const tabs = [
-  {
-    value: 'identidade',
-    label: 'Identidade da Clínica',
-    description: 'Dados básicos da clínica e marca visual.',
-    icon: Building,
-    component: GeneralSettings,
-  },
-  {
-    value: 'configuracoes',
-    label: 'Configurações',
-    description: 'Preferências gerais e regras de operação.',
-    icon: Settings,
-    component: ClinicConfigSettings,
-  },
-  {
-    value: 'horario',
-    label: 'Horário de Funcionamento',
-    description: 'Defina os horários de atendimento.',
-    icon: Clock,
-    component: WorkingHoursSettings,
-  },
-  {
-    value: 'anamnese',
-    label: 'Modelos de Anamnese',
-    description: 'Crie e organize modelos para consultas.',
-    icon: FileText,
-    component: AnamnesisTemplates,
-  },
-  {
-    value: 'termos',
-    label: 'Termos de Consentimento',
-    description: 'Gerencie os termos assinados por pacientes.',
-    icon: FileSignature,
-    component: ConsentTermsTemplates,
-  },
-  {
-    value: 'funcionarios',
-    label: 'Membros da Equipe',
-    description: 'Acessos, papéis e convites da equipe.',
-    icon: Users,
-    component: EmployeesSettings,
-  },
-  {
-    value: 'auditoria',
-    label: 'Histórico de Atividades',
-    description: 'Registro de alterações importantes no sistema.',
-    icon: History,
-    component: AuditLog,
-  },
-]
 
 const isValidTab = (value) => tabs.some((tab) => tab.value === value)
 
@@ -101,6 +56,8 @@ const normalizeTabQuery = (value) => {
   const normalized = Array.isArray(value) ? value[0] : value
   return isValidTab(normalized) ? normalized : null
 }
+
+const currentTab = computed(() => tabs.find((tab) => tab.value === activeTab.value) || tabs[0])
 
 const syncMobileStage = (isMobileViewport) => {
   isMobile.value = isMobileViewport
@@ -110,7 +67,7 @@ const syncMobileStage = (isMobileViewport) => {
     return
   }
 
-  mobileStage.value = route.query.tab ? 'detail' : 'menu'
+  mobileStage.value = route.query.profileTab ? 'detail' : 'menu'
 }
 
 const openTab = (value, options = {}) => {
@@ -118,7 +75,14 @@ const openTab = (value, options = {}) => {
   if (!isValidTab(value)) return
 
   activeTab.value = value
-  router.replace({ query: { ...route.query, tab: value } })
+
+  router.replace({
+    query: {
+      ...route.query,
+      profile: '1',
+      profileTab: value,
+    },
+  })
 
   if (isMobile.value && mobileFromMenu) {
     mobileStage.value = 'detail'
@@ -127,18 +91,32 @@ const openTab = (value, options = {}) => {
 
 const handleBackToMenu = () => {
   mobileStage.value = 'menu'
-  router.replace({ query: { ...route.query, tab: undefined } })
-}
-
-const closeSettingsModal = () => {
   router.replace({
     query: {
       ...route.query,
-      settings: undefined,
-      tab: undefined,
+      profileTab: undefined,
+    },
+  })
+}
+
+const closeProfileModal = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: undefined,
+      profileTab: undefined,
     },
   })
   emit('close')
+}
+
+const handleMobileBack = () => {
+  if (mobileStage.value === 'detail') {
+    handleBackToMenu()
+    return
+  }
+
+  closeProfileModal()
 }
 
 const lockBackgroundScroll = () => {
@@ -158,36 +136,10 @@ const unlockBackgroundScroll = () => {
   document.documentElement.style.overflow = previousHtmlOverflow
 }
 
-const updateSettingsSidebarIndicator = () => {
-  nextTick(() => {
-    if (!settingsSidebarNavRef.value || isMobile.value) {
-      settingsIndicatorStyle.value = { ...settingsIndicatorStyle.value, opacity: 0 }
-      return
-    }
-
-    const activeItem = settingsSidebarNavRef.value.querySelector('.sidebar-item.active')
-
-    if (!activeItem) {
-      settingsIndicatorStyle.value = { ...settingsIndicatorStyle.value, opacity: 0 }
-      return
-    }
-
-    const navRect = settingsSidebarNavRef.value.getBoundingClientRect()
-    const itemRect = activeItem.getBoundingClientRect()
-    const navScrollTop = settingsSidebarNavRef.value.scrollTop
-
-    settingsIndicatorStyle.value = {
-      top: `${itemRect.top - navRect.top + navScrollTop}px`,
-      height: `${itemRect.height}px`,
-      opacity: 1,
-    }
-  })
-}
-
 onMounted(() => {
   lockBackgroundScroll()
 
-  const queryTab = normalizeTabQuery(route.query.tab)
+  const queryTab = normalizeTabQuery(route.query.profileTab)
   if (queryTab) {
     activeTab.value = queryTab
   }
@@ -197,7 +149,6 @@ onMounted(() => {
 
   syncMobileStage(mobileMediaQuery.matches)
   mobileMediaQuery.addEventListener('change', mobileMediaListener)
-  updateSettingsSidebarIndicator()
 })
 
 onBeforeUnmount(() => {
@@ -209,7 +160,7 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => route.query.tab,
+  () => route.query.profileTab,
   (value) => {
     const queryTab = normalizeTabQuery(value)
 
@@ -226,76 +177,31 @@ watch(
     }
   }
 )
-
-watch(activeTab, () => {
-  updateSettingsSidebarIndicator()
-})
-
-watch(isMobile, () => {
-  updateSettingsSidebarIndicator()
-})
-
-const currentTab = computed(() => tabs.find((tab) => tab.value === activeTab.value) || tabs[0])
-
-const mobileHeaderTitle = computed(() =>
-  mobileStage.value === 'detail' ? currentTab.value.label : 'Configurações'
-)
-
-const mobileHeaderDescription = computed(() =>
-  mobileStage.value === 'detail'
-    ? currentTab.value.description
-    : 'Escolha uma seção para continuar.'
-)
-
-const mobileHeaderIcon = computed(() =>
-  mobileStage.value === 'detail' ? currentTab.value.icon : Settings
-)
-
-const handleMobileBack = () => {
-  if (mobileStage.value === 'detail') {
-    handleBackToMenu()
-    return
-  }
-
-  closeSettingsModal()
-}
 </script>
 
 <template>
   <Teleport to="body">
-    <div class="settings-workspace">
+    <div class="profile-workspace">
       <template v-if="!isMobile">
-        <div class="settings-overlay" @click.self="closeSettingsModal">
-          <div class="settings-modal-frame">
+        <div class="profile-overlay" @click.self="closeProfileModal">
+          <div class="profile-modal-frame">
             <button
               type="button"
               class="desktop-close-button"
-              aria-label="Fechar configurações"
-              @click="closeSettingsModal"
+              aria-label="Fechar perfil"
+              @click="closeProfileModal"
             >
               <X :size="18" />
             </button>
 
-            <div class="settings-modal">
-              <aside class="settings-sidebar">
+            <div class="profile-modal">
+              <aside class="profile-sidebar">
                 <div class="sidebar-head">
-                  <h1>Configurações</h1>
-                  <p>Ajustes da clínica em um painel central.</p>
+                  <h1>Meu Perfil</h1>
+                  <p>Ajustes da conta e da clínica em um painel central.</p>
                 </div>
 
-                <nav
-                  ref="settingsSidebarNavRef"
-                  class="sidebar-nav"
-                  @scroll.passive="updateSettingsSidebarIndicator"
-                >
-                  <div
-                    class="settings-sliding-indicator"
-                    :style="{
-                      top: settingsIndicatorStyle.top,
-                      height: settingsIndicatorStyle.height,
-                      opacity: settingsIndicatorStyle.opacity,
-                    }"
-                  ></div>
+                <nav class="sidebar-nav">
                   <button
                     v-for="tab in tabs"
                     :key="tab.value"
@@ -305,14 +211,14 @@ const handleMobileBack = () => {
                     @click="openTab(tab.value)"
                   >
                     <span class="sidebar-item-icon">
-                      <component :is="tab.icon" :size="20" />
+                      <component :is="tab.icon" :size="18" />
                     </span>
                     <span class="sidebar-item-label">{{ tab.label }}</span>
                   </button>
                 </nav>
               </aside>
 
-              <section class="settings-content">
+              <section class="profile-content">
                 <header class="content-header">
                   <div class="content-header-left">
                     <span class="content-tab-icon">
@@ -323,11 +229,10 @@ const handleMobileBack = () => {
                       <p>{{ currentTab.description }}</p>
                     </div>
                   </div>
-                  <div id="tab-actions"></div>
                 </header>
 
                 <div class="content-body">
-                  <component :is="currentTab.component" />
+                  <ProfileView :active-tab="activeTab" :hide-tabs="true" @update:active-tab="openTab" />
                 </div>
               </section>
             </div>
@@ -336,19 +241,25 @@ const handleMobileBack = () => {
       </template>
 
       <template v-else>
-        <div class="settings-mobile">
+        <div class="profile-mobile">
           <header class="mobile-head">
-            <div class="mobile-head-main">
-              <button type="button" class="mobile-back" @click="handleMobileBack">
-                <ArrowLeft :size="18" />
-              </button>
+            <button type="button" class="mobile-back" @click="handleMobileBack">
+              <ArrowLeft :size="16" />
+            </button>
 
+            <div class="mobile-head-main">
               <span class="mobile-head-icon">
-                <component :is="mobileHeaderIcon" :size="18" />
+                <component :is="currentTab.icon" :size="18" />
               </span>
               <div class="mobile-head-title">
-                <h1>{{ mobileHeaderTitle }}</h1>
-                <p>{{ mobileHeaderDescription }}</p>
+                <h1>{{ mobileStage === 'menu' ? 'Meu Perfil' : currentTab.label }}</h1>
+                <p>
+                  {{
+                    mobileStage === 'menu'
+                      ? 'Escolha uma seção para continuar.'
+                      : currentTab.description
+                  }}
+                </p>
               </div>
             </div>
           </header>
@@ -377,10 +288,8 @@ const handleMobileBack = () => {
           </template>
 
           <template v-else>
-            <div id="tab-actions" class="mobile-tab-actions"></div>
-
             <div class="mobile-detail-content">
-              <component :is="currentTab.component" />
+              <ProfileView :active-tab="activeTab" :hide-tabs="true" @update:active-tab="openTab" />
             </div>
           </template>
         </div>
@@ -390,28 +299,28 @@ const handleMobileBack = () => {
 </template>
 
 <style scoped>
-.settings-workspace {
+.profile-workspace {
   min-height: 100%;
 }
 
-.settings-overlay {
+.profile-overlay {
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: 6200;
   padding: clamp(1rem, 2.4vw, 2rem);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(15, 23, 42, 0.527);
-  animation: settings-overlay-in 0.2s ease-out;
+  background-color: rgba(15, 23, 42, 0.34);
+  animation: profile-overlay-in 0.2s ease-out;
 }
 
-.settings-modal-frame {
+.profile-modal-frame {
   position: relative;
   width: min(1160px, 100%);
   height: min(82dvh, 880px);
   z-index: 1;
-  animation: settings-modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: profile-modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: center;
 }
 
@@ -422,7 +331,6 @@ const handleMobileBack = () => {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  z-index: 10;
   border: 1px solid #d1d5db;
   background: rgba(255, 255, 255, 0.96);
   color: #4b5563;
@@ -438,40 +346,19 @@ const handleMobileBack = () => {
   background: #ffffff;
 }
 
-.settings-modal {
+.profile-modal {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border: 1px solid #e5e7eb;
   border-radius: 1.5rem;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.2);
-  backdrop-filter: blur(2px);
   display: grid;
   grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
   overflow: hidden;
 }
 
-@keyframes settings-overlay-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes settings-modal-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.settings-sidebar {
+.profile-sidebar {
   border-right: 1px solid #e5e7eb;
   background: rgba(249, 250, 251, 0.88);
   padding: 1.25rem;
@@ -499,58 +386,33 @@ const handleMobileBack = () => {
   flex-direction: column;
   gap: 0.35rem;
   overflow-y: auto;
-  position: relative;
-}
-
-.settings-sliding-indicator {
-  position: absolute;
-  left: 3px;
-  width: 3px;
-  background-color: var(--azul-principal);
-  border-radius: 0 2px 2px 0;
-  transition:
-    top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 2;
-  pointer-events: none;
-  transform: scaleY(0.6);
-  transform-origin: center;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.7rem;
   width: 100%;
   border: 1px solid transparent;
   background: transparent;
   color: #3f4752;
-  padding: 0.5rem 0.75rem;
+  padding: 0.7rem 0.85rem;
   border-radius: 0.8rem;
-  min-height: 2.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.89rem;
+  font-weight: 600;
   text-align: left;
-  position: relative;
-  overflow: hidden;
-  transition:
-    background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.2s ease,
-    padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-  z-index: 1;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.sidebar-item:active {
-  transform: scale(0.985);
+.sidebar-item:hover {
+  background: #eef1f4;
+  color: #111827;
 }
 
 .sidebar-item.active {
-  background: #eef2ff;
-  border-color: transparent;
-  color: var(--azul-principal);
-  font-weight: 600;
+  background: #e5e7eb;
+  border-color: #dde2e8;
+  color: #111827;
 }
 
 .sidebar-item-icon {
@@ -559,17 +421,13 @@ const handleMobileBack = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  color: inherit;
-  flex-shrink: 0;
-  transition: color 0.2s ease, transform 0.2s ease;
-}
-
-.sidebar-item.active .sidebar-item-icon {
+  border-radius: 0.65rem;
+  background: #eef2ff;
   color: var(--azul-principal);
+  flex-shrink: 0;
 }
 
-.settings-content {
+.profile-content {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -595,7 +453,8 @@ const handleMobileBack = () => {
 .content-tab-icon {
   width: 34px;
   height: 34px;
-  background: transparent;
+  border-radius: 0.7rem;
+  background: #eef2ff;
   color: var(--azul-principal);
   display: inline-flex;
   align-items: center;
@@ -615,13 +474,6 @@ const handleMobileBack = () => {
   color: #6b7280;
 }
 
-#tab-actions {
-  display: flex;
-  gap: 0.65rem;
-  align-items: center;
-  justify-content: flex-end;
-}
-
 .content-body {
   min-height: 0;
   flex: 1;
@@ -629,21 +481,14 @@ const handleMobileBack = () => {
   padding: 1.5rem;
 }
 
-.settings-mobile {
+.profile-mobile {
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: 6200;
   width: 100%;
-  max-width: 100%;
   min-height: 100dvh;
   overflow-y: auto;
   padding: 0.35rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
-  background: #ffffff;
-}
-
-.mobile-head,
-.mobile-nav,
-.mobile-detail-content {
   background: #ffffff;
 }
 
@@ -653,11 +498,9 @@ const handleMobileBack = () => {
   z-index: 4;
   margin-left: -1rem;
   margin-right: -1rem;
-  padding:
-    calc(0.9rem + env(safe-area-inset-top, 0px))
-    1rem
-    0.85rem;
+  padding: calc(0.9rem + env(safe-area-inset-top, 0px)) 1rem 0.85rem;
   border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
 }
 
 .mobile-head-main {
@@ -669,11 +512,13 @@ const handleMobileBack = () => {
 .mobile-head-icon {
   width: 32px;
   height: 32px;
-  background: transparent;
+  border-radius: 0.7rem;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--azul-principal);
+  color: #4b5563;
   flex-shrink: 0;
 }
 
@@ -692,7 +537,6 @@ const handleMobileBack = () => {
   margin: 0.25rem 0 0;
   color: #6b7280;
   font-size: 0.86rem;
-  text-align: left;
 }
 
 .mobile-nav {
@@ -706,7 +550,7 @@ const handleMobileBack = () => {
   width: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   padding: 0.85rem 0.95rem;
   display: flex;
   align-items: center;
@@ -727,7 +571,8 @@ const handleMobileBack = () => {
 .mobile-nav-icon {
   width: 32px;
   height: 32px;
-  background: transparent;
+  border-radius: 0.7rem;
+  background: #f3f4f6;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -754,7 +599,6 @@ const handleMobileBack = () => {
   color: #6b7280;
   margin-top: 0.1rem;
   line-height: 1.3;
-  text-align: left;
 }
 
 .mobile-back {
@@ -762,22 +606,14 @@ const handleMobileBack = () => {
   height: 42px;
   border: 1px solid #d1d5db;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   color: #374151;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   text-align: center;
-}
-
-.mobile-tab-actions {
-  padding: 0.8rem 0 0.2rem;
-}
-
-.mobile-tab-actions :deep(button) {
-  width: 100%;
-  justify-content: center;
+  margin-bottom: 0.65rem;
 }
 
 .mobile-detail-content {
@@ -785,9 +621,23 @@ const handleMobileBack = () => {
   padding-bottom: 5.5rem;
 }
 
-@media (max-width: 1024px) {
-  .settings-workspace {
-    min-height: 100dvh;
+@keyframes profile-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profile-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 </style>

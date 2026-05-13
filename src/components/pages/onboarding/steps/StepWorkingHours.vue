@@ -100,34 +100,36 @@ async function handleSaveHours() {
     </div>
 
     <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-    <button type="submit" class="auth-button">Salvar e Finalizar</button>
+    <button type="submit" class="auth-button">Salvar e Continuar</button>
   </form>
 </template>
 
 <style scoped>
 .form-header {
   text-align: left;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
 }
 p {
   color: var(--cinza-texto);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 0;
 }
 
 /* Novo layout em grade */
 .days-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
 }
 
 .day-card {
-  padding: 1rem;
-  border-radius: 1rem;
+  padding: 0.65rem;
+  border-radius: 8px;
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   transition: all 0.2s ease;
@@ -141,14 +143,14 @@ p {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.45rem;
 }
 .day-name {
   font-weight: 600;
   color: #374151;
 }
 .card-body {
-  min-height: 40px; /* Altura suficiente para os seletores */
+  min-height: 34px; /* Altura suficiente para os seletores */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -162,7 +164,7 @@ p {
 .time-inputs {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.45rem;
 }
 .separator {
   color: var(--cinza-texto);
@@ -172,8 +174,8 @@ p {
 .hours-summary {
   display: flex;
   justify-content: space-between;
-  margin-top: 2rem;
-  padding: 1.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
   background-color: #f9fafb;
   border-radius: 1rem;
   border: 1px solid #e5e7eb;
@@ -239,7 +241,7 @@ p {
 .auth-button {
   width: 100%;
   padding: 0.875rem;
-  margin-top: 2rem;
+  margin-top: 0.85rem;
   border-radius: 0.75rem;
   border: none;
   background-color: var(--azul-principal);

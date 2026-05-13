@@ -1,14 +1,27 @@
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { 
-  User, Mail, Briefcase, Building2, MapPin, 
-  Calendar, Pencil, Check, X, ShieldCheck, Monitor, Camera, Loader2, Trash2
+import {
+  User, Building2, MapPin,
+  Pencil, Check, X, ShieldCheck, Shield, KeyRound, Monitor, Camera, Loader2, Trash2
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import { useToast } from 'vue-toastification'
+
+const props = defineProps({
+  activeTab: {
+    type: String,
+    default: 'personal',
+  },
+  hideTabs: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits(['update:activeTab'])
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -21,16 +34,47 @@ const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'clinic'
-const activeTab = ref('personal')
+// Tab state: 'personal' | 'security' | 'devices' | 'clinic'
+const activeTab = ref(props.activeTab || 'personal')
+
+watch(
+  () => props.activeTab,
+  (value) => {
+    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'clinic') {
+      activeTab.value = value
+    }
+  }
+)
+
+const setActiveTab = (value) => {
+  activeTab.value = value
+  emit('update:activeTab', value)
+}
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
+const userLocation = computed(() => {
+  const city = clinic.value?.address?.city
+  const state = clinic.value?.address?.state
+
+  if (city && state) return `${city}, ${state}`
+  if (city) return city
+  if (state) return state
+  return 'Localização não informada'
+})
 
 const formData = reactive({
   name: '',
   email: ''
 })
+
+const resetPasswordData = reactive({
+  token: '',
+  newPassword: '',
+})
+
+const isSendingResetCode = ref(false)
+const isResettingPassword = ref(false)
 
 const roleLabels = {
   owner: 'Proprietário',
@@ -59,10 +103,10 @@ const getInitials = (name) => {
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
-  return date.toLocaleDateString('pt-BR', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
   })
 }
 
@@ -94,6 +138,46 @@ const saveProfile = async () => {
     isEditing.value = false
   } else {
     toast.error(result.error)
+  }
+}
+
+const sendResetCode = async () => {
+  const accountEmail = user.value?.email
+  if (!accountEmail) {
+    toast.error('Não foi possível identificar o email da conta.')
+    return
+  }
+
+  isSendingResetCode.value = true
+  const result = await authStore.requestPasswordReset(accountEmail)
+  isSendingResetCode.value = false
+
+  if (result.success) {
+    toast.success('Código de redefinição enviado')
+  } else {
+    toast.error(result.error || 'Erro ao enviar código de redefinição.')
+  }
+}
+
+const resetPassword = async () => {
+  if (!resetPasswordData.token || !resetPasswordData.newPassword) {
+    toast.error('Informe o código e a nova senha.')
+    return
+  }
+
+  isResettingPassword.value = true
+  const result = await authStore.performPasswordReset({
+    token: resetPasswordData.token,
+    newPassword: resetPasswordData.newPassword,
+  })
+  isResettingPassword.value = false
+
+  if (result.success) {
+    toast.success('Senha redefinida com sucesso!')
+    resetPasswordData.token = ''
+    resetPasswordData.newPassword = ''
+  } else {
+    toast.error(result.error || 'Não foi possível redefinir sua senha.')
   }
 }
 
@@ -136,9 +220,9 @@ async function handlePhotoUpload(event) {
   showPhotoMenu.value = false
 
   const result = await authStore.uploadProfilePhoto(file)
-  
+
   isUploadingPhoto.value = false
-  
+
   if (result.success) {
     toast.success('Foto atualizada com sucesso!')
   } else {
@@ -155,9 +239,9 @@ async function handlePhotoDelete() {
   showPhotoMenu.value = false
 
   const result = await authStore.deleteProfilePhoto()
-  
+
   isUploadingPhoto.value = false
-  
+
   if (result.success) {
     toast.success('Foto removida com sucesso!')
   } else {
@@ -176,59 +260,64 @@ async function handlePhotoDelete() {
       <!-- Profile Header -->
       <header class="profile-header">
         <div class="header-content">
-          <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
-            <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
-              <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
-              <span v-else>{{ getInitials(user?.name) }}</span>
-              
-              <!-- Loading overlay -->
-              <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
-                <Loader2 :size="28" class="animate-spin" />
-              </div>
-              
-              <!-- Hover overlay with actions -->
-              <Transition name="fade">
-                <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
-                  <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
-                    <Camera :size="20" />
-                  </button>
-                  <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
-                    <Trash2 :size="18" />
-                  </button>
+          <div class="profile-identity">
+            <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
+              <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
+                <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
+                <span v-else>{{ getInitials(user?.name) }}</span>
+
+                <!-- Loading overlay -->
+                <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
+                  <Loader2 :size="28" class="animate-spin" />
                 </div>
-              </Transition>
+
+                <!-- Hover overlay with actions -->
+                <Transition name="fade">
+                  <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
+                    <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
+                      <Camera :size="20" />
+                    </button>
+                    <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
+                      <Trash2 :size="18" />
+                    </button>
+                  </div>
+                </Transition>
+              </div>
+              <div class="online-status"></div>
+
+              <!-- Hidden file input -->
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style="display: none;"
+                @change="handlePhotoUpload"
+              />
             </div>
-            <div class="online-status"></div>
-            
-            <!-- Hidden file input -->
-            <input
-              ref="photoInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              style="display: none;"
-              @change="handlePhotoUpload"
-            />
-          </div>
-          
-          <div class="user-info">
-            <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
-            <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
-            <div class="user-badges">
-              <span class="badge role-badge">
-                {{ roleLabels[user?.role] || 'Membro' }}
-              </span>
+
+            <div class="user-info">
+              <h1 class="user-name">{{ user?.name || 'Usuário' }}</h1>
+              <p class="user-email">{{ user?.email || 'email@exemplo.com' }}</p>
+              <p class="user-location">{{ userLocation }}</p>
+              <div class="user-badges">
+                <span class="badge role-badge">
+                  {{ roleLabels[user?.role] || 'Membro' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <!-- Tabs Navigation -->
-      <nav class="tabs-container">
-        <AppTabs 
-          :model-value="activeTab" 
-          @update:model-value="activeTab = $event"
+      <nav v-if="!hideTabs" class="tabs-container">
+        <AppTabs
+          :model-value="activeTab"
+          @update:model-value="setActiveTab"
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
+            { value: 'security', label: 'Segurança', icon: Shield },
+            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
             { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
           ]"
         />
@@ -237,82 +326,124 @@ async function handlePhotoDelete() {
 
       <!-- Tab Content Area -->
       <main class="tab-content">
-        
+
         <!-- Personal Info Tab -->
         <transition name="fade" mode="out-in">
-          <div v-if="activeTab === 'personal'" class="cards-grid">
-            <!-- Coluna da Esquerda: Dados do Perfil -->
-            <div class="content-card">
-              <div class="card-header">
+          <div v-if="activeTab === 'personal'" class="personal-layout">
+            <section class="content-card simple-section">
+              <div class="card-header simple-header">
                 <div class="header-text">
-                  <h2>Dados do Perfil</h2>
-                <p>Gerencie suas informações de acesso e identificação</p>
+                  <h2>Informações pessoais</h2>
+                  <p>Dados básicos da sua conta</p>
+                </div>
+
+                <div class="header-actions">
+                  <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
+                    <Pencil :size="16" />
+                    <span>Editar</span>
+                  </button>
+                  <div v-else class="edit-actions">
+                    <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
+                      <X :size="16" />
+                    </button>
+                    <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
+                      <Check :size="16" />
+                      <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              
-              <div class="header-actions">
-                <button v-if="!isEditing" @click="startEditing" class="action-btn edit-btn">
-                  <Pencil :size="16" />
-                  <span>Editar</span>
+
+              <div class="simple-info-grid">
+                <div class="simple-info-item">
+                  <span class="simple-label">Nome completo</span>
+                  <div v-if="!isEditing" class="simple-value">{{ user?.name || 'Não informado' }}</div>
+                  <FormInput
+                    v-else
+                    v-model="formData.name"
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Email de acesso</span>
+                  <div v-if="!isEditing" class="simple-value">{{ user?.email || 'Não informado' }}</div>
+                  <FormInput
+                    v-else
+                    v-model="formData.email"
+                    placeholder="Seu email"
+                    type="email"
+                  />
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Função no sistema</span>
+                  <div class="simple-value">{{ roleLabels[user?.role] || 'Não informado' }}</div>
+                </div>
+
+                <div class="simple-info-item">
+                  <span class="simple-label">Membro desde</span>
+                  <div class="simple-value">{{ formatDate(clinic?.createdAt) }}</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div v-else-if="activeTab === 'security'" class="security-layout">
+            <section class="content-card simple-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Autenticação em duas etapas</h2>
+                  <p>Adicione uma camada extra de proteção para sua conta.</p>
+                </div>
+                <span class="status-pill disabled">Desabilitado</span>
+              </div>
+
+              <div class="security-message">
+                <p>O 2FA ainda não está disponível nesta versão. Em breve você poderá ativar por aplicativo autenticador.</p>
+              </div>
+            </section>
+
+            <section class="content-card simple-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Redefinir senha</h2>
+                  <p>Envie um código de confirmação e cadastre uma nova senha.</p>
+                </div>
+                <button type="button" class="action-btn" :disabled="isSendingResetCode" @click="sendResetCode">
+                  <KeyRound :size="15" />
+                  <span>{{ isSendingResetCode ? 'Enviando código...' : 'Enviar código' }}</span>
                 </button>
-                <div v-else class="edit-actions">
-                  <button @click="cancelEditing" class="action-btn cancel-btn" title="Cancelar">
-                    <X :size="16" />
-                  </button>
-                  <button @click="saveProfile" class="action-btn save-btn" title="Salvar" :disabled="isSaving">
-                    <Check :size="16" />
-                    <span>{{ isSaving ? 'Salvando...' : 'Salvar' }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="fields-grid">
-              <div class="field-group">
-                <label>Nome Completo</label>
-                <div v-if="!isEditing" class="read-only-field">
-                  <User :size="18" class="field-icon" />
-                  <span>{{ user?.name || 'Não informado' }}</span>
-                </div>
-                <FormInput 
-                  v-else 
-                  v-model="formData.name" 
-                  placeholder="Seu nome completo"
-                />
               </div>
 
-              <div class="field-group">
-                <label>Email de Acesso</label>
-                <div v-if="!isEditing" class="read-only-field">
-                  <Mail :size="18" class="field-icon" />
-                  <span>{{ user?.email || 'Não informado' }}</span>
+              <div class="security-form-grid">
+                <div class="simple-info-item">
+                  <span class="simple-label">Código de verificação</span>
+                  <FormInput
+                    v-model="resetPasswordData.token"
+                    placeholder="Digite o código recebido"
+                  />
                 </div>
-                <FormInput 
-                  v-else 
-                  v-model="formData.email" 
-                  placeholder="Seu email"
-                  type="email"
-                />
-              </div>
 
-              <div class="field-group">
-                <label>Função no Sistema</label>
-                <div class="read-only-field disabled">
-                  <Briefcase :size="18" class="field-icon" />
-                  <span>{{ roleLabels[user?.role] || 'Não informado' }}</span>
+                <div class="simple-info-item">
+                  <span class="simple-label">Nova senha</span>
+                  <FormInput
+                    v-model="resetPasswordData.newPassword"
+                    type="password"
+                    placeholder="Digite sua nova senha"
+                  />
                 </div>
               </div>
 
-              <div class="field-group">
-                <label>Membro Desde</label>
-                <div class="read-only-field disabled">
-                  <Calendar :size="18" class="field-icon" />
-                  <span>{{ formatDate(clinic?.createdAt) }}</span>
-                </div>
+              <div class="security-actions">
+                <button type="button" class="action-btn save-btn" :disabled="isResettingPassword" @click="resetPassword">
+                  <span>{{ isResettingPassword ? 'Redefinindo...' : 'Redefinir senha' }}</span>
+                </button>
               </div>
-            </div>
-            </div>
-            
-            <!-- Coluna da Direita: Dispositivos -->
+            </section>
+          </div>
+
+          <div v-else-if="activeTab === 'devices'" class="devices-tab-wrapper">
             <ActiveSessionsView />
           </div>
 
@@ -332,9 +463,9 @@ async function handlePhotoDelete() {
               <!-- Clinic Branding -->
               <div class="branding-section">
                 <div class="clinic-logo-wrapper">
-                  <img 
-                    v-if="clinic.logoUrl" 
-                    :src="clinic.logoUrl" 
+                  <img
+                    v-if="clinic.logoUrl"
+                    :src="clinic.logoUrl"
                     :alt="clinic.name"
                   />
                   <div v-else class="logo-placeholder">
@@ -376,7 +507,7 @@ async function handlePhotoDelete() {
                 </div>
               </div>
             </div>
-            
+
             <div v-else class="empty-state">
               <p>Nenhuma informação de clínica vinculada.</p>
             </div>
@@ -417,38 +548,45 @@ async function handlePhotoDelete() {
 /* Header Styles */
 .profile-header {
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .header-content {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: space-between;
   gap: 1rem;
+}
+
+.profile-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
 }
 
 .avatar-container {
   position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .avatar {
-  width: 96px;
-  height: 96px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  width: 68px;
+  height: 68px;
+  background: #f1f5f9;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: white;
-  border: 4px solid white;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  color: #0f172a;
+  border: 1px solid #dbe1e8;
   overflow: hidden;
+  position: relative;
 }
 
 .avatar.has-photo {
@@ -499,13 +637,63 @@ async function handlePhotoDelete() {
 }
 
 .avatar-action-btn:hover {
-  background-color: var(--azul-principal);
-  color: white;
-  transform: scale(1.1);
+  background-color: #f3f4f6;
+  color: #111827;
 }
 
 .avatar-action-btn.delete:hover {
-  background-color: #ef4444;
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.user-info {
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.user-email {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0.2rem 0 0;
+}
+
+.user-location {
+  color: #9ca3af;
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0.55rem;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.online-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
+  background: #22c55e;
+  border: 2px solid white;
+  border-radius: 50%;
 }
 
 .animate-spin {
@@ -522,76 +710,111 @@ async function handlePhotoDelete() {
   opacity: 0;
 }
 
-.avatar-container {
-  position: relative;
-  cursor: pointer;
-}
-
-.avatar {
-  position: relative;
-}
-
-.online-status {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  background: #22c55e;
-  border: 3px solid white;
-  border-radius: 50%;
-}
-
-.user-name {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a; /* Slate 900 */
-  margin: 0;
-}
-
-.user-email {
-  color: #64748b; /* Slate 500 */
-  font-size: 0.95rem;
-  margin: 0.25rem 0 0.75rem 0;
-}
-
-.badge {
-  display: inline-flex;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.role-badge {
-  background: #eff6ff;
-  color: #3b82f6;
-  border: 1px solid #dbeafe;
-}
-
 /* Tabs Navigation */
 .tabs-container {
   display: flex;
-  justify-content: center; /* Center the tabs container */
+  justify-content: flex-start;
 }
 
 
 /* Content Area */
-.cards-grid {
+.personal-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.simple-section {
+  padding: 1.35rem 1.5rem;
+}
+
+.simple-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+}
+
+.simple-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem 1.8rem;
+}
+
+.simple-info-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.simple-label {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.simple-value {
+  color: #111827;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.security-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.24rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-pill.disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.security-message p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.security-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.25rem;
+}
+
+.security-actions {
+  margin-top: 0.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.devices-tab-wrapper {
   animation: slideIn 0.3s ease-out;
 }
 
 .content-card {
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -599,21 +822,21 @@ async function handlePhotoDelete() {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #eceff3;
+  padding-bottom: 1rem;
 }
 
 .header-text h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
   margin: 0 0 0.25rem 0;
 }
 
 .header-text p {
-  color: #64748b;
-  font-size: 0.875rem;
+  color: #6b7280;
+  font-size: 0.84rem;
   margin: 0;
 }
 
@@ -628,31 +851,31 @@ async function handlePhotoDelete() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.46rem 0.9rem;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #d1d5db;
   background: white;
-  font-weight: 600; /* Updated from 500 */
-  font-size: 0.875rem;
+  font-weight: 500;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s;
-  color: #0f172a; /* Updated from #475569 */
+  color: #374151;
 }
 
 .action-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: #f9fafb;
+  border-color: #c4c9d2;
 }
 
 .save-btn {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #16a34a;
+  border-color: #16a34a;
   color: white;
 }
 
 .save-btn:hover {
-  background: #16a34a;
-  border-color: #16a34a;
+  background: #15803d;
+  border-color: #15803d;
   color: white;
 }
 
@@ -790,24 +1013,36 @@ async function handlePhotoDelete() {
     padding: 1rem 0.5rem;
   }
 
-  .cards-grid {
+  .header-content {
+    align-items: flex-start;
+  }
+
+  .profile-identity {
+    width: 100%;
+  }
+
+  .simple-info-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  .security-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .fields-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .card-header {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .action-btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .branding-section {
     flex-direction: column;
     text-align: center;

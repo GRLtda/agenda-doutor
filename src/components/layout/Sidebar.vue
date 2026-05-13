@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { version } from '../../../package.json'
 import { useAuthStore } from '@/stores/auth'
 import { usePlanAccess } from '@/composables/usePlanAccess'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import ClinicDropdown from '@/components/global/ClinicDropdown.vue'
 import AppIcon from '@/components/global/AppIcon.vue'
@@ -24,6 +24,7 @@ const emit = defineEmits(['close', 'toggle-collapse'])
 
 const authStore = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const { hasAccess } = usePlanAccess()
 const isUserDropdownOpen = ref(false)
 const isClinicDropdownOpen = ref(false)
@@ -59,11 +60,30 @@ const isMobileViewport = () => {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches
 }
 
+const isSettingsModalOpen = computed(() => {
+  const value = route.query.settings
+  const normalized = Array.isArray(value) ? value[0] : value
+  return normalized === '1' || normalized === 'true'
+})
+
+const isResumoActive = computed(() => route.name === 'resumo-dashboard')
+
 const closeSidebarOnMobile = () => {
   if (!isMobileViewport()) return
   isClinicDropdownOpen.value = false
   isUserDropdownOpen.value = false
   emit('close')
+}
+
+const openSettingsModal = (tab = 'identidade') => {
+  router.replace({
+    query: {
+      ...route.query,
+      settings: '1',
+      tab,
+    },
+  })
+  closeSidebarOnMobile()
 }
 
 // Verifica se um item pai está ativo (se a rota atual é filha dele)
@@ -113,6 +133,10 @@ watch(() => route.path, () => {
   updateIndicator()
   closeSidebarOnMobile()
 }, { immediate: true })
+
+watch(() => route.query.settings, () => {
+  updateIndicator()
+})
 
 watch(() => expandedItems.value.join('|'), () => {
   syncIndicatorDuringLayoutChange()
@@ -196,7 +220,7 @@ const sidebarSections = computed(() => {
   const configSection = {
     title: 'Sistema',
     links: [
-      { icon: 'settings', text: 'Configurações', to: '/configuracoes' },
+      { icon: 'settings', text: 'Configurações', action: 'open-settings' },
       { icon: 'support', text: 'Suporte', to: '/suporte' },
     ]
   }
@@ -312,11 +336,24 @@ const sidebarSections = computed(() => {
               </div>
             </div>
 
+            <button
+              v-else-if="link.action === 'open-settings'"
+              type="button"
+              class="nav-link"
+              :class="{ 'active-link': isSettingsModalOpen }"
+              :title="isCollapsed ? link.text : ''"
+              @click="openSettingsModal()"
+            >
+              <AppIcon :name="link.icon" :size="20" />
+              <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
+            </button>
+
             <!-- Item Simples -->
             <RouterLink
               v-else
               :to="link.to"
               class="nav-link"
+              :class="{ 'active-link': link.to === '/' && isResumoActive }"
               :title="isCollapsed ? link.text : ''"
               :active-class="link.to === '/' ? '' : 'active-link'"
               :exact-active-class="link.to === '/' ? 'active-link' : ''"

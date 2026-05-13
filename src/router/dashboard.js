@@ -6,7 +6,6 @@ import DefaultLayout from '../layouts/DefaultLayout.vue'
 // Views do Dashboard
 import Calendario from '../views/pages/calendario.vue'
 import ResumoView from '../views/pages/ResumoView.vue'
-import SettingsView from '../views/pages/configuracoes/SettingsView.vue'
 import PatientsListView from '../views/pages/pacientes/PatientsListView.vue'
 import CreatePatientView from '../views/pages/pacientes/CreatePatientView.vue'
 import PatientDetailView from '../views/pages/pacientes/PatientDetailView.vue'
@@ -15,7 +14,6 @@ import InProgressAppointmentView from '../views/pages/atendimentos/InProgressApp
 import AjudaView from '../views/pages/ajuda/AjudaView.vue'
 import AnamnesesListView from '../views/pages/anamneses/AnamnesesListView.vue'
 import BirthdayPatientsView from '../views/pages/resumo/BirthdayPatientsView.vue'
-import ProfileView from '../views/pages/ProfileView.vue'
 
 
 import MessagesTab from '../views/pages/marketing/pages/MessagesTab.vue'
@@ -45,8 +43,13 @@ const dashboardRoutes = [
       {
         path: 'configuracoes',
         name: 'configuracoes',
-        component: SettingsView,
-        meta: { title: 'Configurações' },
+        redirect: (to) => ({
+          name: 'resumo-dashboard',
+          query: {
+            ...to.query,
+            settings: '1',
+          },
+        }),
       },
       {
         path: 'assinatura',
@@ -57,8 +60,15 @@ const dashboardRoutes = [
       {
         path: 'perfil',
         name: 'perfil',
-        component: ProfileView,
-        meta: { title: 'Meu Perfil' },
+        redirect: (to) => ({
+          name: 'resumo-dashboard',
+          query: {
+            ...to.query,
+            profile: '1',
+            settings: undefined,
+            tab: undefined,
+          },
+        }),
       },
 
       {

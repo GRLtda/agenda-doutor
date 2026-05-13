@@ -1,5 +1,5 @@
 import apiClient from '@/api/index'
 
-export const createCheckoutSession = () => {
-    return apiClient.post('/subscriptions/create-checkout-session', {})
+export const createCheckoutSession = (payload = {}) => {
+    return apiClient.post('/subscriptions/create-checkout-session', payload)
 }

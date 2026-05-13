@@ -72,13 +72,15 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   width: 100%;
+  min-height: 44px;
 }
 
 .step-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-shrink: 0;
+  flex: 0 0 148px;
+  min-width: 148px;
 }
 
 .step-circle {
@@ -99,18 +101,23 @@ onBeforeUnmount(() => {
 .step-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .step-name {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--cinza-texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .step-subtitle {
   font-size: 0.75rem;
   color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -178,6 +185,7 @@ onBeforeUnmount(() => {
 
   .step-item {
     min-width: 70%; /* Shows part of the next item */
+    flex-basis: 70%;
     scroll-snap-align: center; /* Snap to center */
     /* Removed box styling (border, padding, bg) to match PC aesthetic */
     display: flex;

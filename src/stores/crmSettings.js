@@ -14,6 +14,7 @@ const triggerTypeDescriptions = {
   APPOINTMENT_3_MINS_BEFORE: 'Lembrete 1 Minuto Antes', // Apenas para teste, geralmente não usado
   APPOINTMENT_1_DAY_BEFORE: 'Lembrete 1 Dia Antes',
   APPOINTMENT_2_HOURS_BEFORE: 'Lembrete 2 Horas Antes',
+  APPOINTMENT_RESCHEDULE_CONFLICT: 'Mensagem de Reagendamento',
   PATIENT_BIRTHDAY: 'Mensagem de Aniversário',
   ANAMNESIS_ASSIGNMENT: 'Envio de Anamnese',
   CONSENT_TERM_ASSIGNMENT: 'Envio de Termo de Consentimento',

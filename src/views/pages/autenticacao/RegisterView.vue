@@ -44,9 +44,32 @@ const formattedPlanName = computed(() => {
   return plan.value.charAt(0).toUpperCase() + plan.value.slice(1).toLowerCase()
 })
 
+const successMessage = computed(() => {
+  if (isStaffInvitation.value) {
+    return 'Sua conta foi criada. Você já pode acessar a clínica.'
+  }
+
+  return 'Sua conta foi criada. Agora vamos configurar sua clinica.'
+})
+
 onMounted(async () => {
-  const newUserToken = route.query.token // Pega ?token=
-  const staffInviteToken = route.query.invitationToken // Pega ?invitationToken=
+  const routeParamToken = Array.isArray(route.params.token)
+    ? route.params.token[0]
+    : route.params.token
+  const shortRouteToken = typeof routeParamToken === 'string' ? routeParamToken : null
+
+  const currentPath = String(route.path || '')
+  const isShortAdminRoute =
+    currentPath.startsWith('/r/') || route.name === 'register-admin-short'
+  const isShortEmployeeRoute =
+    currentPath.startsWith('/e/') || route.name === 'register-employee-short'
+
+  const newUserToken = isShortAdminRoute
+    ? shortRouteToken
+    : route.query.token // legado: ?token=
+  const staffInviteToken = isShortEmployeeRoute
+    ? shortRouteToken
+    : route.query.invitationToken // legado: ?invitationToken=
 
   if (newUserToken) {
     invitationToken.value = newUserToken
@@ -68,6 +91,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('Erro ao verificar convite de registro:', error)
       toast.error(error.response?.data?.message || 'Convite inválido ou expirado!')
+      invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
   } else if (staffInviteToken) {
@@ -86,6 +110,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('Erro ao buscar detalhes do convite de staff:', error)
       toast.error('Seu link de convite é inválido ou já expirou!')
+      invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
   }
@@ -121,13 +146,9 @@ async function handleRegister() {
     return
   }
 
-  // O token (seja de staff ou registro) é obrigatório e será enviado aqui
+  // Envia o token apenas quando o cadastro veio de convite.
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
-  } else {
-    errorMessage.value = 'Registro permitido apenas através de um convite válido.'
-    isLoading.value = false
-    return
   }
 
   const { success, error } = await authStore.register(payload)
@@ -137,7 +158,7 @@ async function handleRegister() {
     registrationSuccess.value = true
   } else {
     errorMessage.value =
-      error.response?.data?.message || 'Não foi possível criar a conta. Verifique os dados.'
+      error?.response?.data?.message || error || 'Nao foi possivel criar a conta. Verifique os dados.'
   }
 }
 
@@ -147,7 +168,7 @@ function handleRegistrationComplete() {
     router.push('/')
   } else {
     // Se for registro (com convite de ?token), vai para o onboarding
-    router.push('/onboarding/clinic') 
+    router.push('/onboarding/clinic')
   }
 }
 </script>
@@ -158,9 +179,7 @@ function handleRegistrationComplete() {
       <div class="success-content">
         <CheckCircle2 :size="64" class="success-icon" />
         <h2 class="title">Conta criada com sucesso!</h2>
-        <p class="message">
-          Sua conta foi criada. Agora vamos configurar sua clínica.
-        </p>
+        <p class="message">{{ successMessage }}</p>
         <button @click="handleRegistrationComplete" class="confirm-button">
           Continuar
         </button>
@@ -235,7 +254,7 @@ function handleRegistrationComplete() {
         <div class="terms-checkbox">
           <label class="checkbox-container">
             <input type="checkbox" v-model="termsAccepted" />
-            <span class="custom-checkbox" :class="{ 'checked': termsAccepted }">
+            <span class="custom-checkbox" :class="{ checked: termsAccepted }">
               <Check v-if="termsAccepted" :size="14" stroke-width="3" />
             </span>
           </label>
@@ -245,7 +264,13 @@ function handleRegistrationComplete() {
         </div>
 
         <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-        <AppButton type="submit" variant="primary" size="lg" :loading="isLoading" style="width: 100%; margin-top: 1rem;">
+        <AppButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          :loading="isLoading"
+          style="width: 100%; margin-top: 1rem"
+        >
           Criar conta
         </AppButton>
       </form>
@@ -289,7 +314,8 @@ function handleRegistrationComplete() {
 }
 .success-icon {
   color: #10b981;
-  margin-bottom: 1.5rem;
+  margin: 0 auto 1.5rem;
+  display: block;
 }
 .title {
   font-size: 2rem;

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFinanceStore } from '@/stores/finance'
 import { useClinicStore } from '@/stores/clinic'
@@ -40,7 +40,10 @@ import {
   User,
   Hash,
   CheckCircle,
-  Clock
+  Clock,
+  Wallet,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-vue-next'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
@@ -62,6 +65,50 @@ ChartJS.register(
 const financeStore = useFinanceStore()
 const employeesStore = useEmployeesStore()
 const clinicStore = useClinicStore()
+
+const legendScrollContainer = ref(null)
+const isScrollable = ref(false)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+const checkScrollConstraints = () => {
+  if (!legendScrollContainer.value) return
+  const el = legendScrollContainer.value
+  isScrollable.value = el.scrollWidth > el.clientWidth
+  canScrollLeft.value = el.scrollLeft > 2
+  canScrollRight.value = Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 2
+}
+
+const scrollLegend = (direction) => {
+  if (legendScrollContainer.value) {
+    if (direction === 'left' && !canScrollLeft.value) return
+    if (direction === 'right' && !canScrollRight.value) return
+
+    const scrollAmount = 150
+    if (direction === 'left') {
+      legendScrollContainer.value.scrollBy({ left: -scrollAmount, behavior: 'smooth' })
+    } else {
+      legendScrollContainer.value.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+    }
+    setTimeout(checkScrollConstraints, 350) // check again after smooth scroll
+  }
+}
+
+watch(() => financeStore.revenueByProcedure, () => {
+  nextTick(() => {
+    checkScrollConstraints()
+  })
+}, { deep: true })
+
+onMounted(() => {
+  setTimeout(checkScrollConstraints, 100)
+  window.addEventListener('resize', checkScrollConstraints)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScrollConstraints)
+})
+
 const router = useRouter()
 const route = useRoute()
 const selectedPeriod = ref('month')
@@ -164,12 +211,11 @@ const customStartDate = computed({
     customDateRange.value = [value || null, currentEnd]
   }
 })
-
 const customEndDate = computed({
   get: () => customDateRange.value?.[1] || null,
   set: (value) => {
     const currentStart = customDateRange.value?.[0] || null
-    if (!currentStart && !value) {
+    if (!value && !currentStart) {
       customDateRange.value = null
       return
     }
@@ -177,6 +223,49 @@ const customEndDate = computed({
   }
 })
 
+const getPeriodDisplayLabel = (periodValue) => {
+  if (periodValue === 'custom') {
+    if (customDateRange.value && customDateRange.value[0] && customDateRange.value[1]) {
+      return `${formatDateDisplay(customDateRange.value[0])} - ${formatDateDisplay(customDateRange.value[1])}`
+    }
+    return 'Personalizado'
+  }
+  const p = periods.find(p => p.value === periodValue)
+  return p ? p.label : 'Período'
+}
+
+const getPeriodDateRange = (periodValue) => {
+  if (periodValue === 'custom') return ''
+  
+  let start = new Date()
+  let end = new Date()
+
+  if (periodValue === 'day') {
+    // already set
+  } else if (periodValue === 'week') {
+    const day = start.getDay()
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1)
+    start.setDate(diff)
+    end = new Date(start)
+    end.setDate(end.getDate() + 6)
+  } else if (periodValue === 'month') {
+    start = new Date(start.getFullYear(), start.getMonth(), 1)
+    end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+  } else if (periodValue === 'year') {
+    start = new Date(start.getFullYear(), 0, 1)
+    end = new Date(start.getFullYear(), 11, 31)
+  } else {
+    return ''
+  }
+
+  const fStart = start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const fEnd = end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  
+  if (periodValue === 'day') {
+    return fStart
+  }
+  return `${fStart} - ${fEnd}`
+}
 const financeActiveFiltersCount = computed(() => {
   let count = 0
 
@@ -446,24 +535,46 @@ const getGradient = (ctx, chartArea, colorStart, colorEnd) => {
 }
 
 const dailyRevenueChartData = computed(() => {
-  // Quando período é 'day', usa hoursRevenue; caso contrário, usa dailyRevenue
-  const revenueData = selectedPeriod.value === 'day'
-    ? (financeStore.hoursRevenue || [])
-    : (financeStore.dailyRevenue || [])
+  // Quando período é 'day', usa hoursRevenue; quando é 'year', usa monthlyRevenue; caso contrário, usa dailyRevenue
+  const isDay = selectedPeriod.value === 'day'
+  const isYear = selectedPeriod.value === 'year'
+
+  let revenueData = []
+  let previousDataRaw = []
+
+  if (isDay) {
+    revenueData = financeStore.hoursRevenue || []
+    previousDataRaw = financeStore.previousHoursRevenue || []
+  } else if (isYear) {
+    revenueData = financeStore.monthlyRevenue || []
+    // O backend possivelmente não envia previousMonthlyRevenue
+    previousDataRaw = [] 
+  } else {
+    revenueData = financeStore.dailyRevenue || []
+    previousDataRaw = financeStore.previousDailyRevenue || []
+  }
+
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
   return {
     labels: revenueData.map(d => {
-      if (selectedPeriod.value === 'day') {
+      if (isDay) {
         // Para dia, mostra apenas a hora (ex: "13:00")
         const timePart = d._id.split(' ')[1] || d._id
         return timePart
       }
-      const date = new Date(d._id + 'T00:00:00')
-      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+      if (isYear) {
+        return months[d._id - 1] || d._id
+      }
+      if (typeof d._id === 'string' && d._id.includes('-')) {
+        const date = new Date(d._id + 'T00:00:00')
+        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+      }
+      return d._id
     }),
     datasets: [
       {
-        label: selectedPeriod.value === 'day' ? 'Receita por Hora' : 'Receita',
+        label: 'Período Atual',
         borderColor: '#3b82f6', // Azul Principal
         backgroundColor: (context) => {
           const chart = context.chart
@@ -474,9 +585,23 @@ const dailyRevenueChartData = computed(() => {
         data: revenueData.map(d => d.totalRevenue),
         tension: 0.4, // Smooth curve
         fill: true,
-        pointRadius: 0,
+        pointRadius: isYear ? 4 : 0,
         pointHoverRadius: 6,
         pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+      },
+      {
+        label: 'Período Anterior',
+        borderColor: '#94a3b8', // Cinza discreto
+        backgroundColor: 'transparent',
+        borderDash: [5, 5],
+        data: previousDataRaw.length ? previousDataRaw.map(d => d.totalRevenue) : [],
+        tension: 0.4,
+        fill: false,
+        pointRadius: isYear ? 4 : 0,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#94a3b8',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
       }
@@ -493,44 +618,29 @@ const proceduresChartData = computed(() => {
         backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'],
         data: top5.map(p => p.totalRevenue),
         borderWidth: 0,
-        hoverOffset: 4
+        hoverOffset: 2
       }
     ]
   }
 })
 
-const monthlyRevenueChartData = computed(() => {
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  return {
-    labels: financeStore.monthlyRevenue.map(d => months[d._id - 1]),
-    datasets: [
-      {
-        label: 'Faturamento Mensal',
-        borderColor: '#3b82f6', // Azul Principal
-        backgroundColor: (context) => {
-          const chart = context.chart
-          const { ctx, chartArea } = chart
-          if (!chartArea) return null
-          return getGradient(ctx, chartArea, 'rgba(59, 130, 246, 0.0)', 'rgba(59, 130, 246, 0.2)')
-        },
-        data: financeStore.monthlyRevenue.map(d => d.totalRevenue),
-        tension: 0.4,
-        fill: true,
-        pointRadius: 4, // Slightly visible points for months
-        pointHoverRadius: 6,
-        pointBackgroundColor: '#3b82f6',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-      }
-    ]
-  }
-})
+
 
 const mainChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: false },
+    legend: { 
+      display: true,
+      position: 'top',
+      align: 'end',
+      labels: {
+        usePointStyle: true,
+        boxWidth: 8,
+        font: { family: "'Montserrat', sans-serif", size: 11 },
+        color: '#64748b'
+      }
+    },
     tooltip: {
       backgroundColor: '#fff',
       titleColor: '#1e293b',
@@ -539,9 +649,14 @@ const mainChartOptions = {
       borderWidth: 1,
       padding: 12,
       cornerRadius: 8,
-      displayColors: false,
+      displayColors: true,
+      usePointStyle: true,
       callbacks: {
-        label: (context) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw)
+        label: (context) => {
+          const label = context.dataset.label || '';
+          const value = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw);
+          return ` ${label}: ${value}`;
+        }
       }
     }
   },
@@ -577,19 +692,12 @@ const mainChartOptions = {
 const doughnutOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '75%', // Thinner ring
-  borderRadius: 20, // Rounded ends
+  cutout: '80%', // Thinner ring to fit text
+  borderRadius: 10, // Rounded ends
   spacing: 5,
   plugins: {
     legend: {
-      position: 'bottom',
-      labels: {
-        usePointStyle: true,
-        pointStyle: 'circle',
-        padding: 20,
-        font: { family: "'Montserrat', sans-serif", size: 12 },
-        color: '#64748b'
-      }
+      display: false // We will use a custom html legend
     },
     tooltip: {
       backgroundColor: '#fff',
@@ -656,80 +764,25 @@ const navigateToProcedures = () => {
       </div>
 
       <div class="header-right">
-        <button class="mobile-filter-trigger" type="button" @click="isMobileFiltersOpen = true">
-          <Filter :size="16" />
-          <span>Filtros</span>
-          <span v-if="financeActiveFiltersCount > 0" class="mobile-filter-count-badge">
+        <!-- Mobile Filter Action (Icon Only) -->
+        <button class="unified-filter-trigger mobile-filter-btn" type="button" @click="isMobileFiltersOpen = true">
+          <Filter :size="16" class="filter-icon" />
+          <div v-if="financeActiveFiltersCount > 0" class="mobile-filter-count-badge">
             {{ financeActiveFiltersCount }}
-          </span>
+          </div>
         </button>
 
-        <div class="desktop-filters">
-        <!-- Professional Select -->
-        <div class="professional-select-wrapper" v-if="shouldShowDoctorSelector">
-            <StyledSelect
-                v-model="selectedProfessional"
-                :options="doctorOptions"
-                placeholder="Selecione o Médico"
-            />
-        </div>
-
-        <Transition name="slide-fade" mode="out-in">
-            <!-- Normal Tabs -->
-            <div v-if="selectedPeriod !== 'custom'" class="period-tabs" key="tabs">
-                <button
-                v-for="period in periods"
-                :key="period.value"
-                @click="handlePeriodChange(period.value)"
-                class="tab-btn"
-                :class="{ 'active': selectedPeriod === period.value }"
-                >
-                {{ period.label }}
-                </button>
-            </div>
-
-            <!-- Custom Mode Controls -->
-            <div v-else class="custom-controls" key="custom">
-                <button class="back-btn" @click="cancelCustomMode" title="Voltar">
-                    <ArrowLeft :size="18" />
-                </button>
-
-                <div class="date-picker-wrapper-inline">
-                    <VueDatePicker
-                        v-model="customDateRange"
-                        range
-                        :enable-time-picker="false"
-                        locale="pt-BR"
-                        format="dd/MM/yyyy"
-                        auto-apply
-                        :clearable="false"
-                        placeholder="Selecione o período"
-                    >
-                        <template #trigger>
-                        <div class="custom-date-trigger-inline">
-                            <div class="date-value text-slate-700">
-                                <CalendarDays :size="16" class="text-slate-500 mr-2" />
-                                <span v-if="customDateRange && customDateRange[0] && customDateRange[1]">
-                                    {{ formatDateDisplay(customDateRange[0]) }} - {{ formatDateDisplay(customDateRange[1]) }}
-                                </span>
-                                <span v-else>Selecione o período</span>
-                            </div>
-                        </div>
-                        </template>
-                    </VueDatePicker>
-                </div>
-
-                <button
-                    class="apply-btn-inline"
-                    @click="applyCustomFilter"
-                    :disabled="!customDateRange || !customDateRange[0] || !customDateRange[1] || isLoadingCustom"
-                >
-                    <span v-if="isLoadingCustom">...</span>
-                    <span v-else>Filtrar</span>
-                </button>
-            </div>
-        </Transition>
-        </div>
+        <!-- Desktop Filter Action (Period Label) -->
+        <button class="unified-filter-trigger desktop-filter-btn" type="button" @click="isMobileFiltersOpen = true">
+          <component :is="getPeriodIcon(selectedPeriod)" :size="16" class="filter-icon" />
+          <span class="period-label flex flex-col items-start leading-tight">
+            <span>{{ getPeriodDisplayLabel(selectedPeriod) }}</span>
+            <span v-if="selectedPeriod !== 'custom'" class="font-normal text-slate-500" style="font-size: 0.65rem;">{{ getPeriodDateRange(selectedPeriod) }}</span>
+          </span>
+          <div v-if="financeActiveFiltersCount > 0" class="mobile-filter-count-badge">
+            {{ financeActiveFiltersCount }}
+          </div>
+        </button>
       </div>
     </header>
 
@@ -855,83 +908,73 @@ const navigateToProcedures = () => {
       </div>
     </BottomSheet>
 
-    <!-- Top Row: Balance & KPIs -->
-    <div class="top-grid">
-      <!-- Main Balance Card -->
-      <div class="balance-card">
-        <div class="balance-header">
-          <span class="balance-label">Faturamento Total</span>
-          <div class="balance-icon-bg">
-            <DollarSign :size="20" />
+    <!-- Top Row: Unified Balance & KPIs -->
+    <div class="unified-balance-card mb-8">
+      <div class="ubc-header">
+        <div class="ubc-title-group">
+          <span class="ubc-subtitle">Visão Geral</span>
+          <h3 class="ubc-title">Faturamento Total</h3>
+        </div>
+        <div class="ubc-icon-wrapper">
+          <Wallet :size="20" class="text-blue-600" />
+        </div>
+      </div>
+
+      <div class="ubc-body">
+        <div v-if="financeStore.isLoading" class="flex flex-col gap-2">
+            <AppSkeleton width="200px" height="48px" />
+        </div>
+        <div v-else class="ubc-amount-group">
+          <h2 class="ubc-value">
+            <AnimatedNumber :duration="1000" :value="financeStore.revenueSummary.totalRevenue" type="currency" />
+          </h2>
+          <div class="ubc-trend" :class="getComparisonClass(financeStore.comparison.current, financeStore.comparison.previous)">
+              <component :is="getComparisonIcon(financeStore.comparison.current, financeStore.comparison.previous)" :size="16" stroke-width="3" />
+              <span>{{ getComparisonPercent(financeStore.comparison.current, financeStore.comparison.previous) }}%</span>
           </div>
         </div>
-        <div class="balance-content">
-          <div v-if="financeStore.isLoading">
-             <AppSkeleton width="180px" height="36px" class="mb-2" bg="rgba(255,255,255,0.2)" shimmer="rgba(255,255,255,0.3)" />
-             <AppSkeleton width="140px" height="24px" borderRadius="2rem" bg="rgba(255,255,255,0.2)" shimmer="rgba(255,255,255,0.3)" />
-          </div>
-          <template v-else>
-            <h2 class="balance-value">
-              <AnimatedNumber :duration="1000" :value="financeStore.revenueSummary.totalRevenue" type="currency" />
-            </h2>
-            <div class="balance-trend" :class="getComparisonClass(financeStore.comparison.current, financeStore.comparison.previous)">
-                <component :is="getComparisonIcon(financeStore.comparison.current, financeStore.comparison.previous)" :size="16" />
-                <span>{{ getComparisonPercent(financeStore.comparison.current, financeStore.comparison.previous) }}% vs período anterior</span>
+      </div>
+
+      <div class="ubc-footer">
+          <div class="ubc-kpi-item">
+            <div class="ubc-kpi-header">
+               <TrendingUp :size="14" class="text-slate-400" />
+               <span class="ubc-kpi-label">Ticket Médio</span>
             </div>
-          </template>
-        </div>
-      </div>
+            <AppSkeleton v-if="financeStore.isLoading" width="80px" height="20px" class="mt-1" />
+            <span v-else class="ubc-kpi-value"><AnimatedNumber :value="financeStore.kpi.averageTicket" type="currency" /></span>
+          </div>
+          
+          <div class="ubc-kpi-item">
+            <div class="ubc-kpi-header">
+               <Activity :size="14" class="text-slate-400" />
+               <span class="ubc-kpi-label">Procedimentos</span>
+            </div>
+            <template v-if="financeStore.isLoading">
+               <AppSkeleton width="60px" height="20px" class="mt-1" />
+            </template>
+            <template v-else>
+               <span class="ubc-kpi-value"><AnimatedNumber :value="financeStore.kpi.proceduresCount" type="number" /></span>
+            </template>
+          </div>
 
-      <!-- KPI Cards (Small) -->
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Ticket Médio</span>
-          <TrendingUp :size="18" class="text-emerald-500" />
-        </div>
-        <div class="kpi-body">
-          <AppSkeleton v-if="financeStore.isLoading" width="100px" height="28px" />
-          <span v-else class="kpi-value">
-            <AnimatedNumber :value="financeStore.kpi.averageTicket" type="currency" />
-          </span>
-        </div>
-      </div>
+          <div class="ubc-kpi-item desktop-kpi-item">
+            <div class="ubc-kpi-header">
+               <Users :size="14" class="text-slate-400" />
+               <span class="ubc-kpi-label">Pacientes Atendidos</span>
+            </div>
+            <AppSkeleton v-if="financeStore.isLoading" width="60px" height="20px" class="mt-1" />
+            <span v-else class="ubc-kpi-value"><AnimatedNumber :value="financeStore.kpi.appointmentsCount || 0" type="number" /></span>
+          </div>
 
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Procedimentos</span>
-          <Activity :size="18" class="text-violet-500" />
-        </div>
-        <div class="kpi-body">
-          <template v-if="financeStore.isLoading">
-             <AppSkeleton width="60px" height="28px" class="mb-1" />
-             <AppSkeleton width="80px" height="14px" />
-          </template>
-          <template v-else>
-            <span class="kpi-value">
-              <AnimatedNumber :value="financeStore.kpi.proceduresCount" type="number" />
-            </span>
-            <span class="kpi-sub">realizados</span>
-          </template>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Melhor Cliente</span>
-          <Users :size="18" class="text-amber-500" />
-        </div>
-        <div class="kpi-body">
-          <template v-if="financeStore.isLoading">
-             <AppSkeleton width="120px" height="20px" class="mb-1" />
-             <AppSkeleton width="90px" height="14px" />
-          </template>
-          <template v-else>
-            <span class="kpi-value text-sm truncate" :title="financeStore.topClients[0]?.name">{{ financeStore.topClients[0]?.name || '-' }}</span>
-            <span class="kpi-sub">
-              <AnimatedNumber :value="financeStore.topClients[0]?.totalRevenue" type="currency" />
-            </span>
-          </template>
-        </div>
+          <div class="ubc-kpi-item desktop-kpi-item">
+            <div class="ubc-kpi-header">
+               <CalendarDays :size="14" class="text-slate-400" />
+               <span class="ubc-kpi-label">Período Anterior</span>
+            </div>
+            <AppSkeleton v-if="financeStore.isLoading" width="80px" height="20px" class="mt-1" />
+            <span v-else class="ubc-kpi-value"><AnimatedNumber :value="financeStore.comparison.previous || 0" type="currency" /></span>
+          </div>
       </div>
     </div>
 
@@ -943,6 +986,9 @@ const navigateToProcedures = () => {
           <div class="header-text-group">
             <h3 class="card-title">Evolução da Receita</h3>
             <p class="card-subtitle">Acompanhe o crescimento da receita no período selecionado.</p>
+          </div>
+          <div class="ubc-icon-wrapper">
+            <TrendingUp :size="20" class="text-blue-600" />
           </div>
         </div>
         <div class="chart-wrapper">
@@ -960,31 +1006,50 @@ const navigateToProcedures = () => {
             <h3 class="card-title">Por Procedimento</h3>
             <p class="card-subtitle">Distribuição da receita gerada por tipo de serviço.</p>
           </div>
-        </div>
-        <div class="doughnut-wrapper">
-          <div v-if="financeStore.isLoading" class="w-full h-full flex items-center justify-center">
-             <AppSkeleton width="200px" height="200px" borderRadius="50%" />
+          <div class="ubc-icon-wrapper">
+            <Activity :size="20" class="text-blue-600" />
           </div>
-          <Doughnut v-else :data="proceduresChartData" :options="doughnutOptions" />
+        </div>
+        <div class="doughnut-content-wrapper h-full flex flex-col">
+          <div v-if="financeStore.isLoading" class="w-full h-full flex flex-col items-center justify-center min-h-[300px]">
+             <AppSkeleton width="200px" height="200px" borderRadius="50%" class="mb-4" />
+             <AppSkeleton width="80%" height="20px" class="mb-2" />
+             <AppSkeleton width="60%" height="20px" />
+          </div>
+          <template v-else>
+            <div class="doughnut-wrapper relative" style="height: 240px; margin-bottom: 2rem; flex-shrink: 0;">
+              <Doughnut :data="proceduresChartData" :options="doughnutOptions" />
+              <div class="doughnut-center-text absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif;">
+                <span class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-widest mb-0.5">Total</span>
+                <span class="text-lg font-bold text-[#0f172a]">{{ formatCurrency(proceduresChartData.datasets[0].data.reduce((acc, val) => acc + val, 0)) }}</span>
+              </div>
+            </div>
+            
+            <div class="w-full flex items-center justify-center gap-1 group px-1">
+              <button v-show="isScrollable" @click="scrollLegend('left')" type="button" :class="canScrollLeft ? 'opacity-100 hover:text-blue-600 hover:bg-slate-50' : 'opacity-30 cursor-not-allowed'" class="flex-shrink-0 z-10 w-6 h-6 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-400 transition-all duration-200">
+                <ChevronLeft :size="14" />
+              </button>
+
+              <div ref="legendScrollContainer" @scroll="checkScrollConstraints" class="custom-doughnut-legend flex-1 flex gap-4 px-2 overflow-x-auto hide-scrollbar scroll-smooth" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif; padding-bottom: 0.25rem;">
+                <div v-for="(label, index) in proceduresChartData.labels" :key="index" class="flex items-start gap-2 py-0.5 flex-shrink-0 w-36">
+                  <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" :style="{ backgroundColor: proceduresChartData.datasets[0].backgroundColor[index] }"></div>
+                  <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+                    <span class="text-[0.82rem] font-medium text-slate-700 truncate leading-snug" :title="label">{{ label }}</span>
+                    <span class="text-[0.75rem] text-slate-500 leading-normal">{{ formatCurrency(proceduresChartData.datasets[0].data[index]) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button v-show="isScrollable" @click="scrollLegend('right')" type="button" :class="canScrollRight ? 'opacity-100 hover:text-blue-600 hover:bg-slate-50' : 'opacity-30 cursor-not-allowed'" class="flex-shrink-0 z-10 w-6 h-6 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-400 transition-all duration-200">
+                <ChevronRight :size="14" />
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </div>
 
-    <!-- Monthly Revenue Bar Chart (Full Width) -->
-    <div class="chart-card full-width mb-8">
-        <div class="card-header">
-            <div class="header-text-group">
-                <h3 class="card-title">Faturamento Mensal (Ano Atual)</h3>
-                <p class="card-subtitle">Visão consolidada do desempenho financeiro mês a mês.</p>
-            </div>
-        </div>
-        <div class="chart-wrapper">
-            <div v-if="financeStore.isLoading" class="w-full h-full flex items-end gap-2 px-4 pb-4">
-                <AppSkeleton width="100%" height="100%" borderRadius="0.5rem" />
-            </div>
-            <Line v-else :data="monthlyRevenueChartData" :options="mainChartOptions" />
-        </div>
-    </div>
+
 
     <!-- Bottom Row: Transactions & Top Procedures -->
     <div class="lists-grid">
@@ -995,15 +1060,20 @@ const navigateToProcedures = () => {
             <h3 class="card-title">Principais Clientes</h3>
             <p class="card-subtitle">Pacientes com maior volume financeiro.</p>
           </div>
-          <div class="search-box">
-            <Search :size="14" />
-            <input
-                type="text"
-                placeholder="Buscar..."
-                v-model="clientSearch"
-                @input="handleSearch"
-            />
+          <div class="ubc-icon-wrapper">
+            <Users :size="20" class="text-blue-600" />
           </div>
+        </div>
+        
+        <div class="search-box table-search-container">
+          <Search :size="14" />
+          <input
+              type="text"
+              placeholder="Buscar..."
+              v-model="clientSearch"
+              @input="handleSearch"
+              class="table-search-input"
+          />
         </div>
 
         <!-- Mobile Cards View -->
@@ -1021,15 +1091,15 @@ const navigateToProcedures = () => {
             </div>
           </template>
           <template v-else>
-            <div v-for="client in financeStore.topClientsPaginated.data" :key="client._id" class="mobile-card">
-              <div class="mobile-card-header">
-                <div class="client-avatar">{{ client.name.charAt(0) }}</div>
-                <div class="mobile-card-info">
-                  <span class="mobile-card-name">{{ client.name }}</span>
+            <div v-for="client in financeStore.topClientsPaginated.data" :key="client._id" class="mobile-card w-full max-w-full">
+              <div class="mobile-card-header min-w-0">
+                <div class="client-avatar shrink-0">{{ client.name.charAt(0) }}</div>
+                <div class="mobile-card-info min-w-0">
+                  <span class="mobile-card-name block truncate" :title="client.name">{{ client.name }}</span>
                   <span class="mobile-card-sub">{{ client.appointmentsCount }} procedimentos</span>
                 </div>
               </div>
-              <span class="mobile-card-value">{{ formatCurrency(client.totalRevenue) }}</span>
+              <span class="mobile-card-value font-semibold text-emerald-600 shrink-0">{{ formatCurrency(client.totalRevenue) }}</span>
             </div>
             <div v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-state-container">
               <Users :size="32" class="empty-state-icon" />
@@ -1040,13 +1110,13 @@ const navigateToProcedures = () => {
 
         <!-- Desktop Table View -->
         <div class="table-responsive desktop-only">
-          <table class="premium-table">
+          <table class="premium-table fixed-table">
             <thead>
               <tr>
-                <th><div class="th-content"><User :size="14" /> Cliente</div></th>
-                <th class="text-center"><div class="th-content center"><Activity :size="14" /> Procedimento</div></th>
-                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Total Gasto</div></th>
-                <th class="text-right"><div class="th-content right"><CheckCircle :size="14" /> Status</div></th>
+                <th style="width: 45%;"><div class="th-content"><User :size="14" /> Cliente</div></th>
+                <th style="width: 20%;" class="text-center"><div class="th-content center"><Activity :size="14" /> Procedimento</div></th>
+                <th style="width: 20%;" class="text-right"><div class="th-content right"><DollarSign :size="14" /> Total Gasto</div></th>
+                <th style="width: 15%;" class="text-right"><div class="th-content right"><CheckCircle :size="14" /> Status</div></th>
               </tr>
             </thead>
             <tbody>
@@ -1064,17 +1134,21 @@ const navigateToProcedures = () => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id" @click="navigateToPatient(client._id)" class="clickable-row" title="Ver detalhes do paciente">
+                <tr v-for="client in financeStore.topClientsPaginated.data" :key="client._id" @click="navigateToPatient(client._id)" class="clickable-row modern-row" title="Ver detalhes do paciente">
                     <td>
                     <div class="client-info">
-                        <div class="client-avatar">{{ client.name.charAt(0) }}</div>
-                        <span class="client-name">{{ client.name }}</span>
+                        <div class="client-avatar shrink-0">{{ client.name.charAt(0) }}</div>
+                        <span class="client-name truncate" :title="client.name">{{ client.name }}</span>
                     </div>
                     </td>
-                    <td class="text-center">{{ client.appointmentsCount }}</td>
-                    <td class="text-right font-bold">{{ formatCurrency(client.totalRevenue) }}</td>
+                    <td class="text-center">
+                      <span class="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-slate-100 text-slate-600 font-medium text-sm border border-slate-200">
+                        {{ client.appointmentsCount }}
+                      </span>
+                    </td>
+                    <td class="text-right font-semibold text-emerald-600">{{ formatCurrency(client.totalRevenue) }}</td>
                     <td class="text-right">
-                        <span class="status-badge success">Ativo</span>
+                        <span class="status-badge modern-badge">Ativo</span>
                     </td>
                 </tr>
                 <tr v-if="financeStore.topClientsPaginated.data.length === 0" class="empty-row">
@@ -1107,15 +1181,20 @@ const navigateToProcedures = () => {
             <h3 class="card-title">Principais Procedimentos</h3>
             <p class="card-subtitle">Serviços mais realizados no período.</p>
           </div>
-          <div class="search-box">
-            <Search :size="14" />
-            <input
-                type="text"
-                placeholder="Buscar..."
-                v-model="procedureSearch"
-                @input="handleProcedureSearch"
-            />
+          <div class="ubc-icon-wrapper">
+            <CheckCircle :size="20" class="text-blue-600" />
           </div>
+        </div>
+        
+        <div class="search-box table-search-container">
+          <Search :size="14" />
+          <input
+              type="text"
+              placeholder="Buscar..."
+              v-model="procedureSearch"
+              @input="handleProcedureSearch"
+              class="table-search-input"
+          />
         </div>
 
         <!-- Mobile Cards View -->
@@ -1132,14 +1211,14 @@ const navigateToProcedures = () => {
             </div>
           </template>
           <template v-else>
-            <div v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" class="mobile-card">
-              <div class="mobile-card-header">
-                <div class="mobile-card-info">
-                  <span class="mobile-card-name">{{ proc._id }}</span>
+            <div v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" class="mobile-card w-full max-w-full">
+              <div class="mobile-card-header min-w-0">
+                <div class="mobile-card-info min-w-0">
+                  <span class="mobile-card-name block truncate" :title="proc._id">{{ proc._id }}</span>
                   <span class="mobile-card-sub">{{ proc.count }} realizados</span>
                 </div>
               </div>
-              <span class="mobile-card-value text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</span>
+              <span class="mobile-card-value font-semibold text-emerald-600 shrink-0">{{ formatCurrency(proc.totalRevenue) }}</span>
             </div>
             <div v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-state-container">
                <Activity :size="32" class="empty-state-icon" />
@@ -1150,12 +1229,12 @@ const navigateToProcedures = () => {
 
         <!-- Desktop Table View -->
         <div class="table-responsive desktop-only">
-          <table class="premium-table">
+          <table class="premium-table fixed-table">
             <thead>
               <tr>
-                <th><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
-                <th class="text-right"><div class="th-content right"><Hash :size="14" /> Qtd.</div></th>
-                <th class="text-right"><div class="th-content right"><DollarSign :size="14" /> Receita</div></th>
+                <th style="width: 50%;"><div class="th-content"><Activity :size="14" /> Procedimento</div></th>
+                <th style="width: 20%;" class="text-right"><div class="th-content right"><Hash :size="14" /> Qtd.</div></th>
+                <th style="width: 30%;" class="text-right"><div class="th-content right"><DollarSign :size="14" /> Receita</div></th>
               </tr>
             </thead>
             <tbody>
@@ -1167,12 +1246,16 @@ const navigateToProcedures = () => {
                   </tr>
               </template>
               <template v-else>
-                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" @click="navigateToProcedures()" class="clickable-row" title="Ver lista de procedimentos">
+                <tr v-for="proc in financeStore.topProceduresPaginated.data" :key="proc._id" @click="navigateToProcedures()" class="clickable-row modern-row" title="Ver lista de procedimentos">
                     <td>
-                    <span class="font-medium text-slate-700">{{ proc._id }}</span>
+                    <span class="font-medium text-slate-700 block truncate" :title="proc._id">{{ proc._id }}</span>
                     </td>
-                    <td class="text-right">{{ proc.count }}</td>
-                    <td class="text-right font-bold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
+                    <td class="text-right">
+                      <span class="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-slate-100 text-slate-600 font-medium text-sm border border-slate-200">
+                        {{ proc.count }}
+                      </span>
+                    </td>
+                    <td class="text-right font-semibold text-emerald-600">{{ formatCurrency(proc.totalRevenue) }}</td>
                 </tr>
                 <tr v-if="financeStore.topProceduresPaginated.data.length === 0" class="empty-row">
                     <td colspan="3">
@@ -1227,33 +1310,71 @@ const navigateToProcedures = () => {
 .header-right {
     display: flex;
     align-items: center;
-    min-height: 52px; /* Prevent layout shift */
+    min-height: 52px;
 }
 
-.desktop-filters {
+.unified-filter-trigger {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.7rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.mobile-filter-trigger {
+.unified-filter-trigger.desktop-filter-btn {
+  display: flex;
+}
+
+.unified-filter-trigger.mobile-filter-btn {
   display: none;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  gap: 0.45rem;
-  height: 40px;
-  border: 1px solid #dbe3ef;
-  background-color: #ffffff;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.filter-icon {
+  color: #64748b;
+}
+
+.table-search-container {
+  width: 100%;
+  margin-bottom: 1rem;
+  margin-top: -0.5rem;
+}
+
+.table-search-input {
+  width: 100%;
+  background-color: transparent;
+  outline: none;
+  border: none;
+  font-size: 0.875rem;
   color: #334155;
-  border-radius: 0.7rem;
-  font-size: 0.86rem;
+}
+
+.desktop-kpi-item {
+  display: flex;
+}
+
+.unified-filter-trigger:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.period-label {
+  font-size: 0.875rem;
   font-weight: 600;
-  padding: 0 0.95rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  color: var(--preto);
 }
 
 .mobile-filter-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
   min-width: 18px;
   height: 18px;
   padding: 0 0.28rem;
@@ -1266,11 +1387,6 @@ const navigateToProcedures = () => {
   align-items: center;
   justify-content: center;
   line-height: 1;
-}
-
-.mobile-filter-trigger:hover {
-  background-color: #f8fafc;
-  border-color: #cbd5e1;
 }
 
 .title {
@@ -1675,133 +1791,123 @@ const navigateToProcedures = () => {
 /* Original Custom Filter Bar Styles Removed */
 
 /* Grid Layouts */
-.top-grid {
-  display: grid;
-  grid-template-columns: 1.5fr repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 1000px) {
-  .top-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .balance-card {
-      grid-column: span 2;
-  }
-}
-
-@media (max-width: 640px) {
-  .top-grid {
-    grid-template-columns: 1fr;
-  }
-  .balance-card {
-      grid-column: span 1;
-  }
-}
-
-/* Balance Card */
-.balance-card {
-  background: linear-gradient(135deg, var(--azul-principal) 0%, var(--azul-escuro) 100%);
-  color: var(--branco);
-  padding: 1.75rem;
-  border-radius: 1rem; /* Standard radius */
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
-  min-height: 160px;
-}
-
-.balance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.balance-label {
-  font-size: 0.95rem;
-  font-weight: 500;
-  opacity: 0.9;
-}
-
-.balance-icon-bg {
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 0.5rem;
-  border-radius: 0.75rem;
-  display: flex;
-}
-
-.balance-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.02em;
-}
-
-.balance-trend {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  padding: 0.25rem 0.75rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 2rem;
-  width: fit-content;
-}
-
-.balance-trend.positive { color: #86efac; background-color: rgba(134, 239, 172, 0.15); }
-.balance-trend.negative { color: #fca5a5; background-color: rgba(252, 165, 165, 0.15); }
-.balance-trend.neutral { color: #e2e8f0; }
-
-/* KPI Cards */
-.kpi-card {
+/* Unified Balance Card */
+.unified-balance-card {
   background-color: var(--branco);
-  border: 1px solid #e5e7eb; /* Standard border color */
-  border-radius: 1rem; /* Standard radius */
+  border: 1px solid #e5e7eb;
+  border-radius: 1.25rem;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.kpi-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
-
-.kpi-header {
+.ubc-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
 }
 
-.kpi-label {
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.kpi-body {
+.ubc-title-group {
   display: flex;
   flex-direction: column;
+  gap: 0.15rem;
 }
 
-.kpi-value {
-  font-size: 1.5rem;
-  font-weight: 700;
+.ubc-subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.ubc-title {
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--preto);
+  margin: 0;
+}
+
+.ubc-icon-wrapper {
+  background-color: #eff6ff;
+  padding: 0.6rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ubc-body {
+  margin-bottom: 2rem;
+}
+
+.ubc-amount-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ubc-value {
+  font-size: 2.75rem;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.ubc-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.10rem;
+}
+
+.ubc-trend.positive { color: #059669; }
+.ubc-trend.negative { color: #dc2626; }
+.ubc-trend.neutral { color: #64748b; }
+
+.ubc-footer {
+  display: flex;
+  align-items: flex-start;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.25rem;
+  gap: 1.5rem;
+}
+
+.ubc-kpi-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0; /* allows text truncation */
+}
+
+.ubc-kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.ubc-kpi-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.ubc-kpi-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
   line-height: 1.2;
 }
 
-.kpi-sub {
-  font-size: 0.75rem;
-  color: var(--cinza-texto);
-  margin-top: 0.25rem;
+.ubc-divider {
+  width: 1px;
+  height: 40px;
+  background-color: #e2e8f0;
+  align-self: center;
 }
 
 /* Charts Section */
@@ -1830,7 +1936,7 @@ const navigateToProcedures = () => {
 .chart-card {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -1845,13 +1951,13 @@ const navigateToProcedures = () => {
 }
 
 .mb-8 {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
 }
 
@@ -1978,9 +2084,14 @@ const navigateToProcedures = () => {
   overflow-y: auto;
 }
 
+.fixed-table {
+  table-layout: fixed;
+}
+
 .premium-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
 }
 
 .premium-table th {
@@ -1988,44 +2099,63 @@ const navigateToProcedures = () => {
   top: 0;
   z-index: 10;
   text-align: left;
-  padding: 1rem;
-  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  background: var(--branco);
   color: #64748b;
   font-weight: 600;
-  font-size: 0.85rem;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #f1f5f9;
 }
 
 .premium-table td {
   padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  font-size: 0.95rem;
+  background-color: transparent;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
 }
 
-.premium-table tr:not(.empty-row):hover td {
+.modern-row td:first-child {
+  border-top-left-radius: 0.6rem;
+  border-bottom-left-radius: 0.6rem;
+  border-left: 1px solid transparent;
+}
+
+.modern-row td:last-child {
+  border-top-right-radius: 0.6rem;
+  border-bottom-right-radius: 0.6rem;
+  border-right: 1px solid transparent;
+}
+
+.premium-table tr.modern-row:hover td {
     background-color: #f8fafc;
+    border-color: #f1f5f9;
 }
 
 .client-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .client-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #eff6ff;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
   color: var(--azul-principal);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .clickable-row {
@@ -2050,14 +2180,17 @@ const navigateToProcedures = () => {
   font-weight: 600;
 }
 
-.status-badge.success {
-  background-color: #ecfdf5;
+.status-badge.modern-badge {
+  background-color: transparent;
+  border: 1px solid rgba(16, 185, 129, 0.3);
   color: #059669;
+  letter-spacing: 0.02em;
 }
 
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
 .text-muted { color: var(--cinza-texto); }
 .font-medium { font-weight: 500; }
 
@@ -2069,7 +2202,6 @@ const navigateToProcedures = () => {
 .text-slate-700 { color: #334155; }
 /* Card Footer */
 .card-footer {
-  padding: 1rem;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -2121,6 +2253,7 @@ const navigateToProcedures = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 .mobile-card-sub {
@@ -2153,6 +2286,18 @@ const navigateToProcedures = () => {
     padding: 0;
   }
 
+  .desktop-kpi-item {
+    display: none !important;
+  }
+
+  .desktop-filter-btn {
+    display: none !important;
+  }
+
+  .mobile-filter-btn {
+    display: flex !important;
+  }
+
   /* Show mobile cards, hide desktop tables */
   .mobile-cards-list {
     display: flex;
@@ -2164,30 +2309,41 @@ const navigateToProcedures = () => {
 
   /* Header Mobile */
   .page-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
     margin-bottom: 1.5rem;
+    flex-wrap: nowrap;
   }
 
   .header-text {
-    width: 100%;
-    text-align: center;
+    width: auto;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
   }
 
   .title {
-    font-size: 1.75rem;
-    margin-bottom: 0.25rem;
+    font-size: 1.45rem;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .subtitle {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header-right {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    justify-content: flex-end;
     min-height: 0;
+    flex-shrink: 0;
   }
 
   .desktop-filters {
@@ -2196,7 +2352,10 @@ const navigateToProcedures = () => {
 
   .mobile-filter-trigger {
     display: inline-flex;
-    width: 100%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 0.55rem;
   }
 
   /* Period Tabs Mobile */
@@ -2214,28 +2373,22 @@ const navigateToProcedures = () => {
     white-space: nowrap;
   }
 
-  /* Balance Card Mobile */
-  .balance-card {
-    padding: 1.25rem;
-    min-height: auto;
+  /* Unified Balance Card Mobile */
+  .ubc-value {
+    font-size: 2.25rem;
   }
-
-  .balance-value {
-    font-size: 1.75rem;
+  .ubc-amount-group {
+    gap: 0.75rem;
   }
-
-  .balance-trend {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.625rem;
+  .ubc-footer {
+    flex-wrap: wrap;
+    gap: 1rem;
   }
-
-  /* KPI Cards Mobile */
-  .kpi-card {
-    padding: 1.25rem;
+  .ubc-divider {
+    display: none;
   }
-
-  .kpi-value {
-    font-size: 1.25rem;
+  .ubc-kpi-item {
+    flex: 1 1 calc(50% - 1rem); /* Creates a 2x2 grid on mobile for KPIs */
   }
 
   /* Charts Mobile */
@@ -2244,10 +2397,12 @@ const navigateToProcedures = () => {
   }
 
   .card-header {
-    flex-direction: column;
-    align-items: stretch;
+    /* REMOVIDO align-items stretch e column fixo.
+       Usando Tailwind nas tabelas e Flex-Start básico para caixas normais */
+    flex-direction: row;
     gap: 0.75rem;
     margin-bottom: 1rem;
+    align-items: flex-start;
   }
 
   .card-title {
@@ -2312,20 +2467,14 @@ const navigateToProcedures = () => {
     font-size: 1.5rem;
   }
 
-  .balance-value {
-    font-size: 1.5rem;
+  .ubc-value {
+    font-size: 2rem;
   }
-
-  .balance-trend span {
-    font-size: 0.7rem;
-  }
-
-  .kpi-value {
+  .ubc-kpi-value {
     font-size: 1.1rem;
   }
-
-  .kpi-label {
-    font-size: 0.8rem;
+  .ubc-kpi-label {
+    font-size: 0.7rem;
   }
 
   .chart-wrapper,
@@ -2339,6 +2488,7 @@ const navigateToProcedures = () => {
 
   .mobile-card-name {
     font-size: 0.85rem;
+    max-width: 120px;
   }
 
   .mobile-card-value {
@@ -2399,5 +2549,14 @@ const navigateToProcedures = () => {
         width: 100%;
         margin-bottom: 0.5rem;
     }
+}
+
+/* Hide scrollbar for legend */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>

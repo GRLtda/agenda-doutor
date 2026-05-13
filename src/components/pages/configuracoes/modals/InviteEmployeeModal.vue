@@ -75,7 +75,7 @@ async function handleInvite() {
 
   if (success && token) {
     const origin = window.location.origin
-    generatedLink.value = `${origin}/register?invitationToken=${token}`
+    generatedLink.value = `${origin}/e/${token}`
     toast.success('Convite gerado com sucesso!')
   } else {
     console.error('Erro ao criar convite: ', { success, data, error })

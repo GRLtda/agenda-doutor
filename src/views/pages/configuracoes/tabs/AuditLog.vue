@@ -1,11 +1,11 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuditStore } from '@/stores/audit'
 import { usePatientsStore } from '@/stores/patients'
 import { useEmployeesStore } from '@/stores/employees'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { User, Calendar, FileText, Clock, ChevronDown, SlidersHorizontal, AlertCircle, Package, Box, ClipboardList, Activity } from 'lucide-vue-next'
+import { User, Calendar, FileText, Clock, ChevronDown, AlertCircle, Package, Box, ClipboardList, Activity, CalendarMinus } from 'lucide-vue-next'
 import AppTableList from '@/components/global/AppTableList.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
@@ -37,6 +37,7 @@ const userOptions = computed(() => {
 const entityOptions = ref([
   { value: null, label: 'Todas as Ações' },
   { value: 'Appointment', label: 'Agendamentos' },
+  { value: 'ScheduleBlock', label: 'Bloqueios de agenda' },
   { value: 'Patient', label: 'Pacientes' },
   { value: 'Clinic', label: 'Clínica' },
   { value: 'ProdutoCatalogo', label: 'Produtos (Estoque)' },
@@ -144,13 +145,31 @@ function formatAction(action) {
     STOCK_KIT_DELETE: 'excluiu um kit de procedimento',
     STOCK_MOVE_BAIXA_ATENDIMENTO: 'realizou baixa de estoque (atendimento)',
     STOCK_MOVE_BAIXA_ADMIN: 'realizou baixa administrativa (ajuste)',
+    SCHEDULE_BLOCK_CREATE: 'adicionou um bloqueio na agenda',
+    SCHEDULE_BLOCK_UPDATE: 'atualizou um bloqueio na agenda',
+    SCHEDULE_BLOCK_DELETE: 'excluiu um bloqueio da agenda',
   }
   return labels[action] || action.replace(/_/g, ' ').toLowerCase()
+}
+
+const scheduleBlockTypeLabels = {
+  folga: 'Folga',
+  compromisso: 'Compromisso',
+  ferias: 'Férias',
+  indisponivel: 'Indisponível',
+  outro: 'Outro',
+}
+
+function formatScheduleBlockType(value) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim().toLowerCase()
+  return scheduleBlockTypeLabels[normalized] || value
 }
 
 function translateEntity(entity) {
   const labels = {
     Appointment: 'Agendamento',
+    ScheduleBlock: 'Bloqueio de agenda',
     Patient: 'Paciente',
     Clinic: 'Clínica',
     User: 'Usuário',
@@ -176,9 +195,9 @@ function formatLogSummary(log) {
       target = `para <strong>${newStatus}</strong>`
     } else if (log.action === 'APPOINTMENT_DELETE') {
       const patientId = log.details?.changes?.find((c) => c.field === 'patient')?.old
-       if (patientId) {
-          target = `de <strong>${patientNameMap.value[patientId] || '...'}</strong>`
-       }
+      if (patientId) {
+        target = `de <strong>${patientNameMap.value[patientId] || '...'}</strong>`
+      }
     } else if (log.action === 'PATIENT_CREATE') {
       const patientName = log.details?.changes?.find((c) => c.field === 'name')?.new
       target = `<strong>${patientName || '...'}</strong>`
@@ -187,6 +206,14 @@ function formatLogSummary(log) {
       target = `<strong>${patientName || '...'}</strong>`
     } else if (log.action === 'CLINIC_UPDATE') {
       target = ''
+    } else if (log.action.startsWith('SCHEDULE_BLOCK_')) {
+      const titleFromChange =
+        log.details?.changes?.find((c) => c.field === 'title')?.new ||
+        log.details?.changes?.find((c) => c.field === 'title')?.old
+
+      if (titleFromChange) {
+        target = `<strong>${titleFromChange}</strong>`
+      }
     } else if (log.action.startsWith('STOCK_')) {
       if (log.details?.summary) {
         const parts = log.details.summary.split(': ')
@@ -206,6 +233,7 @@ function formatLogSummary(log) {
 
 function getEntityIcon(entity) {
   if (entity === 'Appointment') return Calendar
+  if (entity === 'ScheduleBlock') return CalendarMinus
   if (entity === 'Patient') return User
   if (entity === 'Clinic') return FileText
   if (entity === 'ProdutoCatalogo') return Package
@@ -228,8 +256,14 @@ function formatValue(value, field) {
   if (field === 'patient') {
     return patientNameMap.value[value] || `ID ...${String(value).slice(-6)}`
   }
-  if (field === 'startTime' || field === 'endTime' || field === 'dataValidade') {
+  if (field === 'type') {
+    return formatScheduleBlockType(value)
+  }
+  if (field === 'startTime' || field === 'endTime' || field === 'dataValidade' || field === 'startAt' || field === 'endAt') {
     return formatDateTime(value)
+  }
+  if (field === 'doctor' || field === 'doctorId' || field === 'tenant' || field === 'tenantId') {
+    return `ID ...${String(value).slice(-6)}`
   }
   return value
 }
@@ -238,13 +272,21 @@ function formatChange(change) {
   const fieldLabels = {
     status: 'Status',
     patient: 'Paciente',
+    doctor: 'Médico',
+    doctorId: 'Médico',
+    tenant: 'Clínica',
+    tenantId: 'Clínica',
     startTime: 'Início',
     endTime: 'Término',
+    startAt: 'Data/hora início',
+    endAt: 'Data/hora fim',
     name: 'Nome',
+    title: 'Título',
     cpf: 'CPF',
     phone: 'Telefone',
     type: 'Tipo',
     notes: 'Observações',
+    isAllDay: 'Dia inteiro',
     isReturn: 'É Retorno?',
     originAppointment: 'Agendamento Origem',
     categoria: 'Categoria',
@@ -263,28 +305,25 @@ function formatChange(change) {
   const field = fieldLabels[change.field] || change.field
   const from = formatValue(change.old, change.field)
   const to = formatValue(change.new, change.field)
-  
-  // Tratamento específico para booleanos ou vazios
+
   const formatDisplay = (val) => {
-      if (val === true) return 'Sim'
-      if (val === false) return 'Não'
-      if (val === '') return 'Vazio'
-      return val
+    if (val === true) return 'Sim'
+    if (val === false) return 'Não'
+    if (val === '') return 'Vazio'
+    return val
   }
 
   if (from === null && to === null) {
-      // Caso update onde só tem field e sem old/new explícito (ex: notes no json do usuário)
-      return `alterou ${field}`
+    return `alterou ${field}`
   }
 
   if (from === null) {
     return `definiu ${field} como <span class="change-new">"${formatDisplay(to)}"</span>`
   }
   if (to === null) {
-     if (change.field === 'patient' || change.field === 'status') {
-         // Para deletes, pode mostrar apenas "era X"
-         return `${field} era <span class="change-old">"${formatDisplay(from)}"</span>`
-     }
+    if (change.field === 'patient' || change.field === 'status') {
+      return `${field} era <span class="change-old">"${formatDisplay(from)}"</span>`
+    }
     return `removeu ${field} (era <span class="change-old">"${formatDisplay(from)}"</span>)`
   }
   return `alterou ${field} de <span class="change-old">"${formatDisplay(from)}"</span> para <span class="change-new">"${formatDisplay(to)}"</span>`
@@ -347,7 +386,8 @@ function formatChange(change) {
               </div>
               <div class="log-details-desktop">
                 <span class="entity-info"
-                  >{{ translateEntity(log.entity) }} (ID: ...{{ log.entityId.slice(-6) }})</span
+                  >{{ translateEntity(log.entity) }}
+                  <template v-if="log.entityId"> (ID: ...{{ String(log.entityId).slice(-6) }}) </template></span
                 >
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePatientsStore } from '@/stores/patients'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useClinicStore } from '@/stores/clinic'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 // ✨ 1. Importar o LoaderCircle e a nova função da API
 import {
@@ -48,6 +49,7 @@ const emit = defineEmits(['close', 'saved'])
 const patientsStore = usePatientsStore()
 const appointmentsStore = useAppointmentsStore()
 const clinicStore = useClinicStore()
+const authStore = useAuthStore()
 const toast = useToast()
 const router = useRouter()
 
@@ -168,6 +170,9 @@ onMounted(async () => {
     }
   }
 
+  if (!appointmentData.value.doctor && authStore.user?.role === 'medico') {
+    appointmentData.value.doctor = authStore.user._id
+  }
   await hydrateExistingAppointment()
 })
 
@@ -189,6 +194,15 @@ const doctorOptions = computed(() => {
     label: doctor.name,
     image: doctor.profilePhotoUrl 
   }))
+})
+
+const resolvedDoctorIdForConflict = computed(() => {
+  if (appointmentData.value.doctor) return appointmentData.value.doctor
+
+  const initialDoctor = props.initialData?.doctor?._id || props.initialData?.doctor
+  if (initialDoctor) return initialDoctor
+
+  return clinicStore.currentClinic?.owner?._id || clinicStore.currentClinic?.owner || null
 })
 
 function isTimeInFuture(timeString, selectedDate) {
@@ -423,7 +437,13 @@ async function checkAppointmentConflict() {
       const startTimeISO = getISOString(appointmentData.value.date, appointmentData.value.startTime)
       const endTimeISO = getISOString(appointmentData.value.date, appointmentData.value.endTime)
 
-      const response = await checkConflict(appointmentData.value.patient, startTimeISO, endTimeISO)
+      const response = await checkConflict(
+        appointmentData.value.patient,
+        startTimeISO,
+        endTimeISO,
+        resolvedDoctorIdForConflict.value,
+        isRebookMode.value ? props.initialData?._id : null,
+      )
 
       if (response.data.conflict) {
         conflictError.value = response.data.message
@@ -503,8 +523,9 @@ watch(
 watch(
   [
     () => appointmentData.value.patient,
+    () => appointmentData.value.doctor,
     () => appointmentData.value.date,
-    () => appointmentData.value.endTime, // Aciona quando o endTime é definido
+    () => appointmentData.value.endTime,
   ],
   () => {
     if (currentStep.value < 2) {
@@ -599,13 +620,13 @@ async function handleSubmit() {
     }
 
     // Chama a nova ação 'rescheduleAppointment' da store
-    const { success } = await appointmentsStore.rescheduleAppointment(appointmentId, payload)
+    const { success, error } = await appointmentsStore.rescheduleAppointment(appointmentId, payload)
     if (success) {
       toast.success('Agendamento remarcado com sucesso!')
       emit('saved')
       emit('close')
     } else {
-      toast.error('Erro ao remarcar o agendamento.')
+      toast.error(error?.response?.data?.message || 'Erro ao remarcar o agendamento.')
     }
   } else {
     // --- MODO CRIAR (NOVO/REAGENDAR) ---
@@ -621,7 +642,7 @@ async function handleSubmit() {
       reminderEnabled: appointmentData.value.remindersSent,
     }
 
-    const { success } = await appointmentsStore.createAppointment(payload)
+    const { success, error } = await appointmentsStore.createAppointment(payload)
     if (success) {
       toast.success(
         isRescheduleMode.value
@@ -631,7 +652,10 @@ async function handleSubmit() {
       emit('saved')
       emit('close')
     } else {
-      toast.error(isRescheduleMode.value ? 'Erro ao reagendar.' : 'Erro ao criar agendamento.')
+      toast.error(
+        error?.response?.data?.message ||
+          (isRescheduleMode.value ? 'Erro ao reagendar.' : 'Erro ao criar agendamento.'),
+      )
     }
   }
 }

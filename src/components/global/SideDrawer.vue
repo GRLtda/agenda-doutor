@@ -18,25 +18,27 @@ const widthClass = computed(() => {
 </script>
 
 <template>
-  <div class="drawer-overlay" @click.self="$emit('close')">
-    <!-- Botão de fechar fora do drawer (Desktop) -->
-    <button @click="$emit('close')" class="close-btn-outside" :class="widthClass">
-      <X :size="24" />
-    </button>
+  <Teleport to="body">
+    <div class="drawer-overlay" @click.self="$emit('close')">
+      <!-- Botão de fechar fora do drawer (Desktop) -->
+      <button @click="$emit('close')" class="close-btn-outside" :class="widthClass">
+        <X :size="24" />
+      </button>
 
-    <div class="drawer-content" :class="widthClass">
-      <!-- Header Slot -->
-      <slot name="header"></slot>
+      <div class="drawer-content" :class="widthClass">
+        <!-- Header Slot -->
+        <slot name="header"></slot>
 
-      <!-- Body Slot -->
-      <div class="drawer-body">
-        <slot></slot>
+        <!-- Body Slot -->
+        <div class="drawer-body">
+          <slot></slot>
+        </div>
+
+        <!-- Footer Slot -->
+        <slot name="footer"></slot>
       </div>
-
-      <!-- Footer Slot -->
-      <slot name="footer"></slot>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -48,7 +50,7 @@ const widthClass = computed(() => {
   height: 100%;
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(2px);
-  z-index: 1000;
+  z-index: 7000;
   display: flex;
   justify-content: flex-end;
 }
@@ -68,7 +70,7 @@ const widthClass = computed(() => {
   justify-content: center;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
-  z-index: 1010;
+  z-index: 7010;
 }
 .close-btn-outside:hover {
   color: #111827;
@@ -90,7 +92,7 @@ const widthClass = computed(() => {
   flex-direction: column;
   animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
-  z-index: 1005;
+  z-index: 7005;
 }
 
 /* Size widths */
