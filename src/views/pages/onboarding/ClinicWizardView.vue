@@ -35,6 +35,7 @@ const steps = [
 ]
 
 const clinic = computed(() => authStore.user?.clinic || null)
+const isPaymentSuccessReturn = computed(() => route.query.payment === 'success')
 const hasActiveSubscription = computed(() => {
   const status = subscriptionStatus.value || clinic.value?.subscriptionStatus
   if (activeSubscriptionStatuses.includes(status)) {
@@ -83,7 +84,7 @@ async function syncOnboardingStep() {
     }
 
     if (hasActiveSubscription.value) {
-      if (route.query.payment === 'success') {
+      if (isPaymentSuccessReturn.value) {
         currentStep.value = 4
         return
       }
@@ -92,7 +93,7 @@ async function syncOnboardingStep() {
       return
     }
 
-    currentStep.value = 3
+    currentStep.value = isPaymentSuccessReturn.value ? 4 : 3
   } finally {
     isCheckingPayment.value = false
   }
@@ -178,13 +179,20 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
             <div class="success-icon-wrapper">
               <PartyPopper :size="48" />
             </div>
-            <h2>Tudo pronto!</h2>
-            <p>
+            <h2>{{ isPaymentSuccessReturn ? 'Obrigado!' : 'Tudo pronto!' }}</h2>
+            <p v-if="isPaymentSuccessReturn && !hasActiveSubscription">
+              Recebemos seu retorno do pagamento e estamos finalizando a confirmação da assinatura.
+              Em instantes sua clínica será liberada.
+            </p>
+            <p v-else-if="isPaymentSuccessReturn">
+              Pagamento confirmado com sucesso. Sua clínica já está pronta para começar.
+            </p>
+            <p v-else>
               Sua clínica foi configurada com sucesso. Aqui estão algumas sugestões para começar a usar
               o sistema:
             </p>
 
-            <ul class="next-steps-list">
+            <ul v-if="!isPaymentSuccessReturn || hasActiveSubscription" class="next-steps-list">
               <li>
                 <UserPlus :size="20" />
                 <span>Cadastre seu primeiro paciente.</span>
@@ -195,7 +203,14 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
               </li>
             </ul>
 
-            <button @click="goToDashboard" class="auth-button">Ir para o Dashboard</button>
+            <button
+              v-if="hasActiveSubscription"
+              @click="goToDashboard"
+              class="auth-button"
+            >
+              Ir para o Dashboard
+            </button>
+            <button v-else @click="syncOnboardingStep" class="auth-button">Verificar assinatura</button>
           </div>
         </div>
       </Transition>
