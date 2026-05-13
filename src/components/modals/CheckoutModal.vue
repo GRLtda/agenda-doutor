@@ -32,7 +32,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'confirm'])
+const emit = defineEmits(['close', 'confirm', 'schedule-return'])
 
 const isLoading = ref(false)
 
@@ -414,18 +414,35 @@ displayAmount.value = '0,00'
 
     <template #footer>
       <div class="drawer-footer space-between">
-        <AppButton variant="default" @click="$emit('close')" :disabled="isLoading">
-          Cancelar
-        </AppButton>
         <AppButton
-          variant="primary"
-          @click="handleSubmit"
-          :disabled="!isValid || isLoading"
-          :loading="isLoading"
+          variant="default"
+          class="footer-btn-cancel"
+          @click="$emit('close')"
+          :disabled="isLoading"
         >
-          <Check :size="18" />
-          Finalizar
+          <span class="footer-btn-label">Cancelar</span>
         </AppButton>
+        <div class="footer-actions-right">
+          <AppButton
+            variant="default"
+            class="footer-btn-return"
+            @click="emit('schedule-return')"
+            :disabled="isLoading"
+          >
+            <Calendar :size="18" />
+            <span class="footer-btn-label">Agendar Retorno</span>
+          </AppButton>
+          <AppButton
+            variant="primary"
+            class="footer-btn-finish"
+            @click="handleSubmit"
+            :disabled="!isValid || isLoading"
+            :loading="isLoading"
+          >
+            <Check :size="18" />
+            <span class="footer-btn-label">Finalizar</span>
+          </AppButton>
+        </div>
       </div>
     </template>
   </SideDrawer>
@@ -647,9 +664,7 @@ displayAmount.value = '0,00'
 }
 
 .totals-section.sticky-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
+  position: static;
   background: #fff;
 }
 
@@ -707,6 +722,59 @@ displayAmount.value = '0,00'
 
 .drawer-footer.space-between {
   justify-content: space-between;
+}
+
+.footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.footer-btn-cancel,
+.footer-btn-return,
+.footer-btn-finish {
+  min-width: 0;
+}
+
+.footer-btn-cancel :deep(.button-content),
+.footer-btn-return :deep(.button-content),
+.footer-btn-finish :deep(.button-content) {
+  width: 100%;
+  min-width: 0;
+}
+
+.footer-btn-return :deep(svg),
+.footer-btn-finish :deep(svg) {
+  flex-shrink: 0;
+}
+
+.footer-btn-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .drawer-footer.space-between {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .footer-btn-cancel {
+    width: 100%;
+  }
+
+  .footer-actions-right {
+    width: 100%;
+  }
+
+  .footer-btn-return,
+  .footer-btn-finish {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* Hide number spinners */

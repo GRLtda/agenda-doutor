@@ -74,7 +74,7 @@ function prefixoAtendimento(atendimentoId) {
     <header class="page-header">
       <div>
         <h1 class="title">Movimentações</h1>
-        <p class="subtitle">Livro-Razão imutável — todas as entradas e saídas de estoque.</p>
+        <p class="subtitle">Todas as entradas e saídas de estoque.</p>
       </div>
     </header>
 

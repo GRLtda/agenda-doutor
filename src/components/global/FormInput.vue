@@ -2,6 +2,7 @@
 import { formatPhone } from '@/directives/phone-mask.js'
 import { formatCPF } from '@/directives/cpf-mask.js'
 import { formatCNPJ } from '@/directives/cnpj-mask.js'
+import { formatCEP } from '@/directives/cep-mask.js'
 import { Check } from 'lucide-vue-next' // ✨ Importa o ícone
 import { ref } from 'vue'
 
@@ -15,6 +16,7 @@ const props = defineProps({
   phoneMask: { type: Boolean, default: false },
   cpfMask: { type: Boolean, default: false },
   cnpjMask: { type: Boolean, default: false },
+  cepMask: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   hideRequiredAsterisk: { type: Boolean, default: false },
@@ -47,7 +49,12 @@ function handleInput(event) {
   } else if (props.cnpjMask) {
      value = formatCNPJ(value)
      if (event.target.value !== value) {
-       event.target.value = value
+        event.target.value = value
+     }
+  } else if (props.cepMask) {
+    value = formatCEP(value)
+    if (event.target.value !== value) {
+      event.target.value = value
     }
   }
   emit('update:modelValue', value)
@@ -101,6 +108,7 @@ function handleBlur(event) {
       v-phone-mask="phoneMask"
       v-cpf-mask="cpfMask"
       v-cnpj-mask="cnpjMask"
+      v-cep-mask="cepMask"
       class="form-input"
       :class="{ 'has-error': !!error }"
       :disabled="disabled"

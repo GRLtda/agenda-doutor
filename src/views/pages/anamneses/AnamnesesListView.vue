@@ -358,7 +358,7 @@ const showPagination = computed(() => allPages.value > 1)
   padding: 0.625rem 2.5rem;
   background: white;
   border: 1px solid #cbd5e1;
-  border-radius: 99px;
+  border-radius: 0.5rem;
   font-size: 0.875rem;
   color: #334155;
   transition: all 0.2s;

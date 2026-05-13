@@ -11,7 +11,7 @@ import { Copy } from 'lucide-vue-next';
 const props = defineProps({
   patientId: { type: String, required: true },
 });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'saved']);
 
 const anamnesisStore = useAnamnesisStore();
 const toast = useToast();
@@ -57,6 +57,8 @@ async function handleGenerateLink() {
     } else {
        toast.success('Link gerado com sucesso!');
     }
+
+    emit('saved', data)
 
   } else {
     toast.error('Não foi possível gerar o link.');

@@ -167,6 +167,10 @@ async function loadPatientData(patientId) {
     await appointmentsStore.fetchAppointmentsByPatient(patientId)
 }
 
+async function handleAnamnesisAssigned() {
+  await anamnesisStore.fetchAnamnesisForPatient(route.params.id)
+}
+
 // HOOK: Chama a função de carregamento quando o componente é montado
 onMounted(() => {
     loadPatientData(route.params.id)
@@ -266,6 +270,15 @@ function formatSimpleDate(dateString) {
   })
 }
 
+function getAnamnesisTemplateName(anamnesis) {
+  return (
+    anamnesis?.template?.name ||
+    anamnesis?.templateName ||
+    anamnesis?.template?.title ||
+    'Modelo não encontrado'
+  )
+}
+
 function handleCopyLink(token) {
   if (!token) {
     toast.error('Token inválido ou não encontrado.');
@@ -310,7 +323,7 @@ async function handleGeneratePdf(anamnesis) {
   generatingPdfId.value = anamnesis._id
 
   try {
-    const templateName = anamnesis.template?.name || 'anamnese'
+    const templateName = anamnesis.template?.name || anamnesis.templateName || 'anamnese'
     const result = await anamnesisStore.downloadPdf(patient.value._id, anamnesis._id, templateName)
     
     if (!result.success) {
@@ -462,6 +475,7 @@ async function deleteAppointment(appointment) {
       v-if="isAssignModalOpen"
       :patient-id="patient?._id"
       @close="isAssignModalOpen = false"
+      @saved="handleAnamnesisAssigned"
     />
     <AnamnesisAnswersModal
       v-if="viewingAnamnesis"
@@ -753,9 +767,7 @@ async function deleteAppointment(appointment) {
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
-                      <span class="anamnesis-name">{{
-                        item.template?.name || 'Modelo não encontrado'
-                      }}</span>
+                      <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
                       <span class="anamnesis-date"
                         >Respondida em {{ formatSimpleDate(item.updatedAt) }}</span
                       >
@@ -789,9 +801,7 @@ async function deleteAppointment(appointment) {
                 <ul v-if="pendingAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in pendingAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info">
-                      <span class="anamnesis-name">{{
-                        item.template?.name || 'Modelo não encontrado'
-                      }}</span>
+                      <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
                       <span class="anamnesis-date"
                         >Vence em {{ formatSimpleDate(item.patientAccessTokenExpires) }}</span
                       >
@@ -831,7 +841,7 @@ async function deleteAppointment(appointment) {
                 <ul v-if="showExpiredAnamneses" class="anamnesis-list">
                   <li v-for="item in expiredAnamneses" :key="item._id" class="anamnesis-item opacity-60">
                     <div class="anamnesis-info">
-                      <span class="anamnesis-name">{{ item.template?.name || 'Modelo não encontrado' }}</span>
+                      <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
                       <span class="anamnesis-date">Expirou em {{ formatSimpleDate(item.patientAccessTokenExpires) }}</span>
                     </div>
                   </li>

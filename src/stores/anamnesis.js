@@ -40,6 +40,59 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
   const allPages = ref(1)
   const allLimit = ref(20)
 
+  function getTemplateLabel(templateLike, fallback = 'Modelo não encontrado') {
+    if (!templateLike) return fallback
+    return templateLike.name || templateLike.title || templateLike.templateName || fallback
+  }
+
+  function resolveTemplateById(templateId) {
+    if (!templateId) return null
+
+    const template = templates.value.find((t) => t._id === templateId)
+    return template ? { ...template } : null
+  }
+
+  function normalizeAnamnesisResponse(anamnesis) {
+    if (!anamnesis || typeof anamnesis !== 'object') return anamnesis
+
+    const normalized = { ...anamnesis }
+    const templateId =
+      normalized.template?._id ||
+      normalized.templateId ||
+      normalized.template?.id ||
+      normalized.template?.templateId ||
+      null
+
+    const templateName =
+      getTemplateLabel(normalized.template, null) ||
+      normalized.templateName ||
+      null
+
+    if (normalized.template && typeof normalized.template === 'object') {
+      normalized.template = {
+        ...normalized.template,
+        name: getTemplateLabel(normalized.template, templateName || 'Modelo não encontrado'),
+      }
+      return normalized
+    }
+
+    const cachedTemplate = resolveTemplateById(templateId)
+
+    if (cachedTemplate) {
+      normalized.template = cachedTemplate
+      return normalized
+    }
+
+    if (templateId || templateName) {
+      normalized.template = {
+        _id: templateId || undefined,
+        name: templateName || 'Modelo não encontrado',
+      }
+    }
+
+    return normalized
+  }
+
   // --- Ações para Templates de Anamnese ---
 
   async function fetchTemplates() {
@@ -172,7 +225,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       // Garante que o payload é { templateId }
       const response = await apiAssignAnamnesis(patientId, { templateId })
       if (response.data) {
-        patientAnamneses.value.unshift(response.data) // Adiciona no início da lista
+        patientAnamneses.value.unshift(normalizeAnamnesisResponse(response.data)) // Adiciona no início da lista
       }
       toast.success(response.data.message || 'Anamnese enviada ao paciente!')
       return { success: true, data: response.data }
@@ -193,9 +246,9 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       const response = await apiAssignAnamnesis(patientId, payload)
 
       if (response.data && response.data._id) {
-        patientAnamneses.value.unshift(response.data)
+        patientAnamneses.value.unshift(normalizeAnamnesisResponse(response.data))
       } else if (response.data.anamnesis) {
-        patientAnamneses.value.push(response.data.anamnesis)
+        patientAnamneses.value.push(normalizeAnamnesisResponse(response.data.anamnesis))
       }
 
       toast.success('Anamnese atribuída com sucesso!')
@@ -219,9 +272,9 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       const response = await apiGetForPatient(patientId)
 
       if (Array.isArray(response.data)) {
-        patientAnamneses.value = response.data
+        patientAnamneses.value = response.data.map(normalizeAnamnesisResponse)
       } else if (response.data && Array.isArray(response.data.data)) {
-        patientAnamneses.value = response.data.data
+        patientAnamneses.value = response.data.data.map(normalizeAnamnesisResponse)
       } else {
         console.warn(
           'API de anamnese do paciente não retornou um array:',
@@ -258,8 +311,8 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       if (index !== -1) {
         // Mescla os dados para manter o template populado
         patientAnamneses.value[index] = {
-          ...patientAnamneses.value[index],
-          ...response.data, // response.data deve ser a AnamnesisResponse atualizada
+          ...normalizeAnamnesisResponse(patientAnamneses.value[index]),
+          ...normalizeAnamnesisResponse(response.data), // response.data deve ser a AnamnesisResponse atualizada
         }
       }
 
@@ -281,7 +334,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     isLoading.value = true
     try {
       const response = await apiGetPendingAnamneses(page, limit)
-      pendingAnamnesesList.value = response.data.data || []
+      pendingAnamnesesList.value = (response.data.data || []).map(normalizeAnamnesisResponse)
       pendingTotal.value = response.data.total || 0
       pendingPage.value = response.data.page || 1
       pendingPages.value = response.data.pages || 1
@@ -304,7 +357,7 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     isLoading.value = true
     try {
       const response = await apiGetAllAnamneses(page, limit, status, search)
-      allAnamnesesList.value = response.data.data || []
+      allAnamnesesList.value = (response.data.data || []).map(normalizeAnamnesisResponse)
       allTotal.value = response.data.total || 0
       allPage.value = response.data.page || 1
       allPages.value = response.data.pages || 1

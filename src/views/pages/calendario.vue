@@ -957,6 +957,8 @@ function handleReschedule(appointmentToReschedule) {
 
   initialAppointmentData.value = {
     patient: patientId,
+    doctor: appointmentToReschedule.doctor?._id || appointmentToReschedule.doctor || null,
+    notes: appointmentToReschedule.notes || '',
     _id: appointmentToReschedule._id, // ID do agendamento para update
     _mode: 'rebook', // Modo de atualização
     startTime: appointmentToReschedule.startTime,

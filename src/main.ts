@@ -6,6 +6,7 @@ import { clickOutside } from './directives/click-outside'
 import { phoneMask } from './directives/phone-mask'
 import { cpfMask } from './directives/cpf-mask'
 import { cnpjMask } from './directives/cnpj-mask'
+import { cepMask } from './directives/cep-mask'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
@@ -46,6 +47,7 @@ app.directive('click-outside', clickOutside)
 app.directive('phone-mask', phoneMask)
 app.directive('cpf-mask', cpfMask)
 app.directive('cnpj-mask', cnpjMask)
+app.directive('cep-mask', cepMask)
 const toastOptions = {
   position: 'bottom-right',
   timeout: 4000,

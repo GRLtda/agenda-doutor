@@ -167,7 +167,7 @@ const opcoesLotes = computed(() =>
 
     <div class="warning-box">
       <span>⚠️</span>
-      <span>Esta ação registrará uma saída no Livro-Razão e <strong>não poderá ser desfeita</strong>.</span>
+      <span>Esta ação registrará uma saída em movimentações e <strong>não poderá ser desfeita</strong>.</span>
     </div>
   </div>
 </template>
