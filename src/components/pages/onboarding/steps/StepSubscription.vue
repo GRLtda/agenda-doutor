@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Check, ArrowLeft, ArrowRight, Users } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, Check, Users } from 'lucide-vue-next'
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
+import ClinicLogo from '@/components/global/ClinicLogo.vue'
 
 const props = defineProps({
   installationFeeCharged: {
@@ -20,20 +21,22 @@ const stripeLogo =
 
 const plans = [
   {
-    id: 'basic',
-    doctors: '1 médico',
-    title: 'Essencial',
-    price: 9990,
-    displayPrice: 'R$99,90',
-    description: 'Para iniciar a operação da clínica com agenda e pacientes organizados.',
-  },
-  {
     id: 'premium',
     doctors: 'Até 3 médicos',
     title: 'Equipe',
     price: 15900,
     displayPrice: 'R$159',
-    description: 'Para clínicas em crescimento com mais profissionais atendendo.',
+    description: 'Para clínicas em crescimento com mais profissionais e mais capacidade.',
+    features: ['Até 3 profissionais', 'Histórico clínico centralizado', 'Controle de equipe', 'Melhor custo por médico'],
+  },
+  {
+    id: 'basic',
+    doctors: '1 médico',
+    title: 'Essencial',
+    price: 9990,
+    displayPrice: 'R$99,90',
+    description: 'Para clínicas enxutas começarem com agenda, pacientes e rotina organizada.',
+    features: ['1 profissional atendendo', 'Agenda e cadastro de pacientes', 'Prontuários e anamnese', 'Suporte inicial'],
     highlight: true,
   },
   {
@@ -42,15 +45,9 @@ const plans = [
     title: 'Clínica',
     price: 19900,
     displayPrice: 'R$199',
-    description: 'Para uma operação mais completa com maior capacidade de atendimento.',
+    description: 'Para operações mais completas, com mais profissionais atendendo todos os dias.',
+    features: ['Até 5 profissionais', 'Fluxo completo da clínica', 'Mais capacidade de agenda', 'Escala para a equipe'],
   },
-]
-
-const benefits = [
-  'Agenda online e cadastro de pacientes',
-  'Prontuários, anamnese e histórico centralizados',
-  'Controle da equipe médica por faixa contratada',
-  'Suporte para configurar a rotina inicial',
 ]
 
 const selectedPlanData = computed(() => plans.find((plan) => plan.id === selectedPlan.value) || plans[0])
@@ -67,13 +64,14 @@ function formatCurrency(value) {
   }).format(value / 100)
 }
 
-async function handleSubscribe() {
+async function handleSubscribe(planId = selectedPlan.value) {
+  selectedPlan.value = planId
   errorMessage.value = null
-  loadingPlan.value = selectedPlan.value
+  loadingPlan.value = planId
 
   try {
     const response = await createCheckoutSession({
-      plan: selectedPlan.value,
+      plan: planId,
       context: 'onboarding',
     })
 
@@ -91,322 +89,444 @@ async function handleSubscribe() {
     loadingPlan.value = null
   }
 }
-
 </script>
 
 <template>
-  <section class="subscription-step">
-    <div class="subscription-header">
-      <div>
-        <h2>Escolha a capacidade da sua clínica</h2>
-        <p>Selecione a faixa que combina com a quantidade de médicos da sua operação.</p>
+  <main class="pricing-page">
+    <header class="pricing-topbar">
+      <div class="brand">
+        <ClinicLogo size="132px" />
       </div>
       <button class="back-button" type="button" @click="emit('back')">
         <ArrowLeft :size="16" />
         <span>Voltar</span>
       </button>
-    </div>
+    </header>
 
-    <div class="plans-grid">
-      <button
-        v-for="plan in plans"
-        :key="plan.id"
-        type="button"
-        class="plan-card"
-        :class="{ selected: selectedPlan === plan.id, highlighted: plan.highlight }"
-        @click="selectedPlan = plan.id"
-      >
-        <span v-if="plan.highlight" class="plan-tag">Mais escolhido</span>
-        <span class="plan-doctors"><Users :size="15" /> {{ plan.doctors }}</span>
-        <strong>{{ plan.title }}</strong>
-        <span class="plan-price">{{ plan.displayPrice }}<small>/mês</small></span>
-        <span class="plan-description">{{ plan.description }}</span>
-      </button>
-    </div>
-
-    <div class="checkout-grid">
-      <div class="benefits-panel">
-        <h3>Incluído no plano</h3>
-        <ul>
-          <li v-for="benefit in benefits" :key="benefit">
-            <Check :size="16" />
-            <span>{{ benefit }}</span>
-          </li>
-        </ul>
+    <section class="pricing-shell">
+      <div class="pricing-heading">
+        <h1>Escolha o plano da sua clínica</h1>
+        <p>
+          Selecione a capacidade de atendimento ideal. Você será direcionado para o checkout seguro
+          da Stripe.
+        </p>
       </div>
 
-      <div class="summary-panel">
-        <div class="summary-row">
-          <span>{{ selectedPlanData.doctors }}</span>
-          <strong>{{ selectedPlanData.displayPrice }}/mês</strong>
+      <div class="plans-grid">
+        <article
+          v-for="plan in plans"
+          :key="plan.id"
+          class="plan-card"
+          :class="{ selected: selectedPlan === plan.id, highlighted: plan.highlight }"
+          @click="selectedPlan = plan.id"
+        >
+          <div class="plan-card-top">
+            <div class="plan-icon">
+              <Users :size="18" />
+            </div>
+            <span v-if="plan.highlight" class="plan-tag">Mais escolhido</span>
+          </div>
+
+          <div class="plan-copy">
+            <span class="plan-doctors">{{ plan.doctors }}</span>
+            <h2>{{ plan.title }}</h2>
+            <p>{{ plan.description }}</p>
+          </div>
+
+          <div class="plan-price">
+            <strong>{{ plan.displayPrice }}</strong>
+            <span>/mês</span>
+          </div>
+
+          <button class="plan-button" type="button" @click.stop="handleSubscribe(plan.id)">
+            <span>{{ loadingPlan === plan.id ? 'Abrindo checkout...' : 'Escolher plano' }}</span>
+            <ArrowRight :size="17" />
+          </button>
+
+          <ul class="features-list">
+            <li v-for="feature in plan.features" :key="feature">
+              <Check :size="15" />
+              <span>{{ feature }}</span>
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <section class="checkout-summary" aria-label="Resumo de cobrança">
+        <div>
+          <span>Plano selecionado</span>
+          <strong>{{ selectedPlanData.doctors }} · {{ selectedPlanData.displayPrice }}/mês</strong>
         </div>
-        <div v-if="shouldChargeInstallation" class="summary-row">
+        <div v-if="shouldChargeInstallation">
           <span>Taxa de instalação</span>
           <strong>{{ formatCurrency(installationFeeAmount) }}</strong>
         </div>
-        <div v-else class="summary-row muted">
+        <div v-else>
           <span>Taxa de instalação</span>
-          <strong>Isenta</strong>
+          <strong class="success-text">Isenta</strong>
         </div>
-        <div class="summary-total">
+        <div>
           <span>Total hoje</span>
           <strong>{{ formatCurrency(totalToday) }}</strong>
         </div>
+      </section>
 
-        <button class="auth-button" type="button" @click="handleSubscribe" :disabled="!!loadingPlan">
-          <span>{{ loadingPlan ? 'Abrindo checkout...' : 'Assinar e continuar' }}</span>
-          <ArrowRight :size="18" />
-        </button>
+      <p class="purchase-note">
+        Ao continuar, você concorda com as diretrizes de compra e cobrança mensal.
+      </p>
 
-        <div class="stripe-box" aria-label="Pagamento seguro via Stripe">
-          <span>Pagamento protegido por</span>
-          <img :src="stripeLogo" alt="Stripe" />
-        </div>
+      <div class="stripe-box" aria-label="Pagamento seguro via Stripe">
+        <span>Pagamento protegido por</span>
+        <img :src="stripeLogo" alt="Stripe" />
       </div>
-    </div>
 
-    <p class="purchase-note">
-      Ao continuar, você concorda com as diretrizes de compra e cobrança mensal.
-    </p>
-
-    <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-  </section>
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-.subscription-step {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-}
-
-.subscription-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-h2 {
+.pricing-page {
+  background: #ffffff;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 30%),
+    linear-gradient(to right, rgba(229, 231, 235, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 231, 235, 0.35) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
   color: var(--preto);
-  font-size: 1.35rem;
-  line-height: 1.2;
-  margin: 0 0 0.3rem;
+  min-height: 100vh;
+  padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
 }
 
-.subscription-header p {
-  color: var(--cinza-texto);
-  font-size: 0.86rem;
-  line-height: 1.4;
-  margin: 0;
+.pricing-topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
 }
 
 .back-button {
   align-items: center;
-  background: transparent;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 999px;
   color: #4b5563;
   cursor: pointer;
   display: flex;
-  flex-shrink: 0;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 700;
   gap: 0.4rem;
-  padding: 0.5rem 0.7rem;
-  transition:
-    border-color 0.2s ease,
-    color 0.2s ease;
+  padding: 0.55rem 0.85rem;
 }
 
-.back-button:hover {
-  border-color: var(--azul-principal);
-  color: var(--azul-principal);
+.pricing-shell {
+  margin: 2rem auto 0;
+  max-width: 1120px;
+}
+
+.pricing-heading {
+  margin: 0 auto 1.8rem;
+  max-width: 650px;
+  text-align: center;
+}
+
+.pricing-heading h1 {
+  color: #111827;
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0 0 0.85rem;
+}
+
+.pricing-heading p {
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0;
 }
 
 .plans-grid {
+  align-items: stretch;
+  animation: plansReveal 0.48s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .plan-card {
-  background: #ffffff;
+  --card-offset: 0px;
+  animation: cardRise 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #374151;
+  border-radius: 18px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  min-height: 154px;
-  padding: 0.85rem;
-  position: relative;
-  text-align: left;
+  min-height: 430px;
+  padding: 1.1rem;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
     transform 0.2s ease;
 }
 
+.plan-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.plan-card:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
 .plan-card:hover,
 .plan-card.selected {
   border-color: var(--azul-principal);
-  background: #f8fbff;
-  transform: translateY(-1px);
+  transform: translateY(calc(var(--card-offset) - 2px));
 }
 
 .plan-card.highlighted {
-  background: #f8fbff;
+  --card-offset: -10px;
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+  transform: translateY(var(--card-offset));
+}
+
+.plan-card.highlighted.selected,
+.plan-card.highlighted:hover {
+  border-color: #2563eb;
+}
+
+.plan-card-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 36px;
+}
+
+.plan-icon {
+  align-items: center;
+  background: #eef2ff;
+  border-radius: 999px;
+  color: var(--azul-principal);
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.highlighted .plan-icon {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 .plan-tag {
-  background: var(--azul-principal);
+  background: #2563eb;
   border-radius: 999px;
   color: #ffffff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.22rem 0.5rem;
-  position: absolute;
-  right: 0.65rem;
-  top: 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.28rem 0.62rem;
+}
+
+.plan-copy {
+  margin-top: 1rem;
 }
 
 .plan-doctors {
-  align-items: center;
-  color: #4b5563;
-  display: flex;
-  font-size: 0.78rem;
-  font-weight: 700;
-  gap: 0.3rem;
-  min-height: 20px;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.plan-card strong {
-  color: var(--preto);
-  font-size: 1rem;
+.highlighted .plan-doctors,
+.highlighted .plan-copy p,
+.highlighted .plan-price span {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.plan-copy h2 {
+  font-size: 1.3rem;
+  margin: 0.35rem 0;
+}
+
+.plan-copy p {
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 58px;
 }
 
 .plan-price {
+  align-items: baseline;
+  display: flex;
+  gap: 0.25rem;
+  margin: 1.2rem 0 1rem;
+}
+
+.plan-price strong {
   color: var(--azul-principal);
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 2rem;
   line-height: 1;
 }
 
-.plan-price small {
-  color: var(--cinza-texto);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-left: 0.15rem;
+.highlighted .plan-price strong {
+  color: #ffffff;
 }
 
-.plan-description {
-  color: var(--cinza-texto);
-  font-size: 0.78rem;
-  line-height: 1.35;
+.plan-price span {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
-.checkout-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr 0.9fr;
-}
-
-.benefits-panel,
-.summary-panel {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-h3 {
-  color: var(--preto);
+.plan-button {
+  align-items: center;
+  background: var(--azul-principal);
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
   font-size: 0.95rem;
-  margin: 0 0 0.75rem;
+  font-weight: 800;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0.85rem 0.95rem;
+  width: 100%;
 }
 
-ul {
+.highlighted .plan-button {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.features-list {
+  border-top: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 1rem 0 0;
+  padding: 1rem 0 0;
 }
 
-li {
+.highlighted .features-list {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.features-list li {
   align-items: center;
   color: #374151;
   display: flex;
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   gap: 0.5rem;
 }
 
-li svg {
+.highlighted .features-list li {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.features-list svg {
   color: #16a34a;
   flex-shrink: 0;
 }
 
-.summary-panel {
+.checkout-summary {
+  align-items: center;
+  animation: summaryReveal 0.44s ease 0.22s both;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  margin: 1.1rem auto 0;
+  max-width: 860px;
+  padding: 0.9rem 1rem;
+}
+
+@keyframes plansReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(var(--card-offset)) scale(1);
+  }
+}
+
+@keyframes summaryReveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.checkout-summary div {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.2rem;
 }
 
-.summary-row,
-.summary-total {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.summary-row {
-  color: #4b5563;
-  font-size: 0.86rem;
-}
-
-.summary-row strong {
-  color: var(--preto);
-}
-
-.summary-row.muted strong {
-  color: #16a34a;
-}
-
-.summary-total {
-  border-top: 1px solid #e5e7eb;
-  color: var(--preto);
+.checkout-summary span {
+  color: #6b7280;
+  font-size: 0.78rem;
   font-weight: 700;
-  margin-top: 0.2rem;
-  padding-top: 0.8rem;
 }
 
-.summary-total strong {
-  color: var(--azul-principal);
-  font-size: 1.25rem;
+.checkout-summary strong {
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.success-text {
+  color: #16a34a !important;
+}
+
+.purchase-note,
+.stripe-box {
+  color: rgba(75, 85, 99, 0.66);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.purchase-note {
+  margin: 0.9rem 0 0;
 }
 
 .stripe-box {
   align-items: center;
-  color: rgba(75, 85, 99, 0.56);
   display: flex;
-  font-size: 0.72rem;
-  gap: 0.3rem;
+  gap: 0.35rem;
   justify-content: center;
-  line-height: 1;
-  padding-top: 0.1rem;
-}
-
-.purchase-note {
-  color: rgba(75, 85, 99, 0.66);
-  font-size: 0.72rem;
-  line-height: 1.35;
-  margin: -0.15rem 0 0;
-  text-align: center;
+  margin-top: 0.45rem;
 }
 
 .stripe-box img {
@@ -415,54 +535,25 @@ li svg {
   width: auto;
 }
 
-.auth-button {
-  align-items: center;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  font-size: 1rem;
-  font-weight: 800;
-  gap: 0.55rem;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: 0.85rem 1rem 0.85rem 1.15rem;
-  transition:
-    background-color 0.2s ease,
-    transform 0.2s ease;
-  width: 100%;
-}
-
-.auth-button {
-  background-color: var(--azul-principal);
-  color: var(--branco);
-}
-
-.auth-button:hover {
-  background-color: var(--azul-escuro);
-  transform: translateY(-1px);
-}
-
-.auth-button:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
 .error-message {
   color: #ef4444;
-  font-size: 0.86rem;
-  margin: 0;
+  font-size: 0.88rem;
+  margin: 0.9rem 0 0;
   text-align: center;
 }
 
 @media (max-width: 900px) {
-  .subscription-header {
-    flex-direction: column;
+  .pricing-page {
+    padding-bottom: 2.5rem;
   }
 
-  .checkout-grid,
-  .plans-grid {
+  .plans-grid,
+  .checkout-summary {
     grid-template-columns: 1fr;
+  }
+
+  .plan-card.highlighted {
+    transform: none;
   }
 }
 </style>

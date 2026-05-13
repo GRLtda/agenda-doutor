@@ -7,15 +7,7 @@ import StepCreateClinic from '@/components/pages/onboarding/steps/StepCreateClin
 import StepWorkingHours from '@/components/pages/onboarding/steps/StepWorkingHours.vue'
 import StepSubscription from '@/components/pages/onboarding/steps/StepSubscription.vue'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
-import {
-  Building,
-  Clock,
-  CreditCard,
-  CheckCircle,
-  CalendarPlus,
-  UserPlus,
-  PartyPopper,
-} from 'lucide-vue-next'
+import { Building, Clock, CheckCircle, PartyPopper, Sparkles } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -24,13 +16,13 @@ const authStore = useAuthStore()
 const currentStep = ref(1)
 const subscriptionStatus = ref(null)
 const isCheckingPayment = ref(false)
+const isPreparingPlans = ref(false)
 
 const activeSubscriptionStatuses = ['active', 'trialing', 'lifetime', 'past_due']
 
 const steps = [
   { name: 'Dados da Clínica', subtitle: 'Informações principais', icon: Building },
   { name: 'Horário', subtitle: 'Funcionamento', icon: Clock },
-  { name: 'Assinatura', subtitle: 'Pagamento seguro', icon: CreditCard },
   { name: 'Concluído', subtitle: 'Tudo pronto', icon: CheckCircle },
 ]
 
@@ -51,12 +43,17 @@ const hasActiveSubscription = computed(() => {
 const installationFeeCharged = computed(() => !!clinic.value?.installationFeeCharged)
 
 function nextStep() {
-  if (currentStep.value < steps.length) {
+  if (currentStep.value < 5) {
     currentStep.value++
   }
 }
 
 function previousStep() {
+  if (currentStep.value === 4) {
+    currentStep.value = 2
+    return
+  }
+
   if (currentStep.value > 1) {
     currentStep.value--
   }
@@ -65,7 +62,7 @@ function previousStep() {
 async function syncOnboardingStep() {
   isCheckingPayment.value = true
   try {
-    const maxAttempts = route.query.payment === 'success' ? 4 : 1
+    const maxAttempts = isPaymentSuccessReturn.value ? 4 : 1
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await authStore.fetchUser()
@@ -85,7 +82,7 @@ async function syncOnboardingStep() {
 
     if (hasActiveSubscription.value) {
       if (isPaymentSuccessReturn.value) {
-        currentStep.value = 4
+        currentStep.value = 5
         return
       }
 
@@ -93,7 +90,7 @@ async function syncOnboardingStep() {
       return
     }
 
-    currentStep.value = isPaymentSuccessReturn.value ? 4 : 3
+    currentStep.value = isPaymentSuccessReturn.value ? 5 : 4
   } finally {
     isCheckingPayment.value = false
   }
@@ -101,6 +98,14 @@ async function syncOnboardingStep() {
 
 function goToDashboard() {
   router.push('/')
+}
+
+function preparePlans() {
+  isPreparingPlans.value = true
+  prepareTimeout = window.setTimeout(() => {
+    currentStep.value = 4
+    isPreparingPlans.value = false
+  }, 2000)
 }
 
 const currentQuoteIndex = ref(0)
@@ -111,6 +116,7 @@ const quotes = [
 ]
 
 let quoteInterval
+let prepareTimeout
 
 onMounted(() => {
   syncOnboardingStep()
@@ -122,13 +128,38 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearInterval(quoteInterval)
+  clearTimeout(prepareTimeout)
 })
 
 const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
 </script>
 
 <template>
-  <AuthCard :image-url="imageUrl" panel-width="large" class="onboarding-auth-card">
+  <StepSubscription
+    v-if="currentStep === 4 && !isCheckingPayment"
+    :installation-fee-charged="installationFeeCharged"
+    @back="previousStep"
+  />
+
+  <main v-else-if="currentStep === 5 && !isCheckingPayment" class="payment-result-page">
+    <div class="payment-result-card">
+      <div class="success-icon-wrapper">
+        <PartyPopper :size="48" />
+      </div>
+      <h1>Obrigado!</h1>
+      <p v-if="!hasActiveSubscription">
+        Recebemos seu retorno do pagamento e estamos finalizando a confirmação da assinatura.
+        Em instantes sua clínica será liberada.
+      </p>
+      <p v-else>Pagamento confirmado com sucesso. Sua clínica já está pronta para começar.</p>
+      <button v-if="hasActiveSubscription" @click="goToDashboard" class="auth-button">
+        Ir para o Dashboard
+      </button>
+      <button v-else @click="syncOnboardingStep" class="auth-button">Verificar assinatura</button>
+    </div>
+  </main>
+
+  <AuthCard v-else :image-url="imageUrl" panel-width="large" class="onboarding-auth-card">
     <template #image-content>
       <div class="brand-logo">
         <ClinicLogo size="120px" />
@@ -141,7 +172,7 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
     </template>
 
     <template #title>
-      <Stepper :steps="steps" :currentStep="currentStep" />
+      <Stepper :steps="steps" :currentStep="Math.min(currentStep, steps.length)" />
     </template>
 
     <div class="step-content-wrapper">
@@ -168,49 +199,29 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
             <StepWorkingHours @success="nextStep" />
           </div>
 
-          <div v-else-if="currentStep === 3 && !isCheckingPayment">
-            <StepSubscription
-              :installation-fee-charged="installationFeeCharged"
-              @back="previousStep"
-            />
-          </div>
+          <div v-else-if="currentStep === 3 && !isCheckingPayment" class="text-content thanks-stage">
+            <Transition name="step-slide" mode="out-in">
+              <div v-if="!isPreparingPlans" key="thanks" class="thanks-card">
+                <div class="success-icon-wrapper">
+                  <Sparkles :size="42" />
+                </div>
+                <span class="thanks-kicker">Configuração concluída</span>
+                <h2>Obrigado!</h2>
+                <p>
+                  Sua clínica já tem o básico pronto. Vamos preparar o ambiente para liberar o
+                  acesso ao painel com o plano ideal para sua equipe.
+                </p>
 
-          <div v-else-if="currentStep === 4 && !isCheckingPayment" class="text-content">
-            <div class="success-icon-wrapper">
-              <PartyPopper :size="48" />
-            </div>
-            <h2>{{ isPaymentSuccessReturn ? 'Obrigado!' : 'Tudo pronto!' }}</h2>
-            <p v-if="isPaymentSuccessReturn && !hasActiveSubscription">
-              Recebemos seu retorno do pagamento e estamos finalizando a confirmação da assinatura.
-              Em instantes sua clínica será liberada.
-            </p>
-            <p v-else-if="isPaymentSuccessReturn">
-              Pagamento confirmado com sucesso. Sua clínica já está pronta para começar.
-            </p>
-            <p v-else>
-              Sua clínica foi configurada com sucesso. Aqui estão algumas sugestões para começar a usar
-              o sistema:
-            </p>
+                <button @click="preparePlans" class="auth-button">Ir para painel</button>
+              </div>
 
-            <ul v-if="!isPaymentSuccessReturn || hasActiveSubscription" class="next-steps-list">
-              <li>
-                <UserPlus :size="20" />
-                <span>Cadastre seu primeiro paciente.</span>
-              </li>
-              <li>
-                <CalendarPlus :size="20" />
-                <span>Marque um atendimento na agenda.</span>
-              </li>
-            </ul>
-
-            <button
-              v-if="hasActiveSubscription"
-              @click="goToDashboard"
-              class="auth-button"
-            >
-              Ir para o Dashboard
-            </button>
-            <button v-else @click="syncOnboardingStep" class="auth-button">Verificar assinatura</button>
+              <div v-else key="preparing" class="preparing-card">
+                <ClinicLogo size="150px" />
+                <div class="preparing-loader" aria-hidden="true"></div>
+                <h2>Estamos preparando tudo</h2>
+                <p>Organizando sua clínica e carregando as opções finais para continuar.</p>
+              </div>
+            </Transition>
           </div>
         </div>
       </Transition>
@@ -357,6 +368,69 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
   align-items: center;
 }
 
+.thanks-stage {
+  min-height: 430px;
+  justify-content: center;
+}
+
+.thanks-card,
+.preparing-card {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  max-width: 460px;
+}
+
+.thanks-kicker {
+  color: var(--azul-principal);
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 0.45rem;
+}
+
+.preparing-loader {
+  animation: spin 0.9s linear infinite;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--azul-principal);
+  border-radius: 999px;
+  height: 34px;
+  margin: 1.5rem 0 1rem;
+  width: 34px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.payment-result-page {
+  align-items: center;
+  background: #ffffff;
+  background-image:
+    linear-gradient(to right, rgba(229, 231, 235, 0.32) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 231, 235, 0.32) 1px, transparent 1px);
+  background-size: 40px 40px;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.payment-result-card {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  max-width: 460px;
+  text-align: center;
+}
+
+.payment-result-card h1 {
+  color: var(--preto);
+  font-size: 2rem;
+  margin: 0 0 0.5rem;
+}
+
 .success-icon-wrapper {
   display: flex;
   align-items: center;
@@ -380,28 +454,6 @@ p {
   line-height: 1.6;
   max-width: 450px;
   margin-bottom: 1.25rem;
-}
-
-.next-steps-list {
-  list-style: none;
-  padding: 0;
-  margin-bottom: 1.25rem;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  color: #374151;
-  font-weight: 500;
-}
-
-.next-steps-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.next-steps-list li svg {
-  color: var(--azul-principal);
 }
 
 .auth-button {
