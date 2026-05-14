@@ -145,7 +145,7 @@ const allItems = computed(() => {
 const showPatients = computed(() => recentPatients.value.length > 0)
 const showShortcuts = computed(() => filteredShortcuts.value.length > 0)
 const hasNoResults = computed(() => searchQuery.value && !showPatients.value && !showShortcuts.value)
-const searchShortcutLabel = computed(() => (isMacPlatform.value ? 'Command + K' : 'Ctrl + K'))
+const searchShortcutLabel = computed(() => (isMacPlatform.value ? '+ K' : 'Ctrl + K'))
 
 // Reset selection quando busca muda
 watch(searchQuery, () => {
