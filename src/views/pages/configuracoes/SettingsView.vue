@@ -566,6 +566,17 @@ const handleMobileBack = () => {
   transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
+@keyframes settings-mobile-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .sidebar-item.active .sidebar-item-icon {
   background: #eef2ff;
   color: var(--azul-principal);
@@ -641,6 +652,7 @@ const handleMobileBack = () => {
   overflow-y: auto;
   padding: 0.35rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   background: #ffffff;
+  animation: settings-mobile-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .mobile-head,

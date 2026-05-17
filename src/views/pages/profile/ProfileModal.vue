@@ -490,6 +490,7 @@ watch(
   overflow-y: auto;
   padding: 0.35rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   background: #ffffff;
+  animation: profile-mobile-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .mobile-head {
@@ -638,6 +639,17 @@ watch(
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes profile-mobile-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 </style>
