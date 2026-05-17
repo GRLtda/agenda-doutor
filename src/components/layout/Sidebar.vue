@@ -894,6 +894,7 @@ const sidebarSections = computed(() => {
     font-size: 0.84rem;
   }
   .sidebar-branding {
+    display: none ;
     margin-top: 0.35rem;
     padding: 0.62rem 0.65rem;
     border-radius: 0.75rem;

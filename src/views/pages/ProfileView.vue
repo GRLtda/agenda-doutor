@@ -2,8 +2,16 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
-  User, Building2, MapPin,
-  Pencil, Check, X, ShieldCheck, Shield, KeyRound, Monitor, Camera, Loader2, Trash2
+  User,
+  Pencil,
+  Check,
+  X,
+  Shield,
+  KeyRound,
+  Monitor,
+  Camera,
+  Loader2,
+  Trash2,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
@@ -34,13 +42,13 @@ const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'security' | 'devices' | 'clinic'
+// Tab state: 'personal' | 'security' | 'devices'
 const activeTab = ref(props.activeTab || 'personal')
 
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'clinic') {
+    if (value === 'personal' || value === 'security' || value === 'devices') {
       activeTab.value = value
     }
   }
@@ -81,14 +89,6 @@ const roleLabels = {
   admin: 'Administrador',
   employee: 'Funcionário',
   staff: 'Equipe'
-}
-
-const planLabels = {
-  basic: 'Básico',
-  premium: 'Premium',
-  enterprise: 'Enterprise',
-  enterprise_plus: 'Enterprise Plus',
-  lifetime: 'Vitalício'
 }
 
 const getInitials = (name) => {
@@ -317,8 +317,7 @@ async function handlePhotoDelete() {
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
             { value: 'security', label: 'Segurança', icon: Shield },
-            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
-            { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
+            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor }
           ]"
         />
       </nav>
@@ -447,71 +446,6 @@ async function handlePhotoDelete() {
             <ActiveSessionsView />
           </div>
 
-          <!-- Clinic Info Tab -->
-          <div v-else-if="activeTab === 'clinic'" class="content-card">
-            <div class="card-header">
-              <div class="header-text">
-                <h2> {{ clinic?.name || 'Minha Clínica' }}</h2>
-                <p>Informações institucionais e plano contratado</p>
-              </div>
-              <span class="plan-badge" :class="clinic?.plan">
-                {{ planLabels[clinic?.plan] || clinic?.plan }}
-              </span>
-            </div>
-
-            <div v-if="clinic" class="clinic-details">
-              <!-- Clinic Branding -->
-              <div class="branding-section">
-                <div class="clinic-logo-wrapper">
-                  <img
-                    v-if="clinic.logoUrl"
-                    :src="clinic.logoUrl"
-                    :alt="clinic.name"
-                  />
-                  <div v-else class="logo-placeholder">
-                    <Building2 :size="32" />
-                  </div>
-                </div>
-                <div class="branding-info">
-                  <h3>Identidade Visual</h3>
-                  <p>Logo utilizada em documentos e na área do paciente</p>
-                </div>
-              </div>
-
-              <div class="fields-grid">
-                <div class="field-group">
-                  <label>CNPJ</label>
-                  <div class="read-only-field">
-                    <ShieldCheck :size="18" class="field-icon" />
-                    <span>{{ clinic.cnpj || 'Não informado' }}</span>
-                  </div>
-                </div>
-
-                <div class="field-group">
-                  <label>Responsável Técnico</label>
-                  <div class="read-only-field">
-                    <User :size="18" class="field-icon" />
-                    <span>{{ clinic.responsibleName || 'Não informado' }}</span>
-                  </div>
-                </div>
-
-                <div class="field-group">
-                  <label>Localização</label>
-                  <div class="read-only-field">
-                    <MapPin :size="18" class="field-icon" />
-                    <span>
-                      {{ clinic.address?.city || 'Cidade não informada' }}
-                      {{ clinic.address?.state ? ` - ${clinic.address.state}` : '' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="empty-state">
-              <p>Nenhuma informação de clínica vinculada.</p>
-            </div>
-          </div>
         </transition>
       </main>
     </div>
@@ -648,6 +582,7 @@ async function handlePhotoDelete() {
 
 .user-info {
   min-width: 0;
+  flex: 1;
 }
 
 .user-name {
@@ -667,6 +602,14 @@ async function handlePhotoDelete() {
   color: #9ca3af;
   font-size: 0.82rem;
   margin: 0.2rem 0 0.55rem;
+}
+
+.user-name,
+.user-email,
+.user-location {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge {
