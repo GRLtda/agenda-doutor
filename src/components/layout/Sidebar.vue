@@ -471,7 +471,7 @@ const sidebarSections = computed(() => {
   height: 32px;
   flex-shrink: 0;
   border-radius: 0.375rem;
-  background-color: var(--branco);
+  background-color: #eef2ff;
   color: var(--azul-principal);
   display: flex;
   align-items: center;

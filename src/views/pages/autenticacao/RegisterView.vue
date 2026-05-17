@@ -425,6 +425,7 @@ function handleRegistrationComplete() {
 
 .subtitle-text {
   font-size: 0.95rem;
+  text-align: left;
   color: var(--cinza-texto);
   font-weight: 400;
   line-height: 1.5;

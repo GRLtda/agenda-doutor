@@ -550,9 +550,6 @@ onBeforeRouteLeave((to, from, next) => {
 }
 
 @media (max-width: 768px) {
-  .settings-section {
-    padding: 1.25rem;
-  }
 
   .identity-content {
     flex-direction: column;
@@ -602,9 +599,6 @@ onBeforeRouteLeave((to, from, next) => {
 }
 
 @media (max-width: 480px) {
-  .settings-section {
-    padding: 1rem;
-  }
 
   .section-header {
     flex-direction: column;

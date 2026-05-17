@@ -243,14 +243,14 @@ watch(
       <template v-else>
         <div class="profile-mobile">
           <header class="mobile-head">
-            <button type="button" class="mobile-back" @click="handleMobileBack">
-              <ArrowLeft :size="16" />
-            </button>
-
             <div class="mobile-head-main">
-              <span class="mobile-head-icon">
+              <button type="button" class="mobile-back" @click="handleMobileBack">
+                <ArrowLeft :size="16" />
+              </button>
+
+              <!-- <span class="mobile-head-icon">
                 <component :is="currentTab.icon" :size="18" />
-              </span>
+              </span> -->
               <div class="mobile-head-title">
                 <h1>{{ mobileStage === 'menu' ? 'Meu Perfil' : currentTab.label }}</h1>
                 <p>
@@ -513,12 +513,12 @@ watch(
   width: 32px;
   height: 32px;
   border-radius: 0.7rem;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
+  border: 1px solid #dbeafe;
+  background: #eef2ff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: var(--azul-principal);
   flex-shrink: 0;
 }
 
@@ -572,11 +572,12 @@ watch(
   width: 32px;
   height: 32px;
   border-radius: 0.7rem;
-  background: #f3f4f6;
+  border: 1px solid #dbeafe;
+  background: #eef2ff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: var(--azul-principal);
   flex-shrink: 0;
 }
 
@@ -613,7 +614,6 @@ watch(
   justify-content: center;
   padding: 0;
   text-align: center;
-  margin-bottom: 0.65rem;
 }
 
 .mobile-detail-content {

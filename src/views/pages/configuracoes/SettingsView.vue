@@ -343,9 +343,9 @@ const handleMobileBack = () => {
                 <ArrowLeft :size="18" />
               </button>
 
-              <span class="mobile-head-icon">
+              <!-- <span class="mobile-head-icon">
                 <component :is="mobileHeaderIcon" :size="18" />
-              </span>
+              </span> -->
               <div class="mobile-head-title">
                 <h1>{{ mobileHeaderTitle }}</h1>
                 <p>{{ mobileHeaderDescription }}</p>
@@ -559,13 +559,15 @@ const handleMobileBack = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  color: inherit;
+  border-radius: 0.65rem;
+  background: #f3f4f6;
+  color: #4b5563;
   flex-shrink: 0;
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .sidebar-item.active .sidebar-item-icon {
+  background: #eef2ff;
   color: var(--azul-principal);
 }
 
@@ -649,7 +651,7 @@ const handleMobileBack = () => {
 
 .mobile-head {
   position: sticky;
-  top: 0;
+  top: -0.4rem;
   z-index: 4;
   margin-left: -1rem;
   margin-right: -1rem;
@@ -727,11 +729,13 @@ const handleMobileBack = () => {
 .mobile-nav-icon {
   width: 32px;
   height: 32px;
-  background: transparent;
+  border-radius: 0.7rem;
+  border: 1px solid #dbeafe;
+  background: #eef2ff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: var(--azul-principal);
   flex-shrink: 0;
 }
 

@@ -14,7 +14,7 @@ function openSettingsModal() {
     query: {
       ...route.query,
       settings: '1',
-      tab: 'identidade',
+      tab: undefined,
     },
   })
 }

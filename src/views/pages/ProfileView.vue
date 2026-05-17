@@ -549,7 +549,7 @@ async function handlePhotoDelete() {
 .profile-header {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1rem;
   border: 1px solid #e5e7eb;
 }
 
@@ -576,14 +576,14 @@ async function handlePhotoDelete() {
 .avatar {
   width: 68px;
   height: 68px;
-  background: #f1f5f9;
+  background: #eef2ff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--azul-principal);
   border: 1px solid #dbe1e8;
   overflow: hidden;
   position: relative;
@@ -1009,9 +1009,6 @@ async function handlePhotoDelete() {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .page-container {
-    padding: 1rem 0.5rem;
-  }
 
   .header-content {
     align-items: flex-start;
