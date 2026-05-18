@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
+import Switch from '@/components/global/Switch.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import { useToast } from 'vue-toastification'
 
@@ -83,6 +84,7 @@ const resetPasswordData = reactive({
 
 const isSendingResetCode = ref(false)
 const isResettingPassword = ref(false)
+const isSavingFinancialAlerts = ref(false)
 
 const roleLabels = {
   owner: 'Proprietário',
@@ -248,6 +250,20 @@ async function handlePhotoDelete() {
     toast.error(result.error || 'Erro ao remover foto')
   }
 }
+
+const updateFinancialAlerts = async (enabled) => {
+  isSavingFinancialAlerts.value = true
+  const result = await authStore.updateProfile({
+    financialWhatsappAlertsEnabled: enabled
+  })
+  isSavingFinancialAlerts.value = false
+
+  if (result.success) {
+    toast.success('Preferência de alertas atualizada.')
+  } else {
+    toast.error(result.error || 'Não foi possível atualizar os alertas.')
+  }
+}
 </script>
 
 <template>
@@ -384,6 +400,29 @@ async function handlePhotoDelete() {
                   <span class="simple-label">Membro desde</span>
                   <div class="simple-value">{{ formatDate(clinic?.createdAt) }}</div>
                 </div>
+              </div>
+            </section>
+
+            <section v-if="user?.role === 'owner'" class="content-card simple-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Alertas financeiros por WhatsApp</h2>
+                  <p>Receba avisos de falha de pagamento, fim do teste e bloqueio de acesso.</p>
+                </div>
+              </div>
+
+              <div class="financial-alert-row">
+                <div>
+                  <p class="financial-alert-title">Avisos da assinatura</p>
+                  <p class="financial-alert-description">
+                    Enviados para o seu número quando houver eventos importantes de cobrança.
+                  </p>
+                </div>
+                <Switch
+                  :model-value="user?.financialWhatsappAlertsEnabled !== false"
+                  :disabled="isSavingFinancialAlerts"
+                  @update:model-value="updateFinancialAlerts"
+                />
               </div>
             </section>
           </div>
@@ -583,6 +622,25 @@ async function handlePhotoDelete() {
 .user-info {
   min-width: 0;
   flex: 1;
+}
+
+.financial-alert-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.financial-alert-title {
+  margin: 0 0 0.25rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.financial-alert-description {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
 }
 
 .user-name {
