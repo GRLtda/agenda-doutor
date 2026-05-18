@@ -12,6 +12,7 @@ import api from '@/api'
 
 export const useClinicStore = defineStore('clinic', () => {
   const currentClinic = ref(null)
+  const subscriptionStatus = ref(null)
 
   function setClinic(clinicData) {
     currentClinic.value = clinicData
@@ -72,6 +73,7 @@ export const useClinicStore = defineStore('clinic', () => {
   async function getSubscriptionStatus() {
     try {
       const response = await api.get('/subscriptions/status')
+      subscriptionStatus.value = response.data
       return { success: true, data: response.data }
     } catch (error) {
       console.error('Erro ao buscar status da assinatura:', error)
@@ -99,6 +101,10 @@ export const useClinicStore = defineStore('clinic', () => {
     }
   }
 
+  function clearSubscriptionStatus() {
+    subscriptionStatus.value = null
+  }
+
   async function getLatestInvoice() {
     try {
       const response = await api.get('/subscriptions/latest-invoice')
@@ -109,5 +115,17 @@ export const useClinicStore = defineStore('clinic', () => {
     }
   }
 
-  return { currentClinic, createClinic, updateClinicDetails, setClinic, uploadLogo, getSubscriptionStatus, cancelSubscription, createPortalSession, getLatestInvoice }
+  return {
+    currentClinic,
+    subscriptionStatus,
+    createClinic,
+    updateClinicDetails,
+    setClinic,
+    uploadLogo,
+    getSubscriptionStatus,
+    cancelSubscription,
+    createPortalSession,
+    getLatestInvoice,
+    clearSubscriptionStatus,
+  }
 })
