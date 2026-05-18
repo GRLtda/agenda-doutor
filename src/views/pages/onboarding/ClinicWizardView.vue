@@ -38,6 +38,14 @@ const hasActiveSubscription = computed(() => {
     return new Date(clinic.value.trialEndsAt) > new Date()
   }
 
+  const planCode = String(authStore.user?.planStatus?.plan || '').toLowerCase()
+  const planDescription = String(authStore.user?.planStatus?.planDescription || '').toLowerCase()
+  const isLegacyLifetime = planCode === 'lifetime' || planDescription.includes('vital')
+
+  if (isLegacyLifetime) {
+    return true
+  }
+
   return false
 })
 const installationFeeCharged = computed(() => !!clinic.value?.installationFeeCharged)

@@ -86,7 +86,9 @@ const router = createRouter({
 
 const activeSubscriptionStatuses = ['active', 'trialing', 'lifetime', 'past_due']
 
-function hasActiveAccess(clinic) {
+function hasActiveAccess(user) {
+  const clinic = user?.clinic
+  const planStatus = user?.planStatus
   if (!clinic) {
     return false
   }
@@ -99,6 +101,14 @@ function hasActiveAccess(clinic) {
     return new Date(clinic.trialEndsAt) > new Date()
   }
 
+
+  const planCode = String(planStatus?.plan || '').toLowerCase()
+  const planDescription = String(planStatus?.planDescription || '').toLowerCase()
+  const isLegacyLifetime = planCode === 'lifetime' || planDescription.includes('vital')
+
+  if (isLegacyLifetime) {
+    return true
+  }
   return false
 }
 
@@ -133,7 +143,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (isAuthenticated && hasClinic) {
-      const hasActiveSubscription = hasActiveAccess(authStore.user?.clinic)
+      const hasActiveSubscription = hasActiveAccess(authStore.user)
 
       if (to.name === 'clinic-wizard') {
         if (hasActiveSubscription) {
