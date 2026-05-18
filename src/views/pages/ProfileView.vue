@@ -2,11 +2,20 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
-  User, Building2, MapPin,
-  Pencil, Check, X, ShieldCheck, Shield, KeyRound, Monitor, Camera, Loader2, Trash2
+  User,
+  Pencil,
+  Check,
+  X,
+  Shield,
+  KeyRound,
+  Monitor,
+  Camera,
+  Loader2,
+  Trash2,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
+import Switch from '@/components/global/Switch.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import { useToast } from 'vue-toastification'
 
@@ -34,13 +43,13 @@ const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
 const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'security' | 'devices' | 'clinic'
+// Tab state: 'personal' | 'security' | 'devices'
 const activeTab = ref(props.activeTab || 'personal')
 
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'clinic') {
+    if (value === 'personal' || value === 'security' || value === 'devices') {
       activeTab.value = value
     }
   }
@@ -75,20 +84,13 @@ const resetPasswordData = reactive({
 
 const isSendingResetCode = ref(false)
 const isResettingPassword = ref(false)
+const isSavingFinancialAlerts = ref(false)
 
 const roleLabels = {
   owner: 'Proprietário',
   admin: 'Administrador',
   employee: 'Funcionário',
   staff: 'Equipe'
-}
-
-const planLabels = {
-  basic: 'Básico',
-  premium: 'Premium',
-  enterprise: 'Enterprise',
-  enterprise_plus: 'Enterprise Plus',
-  lifetime: 'Vitalício'
 }
 
 const getInitials = (name) => {
@@ -248,6 +250,20 @@ async function handlePhotoDelete() {
     toast.error(result.error || 'Erro ao remover foto')
   }
 }
+
+const updateFinancialAlerts = async (enabled) => {
+  isSavingFinancialAlerts.value = true
+  const result = await authStore.updateProfile({
+    financialWhatsappAlertsEnabled: enabled
+  })
+  isSavingFinancialAlerts.value = false
+
+  if (result.success) {
+    toast.success('Preferência de alertas atualizada.')
+  } else {
+    toast.error(result.error || 'Não foi possível atualizar os alertas.')
+  }
+}
 </script>
 
 <template>
@@ -317,8 +333,7 @@ async function handlePhotoDelete() {
           :items="[
             { value: 'personal', label: 'Informações Pessoais', icon: User },
             { value: 'security', label: 'Segurança', icon: Shield },
-            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
-            { value: 'clinic', label: 'Dados da Clínica', icon: Building2 }
+            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor }
           ]"
         />
       </nav>
@@ -387,6 +402,29 @@ async function handlePhotoDelete() {
                 </div>
               </div>
             </section>
+
+            <section v-if="user?.role === 'owner'" class="content-card simple-section">
+              <div class="card-header simple-header">
+                <div class="header-text">
+                  <h2>Alertas financeiros por WhatsApp</h2>
+                  <p>Receba avisos de falha de pagamento, fim do teste e bloqueio de acesso.</p>
+                </div>
+              </div>
+
+              <div class="financial-alert-row">
+                <div>
+                  <p class="financial-alert-title">Avisos da assinatura</p>
+                  <p class="financial-alert-description">
+                    Enviados para o seu número quando houver eventos importantes de cobrança.
+                  </p>
+                </div>
+                <Switch
+                  :model-value="user?.financialWhatsappAlertsEnabled !== false"
+                  :disabled="isSavingFinancialAlerts"
+                  @update:model-value="updateFinancialAlerts"
+                />
+              </div>
+            </section>
           </div>
 
           <div v-else-if="activeTab === 'security'" class="security-layout">
@@ -447,71 +485,6 @@ async function handlePhotoDelete() {
             <ActiveSessionsView />
           </div>
 
-          <!-- Clinic Info Tab -->
-          <div v-else-if="activeTab === 'clinic'" class="content-card">
-            <div class="card-header">
-              <div class="header-text">
-                <h2> {{ clinic?.name || 'Minha Clínica' }}</h2>
-                <p>Informações institucionais e plano contratado</p>
-              </div>
-              <span class="plan-badge" :class="clinic?.plan">
-                {{ planLabels[clinic?.plan] || clinic?.plan }}
-              </span>
-            </div>
-
-            <div v-if="clinic" class="clinic-details">
-              <!-- Clinic Branding -->
-              <div class="branding-section">
-                <div class="clinic-logo-wrapper">
-                  <img
-                    v-if="clinic.logoUrl"
-                    :src="clinic.logoUrl"
-                    :alt="clinic.name"
-                  />
-                  <div v-else class="logo-placeholder">
-                    <Building2 :size="32" />
-                  </div>
-                </div>
-                <div class="branding-info">
-                  <h3>Identidade Visual</h3>
-                  <p>Logo utilizada em documentos e na área do paciente</p>
-                </div>
-              </div>
-
-              <div class="fields-grid">
-                <div class="field-group">
-                  <label>CNPJ</label>
-                  <div class="read-only-field">
-                    <ShieldCheck :size="18" class="field-icon" />
-                    <span>{{ clinic.cnpj || 'Não informado' }}</span>
-                  </div>
-                </div>
-
-                <div class="field-group">
-                  <label>Responsável Técnico</label>
-                  <div class="read-only-field">
-                    <User :size="18" class="field-icon" />
-                    <span>{{ clinic.responsibleName || 'Não informado' }}</span>
-                  </div>
-                </div>
-
-                <div class="field-group">
-                  <label>Localização</label>
-                  <div class="read-only-field">
-                    <MapPin :size="18" class="field-icon" />
-                    <span>
-                      {{ clinic.address?.city || 'Cidade não informada' }}
-                      {{ clinic.address?.state ? ` - ${clinic.address.state}` : '' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="empty-state">
-              <p>Nenhuma informação de clínica vinculada.</p>
-            </div>
-          </div>
         </transition>
       </main>
     </div>
@@ -549,7 +522,7 @@ async function handlePhotoDelete() {
 .profile-header {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1rem;
   border: 1px solid #e5e7eb;
 }
 
@@ -576,14 +549,14 @@ async function handlePhotoDelete() {
 .avatar {
   width: 68px;
   height: 68px;
-  background: #f1f5f9;
+  background: #eef2ff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--azul-principal);
   border: 1px solid #dbe1e8;
   overflow: hidden;
   position: relative;
@@ -648,6 +621,26 @@ async function handlePhotoDelete() {
 
 .user-info {
   min-width: 0;
+  flex: 1;
+}
+
+.financial-alert-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.financial-alert-title {
+  margin: 0 0 0.25rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.financial-alert-description {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
 }
 
 .user-name {
@@ -667,6 +660,14 @@ async function handlePhotoDelete() {
   color: #9ca3af;
   font-size: 0.82rem;
   margin: 0.2rem 0 0.55rem;
+}
+
+.user-name,
+.user-email,
+.user-location {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge {
@@ -1009,9 +1010,6 @@ async function handlePhotoDelete() {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .page-container {
-    padding: 1rem 0.5rem;
-  }
 
   .header-content {
     align-items: flex-start;

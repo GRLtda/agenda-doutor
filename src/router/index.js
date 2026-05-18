@@ -106,6 +106,7 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const isAuthenticated = authStore.isAuthenticated
   let hasClinic = authStore.hasClinic
+  const isSamePageQueryChange = to.path === from.path && to.name === from.name
 
   if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
     return next({ name: 'resumo-dashboard' })
@@ -120,7 +121,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !to.meta.public) {
-    if (isAuthenticated && hasClinic) {
+    if (isAuthenticated && hasClinic && !isSamePageQueryChange) {
       await authStore.fetchUser()
       hasClinic = authStore.hasClinic
     }

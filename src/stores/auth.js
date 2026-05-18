@@ -564,12 +564,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function updateProfile(data) {
     try {
       const response = await apiClient.put('/auth/me', data)
+      const responseUser = response.data.data || response.data
 
       const currentUserState = user.value || {}
       const updatedUser = {
         ...currentUserState,
-        ...response.data,
-        clinic: response.data.clinic || currentUserState.clinic
+        ...responseUser,
+        clinic: responseUser.clinic || currentUserState.clinic
       }
 
       setUser(updatedUser)

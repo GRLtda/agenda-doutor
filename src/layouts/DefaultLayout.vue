@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import TopBar from '@/components/layout/TopBar.vue'
@@ -7,16 +7,37 @@ import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointme
 import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
 import SettingsView from '@/views/pages/configuracoes/SettingsView.vue'
 import ProfileModal from '@/views/pages/profile/ProfileModal.vue'
+import PaymentErrorBanner from '@/components/layout/PaymentErrorBanner.vue'
 import { useLayoutStore } from '@/stores/layout'
+import { useAuthStore } from '@/stores/auth'
+import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
 
 const route = useRoute()
 const router = useRouter()
 const layoutStore = useLayoutStore()
+const authStore = useAuthStore()
+const clinicStore = useClinicStore()
 const toast = useToast()
 
 const isMobileSidebarOpen = ref(false)
 const isAppointmentModalOpen = ref(false)
+const isOpeningPaymentPortal = ref(false)
+const dismissedUntil = ref(0)
+
+const paymentBannerStorageKey = computed(() => {
+  const userId = authStore.user?._id || authStore.user?.id
+  const clinicId = authStore.user?.clinic?._id || authStore.user?.clinic?.id
+  if (!userId || !clinicId) return null
+  return `payment-error-banner-dismissed:${clinicId}:${userId}`
+})
+
+const hasActivePaymentError = computed(() => Boolean(clinicStore.subscriptionStatus?.paymentError))
+const isOwner = computed(() => authStore.user?.role === 'owner')
+const isDismissed = computed(() => dismissedUntil.value > Date.now())
+const shouldShowPaymentErrorBanner = computed(
+  () => isOwner.value && hasActivePaymentError.value && !isDismissed.value
+)
 
 const isSettingsModalOpen = computed(() => {
   const queryValue = route.query.settings
@@ -49,6 +70,53 @@ const closeProfileModal = () => {
   })
 }
 
+const loadDismissal = () => {
+  if (!paymentBannerStorageKey.value) return
+  const stored = Number(localStorage.getItem(paymentBannerStorageKey.value) || 0)
+  dismissedUntil.value = Number.isFinite(stored) ? stored : 0
+}
+
+const dismissPaymentErrorBanner = () => {
+  if (!paymentBannerStorageKey.value) return
+  const nextVisibleAt = Date.now() + 24 * 60 * 60 * 1000
+  dismissedUntil.value = nextVisibleAt
+  localStorage.setItem(paymentBannerStorageKey.value, String(nextVisibleAt))
+}
+
+const openPaymentPortal = async () => {
+  isOpeningPaymentPortal.value = true
+  const response = await clinicStore.createPortalSession()
+  isOpeningPaymentPortal.value = false
+
+  if (response.success && response.data.url) {
+    window.location.href = response.data.url
+    return
+  }
+
+  toast.error(response.error || 'Erro ao acessar portal de pagamento.')
+}
+
+onMounted(async () => {
+  loadDismissal()
+  if (isOwner.value) {
+    await clinicStore.getSubscriptionStatus()
+  }
+})
+
+watch(paymentBannerStorageKey, () => {
+  loadDismissal()
+})
+
+watch(
+  () => clinicStore.subscriptionStatus?.paymentError,
+  (paymentError) => {
+    if (!paymentError && paymentBannerStorageKey.value) {
+      dismissedUntil.value = 0
+      localStorage.removeItem(paymentBannerStorageKey.value)
+    }
+  }
+)
+
 watch(
   () => route.query,
   (query) => {
@@ -73,6 +141,13 @@ watch(
 
 <template>
   <div class="app-layout">
+    <PaymentErrorBanner
+      v-if="shouldShowPaymentErrorBanner"
+      :loading="isOpeningPaymentPortal"
+      @dismiss="dismissPaymentErrorBanner"
+      @open-payment="openPaymentPortal"
+    />
+
     <div class="unified-container">
       <Sidebar
         v-if="!route.meta.layout?.fullscreen"
@@ -120,6 +195,7 @@ watch(
 <style scoped>
 .app-layout {
   display: flex;
+  flex-direction: column;
   background-color: var(--branco);
   height: 100dvh;
 }
