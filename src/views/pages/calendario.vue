@@ -4,7 +4,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X, CalendarMinus, CalendarPlus } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
@@ -36,6 +36,7 @@ const scheduleBlocksStore = useScheduleBlocksStore()
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 
 const handleDateSelect = (value) => {
@@ -494,9 +495,23 @@ function backToWeekView() {
   }
 }
 
+function maybeOpenCreateBlockFromQuery() {
+  if (route.query.newBlock !== '1') return
+
+  openCreateBlockDrawer(selectedDate.value)
+
+  router.replace({
+    query: {
+      ...route.query,
+      newBlock: undefined,
+    },
+  })
+}
+
 onMounted(async () => {
   updateCalendarView()
   await fetchDataForView()
+  maybeOpenCreateBlockFromQuery()
   window.addEventListener('resize', updateCalendarView)
   timer = setInterval(() => {
     currentTime.value = new Date()
