@@ -90,6 +90,7 @@ let timer = null
 const calendarView = ref('week')
 const isMobile = ref(window.innerWidth <= 768)
 const isInitialLoad = ref(true)
+const isCalendarLoading = ref(false)
 const isFilterDrawerOpen = ref(false)
 const isQuickActionMenuOpen = ref(false)
 const isConflictResolutionDrawerOpen = ref(false)
@@ -400,10 +401,15 @@ async function fetchDataForView() {
     startDate = format(weekStart.value, 'yyyy-MM-dd')
     endDate = format(endOfWeek(selectedDate.value), 'yyyy-MM-dd')
   }
-  await Promise.all([
-    appointmentsStore.fetchAppointmentsByDate(startDate, endDate),
-    scheduleBlocksStore.fetchBlocksByDate(startDate, endDate),
-  ])
+  isCalendarLoading.value = true
+  try {
+    await Promise.allSettled([
+      appointmentsStore.fetchAppointmentsByDate(startDate, endDate),
+      scheduleBlocksStore.fetchBlocksByDate(startDate, endDate),
+    ])
+  } finally {
+    isCalendarLoading.value = false
+  }
 }
 
 function handleEditAction(eventData) {
@@ -1093,8 +1099,8 @@ const getDayNumber = (heading) => {
                 @reschedule="handleReschedule(selectedEventForDetails.originalEvent)"
             />
 
-	            <div class="calendar-container" :class="{ 'is-loading': appointmentsStore.isLoading || scheduleBlocksStore.isLoading }">
-	                <div v-if="appointmentsStore.isLoading || scheduleBlocksStore.isLoading" class="loading-overlay">
+	            <div class="calendar-container" :class="{ 'is-loading': isCalendarLoading }">
+	                <div v-if="isCalendarLoading" class="loading-overlay">
                     <div class="loading-animation">
                     <LoaderCircle :size="32" class="animate-spin" />
                     <span>Carregando...</span>
