@@ -495,28 +495,31 @@ function backToWeekView() {
   }
 }
 
-function maybeOpenCreateBlockFromQuery() {
+async function maybeOpenCreateBlockFromQuery() {
   if (route.query.newBlock !== '1') return
 
   openCreateBlockDrawer(selectedDate.value)
 
-  router.replace({
-    query: {
-      ...route.query,
-      newBlock: undefined,
-    },
-  })
+  const { newBlock, ...remainingQuery } = route.query
+  await router.replace({ query: remainingQuery })
 }
 
 onMounted(async () => {
   updateCalendarView()
   await fetchDataForView()
-  maybeOpenCreateBlockFromQuery()
   window.addEventListener('resize', updateCalendarView)
   timer = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
 })
+
+watch(
+  () => route.query.newBlock,
+  () => {
+    maybeOpenCreateBlockFromQuery()
+  },
+  { immediate: true },
+)
 
 onUnmounted(() => {
   clearInterval(timer)
