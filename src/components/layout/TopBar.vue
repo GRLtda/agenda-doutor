@@ -101,7 +101,7 @@ const isGlobalLoading = computed(() => {
 const allShortcuts = ref([
   { name: 'Novo paciente', icon: UserPlus, path: '/pacientes/novo' },
   { name: 'Novo agendamento', icon: CalendarPlus, action: () => emit('open-schedule-modal') },
-  //{ name: 'Novo bloqueio na agenda', icon: CalendarOff, action: () => emit('open-schedule-modal') },
+  { name: 'Novo bloqueio na agenda', icon: CalendarOff, path: '/calendario?newBlock=1' },
   { name: 'Configurações', icon: Settings, action: openSettingsModal },
 ])
 
