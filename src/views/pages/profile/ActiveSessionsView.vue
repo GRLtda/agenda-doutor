@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { 
-  Monitor, Smartphone, Globe, Clock, Shield, AlertTriangle, LogOut, XCircle 
+import {
+  Monitor, Smartphone, Globe, Clock, Shield, AlertTriangle, LogOut, XCircle
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
@@ -111,7 +111,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="content-card">
+  <div class="content-card-active">
     <div class="card-header">
       <div class="header-text">
         <h2>Dispositivos Conectados</h2>
@@ -132,10 +132,10 @@ onMounted(() => {
         <div class="device-icon-wrapper">
           <component :is="getDeviceIcon(session.device?.user_agent)" :size="24" />
         </div>
-        
+
         <div class="device-info">
           <div class="device-name">
-            {{ getBrowserName(session.device?.user_agent) }} 
+            {{ getBrowserName(session.device?.user_agent) }}
             <span v-if="getOSName(session.device?.user_agent)">
               no {{ getOSName(session.device?.user_agent) }}
             </span>
@@ -168,11 +168,6 @@ onMounted(() => {
 
 <style scoped>
 .content-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #f1f5f9;
   height: fit-content;
 }
 
@@ -367,7 +362,7 @@ onMounted(() => {
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .logout-all-btn {
     width: 100%;
     justify-content: center;

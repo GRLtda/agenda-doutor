@@ -66,6 +66,7 @@ const closeProfileModal = () => {
     query: {
       ...route.query,
       profile: undefined,
+      profileTab: undefined,
     },
   })
 }

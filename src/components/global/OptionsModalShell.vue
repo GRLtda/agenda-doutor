@@ -263,7 +263,7 @@ watch(
 
 .options-modal-frame {
   position: relative;
-  width: min(1160px, 100%);
+  width: min(1260px, 100%);
   height: min(82dvh, 880px);
   z-index: 1;
   animation: options-modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);

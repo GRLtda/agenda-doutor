@@ -40,17 +40,21 @@ const blockTypes = [
   { value: 'outro', label: 'Outro', icon: Tag },
 ]
 
-const doctorOptions = computed(() => {
+const clinicDoctorOptions = computed(() => {
   const staff = clinicStore.currentClinic?.staff || []
-  const options = staff
+  return staff
     .filter((member) => member.role === 'medico' || member.role === 'owner')
     .map((member) => ({
       value: member._id,
       label: member.name,
       image: member.profilePhotoUrl,
     }))
+})
 
-  if (!isEditMode.value && !isCurrentUserDoctor.value) {
+const doctorOptions = computed(() => {
+  const options = clinicDoctorOptions.value
+
+  if (!isEditMode.value && !isCurrentUserDoctor.value && options.length > 1) {
     return [{ value: ALL_DOCTORS_OPTION, label: 'Todos os médicos' }, ...options]
   }
 
@@ -58,6 +62,7 @@ const doctorOptions = computed(() => {
 })
 
 const isCurrentUserDoctor = computed(() => authStore.user?.role === 'medico')
+const showDoctorField = computed(() => !isCurrentUserDoctor.value && clinicDoctorOptions.value.length > 1)
 
 const form = ref({
   doctor: null,
@@ -115,8 +120,19 @@ function initializeForm() {
     endTime: props.initialData?.endTime || toTimeString(endAt),
   }
 
-  if (!form.value.doctor && doctorOptions.value.length === 1) {
-    form.value.doctor = doctorOptions.value[0].value
+  applyDefaultDoctor()
+}
+
+function applyDefaultDoctor() {
+  if (form.value.doctor) return
+
+  if (isCurrentUserDoctor.value) {
+    form.value.doctor = authStore.user?._id || null
+    return
+  }
+
+  if (clinicDoctorOptions.value.length === 1) {
+    form.value.doctor = clinicDoctorOptions.value[0].value
   }
 }
 
@@ -133,6 +149,10 @@ watch(
     }
   }
 )
+
+watch(clinicDoctorOptions, () => {
+  applyDefaultDoctor()
+})
 
 function validateForm() {
   const nextErrors = {}
@@ -333,7 +353,7 @@ async function handleDelete() {
 
     <template #default>
       <div class="content">
-        <div class="form-group">
+        <div v-if="showDoctorField" class="form-group">
           <label class="form-label">Médico Responsável</label>
           <StyledSelect
             v-model="form.doctor"
@@ -484,6 +504,10 @@ async function handleDelete() {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.content :deep(.form-group) {
+  margin-bottom: 0;
 }
 
 .form-group {

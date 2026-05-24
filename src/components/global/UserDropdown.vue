@@ -26,6 +26,18 @@ function openProfileModal() {
   })
 }
 
+function openSubscriptionTab() {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: '1',
+      profileTab: 'subscription',
+      settings: undefined,
+      tab: undefined,
+    },
+  })
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -42,12 +54,12 @@ function handleLogout() {
         </button>
       </li>
       <li v-if="authStore.user?.role === 'owner'">
-        <button class="dropdown-item" @click="router.push('/assinatura')">
+        <button class="dropdown-item" @click="openSubscriptionTab">
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
       </li>
-      
+
       <li class="separator"></li>
 
       <li>

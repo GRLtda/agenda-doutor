@@ -47,7 +47,7 @@ const isDoctorSelectOpen = ref(false)
 
 const filteredStaff = computed(() => {
     if (!clinicStore.currentClinic?.staff) return []
-    return clinicStore.currentClinic.staff.filter(emp => 
+    return clinicStore.currentClinic.staff.filter(emp =>
         emp.role === 'medico' || emp.role === 'owner'
     )
 })
@@ -81,22 +81,22 @@ function handleToggleStatus(status) {
         <div class="sidebar-section">
             <h3 class="sidebar-title">Calendário</h3>
             <div class="view-switcher">
-                <button 
-                    class="view-btn" 
+                <button
+                    class="view-btn"
                     :class="{ 'active': calendarView === 'week' || calendarView === 'day' }"
                     @click="handleSwitchView(isMobile ? 'day' : 'week')"
                 >
                     {{ isMobile ? 'Dia' : 'Semana' }}
                 </button>
-                <button 
-                    class="view-btn" 
+                <button
+                    class="view-btn"
                     :class="{ 'active': calendarView === 'month' }"
                     @click="handleSwitchView('month')"
                 >
                     Mês
                 </button>
             </div>
-            
+
             <!-- Date Picker Inline -->
              <div class="calendar-inline-container">
                  <VueDatePicker
@@ -120,7 +120,7 @@ function handleToggleStatus(status) {
             <h3 class="sidebar-title">Profissionais</h3>
             <!-- ✨ Custom Select com Fotos -->
             <div class="relative">
-                <button 
+                <button
                     @click="isDoctorSelectOpen = !isDoctorSelectOpen"
                     class="custom-select-trigger"
                     :class="{ 'is-open': isDoctorSelectOpen }"
@@ -128,9 +128,9 @@ function handleToggleStatus(status) {
                     <div class="selected-value">
                         <template v-if="selectedDoctor">
                             <div class="doc-avatar-option">
-                                <img 
-                                    v-if="selectedDoctor.profilePhotoUrl" 
-                                    :src="selectedDoctor.profilePhotoUrl" 
+                                <img
+                                    v-if="selectedDoctor.profilePhotoUrl"
+                                    :src="selectedDoctor.profilePhotoUrl"
                                     class="doc-img"
                                 />
                                 <div v-else class="doc-initial">
@@ -145,26 +145,26 @@ function handleToggleStatus(status) {
                 </button>
 
                 <div v-if="isDoctorSelectOpen" class="custom-select-dropdown">
-                    <div 
-                        class="select-option" 
+                    <div
+                        class="select-option"
                         @click="handleSelectDoctor(null)"
                         :class="{ 'selected': !selectedDoctorId }"
                     >
                         <span>Todos os profissionais</span>
                         <Check v-if="!selectedDoctorId" :size="16" class="check-icon" />
                     </div>
-                    
-                    <div 
-                        v-for="emp in filteredStaff" 
-                        :key="emp._id" 
+
+                    <div
+                        v-for="emp in filteredStaff"
+                        :key="emp._id"
                         class="select-option"
                         @click="handleSelectDoctor(emp)"
                         :class="{ 'selected': String(selectedDoctorId) === String(emp._id) }"
                     >
                          <div class="doc-avatar-option">
-                            <img 
-                                v-if="emp.profilePhotoUrl" 
-                                :src="emp.profilePhotoUrl" 
+                            <img
+                                v-if="emp.profilePhotoUrl"
+                                :src="emp.profilePhotoUrl"
                                 class="doc-img"
                             />
                             <div v-else class="doc-initial bg-blue-100 text-blue-600">
@@ -175,11 +175,11 @@ function handleToggleStatus(status) {
                         <Check v-if="String(selectedDoctorId) === String(emp._id)" :size="16" class="check-icon" />
                     </div>
                 </div>
-                
+
                 <!-- Backdrop transparente para fechar ao clicar fora (simples) -->
-                <div 
-                    v-if="isDoctorSelectOpen" 
-                    class="fixed inset-0 z-10" 
+                <div
+                    v-if="isDoctorSelectOpen"
+                    class="fixed inset-0 z-10"
                     @click="isDoctorSelectOpen = false"
                 ></div>
             </div>
@@ -188,13 +188,13 @@ function handleToggleStatus(status) {
         <div class="sidebar-section">
             <h3 class="sidebar-title">Status</h3>
             <div class="status-filters-list">
-                <div 
-                    v-for="status in statusOptions" 
-                    :key="status.value" 
+                <div
+                    v-for="status in statusOptions"
+                    :key="status.value"
                     class="status-checkbox-item"
                     @click="handleToggleStatus(status.value)"
                 >
-                    <div 
+                    <div
                         class="custom-checkbox"
                         :class="{ 'is-checked': selectedStatuses.includes(status.value) }"
                     >
@@ -228,7 +228,7 @@ function handleToggleStatus(status) {
   font-size: 0.75rem;
   font-weight: 600;
   color: #6b7280; /* Gray 500 */
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
   letter-spacing: 0.05em;
   margin: 0;
   padding-bottom: 0.5rem;
@@ -433,7 +433,7 @@ function handleToggleStatus(status) {
     box-shadow: none !important;
     font-family: var(--fonte-principal) !important;
 }
-:deep(.dp__calendar_header_item) { 
+:deep(.dp__calendar_header_item) {
     font-weight: 500;
     color: #6b7280;
 }

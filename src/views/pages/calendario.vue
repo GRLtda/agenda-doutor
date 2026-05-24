@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, computed, onUnmounted, nextTick, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
 import { useAuthStore } from '@/stores/auth'

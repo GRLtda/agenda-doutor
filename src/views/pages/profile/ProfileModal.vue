@@ -1,38 +1,53 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Monitor, Shield, User } from 'lucide-vue-next'
+import { CreditCard, Monitor, Shield, User } from 'lucide-vue-next'
 import { version } from '../../../../package.json'
+import { useAuthStore } from '@/stores/auth'
 import OptionsModalShell from '@/components/global/OptionsModalShell.vue'
 import ProfileView from '@/views/pages/ProfileView.vue'
 
 const emit = defineEmits(['close'])
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const activeTab = ref('personal')
 const MOBILE_BREAKPOINT = 1024
 
-const tabs = [
-  {
-    value: 'personal',
-    label: 'Informações Pessoais',
-    description: 'Dados do perfil e identificação de acesso.',
-    icon: User,
-  },
-  {
-    value: 'security',
-    label: 'Segurança',
-    description: '2FA, redefinição de senha e proteção de conta.',
-    icon: Shield,
-  },
-  {
-    value: 'devices',
-    label: 'Dispositivos Conectados',
-    description: 'Gerencie as sessões ativas da sua conta.',
-    icon: Monitor,
-  },
-]
+const profileTabs = computed(() => {
+  const tabs = [
+    {
+      value: 'personal',
+      label: 'Informações Pessoais',
+      description: 'Dados do perfil e identificação de acesso.',
+      icon: User,
+    },
+    {
+      value: 'security',
+      label: 'Segurança',
+      description: '2FA, redefinição de senha e proteção de conta.',
+      icon: Shield,
+    },
+    {
+      value: 'devices',
+      label: 'Dispositivos Conectados',
+      description: 'Gerencie as sessões ativas da sua conta.',
+      icon: Monitor,
+    },
+  ]
+
+  if (authStore.user?.role === 'owner') {
+    tabs.push({
+      value: 'subscription',
+      label: 'Assinatura',
+      description: 'Plano, cobrança e dados de pagamento.',
+      icon: CreditCard,
+    })
+  }
+
+  return tabs
+})
 
 const getIsMobileViewport = () => {
   if (typeof window === 'undefined') return false
@@ -46,7 +61,7 @@ let mobileMediaListener = null
 let previousBodyOverflow = ''
 let previousHtmlOverflow = ''
 
-const isValidTab = (value) => tabs.some((tab) => tab.value === value)
+const isValidTab = (value) => profileTabs.value.some((tab) => tab.value === value)
 
 const normalizeTabQuery = (value) => {
   const normalized = Array.isArray(value) ? value[0] : value
@@ -163,7 +178,7 @@ watch(
 
 <template>
   <OptionsModalShell
-    :tabs="tabs"
+    :tabs="profileTabs"
     :active-tab="activeTab"
     :is-mobile="isMobile"
     :mobile-stage="mobileStage"

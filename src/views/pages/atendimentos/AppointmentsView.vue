@@ -489,7 +489,7 @@ function closeActionMenu(event) {
 
     <div class="content-wrapper">
       <!-- Empty State -->
-      <div
+      <!-- <div
         v-if="!appointmentsStore.isLoading && totalAppointments === 0"
         class="empty-state"
       >
@@ -504,10 +504,10 @@ function closeActionMenu(event) {
           <Plus :size="16" />
           Marcar Atendimento
         </AppButton>
-      </div>
+      </div> -->
 
       <!-- Kanban Board -->
-      <div v-else-if="viewMode === 'kanban'" class="kanban-container">
+      <div v-if="viewMode === 'kanban'" class="kanban-container">
         <div class="kanban-board">
           <div
             v-for="column in kanbanColumns"

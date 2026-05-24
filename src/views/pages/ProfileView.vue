@@ -11,12 +11,13 @@ import {
   Monitor,
   Camera,
   Loader2,
-  Trash2,
+  CreditCard,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
 import Switch from '@/components/global/Switch.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
+import SubscriptionView from './assinatura/SubscriptionView.vue'
 import { useToast } from 'vue-toastification'
 
 const props = defineProps({
@@ -41,15 +42,14 @@ const isEditing = ref(false)
 // Photo upload state
 const photoInput = ref(null)
 const isUploadingPhoto = ref(false)
-const showPhotoMenu = ref(false)
 
-// Tab state: 'personal' | 'security' | 'devices'
+// Tab state: 'personal' | 'security' | 'devices' | 'subscription'
 const activeTab = ref(props.activeTab || 'personal')
 
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'security' || value === 'devices') {
+    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'subscription') {
       activeTab.value = value
     }
   }
@@ -62,6 +62,20 @@ const setActiveTab = (value) => {
 
 const user = computed(() => authStore.user)
 const clinic = computed(() => authStore.user?.clinic)
+const isOwner = computed(() => user.value?.role === 'owner')
+const profileTabItems = computed(() => {
+  const items = [
+    { value: 'personal', label: 'Informações Pessoais', icon: User },
+    { value: 'security', label: 'Segurança', icon: Shield },
+    { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
+  ]
+
+  if (isOwner.value) {
+    items.push({ value: 'subscription', label: 'Assinatura', icon: CreditCard })
+  }
+
+  return items
+})
 const userLocation = computed(() => {
   const city = clinic.value?.address?.city
   const state = clinic.value?.address?.state
@@ -219,7 +233,6 @@ async function handlePhotoUpload(event) {
   }
 
   isUploadingPhoto.value = true
-  showPhotoMenu.value = false
 
   const result = await authStore.uploadProfilePhoto(file)
 
@@ -238,7 +251,6 @@ async function handlePhotoDelete() {
   if (!confirm('Tem certeza que deseja remover sua foto de perfil?')) return
 
   isUploadingPhoto.value = true
-  showPhotoMenu.value = false
 
   const result = await authStore.deleteProfilePhoto()
 
@@ -274,10 +286,10 @@ const updateFinancialAlerts = async (enabled) => {
 
     <div v-else class="content-wrapper">
       <!-- Profile Header -->
-      <header class="profile-header">
+      <header v-if="activeTab === 'personal'" class="profile-header">
         <div class="header-content">
           <div class="profile-identity">
-            <div class="avatar-container" @mouseenter="showPhotoMenu = true" @mouseleave="showPhotoMenu = false">
+            <div class="avatar-container">
               <div class="avatar" :class="{ 'has-photo': user?.profilePhotoUrl }">
                 <img v-if="user?.profilePhotoUrl" :src="user.profilePhotoUrl" alt="Foto de perfil" class="avatar-image" />
                 <span v-else>{{ getInitials(user?.name) }}</span>
@@ -286,20 +298,17 @@ const updateFinancialAlerts = async (enabled) => {
                 <div v-if="isUploadingPhoto" class="avatar-loading-overlay">
                   <Loader2 :size="28" class="animate-spin" />
                 </div>
-
-                <!-- Hover overlay with actions -->
-                <Transition name="fade">
-                  <div v-if="showPhotoMenu && !isUploadingPhoto" class="avatar-hover-overlay">
-                    <button type="button" class="avatar-action-btn" @click="triggerPhotoUpload" title="Alterar foto">
-                      <Camera :size="20" />
-                    </button>
-                    <button v-if="user?.profilePhotoUrl" type="button" class="avatar-action-btn delete" @click="handlePhotoDelete" title="Remover foto">
-                      <Trash2 :size="18" />
-                    </button>
-                  </div>
-                </Transition>
               </div>
-              <div class="online-status"></div>
+
+              <button
+                type="button"
+                class="avatar-upload-btn"
+                :disabled="isUploadingPhoto"
+                @click="triggerPhotoUpload"
+              >
+                <Camera :size="14" />
+                <span>{{ user?.profilePhotoUrl ? 'Alterar imagem' : 'Adicionar imagem' }}</span>
+              </button>
 
               <!-- Hidden file input -->
               <input
@@ -330,11 +339,7 @@ const updateFinancialAlerts = async (enabled) => {
         <AppTabs
           :model-value="activeTab"
           @update:model-value="setActiveTab"
-          :items="[
-            { value: 'personal', label: 'Informações Pessoais', icon: User },
-            { value: 'security', label: 'Segurança', icon: Shield },
-            { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor }
-          ]"
+          :items="profileTabItems"
         />
       </nav>
 
@@ -485,6 +490,10 @@ const updateFinancialAlerts = async (enabled) => {
             <ActiveSessionsView />
           </div>
 
+          <div v-else-if="activeTab === 'subscription' && isOwner" class="subscription-tab-wrapper">
+            <SubscriptionView />
+          </div>
+
         </transition>
       </main>
     </div>
@@ -536,25 +545,29 @@ const updateFinancialAlerts = async (enabled) => {
 .profile-identity {
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
+  align-items: flex-start;
+  gap: 1.25rem;
 }
 
 .avatar-container {
   position: relative;
   flex-shrink: 0;
-  cursor: pointer;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .avatar {
-  width: 68px;
-  height: 68px;
+  width: 92px;
+  height: 92px;
   background: #eef2ff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--azul-principal);
   border: 1px solid #dbe1e8;
@@ -574,7 +587,7 @@ const updateFinancialAlerts = async (enabled) => {
 
 /* Avatar overlay styles */
 .avatar-loading-overlay,
-.avatar-hover-overlay {
+.avatar-loading-overlay {
   position: absolute;
   inset: 0;
   border-radius: 50%;
@@ -589,34 +602,35 @@ const updateFinancialAlerts = async (enabled) => {
   color: white;
 }
 
-.avatar-hover-overlay {
-  background-color: rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-}
-
-.avatar-action-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  background-color: white;
-  color: #374151;
-  display: flex;
+.avatar-upload-btn {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #dbe1e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.avatar-action-btn:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+.avatar-upload-btn:hover {
+  border-color: var(--azul-principal);
+  color: var(--azul-principal);
+  background: #f8fbff;
 }
 
-.avatar-action-btn.delete:hover {
-  background-color: #fee2e2;
-  color: #dc2626;
+.avatar-upload-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .user-info {
@@ -684,17 +698,6 @@ const updateFinancialAlerts = async (enabled) => {
   background: #f3f4f6;
   color: #4b5563;
   border: 1px solid #e5e7eb;
-}
-
-.online-status {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 11px;
-  height: 11px;
-  background: #22c55e;
-  border: 2px solid white;
-  border-radius: 50%;
 }
 
 .animate-spin {
@@ -807,7 +810,8 @@ const updateFinancialAlerts = async (enabled) => {
   gap: 0.75rem;
 }
 
-.devices-tab-wrapper {
+.devices-tab-wrapper,
+.subscription-tab-wrapper {
   animation: slideIn 0.3s ease-out;
 }
 
@@ -1017,6 +1021,24 @@ const updateFinancialAlerts = async (enabled) => {
 
   .profile-identity {
     width: 100%;
+    gap: 1rem;
+  }
+
+  .avatar-container {
+    width: 128px;
+  }
+
+  .avatar {
+    width: 82px;
+    height: 82px;
+    font-size: 1.75rem;
+  }
+
+  .avatar-upload-btn {
+    flex-wrap: wrap;
+    min-height: 32px;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.68rem;
   }
 
   .simple-info-grid {
