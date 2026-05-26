@@ -72,7 +72,7 @@ const price = computed(() => {
   const data = subscription.value
 
   if (data?.status === 'lifetime') {
-    return { currency: 'R$', amount: '297,00', interval: 'único' }
+    return { currency: 'R$', amount: '297,00', interval: 'mês' }
   }
 
   const fixedPrices = {
@@ -98,16 +98,6 @@ const price = computed(() => {
   }
 
   return { currency: '', amount: 'Grátis', interval: '' }
-})
-
-const shouldShowInstallationFee = computed(() => {
-  const data = subscription.value
-  return (
-    (data?.status === 'free' || !data?.installationFeeCharged) &&
-    data?.planType !== 'enterprise' &&
-    data?.status !== 'lifetime' &&
-    data?.planType !== 'basic'
-  )
 })
 
 const formatDate = (dateString, fullDate = true) => {
@@ -241,14 +231,60 @@ onMounted(() => {
     </div>
 
     <template v-else>
-      <section class="subscription-actions-card">
-        <div class="actions-copy">
-          <span class="section-eyebrow">Cobrança</span>
-          <h2>Assinatura e pagamento</h2>
-          <p>Gerencie seu plano, forma de pagamento e faturas da clínica.</p>
+      <section class="plan-overview">
+        <div class="plan-header">
+          <span class="icon-box brand">
+            <Package :size="19" />
+          </span>
+          <div>
+            <span class="section-eyebrow">Plano atual</span>
+            <h2>{{ planName }}</h2>
+          </div>
         </div>
 
-        <div class="actions-row">
+        <div class="plan-price">
+          <span v-if="price.currency" class="price-currency">{{ price.currency }}</span>
+          <strong>{{ price.amount }}</strong>
+          <span v-if="price.interval">/ {{ price.interval }}</span>
+        </div>
+
+        <div class="plan-status-line">
+          <span class="status-pill" :class="currentStatus.tone">
+            <component :is="currentStatus.icon" :size="14" />
+            {{ currentStatus.label }}
+          </span>
+          <span v-if="subscription?.startDate" class="inline-muted">
+            Assinante desde {{ formatDate(subscription.startDate) }}
+          </span>
+          <span v-if="isCanceled && subscription?.cancelAt" class="inline-muted">
+            Termina em {{ formatDate(subscription.cancelAt) }}
+          </span>
+        </div>
+
+        <ul class="features-list">
+          <li>
+            <CheckCircle :size="15" />
+            <span>Acesso total ao sistema</span>
+          </li>
+          <li>
+            <CheckCircle :size="15" />
+            <span>Suporte via WhatsApp</span>
+          </li>
+          <li>
+            <CheckCircle :size="15" />
+            <span>Backup automático</span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="billing-layout">
+        <section class="billing-card manage-panel">
+          <div class="panel-copy">
+            <span class="section-eyebrow">Cobrança</span>
+            <h3>Assinatura e pagamento</h3>
+            <p>Atualize o cartão, veja faturas e altere o plano com segurança pelo portal.</p>
+          </div>
+
           <button
             type="button"
             class="compact-button primary"
@@ -260,39 +296,22 @@ onMounted(() => {
             <span>{{ actionLoading ? 'Abrindo...' : 'Gerenciar assinatura' }}</span>
           </button>
 
-          <button type="button" class="compact-button outline" @click="handleNeedHelp">
-            <MessageCircle :size="16" />
-            <span>Suporte</span>
-          </button>
+          <div class="secondary-actions">
+            <button type="button" class="compact-button outline" @click="handleNeedHelp">
+              <MessageCircle :size="16" />
+              <span>Suporte</span>
+            </button>
 
-          <button
-            v-if="subscription?.status === 'active'"
-            type="button"
-            class="compact-button outline"
-            :disabled="actionLoading"
-            @click="handleViewInvoice"
-          >
-            <FileText :size="16" />
-            <span>Comprovante</span>
-          </button>
-        </div>
-      </section>
-
-      <div class="summary-grid">
-        <section class="summary-card">
-          <div class="summary-card-header">
-            <span class="icon-box" :class="currentStatus.tone">
-              <component :is="currentStatus.icon" :size="18" />
-            </span>
-            <div>
-              <span class="card-label">Status atual</span>
-              <div class="status-line">
-                <span class="status-pill" :class="currentStatus.tone">{{ currentStatus.label }}</span>
-                <span v-if="isCanceled && subscription?.cancelAt" class="inline-muted">
-                  termina em {{ formatDate(subscription.cancelAt) }}
-                </span>
-              </div>
-            </div>
+            <button
+              v-if="subscription?.status === 'active'"
+              type="button"
+              class="compact-button outline"
+              :disabled="actionLoading"
+              @click="handleViewInvoice"
+            >
+              <FileText :size="16" />
+              <span>Comprovante</span>
+            </button>
           </div>
 
           <div v-if="isTrialActive" class="notice info">
@@ -318,94 +337,20 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-else class="detail-list">
-            <div v-if="subscription?.startDate" class="detail-row">
-              <span class="detail-icon">
-                <Shield :size="15" />
-              </span>
-              <div>
-                <span class="detail-label">Desde</span>
-                <strong>{{ formatDate(subscription.startDate) }}</strong>
-              </div>
-            </div>
-
-            <div v-if="subscription?.cancelAtPeriodEnd" class="notice warning compact">
-              <AlertTriangle :size="16" />
-              <p>Cancelamento agendado para o fim do período.</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="summary-card">
-          <div class="summary-card-header">
-            <span class="icon-box brand">
-              <Package :size="18" />
-            </span>
-            <div>
-              <span class="card-label">Seu plano</span>
-              <h3>{{ planName }}</h3>
-            </div>
-          </div>
-
-          <div class="price-line">
-            <span v-if="price.currency" class="price-currency">{{ price.currency }}</span>
-            <strong>{{ price.amount }}</strong>
-            <span v-if="price.interval">/ {{ price.interval }}</span>
-          </div>
-
-          <ul class="features-list">
-            <li>
-              <CheckCircle :size="15" />
-              <span>Acesso total ao sistema</span>
-            </li>
-            <li>
-              <CheckCircle :size="15" />
-              <span>Suporte via WhatsApp</span>
-            </li>
-            <li>
-              <CheckCircle :size="15" />
-              <span>Backup automático</span>
-            </li>
-          </ul>
-
-          <div v-if="shouldShowInstallationFee" class="notice warning">
+          <div v-if="subscription?.cancelAtPeriodEnd" class="notice warning compact">
             <AlertTriangle :size="16" />
-            <div>
-              <p>
-                Primeira mensalidade:
-                <strong>
-                  {{
-                    subscription?.plan
-                      ? formatCurrency(subscription.plan.amount + 10000, subscription.plan.currency)
-                      : 'R$ 149,00'
-                  }}
-                </strong>
-              </p>
-              <small>
-                Próximas mensalidades:
-                {{
-                  subscription?.plan
-                    ? formatCurrency(subscription.plan.amount, subscription.plan.currency)
-                    : 'R$ 49,00'
-                }}
-              </small>
-            </div>
-          </div>
-
-          <div v-else-if="subscription?.installationFeeCharged" class="notice success compact">
-            <CheckCircle :size="16" />
-            <p>Taxa de instalação já paga.</p>
+            <p>Cancelamento agendado para o fim do período.</p>
           </div>
         </section>
 
-        <section class="summary-card">
-          <div class="summary-card-header">
+        <section class="billing-card payment-card-section">
+          <div class="billing-card-header">
             <span class="icon-box neutral">
               <CreditCard :size="18" />
             </span>
             <div>
-              <span class="card-label">Forma de pagamento</span>
-              <h3>Cartão de crédito</h3>
+              <span class="card-label">Pagamento</span>
+              <h3>Forma de pagamento</h3>
             </div>
           </div>
 
@@ -428,7 +373,10 @@ onMounted(() => {
 
           <div v-else class="empty-payment">
             <CreditCard :size="18" />
-            <span>Nenhum cartão vinculado.</span>
+            <div>
+              <strong>Nenhum cartão vinculado</strong>
+              <span>Adicione um cartão pelo portal de assinatura.</span>
+            </div>
           </div>
 
           <div v-if="subscription?.lastPaymentFailure?.reason" class="notice danger">
@@ -471,6 +419,137 @@ onMounted(() => {
 
 .actions-copy {
   min-width: 0;
+}
+
+.plan-overview,
+.manage-panel,
+.billing-card,
+.state-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.plan-overview {
+  min-width: 0;
+  padding: 1.35rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.plan-header,
+.billing-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.plan-header h2,
+.manage-panel h3,
+.billing-card h3 {
+  margin: 0.1rem 0 0;
+  color: #111827;
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.plan-price {
+  justify-self: end;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  color: #64748b;
+  text-align: right;
+}
+
+.plan-price strong {
+  color: #111827;
+  font-size: clamp(1.85rem, 2.6vw, 2.35rem);
+  line-height: 0.95;
+  font-weight: 650;
+}
+
+.plan-status-line {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.plan-overview .features-list {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0;
+  border-top: 0;
+}
+
+.plan-overview .features-list li {
+  min-height: 40px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.manage-panel {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.panel-copy p {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.billing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.billing-card {
+  min-width: 0;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.empty-payment div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.empty-payment strong {
+  font-size: 0.86rem;
+  color: inherit;
+}
+
+.empty-payment span {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .section-eyebrow,
@@ -577,7 +656,7 @@ onMounted(() => {
 .detail-icon {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -643,6 +722,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.35rem;
   border: 1px solid;
   border-radius: 999px;
   padding: 0.22rem 0.65rem;
@@ -661,7 +741,7 @@ onMounted(() => {
   align-items: flex-start;
   gap: 0.55rem;
   border: 1px solid;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 0.8rem;
   font-size: 0.82rem;
   line-height: 1.45;
@@ -768,7 +848,7 @@ onMounted(() => {
   gap: 0.75rem;
   padding: 0.85rem;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -811,14 +891,15 @@ onMounted(() => {
   min-height: 68px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
+  justify-content: flex-start;
+  gap: 0.65rem;
   border: 1px dashed #cbd5e1;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fafc;
   color: #94a3b8;
   font-size: 0.84rem;
   font-weight: 600;
+  padding: 0.85rem;
 }
 
 .state-card {
@@ -859,9 +940,26 @@ onMounted(() => {
   .summary-grid {
     grid-template-columns: 1fr;
   }
+
+  .billing-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
+  .plan-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-price {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .plan-overview .features-list {
+    grid-template-columns: 1fr;
+  }
+
   .subscription-actions-card {
     align-items: stretch;
     flex-direction: column;
@@ -878,12 +976,19 @@ onMounted(() => {
 
 @media (max-width: 480px) {
   .subscription-actions-card,
-  .summary-card {
+  .summary-card,
+  .plan-overview,
+  .manage-panel,
+  .billing-card {
     padding: 1rem;
   }
 
   .actions-row {
     flex-direction: column;
+  }
+
+  .secondary-actions {
+    grid-template-columns: 1fr;
   }
 
   .compact-button {
