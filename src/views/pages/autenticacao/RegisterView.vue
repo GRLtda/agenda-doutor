@@ -4,11 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 // Importar as duas APIs de convite
 import { getInvitationDetails } from '@/api/employees' // Convite de funcionário
-import { verifyInvitationToken } from '@/api/auth' // Convite de registro
+import { verifyCampaignToken, verifyInvitationToken } from '@/api/auth' // Convite de registro
 import { useToast } from 'vue-toastification'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import PasswordInput from '@/components/global/PasswordInput.vue'
+import { Gift } from 'lucide-vue-next'
 import { CheckCircle2, Building2, Check } from 'lucide-vue-next' // ✨ Importei o Building2 e Check
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -29,10 +30,13 @@ const registrationSuccess = ref(false)
 const termsAccepted = ref(false)
 
 const isLoading = ref(false)
+const CAMPAIGN_STORAGE_KEY = 'agenda_campaign_coupon'
 
 // Estado para o fluxo de convite
 const isStaffInvitation = ref(false)
 const invitationToken = ref(null)
+const campaignToken = ref(null)
+const campaignInfo = ref(null)
 const emailIsDisabled = ref(false)
 const phoneIsDisabled = ref(false)
 const nameIsDisabled = ref(false)
@@ -52,6 +56,38 @@ const successMessage = computed(() => {
   return 'Sua conta foi criada. Agora vamos configurar sua clinica.'
 })
 
+function getStoredCampaign() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CAMPAIGN_STORAGE_KEY) || 'null')
+    if (!stored?.token || !stored?.expiresAt) return null
+
+    if (new Date(stored.expiresAt).getTime() <= Date.now()) {
+      localStorage.removeItem(CAMPAIGN_STORAGE_KEY)
+      return null
+    }
+
+    return stored
+  } catch (_error) {
+    localStorage.removeItem(CAMPAIGN_STORAGE_KEY)
+    return null
+  }
+}
+
+function saveCampaign(data) {
+  const payload = {
+    slug: data.slug,
+    name: data.name,
+    token: data.token,
+    claimedAt: data.claimedAt,
+    expiresAt: data.expiresAt,
+    setupFeeWaived: data.setupFeeWaived,
+  }
+
+  localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(payload))
+  campaignInfo.value = payload
+  campaignToken.value = payload.token
+}
+
 onMounted(async () => {
   const routeParamToken = Array.isArray(route.params.token)
     ? route.params.token[0]
@@ -70,6 +106,11 @@ onMounted(async () => {
   const staffInviteToken = isShortEmployeeRoute
     ? shortRouteToken
     : route.query.invitationToken // legado: ?invitationToken=
+  const queryCampaignToken = typeof route.query.campaignToken === 'string'
+    ? route.query.campaignToken
+    : null
+  const storedCampaign = getStoredCampaign()
+  const incomingCampaignToken = queryCampaignToken || storedCampaign?.token
 
   if (newUserToken) {
     invitationToken.value = newUserToken
@@ -113,6 +154,31 @@ onMounted(async () => {
       invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
+  } else if (incomingCampaignToken) {
+    campaignToken.value = incomingCampaignToken
+    try {
+      const response = await verifyCampaignToken(incomingCampaignToken)
+      const campaignData = response.data.data || response.data
+
+      if (campaignData) {
+        campaignToken.value = campaignData.token
+        isStaffInvitation.value = false
+        if (campaignData.isExpired || !campaignData.setupFeeWaived) {
+          campaignInfo.value = null
+          localStorage.removeItem(CAMPAIGN_STORAGE_KEY)
+          toast.info('O prazo do presente expirou. Voce ainda pode concluir o cadastro normalmente.')
+        } else {
+          saveCampaign(campaignData)
+          toast.success('Presente ativado: setup gratis por 3 dias.')
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao verificar campanha:', error)
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Cupom expirado ou invalido.')
+      campaignToken.value = null
+      campaignInfo.value = null
+      localStorage.removeItem(CAMPAIGN_STORAGE_KEY)
+    }
   }
 })
 
@@ -149,6 +215,10 @@ async function handleRegister() {
   // Envia o token apenas quando o cadastro veio de convite.
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
+  }
+
+  if (campaignToken.value && !invitationToken.value) {
+    payload.campaignToken = campaignToken.value
   }
 
   const { success, error } = await authStore.register(payload)
@@ -218,6 +288,16 @@ function handleRegistrationComplete() {
           Seu cadastro será concluído com os benefícios do plano selecionado.
         </p>
       </div>
+      <div v-if="campaignInfo" class="campaign-info">
+        <div class="campaign-title-wrapper">
+          <Gift class="campaign-icon" :size="20" />
+          <h4 class="campaign-title">Setup gratis ativado</h4>
+        </div>
+        <p class="campaign-description">
+          Conclua seu cadastro com este presente para isentar a taxa de instalacao.
+        </p>
+      </div>
+
       <form @submit.prevent="handleRegister">
         <FormInput
           v-model="name"
@@ -479,6 +559,42 @@ function handleRegistrationComplete() {
 }
 
 .plan-description {
+  font-size: 0.875rem;
+  color: var(--cinza-texto, #4b5563);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.campaign-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #eff6ff;
+  border-radius: 0.75rem;
+  border: 1px solid #bfdbfe;
+  width: 100%;
+  text-align: left;
+}
+
+.campaign-title-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.campaign-icon {
+  color: var(--azul-principal);
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.campaign-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cinza-titulo, #1f2937);
+  margin: 0;
+}
+
+.campaign-description {
   font-size: 0.875rem;
   color: var(--cinza-texto, #4b5563);
   line-height: 1.5;

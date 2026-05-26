@@ -1,5 +1,9 @@
 import apiClient from './index'
 
+export const verifyCampaignToken = (token) => {
+  return apiClient.get(`/campaigns/claim/${token}`)
+}
+
 export const verifyInvitationToken = (token) => {
   return apiClient.get(`/auth/verify-invitation/${token}`)
 }
