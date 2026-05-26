@@ -416,8 +416,10 @@ watch(
 
 .options-content {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .content-header {
@@ -472,6 +474,8 @@ watch(
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 1.5rem;
 }
 
