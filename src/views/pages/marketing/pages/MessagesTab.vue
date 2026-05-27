@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCrmSettingsStore } from '@/stores/crmSettings'
+import { useCrmStore } from '@/stores/crm'
 import { 
   Bell, 
   Calendar, 
@@ -10,12 +12,21 @@ import {
   CheckCircle,
   Clock,
   LoaderCircle,
-  Save
+  Save,
+  Send
 } from 'lucide-vue-next'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import Switch from '@/components/global/Switch.vue'
 
 const settingsStore = useCrmSettingsStore()
+const crmStore = useCrmStore()
+const router = useRouter()
+const manualSend = ref({
+  phone: '',
+  message: '',
+})
+const manualOperationId = ref(crypto.randomUUID())
+const isManualSending = ref(false)
 
 // Mapeamento de ícones por tipo
 const triggerIcons = {
@@ -78,6 +89,8 @@ const activeCount = computed(() => {
   return Object.values(uiSettings.value).filter(s => s.isActive && s.templateId).length
 })
 
+const hasLegacySettings = computed(() => currentSettings.value.length > 0)
+
 onMounted(() => {
   settingsStore.fetchAllSettingsData()
 })
@@ -122,6 +135,26 @@ function getIcon(type) {
 function getDescription(type) {
   return triggerDescriptions[type] || ''
 }
+
+function openWorkflows() {
+  router.push('/workflows')
+}
+
+async function sendManualMessage() {
+  if (manualSend.value.phone.replace(/\D/g, '').length < 10 || !manualSend.value.message.trim()) return
+  isManualSending.value = true
+  try {
+    await crmStore.sendWhatsappMessage({
+      phone: manualSend.value.phone,
+      message: manualSend.value.message,
+      idempotencyKey: `crm-manual:${manualOperationId.value}`,
+    })
+    manualSend.value = { phone: '', message: '' }
+    manualOperationId.value = crypto.randomUUID()
+  } finally {
+    isManualSending.value = false
+  }
+}
 </script>
 
 <template>
@@ -130,7 +163,43 @@ function getDescription(type) {
     <div class="page-header">
       <div class="header-content">
         <h2>Mensagens Automáticas</h2>
-        <p class="description">Configure quais modelos de mensagem serão enviados automaticamente com base em eventos.</p>
+        <p class="description">As automações de mensagens agora são gerenciadas pelo Workflow V2.</p>
+      </div>
+    </div>
+
+    <div class="cutover-notice">
+      <div>
+        <h3>Configurações migradas para Workflows V2</h3>
+        <p>
+          Crie ou publique workflows para confirmação de consulta, lembretes, aniversários,
+          anamnese e termos. Esta tela não grava mais configurações legadas.
+        </p>
+        <p v-if="hasLegacySettings" class="warning-text">
+          Existem configurações antigas pendentes de migração. Execute o dry-run de cutover antes do go-live.
+        </p>
+      </div>
+      <button class="workflow-button" @click="openWorkflows">Abrir Workflows</button>
+    </div>
+
+    <div class="manual-send-panel">
+      <div class="manual-send-header">
+        <div>
+          <h3>Envio manual</h3>
+          <p>Envia uma mensagem avulsa pelo Messaging V2, com idempotência por operação.</p>
+        </div>
+      </div>
+      <div class="manual-send-form">
+        <input v-model="manualSend.phone" class="manual-input" placeholder="Telefone com DDI. Ex: 5511999999999" />
+        <textarea v-model="manualSend.message" class="manual-textarea" rows="3" placeholder="Mensagem"></textarea>
+        <button
+          class="manual-send-button"
+          :disabled="isManualSending || manualSend.phone.replace(/\D/g, '').length < 10 || !manualSend.message.trim()"
+          @click="sendManualMessage"
+        >
+          <LoaderCircle v-if="isManualSending" :size="16" class="animate-spin" />
+          <Send v-else :size="16" />
+          {{ isManualSending ? 'Enfileirando...' : 'Enviar manual' }}
+        </button>
       </div>
     </div>
 
@@ -161,12 +230,12 @@ function getDescription(type) {
           </div>
           <div class="header-right">
             <div class="status-badge" :class="{ 'active': uiSettings[trigger.type]?.isActive && uiSettings[trigger.type]?.templateId }">
-              {{ uiSettings[trigger.type]?.isActive && uiSettings[trigger.type]?.templateId ? 'Ativo' : 'Inativo' }}
+              Workflow V2
             </div>
             <Switch
               v-if="uiSettings[trigger.type]"
               v-model="uiSettings[trigger.type].isActive"
-              :disabled="!uiSettings[trigger.type]?.templateId"
+              :disabled="true"
             />
           </div>
         </div>
@@ -185,14 +254,16 @@ function getDescription(type) {
             v-model="uiSettings[trigger.type].templateId"
             :options="templateOptions"
             class="template-select"
+            disabled
           />
+          <p class="select-help">Configure este disparo criando um workflow com gatilho e ação de envio de template.</p>
         </div>
       </div>
     </div>
 
     <!-- Floating Save Button -->
     <Transition name="slide-up">
-      <div v-if="hasChanges" class="save-bar">
+      <div v-if="false && hasChanges" class="save-bar">
         <div class="save-bar-content">
           <span class="unsaved-text">Você tem alterações não salvas</span>
           <button 
@@ -234,6 +305,112 @@ function getDescription(type) {
 .description {
   color: var(--cinza-texto);
   font-size: 0.95rem;
+}
+
+.cutover-notice {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+}
+
+.cutover-notice h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #1e3a8a;
+}
+
+.cutover-notice p {
+  margin: 0;
+  color: #1d4ed8;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.warning-text {
+  margin-top: 0.5rem !important;
+  color: #92400e !important;
+}
+
+.workflow-button {
+  border: 0;
+  border-radius: 0.6rem;
+  padding: 0.7rem 1rem;
+  background: var(--azul-principal);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.select-help {
+  margin-top: 0.4rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.manual-send-panel {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.85rem;
+}
+
+.manual-send-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.manual-send-header p {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.manual-send-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.4fr) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.manual-input,
+.manual-textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+}
+
+.manual-textarea {
+  resize: vertical;
+}
+
+.manual-send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: none;
+  border-radius: 0.65rem;
+  padding: 0 1rem;
+  background: var(--azul-principal);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manual-send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .header-stats {

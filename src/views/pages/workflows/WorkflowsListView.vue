@@ -213,7 +213,7 @@ function formatDate(dateString) {
                     </div>
                     <h3 class="empty-state-title">Nenhum workflow encontrado</h3>
                     <p class="empty-state-text">
-                      Crie seu primeiro fluxo de automação.
+                      Seus workflows antigos ainda não foram migrados. Crie um workflow V2 ou execute o dry-run de migração antes do go-live.
                     </p>
                     <AppButton variant="primary" @click="openCreateModal" class="btn-primary-sm">
                       <Plus :size="16" />

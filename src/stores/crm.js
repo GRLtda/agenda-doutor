@@ -7,6 +7,7 @@ import {
   sendMessage,
   sendTestMessage,
 } from '@/api/crm'
+import { getApiErrorMessage } from '@/api/errors'
 import { useToast } from 'vue-toastification'
 
 export const useCrmStore = defineStore('crm', () => {
@@ -203,7 +204,10 @@ export const useCrmStore = defineStore('crm', () => {
       // Se já existe um QR pendente ou sendo criado, apenas ajusta o polling
       else if (currentStatus === 'qrcode_pending' || currentStatus === 'qrcode') {
         status.value = 'qrcode_pending' // Define como pendente
-        isLoadingQrImage.value = true // Assume que vai carregar um novo QR
+        if (statusResponse.data.qrcodeImage || statusResponse.data.qr) {
+          qrCode.value = statusResponse.data.qrcodeImage || statusResponse.data.qr
+        }
+        isLoadingQrImage.value = !qrCode.value
         startPolling(4000) // Inicia polling para QR code
         // O fetchQrCode será chamado pelo checkStatus dentro do startPolling
       } else if (currentStatus === 'creating_qr' || currentStatus === 'initializing') {
@@ -234,7 +238,7 @@ export const useCrmStore = defineStore('crm', () => {
       }
 
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Falha ao iniciar conexão com WhatsApp.')
+      toast.error(getApiErrorMessage(error, 'Falha ao iniciar conexão com WhatsApp.'))
       status.value = 'disconnected' // Volta para desconectado em caso de erro
       isLoadingQrImage.value = false // Garante que não está carregando imagem
       stopPolling() // Para o polling
@@ -256,7 +260,7 @@ export const useCrmStore = defineStore('crm', () => {
       connections.value = [] // Limpa lista de conexões
       toast.success(response.data.message || 'Sessão WhatsApp encerrada.')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Falha ao desconectar do WhatsApp.')
+      toast.error(getApiErrorMessage(error, 'Falha ao desconectar do WhatsApp.'))
       // Mesmo em erro, força o estado para desconectado
       status.value = 'disconnected'
       qrCode.value = null
@@ -293,7 +297,7 @@ export const useCrmStore = defineStore('crm', () => {
       toast.success('Mensagem enviada com sucesso!')
       return response.data
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Erro ao enviar mensagem.')
+      toast.error(getApiErrorMessage(error, 'Erro ao enviar mensagem.'))
       throw error
     } finally {
       isLoading.value = false
@@ -307,7 +311,7 @@ export const useCrmStore = defineStore('crm', () => {
       toast.success('Mensagem de teste enviada!')
       return response.data
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Erro ao enviar teste.')
+      toast.error(getApiErrorMessage(error, 'Erro ao enviar teste.'))
       throw error
     } finally {
       isLoading.value = false

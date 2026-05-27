@@ -2,7 +2,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
-import { FilePlus2, Pencil, Trash2, LoaderCircle } from 'lucide-vue-next'
+import { FilePlus2, Pencil, Trash2, LoaderCircle, CheckCircle, Archive } from 'lucide-vue-next'
 import TemplateEditor from '@/components/pages/marketing/TemplateEditor.vue' // Importa o editor
 
 const templatesStore = useCrmTemplatesStore()
@@ -38,6 +38,16 @@ async function handleDelete(templateId) {
   await templatesStore.deleteTemplate(templateId)
   templateIdToDelete.value = null // Fecha o popover após a ação
 }
+
+async function handlePublish(template) {
+  if (!template.currentVersionId) return
+  await templatesStore.publishTemplate(template._id, template.currentVersionId)
+}
+
+async function handleDeprecate(template) {
+  if (!template.currentVersionId) return
+  await templatesStore.deprecateVersion(template._id, template.currentVersionId)
+}
 </script>
 
 <template>
@@ -68,10 +78,30 @@ async function handleDelete(templateId) {
       <div v-else-if="!isLoading && templates.length > 0" class="templates-grid">
         <div v-for="template in templates" :key="template._id" class="template-card">
            <div class="template-info">
-              <span class="template-name">{{ template.name }}</span>
+              <div class="template-title-row">
+                <span class="template-name">{{ template.name }}</span>
+                <span class="template-badge">{{ template.type || 'TEXT' }}</span>
+                <span class="template-status" :class="template.status?.toLowerCase()">{{ template.status || 'DRAFT' }}</span>
+              </div>
               <span class="template-preview">{{ template.content.substring(0, 100) }}{{ template.content.length > 100 ? '...' : '' }}</span>
            </div>
           <div class="template-actions" v-click-outside="() => (templateIdToDelete = null)">
+            <button
+              v-if="template.currentVersionId && template.status !== 'ACTIVE'"
+              @click="handlePublish(template)"
+              class="btn-icon"
+              title="Publicar"
+            >
+              <CheckCircle :size="16" />
+            </button>
+            <button
+              v-if="template.currentVersionId && template.status === 'ACTIVE'"
+              @click="handleDeprecate(template)"
+              class="btn-icon"
+              title="Descontinuar versão"
+            >
+              <Archive :size="16" />
+            </button>
             <button @click="openEditEditor(template._id)" class="btn-icon" title="Editar">
               <Pencil :size="16" />
             </button>
@@ -103,7 +133,7 @@ async function handleDelete(templateId) {
         <div class="icon-wrapper"><FilePlus2 :size="48" /></div>
         <h3 class="empty-title">Nenhum modelo de mensagem criado</h3>
         <p class="empty-description">
-          Crie seu primeiro modelo para agilizar a comunicação com seus pacientes.
+          Nenhum template migrado ainda. Execute o script de migração em modo dry-run ou crie um novo template V2.
         </p>
         <button @click="openCreateEditor" class="create-button">Criar Modelo</button>
       </div>
@@ -127,7 +157,12 @@ async function handleDelete(templateId) {
 .template-card { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background-color: var(--branco); border: 1px solid #e5e7eb; border-radius: 1rem; transition: box-shadow .2s ease; gap: 1rem; }
 .template-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
 .template-info { flex-grow: 1; min-width: 0; }
-.template-name { font-weight: 600; display: block; margin-bottom: 0.25rem; }
+.template-title-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+.template-name { font-weight: 600; display: block; }
+.template-badge, .template-status { font-size: 0.68rem; font-weight: 700; padding: 0.18rem 0.45rem; border-radius: 999px; background: #eef2ff; color: #3730a3; }
+.template-status.active { background: #dcfce7; color: #166534; }
+.template-status.draft { background: #fef3c7; color: #92400e; }
+.template-status.deprecated { background: #f3f4f6; color: #4b5563; }
 .template-preview { font-size: 0.875rem; color: var(--cinza-texto); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Ações e Confirmação (Reutilizados de AnamnesisTemplates) */

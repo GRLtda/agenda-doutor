@@ -7,7 +7,12 @@ import {
   getMessageTemplateById,
   updateMessageTemplate,
   deleteMessageTemplate,
-  getTemplateVariables
+  getTemplateVariables,
+  publishMessageTemplate,
+  deprecateMessageTemplateVersion,
+  previewMessageTemplate,
+  sendTestMessage,
+  getApiErrorMessage,
 } from '@/api/crm'
 import { useToast } from 'vue-toastification'
 
@@ -38,7 +43,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
       templates.value = response.data
       return { success: true }
     } catch (err) {
-      error.value = 'Erro ao carregar modelos.'
+      error.value = getApiErrorMessage(err, 'Erro ao carregar modelos.')
       console.error(err)
       toast.error(error.value)
       return { success: false, error: error.value }
@@ -73,7 +78,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
       toast.success('Modelo criado com sucesso!')
       return { success: true }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Erro ao criar modelo.'
+      error.value = getApiErrorMessage(err, 'Erro ao criar modelo.')
       console.error(err)
       toast.error(error.value)
       return { success: false, error: error.value }
@@ -89,7 +94,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
       const response = await getMessageTemplateById(id);
       return { success: true, data: response.data };
     } catch (err) {
-      error.value = 'Erro ao buscar modelo.';
+      error.value = getApiErrorMessage(err, 'Erro ao buscar modelo.');
       console.error(err);
       toast.error(error.value);
       return { success: false, error: error.value };
@@ -108,7 +113,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
       toast.success('Modelo atualizado com sucesso!')
       return { success: true }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Erro ao atualizar modelo.'
+      error.value = getApiErrorMessage(err, 'Erro ao atualizar modelo.')
       console.error(err)
       toast.error(error.value)
       return { success: false, error: error.value }
@@ -126,8 +131,69 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
       toast.success('Modelo excluído com sucesso!')
       return { success: true }
     } catch (err) {
-      error.value = 'Erro ao excluir modelo.'
+      error.value = getApiErrorMessage(err, 'Erro ao arquivar modelo.')
       console.error(err)
+      toast.error(error.value)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function publishTemplate(templateId, versionId) {
+    isLoading.value = true
+    error.value = null
+    try {
+      await publishMessageTemplate(templateId, versionId)
+      await fetchTemplates()
+      toast.success('Modelo publicado.')
+      return { success: true }
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Erro ao publicar modelo.')
+      toast.error(error.value)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function deprecateVersion(templateId, versionId) {
+    isLoading.value = true
+    error.value = null
+    try {
+      await deprecateMessageTemplateVersion(templateId, versionId)
+      await fetchTemplates()
+      toast.success('Versão descontinuada.')
+      return { success: true }
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Erro ao descontinuar versão.')
+      toast.error(error.value)
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function previewTemplate(templateId, payload) {
+    try {
+      const response = await previewMessageTemplate(templateId, payload)
+      return { success: true, data: response.data }
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Erro ao gerar preview.')
+      toast.error(message)
+      return { success: false, error: message }
+    }
+  }
+
+  async function sendTemplateTest(payload) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await sendTestMessage(payload)
+      toast.success('Teste enfileirado para envio.')
+      return { success: true, data: response.data }
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Erro ao enviar teste.')
       toast.error(error.value)
       return { success: false, error: error.value }
     } finally {
@@ -147,5 +213,9 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
     getTemplateById, // Expor
     updateTemplate,
     deleteTemplate,
+    publishTemplate,
+    deprecateVersion,
+    previewTemplate,
+    sendTemplateTest,
   }
 })

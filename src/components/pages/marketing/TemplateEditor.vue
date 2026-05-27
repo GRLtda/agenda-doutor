@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
-import { ArrowLeft, Eye, MessageSquare, Tag, Save, LoaderCircle } from 'lucide-vue-next'
+import { ArrowLeft, Eye, MessageSquare, Tag, Save, LoaderCircle, Send, RefreshCw } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import { useToast } from 'vue-toastification'
 
@@ -16,19 +16,47 @@ const toast = useToast()
 const templateName = ref('')
 const templateContent = ref('')
 const templateTags = ref('')
+const templateType = ref('TEXT')
+const mediaUrl = ref('')
+const caption = ref('')
+const filename = ref('')
+const buttons = ref([{ id: 'confirm', label: 'Confirmar' }])
+const buttonText = ref('Ver opções')
+const sections = ref([{ title: 'Opções', rows: [{ id: 'option_1', title: 'Primeira opção', description: '' }] }])
+const testPhone = ref('')
+const previewResult = ref(null)
 const editorError = ref(null)
 const isLoading = ref(false)
+const isPreviewing = ref(false)
+const isSendingTest = ref(false)
 const activeInfoTab = ref('variables')
 
 const isEditMode = computed(() => !!props.templateId)
 const availableVariables = computed(() => templatesStore.availableVariables)
+const contentTypes = [
+  { value: 'TEXT', label: 'Texto' },
+  { value: 'IMAGE', label: 'Imagem' },
+  { value: 'VIDEO', label: 'Vídeo' },
+  { value: 'AUDIO', label: 'Áudio' },
+  { value: 'DOCUMENT', label: 'Documento' },
+  { value: 'BUTTONS', label: 'Botões' },
+  { value: 'LIST', label: 'Lista' },
+]
+const canSendTest = computed(() => isEditMode.value && testPhone.value.replace(/\D/g, '').length >= 10)
+const previewText = computed(() => {
+  if (previewResult.value?.rendered?.body?.text) return previewResult.value.rendered.body.text
+  if (previewResult.value?.rendered?.caption) return previewResult.value.rendered.caption
+  if (templateType.value === 'DOCUMENT') return caption.value || filename.value
+  if (['IMAGE', 'VIDEO', 'AUDIO'].includes(templateType.value)) return caption.value
+  return templateContent.value
+})
 
 // Regex para encontrar as variáveis no texto
 const variableRegex = /({[a-zA-Z_]+})/g
 
 // Computado para destacar variáveis no preview
 const formattedPreview = computed(() => {
-  let html = templateContent.value || ''
+  let html = previewText.value || ''
 
   // Escapa HTML básico para segurança no preview
   html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -53,6 +81,13 @@ onMounted(async () => {
     if (success && data) {
       templateName.value = data.name
       templateContent.value = data.content
+      templateType.value = data.type || 'TEXT'
+      mediaUrl.value = data.mediaUrl || ''
+      caption.value = data.caption || ''
+      filename.value = data.filename || ''
+      buttons.value = Array.isArray(data.buttons) && data.buttons.length > 0 ? data.buttons : buttons.value
+      buttonText.value = data.buttonText || 'Ver opções'
+      sections.value = Array.isArray(data.sections) && data.sections.length > 0 ? data.sections : sections.value
       templateTags.value = Array.isArray(data.tags) ? data.tags.join(', ') : ''
     } else {
       toast.error('Não foi possível carregar o modelo para edição.')
@@ -66,20 +101,45 @@ onMounted(async () => {
 })
 
 function insertVariable(variable) {
+  if (templateType.value === 'DOCUMENT' || ['IMAGE', 'VIDEO', 'AUDIO'].includes(templateType.value)) {
+    caption.value += variable
+    return
+  }
   templateContent.value += variable
 }
 
-async function handleSave() {
-  editorError.value = null
-  if (!templateName.value || !templateContent.value) {
-    editorError.value = 'O nome e o conteúdo do modelo são obrigatórios.'
-    toast.error(editorError.value)
-    return
-  }
+function addButton() {
+  if (buttons.value.length >= 3) return
+  buttons.value.push({ id: `button_${buttons.value.length + 1}`, label: '' })
+}
 
-  const payload = {
+function removeButton(index) {
+  buttons.value = buttons.value.filter((_, itemIndex) => itemIndex !== index)
+}
+
+function addListRow(sectionIndex) {
+  const section = sections.value[sectionIndex]
+  if (!section || section.rows.length >= 10) return
+  section.rows.push({ id: `row_${section.rows.length + 1}`, title: '', description: '' })
+}
+
+function removeListRow(sectionIndex, rowIndex) {
+  const section = sections.value[sectionIndex]
+  if (!section) return
+  section.rows = section.rows.filter((_, itemIndex) => itemIndex !== rowIndex)
+}
+
+function buildPayload() {
+  return {
     name: templateName.value,
+    type: templateType.value,
     content: templateContent.value,
+    mediaUrl: mediaUrl.value,
+    caption: caption.value,
+    filename: filename.value,
+    buttons: buttons.value,
+    buttonText: buttonText.value,
+    sections: sections.value,
     tags: templateTags.value
       ? templateTags.value
           .split(',')
@@ -87,6 +147,34 @@ async function handleSave() {
           .filter(Boolean)
       : [],
   }
+}
+
+function validateEditor() {
+  if (!templateName.value) return 'O nome do modelo é obrigatório.'
+  if ((templateType.value === 'TEXT' || templateType.value === 'BUTTONS' || templateType.value === 'LIST') && !templateContent.value) {
+    return 'O texto principal do modelo é obrigatório.'
+  }
+  if (['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(templateType.value) && !mediaUrl.value) {
+    return 'Informe a URL da mídia.'
+  }
+  if (templateType.value === 'DOCUMENT' && !filename.value) return 'Informe o nome do documento.'
+  if (templateType.value === 'BUTTONS' && buttons.value.filter((button) => button.label).length === 0) return 'Adicione pelo menos um botão.'
+  if (templateType.value === 'LIST' && sections.value.some((section) => !section.title || section.rows.some((row) => !row.title))) {
+    return 'Preencha o título das seções e opções da lista.'
+  }
+  return null
+}
+
+async function handleSave() {
+  editorError.value = null
+  const validationError = validateEditor()
+  if (validationError) {
+    editorError.value = validationError
+    toast.error(editorError.value)
+    return
+  }
+
+  const payload = buildPayload()
 
   let success = false
   if (isEditMode.value) {
@@ -100,6 +188,37 @@ async function handleSave() {
   if (success) {
     emit('save')
   }
+}
+
+async function handlePreview() {
+  if (!isEditMode.value) {
+    previewResult.value = {
+      rendered: buildPayload(),
+      missingVariables: [],
+      warnings: ['Salve o modelo para executar preview validado pelo servidor.'],
+    }
+    return
+  }
+
+  isPreviewing.value = true
+  const result = await templatesStore.previewTemplate(props.templateId, {})
+  if (result.success) {
+    previewResult.value = result.data
+  }
+  isPreviewing.value = false
+}
+
+async function handleSendTest() {
+  if (!canSendTest.value) {
+    toast.error('Informe um telefone válido para envio de teste.')
+    return
+  }
+  isSendingTest.value = true
+  await templatesStore.sendTemplateTest({
+    templateId: props.templateId,
+    phone: testPhone.value,
+  })
+  isSendingTest.value = false
 }
 </script>
 
@@ -166,6 +285,37 @@ async function handleSave() {
               label="Tags (separadas por vírgula)"
               placeholder="Ex: Lembrete, Consulta, Agendamento"
             />
+            <div class="form-group">
+              <label class="field-label">Tipo de conteúdo</label>
+              <select v-model="templateType" class="form-select">
+                <option v-for="type in contentTypes" :key="type.value" :value="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+            <div v-if="previewResult?.warnings?.length" class="preview-warnings">
+              <span v-for="warning in previewResult.warnings" :key="warning">{{ warning }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isEditMode" class="card">
+          <div class="card-header">
+            <div class="card-icon">
+              <Send :size="18" />
+            </div>
+            <div class="card-header-text">
+              <h3 class="card-title">Envio de teste</h3>
+              <p class="card-subtitle">Enfileira um teste via Messaging V2</p>
+            </div>
+          </div>
+          <div class="card-body test-send-body">
+            <FormInput v-model="testPhone" label="Telefone" placeholder="5511999999999" />
+            <button type="button" class="btn-primary test-send-button" :disabled="!canSendTest || isSendingTest" @click="handleSendTest">
+              <LoaderCircle v-if="isSendingTest" :size="16" class="animate-spin" />
+              <Send v-else :size="16" />
+              {{ isSendingTest ? 'Enviando...' : 'Enviar teste' }}
+            </button>
           </div>
         </div>
 
@@ -184,9 +334,44 @@ async function handleSave() {
             <textarea
               v-model="templateContent"
               placeholder="Digite sua mensagem aqui... Use *negrito*, _itálico_ ou ~riscado~. Insira variáveis clicando no painel à direita."
-              rows="12"
+              v-if="['TEXT', 'BUTTONS', 'LIST'].includes(templateType)"
+              rows="8"
               class="message-textarea"
             ></textarea>
+            <template v-if="['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(templateType)">
+              <FormInput v-model="mediaUrl" label="URL da mídia" placeholder="https://..." required />
+              <FormInput v-if="templateType === 'DOCUMENT'" v-model="filename" label="Nome do arquivo" placeholder="resultado.pdf" required />
+              <textarea v-model="caption" placeholder="Legenda opcional" rows="5" class="message-textarea"></textarea>
+            </template>
+
+            <div v-if="templateType === 'BUTTONS'" class="structured-block">
+              <div class="structured-header">
+                <strong>Botões</strong>
+                <button type="button" class="small-action" @click="addButton" :disabled="buttons.length >= 3">Adicionar</button>
+              </div>
+              <div v-for="(button, index) in buttons" :key="index" class="inline-fields">
+                <input v-model="button.id" class="form-input" placeholder="id" />
+                <input v-model="button.label" class="form-input" maxlength="20" placeholder="Rótulo" />
+                <button type="button" class="remove-action" @click="removeButton(index)">Remover</button>
+              </div>
+            </div>
+
+            <div v-if="templateType === 'LIST'" class="structured-block">
+              <FormInput v-model="buttonText" label="Texto do botão da lista" placeholder="Ver opções" />
+              <div v-for="(section, sectionIndex) in sections" :key="sectionIndex" class="list-section">
+                <FormInput v-model="section.title" label="Título da seção" placeholder="Opções" />
+                <div class="structured-header">
+                  <strong>Itens</strong>
+                  <button type="button" class="small-action" @click="addListRow(sectionIndex)">Adicionar item</button>
+                </div>
+                <div v-for="(row, rowIndex) in section.rows" :key="rowIndex" class="inline-fields list-row-fields">
+                  <input v-model="row.id" class="form-input" placeholder="id" />
+                  <input v-model="row.title" class="form-input" placeholder="Título" />
+                  <input v-model="row.description" class="form-input" placeholder="Descrição opcional" />
+                  <button type="button" class="remove-action" @click="removeListRow(sectionIndex, rowIndex)">Remover</button>
+                </div>
+              </div>
+            </div>
             <div v-if="editorError" class="error-message">{{ editorError }}</div>
           </div>
         </div>
@@ -206,8 +391,15 @@ async function handleSave() {
             </div>
           </div>
           <div class="card-body preview-body">
+            <div class="preview-actions">
+              <button type="button" class="btn-secondary small-btn" @click="handlePreview" :disabled="isPreviewing">
+                <RefreshCw v-if="isPreviewing" :size="14" class="animate-spin" />
+                <Eye v-else :size="14" />
+                Preview
+              </button>
+            </div>
             <div class="preview-box">
-              <div v-if="templateContent" class="whatsapp-bubble" v-html="formattedPreview"></div>
+              <div v-if="previewText" class="whatsapp-bubble" v-html="formattedPreview"></div>
               <div v-else class="preview-placeholder">
                 <MessageSquare :size="32" />
                 <span>A pré-visualização aparecerá aqui</span>
@@ -487,6 +679,71 @@ async function handleSave() {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+.form-group {
+  margin-top: 1rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.65rem;
+  background: white;
+  font: inherit;
+}
+
+.structured-block {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.structured-header,
+.inline-fields {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.structured-header {
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.inline-fields {
+  margin-top: 0.65rem;
+}
+
+.list-row-fields {
+  align-items: stretch;
+}
+
+.small-action,
+.remove-action {
+  border: 1px solid #dbe4ef;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  background: white;
+  color: #334155;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.remove-action {
+  color: #dc2626;
+}
+
 .error-message {
   color: #ef4444;
   font-size: 0.85rem;
@@ -504,6 +761,38 @@ async function handleSave() {
 
 .preview-body {
   padding: 0;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.85rem 1rem 0;
+}
+
+.small-btn {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.preview-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem 1rem;
+  color: #92400e;
+  font-size: 0.78rem;
+}
+
+.test-send-body {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.test-send-button {
+  justify-content: center;
 }
 
 .preview-box {

@@ -5,8 +5,14 @@ import { useLayoutStore } from '@/stores/layout'
 
 export const isGlobalOffline = ref(false)
 
+let baseURL = import.meta.env.VITE_API_BASE_URL
+if (!baseURL || baseURL === 'http://localhost/') {
+  baseURL = 'http://localhost:3001/'
+}
+console.log('Using API Base URL:', baseURL)
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

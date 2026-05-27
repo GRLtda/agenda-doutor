@@ -447,6 +447,22 @@ async function handleToggleStatus() {
             </div>
           </div>
 
+          <div class="node-category">
+            <h4 class="category-title">Condição</h4>
+            <div 
+              class="node-item node-condition"
+              draggable="true"
+              @dragstart="onDragStart($event, 'condition', 'check_variable')"
+            >
+              <div class="node-item-icon icon-condition">
+                <GitBranch :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Condição</span>
+                <span class="node-item-desc">Segue o fluxo conforme uma regra simples</span>
+              </div>
+            </div>
+          </div>
 
         </div>
       </aside>
@@ -653,6 +669,43 @@ async function handleToggleStatus() {
               <li>Útil para enviar lembretes após X dias de um agendamento</li>
               <li>Exemplo: Aguardar 7 dias para enviar pesquisa de satisfação</li>
             </ul>
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.subtype === 'check_variable'">
+          <div class="node-description-card">
+            <div class="description-icon">
+              <GitBranch :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>Condição</h4>
+              <p>Compara um valor do contexto do workflow sem executar código dinâmico.</p>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title">Regra</h3>
+            <div class="form-group">
+              <label>Caminho da variável</label>
+              <input v-model="selectedNode.config.variable" class="form-input" placeholder="patient.phone" />
+            </div>
+            <div class="form-group">
+              <label>Operador</label>
+              <select v-model="selectedNode.config.operator" class="form-input">
+                <option value="EXISTS">Existe</option>
+                <option value="EQ">Igual</option>
+                <option value="NE">Diferente</option>
+                <option value="GT">Maior que</option>
+                <option value="GTE">Maior ou igual</option>
+                <option value="LT">Menor que</option>
+                <option value="LTE">Menor ou igual</option>
+                <option value="CONTAINS">Contém</option>
+              </select>
+            </div>
+            <div class="form-group" v-if="selectedNode.config.operator !== 'EXISTS'">
+              <label>Valor</label>
+              <input v-model="selectedNode.config.value" class="form-input" placeholder="Valor esperado" />
+            </div>
           </div>
         </template>
 

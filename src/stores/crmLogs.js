@@ -7,9 +7,17 @@ import { useToast } from 'vue-toastification'
 // Mapeamento para nomes amigáveis de status
 const logStatusDescriptions = {
   PENDING: 'Pendente',
+  QUEUED: 'Na fila',
+  SCHEDULED: 'Agendada',
+  PROCESSING: 'Processando',
+  RETRYING: 'Tentando novamente',
+  SENT: 'Enviada',
   SENT_ATTEMPT: 'Tentativa Envio',
   DELIVERED: 'Entregue',
   READ: 'Lida',
+  FAILED: 'Falhou',
+  CANCELLED: 'Cancelada',
+  EXPIRED: 'Expirada',
   ERROR_WHATSAPP: 'Erro WhatsApp',
   ERROR_SYSTEM: 'Erro Sistema',
   ERROR_INVALID_NUMBER: 'Erro Número'
