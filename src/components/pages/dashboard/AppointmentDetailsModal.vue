@@ -72,12 +72,24 @@ function clearCancelTimer() {
 }
 
 function formatTime(dateString) {
+  if (!dateString) return '--:--'
+
   try {
     const date = new Date(dateString)
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   } catch (error) {
     return '--:--'
   }
+}
+
+function formatTimeRange(startDate, endDate) {
+  const startTime = formatTime(startDate)
+  const endTime = formatTime(endDate)
+
+  if (startTime === '--:--') return 'Horário não informado'
+  if (endTime === '--:--') return `às ${startTime}`
+
+  return `das ${startTime} às ${endTime}`
 }
 
 function formatDate(dateString) {
@@ -353,9 +365,13 @@ function handleApprove() {
             <div class="booking-row">
                <div class="booking-item">
                   <span class="label">Data</span>
-                  <div class="value">
+                  <div class="value date-time-value">
                      <Calendar :size="16" />
-                     <span>{{ formatDate(event.start) }}</span>
+                     <span class="appointment-date">{{ formatDate(event.start) }}</span>
+                     <span class="appointment-time">
+                        <Clock :size="14" />
+                        {{ formatTimeRange(event.start, event.end) }}
+                     </span>
                   </div>
                </div>
                <div class="booking-item">
@@ -781,6 +797,7 @@ function handleApprove() {
 
 .booking-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
 }
 .booking-row.mt-4 {
@@ -789,8 +806,10 @@ function handleApprove() {
 
 .booking-item {
   display: flex;
+  flex: 1 1 12rem;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
 }
 .booking-item.full-width {
   width: 100%;
@@ -808,6 +827,33 @@ function handleApprove() {
   font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
+}
+
+.date-time-value {
+  flex-wrap: wrap;
+  row-gap: 0.375rem;
+}
+
+.appointment-date {
+  overflow-wrap: anywhere;
+}
+
+.appointment-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.appointment-time svg {
+  flex-shrink: 0;
 }
 
 /* Helper para truncar texto */
@@ -1193,6 +1239,14 @@ function handleApprove() {
 
   .pagination-controls {
     display: none;
+  }
+
+  .date-time-value {
+    align-items: flex-start;
+  }
+
+  .appointment-time {
+    margin-left: 1.5rem;
   }
 
   .drawer-footer {
