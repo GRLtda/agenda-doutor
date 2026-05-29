@@ -5,7 +5,7 @@ import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useRoute, useRouter } from 'vue-router'
-import { Clock, ChevronLeft, ChevronRight, ArrowRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X, CalendarMinus, CalendarPlus } from 'lucide-vue-next'
+import { Clock, ChevronLeft, ChevronRight, LoaderCircle, Plus, ChevronDown, Check, User, Filter, X, CalendarMinus, CalendarPlus } from 'lucide-vue-next'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
 import ScheduleBlockModal from '@/components/pages/calendario/ScheduleBlockModal.vue'
@@ -1116,6 +1116,7 @@ const getDayNumber = (heading) => {
                     :time-from="calendarTimeRange.from"
                     :time-to="calendarTimeRange.to"
                     :time-step="30"
+                    :time-cell-height="64"
                     :snap-to-time="15"
                     :min-cell-width="120"
                     locale="pt-br"
@@ -1149,10 +1150,10 @@ const getDayNumber = (heading) => {
 	                    <div
                         v-else-if="event.duration <= 30"
                         class="custom-event-content-short"
-                        :title="`${event.title} (${event.status})`"
+                        :title="`${event.title} (${formatTime(event.start)} - ${formatTime(event.end)})`"
                     >
                         <span class="event-title-short">{{ event.title }}</span>
-                        <ArrowRight :size="14" class="event-status-icon" />
+                        <span class="event-time-short">{{ formatTime(event.start) }} - {{ formatTime(event.end) }}</span>
                     </div>
 
                     <div v-else class="custom-event-content-long">
@@ -1520,6 +1521,7 @@ const getDayNumber = (heading) => {
   .event-title-long {
     font-size: 0.75rem;
   }
+  .event-time-short,
   .event-time-long {
     font-size: 0.7rem;
   }
@@ -1917,10 +1919,9 @@ const getDayNumber = (heading) => {
   box-sizing: border-box;
 }
 .custom-event-content-short {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  padding: 2px 8px 2px 10px;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 8px 3px 10px;
 }
 .event-title-short,
 .event-title-long {
@@ -1933,14 +1934,9 @@ const getDayNumber = (heading) => {
   color: inherit;
 }
 .event-title-short {
-  flex-grow: 1;
-  margin-right: 4px;
+  width: 100%;
 }
-.event-status-icon {
-  flex-shrink: 0;
-  color: inherit;
-  opacity: 0.8;
-}
+.event-time-short,
 .event-time-long {
   font-size: 0.75rem;
   line-height: 1.2;
