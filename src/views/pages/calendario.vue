@@ -829,6 +829,12 @@ function handleEventClick(event, e) {
   if (event.class && event.class.includes('clinic-closed-event')) {
     return
   }
+
+  const currentSelectedId = selectedEventForDetails.value?.originalEvent?._id
+  const clickedId = event?.originalEvent?._id
+  if (isDetailsModalOpen.value && currentSelectedId && clickedId && currentSelectedId === clickedId) {
+    return
+  }
   
   console.log('DEBUG: Event clicked', event)
   selectedEventForDetails.value = event
@@ -1112,6 +1118,8 @@ const getDayNumber = (heading) => {
                     class="vuecal--full-height-delete"
                     :selected-date="selectedDate"
                     :events="allCalendarEvents" :active-view="calendarView" :disable-views="['years', 'year']"
+                    :on-event-click="handleEventClick"
+                    :drag-to-create-event="!isMobile"
                     hide-view-selector
                     :time-from="calendarTimeRange.from"
                     :time-to="calendarTimeRange.to"

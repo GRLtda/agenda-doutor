@@ -7,7 +7,6 @@ import { useToast } from 'vue-toastification'
 import {
   X,
   Calendar,
-  Clock,
   Phone,
   Mail,
   Check,
@@ -71,36 +70,23 @@ function clearCancelTimer() {
   }
 }
 
-function formatTime(dateString) {
-  if (!dateString) return '--:--'
-
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  } catch (error) {
-    return '--:--'
-  }
-}
-
-function formatTimeRange(startDate, endDate) {
-  const startTime = formatTime(startDate)
-  const endTime = formatTime(endDate)
-
-  if (startTime === '--:--') return 'Horário não informado'
-  if (endTime === '--:--') return `às ${startTime}`
-
-  return `das ${startTime} às ${endTime}`
-}
-
 function formatDate(dateString) {
   try {
     const date = new Date(dateString)
-    return date.toLocaleDateString('pt-BR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
+    const datePart = date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
       timeZone: 'America/Sao_Paulo'
     })
+    const timePart = date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Sao_Paulo'
+    })
+
+    return `${datePart} - ${timePart}`
   } catch (error) {
     return 'Data inválida'
   }
@@ -160,9 +146,9 @@ async function handleCancelClick() {
 async function performCancellation(reasonToCancel) {
   try {
     isCancelling.value = true
-    
+
     const appointmentId = props.event.originalEvent._id
-    
+
     const payload = { status: 'Cancelado' }
     if (reasonToCancel && String(reasonToCancel).trim()) {
         payload.cancellationReason = String(reasonToCancel).trim()
@@ -234,17 +220,17 @@ onUnmounted(() => {
 
 async function handleStartService() {
   const appointmentId = props.event.originalEvent._id
-  
+
     toast.success('Iniciando atendimento...')
     emit('close')
-    
+
     if (patient.value && patient.value._id) {
-      router.push({ 
-        name: 'atendimento-em-andamento', 
-        params: { 
+      router.push({
+        name: 'atendimento-em-andamento',
+        params: {
           appointmentId: appointmentId,
-          patientId: patient.value._id 
-        } 
+          patientId: patient.value._id
+        }
       })
     } else {
       toast.warning('Não foi possível redirecionar: Paciente não identificado.')
@@ -253,17 +239,17 @@ async function handleStartService() {
 
 async function handleContinueService() {
   const appointmentId = props.event.originalEvent._id
-  
+
     toast.success('Retomando atendimento...')
     emit('close')
-    
+
     if (patient.value && patient.value._id) {
-      router.push({ 
-        name: 'atendimento-em-andamento', 
-        params: { 
+      router.push({
+        name: 'atendimento-em-andamento',
+        params: {
           appointmentId: appointmentId,
-          patientId: patient.value._id 
-        } 
+          patientId: patient.value._id
+        }
       })
     } else {
       toast.warning('Não foi possível redirecionar: Paciente não identificado.')
@@ -296,17 +282,17 @@ function handleApprove() {
           <div class="pagination-controls">
             <span class="page-info">{{ currentIndex + 1 }} de {{ totalCount }}</span>
             <div class="nav-buttons">
-              <button 
-                class="nav-btn" 
-                :disabled="!hasPrevious" 
+              <button
+                class="nav-btn"
+                :disabled="!hasPrevious"
                 @click="$emit('previous')"
                 title="Anterior"
               >
                 <ChevronLeft :size="16" />
               </button>
-              <button 
-                class="nav-btn" 
-                :disabled="!hasNext" 
+              <button
+                class="nav-btn"
+                :disabled="!hasNext"
                 @click="$emit('next')"
                 title="Próximo"
               >
@@ -362,29 +348,25 @@ function handleApprove() {
       <section class="section">
          <h3 class="section-title">Informações do Agendamento</h3>
          <div class="booking-info-card">
-            <div class="booking-row">
+            <div class="booking-grid">
                <div class="booking-item">
                   <span class="label">Data</span>
                   <div class="value date-time-value">
-                     <Calendar :size="16" />
-                     <span class="appointment-date">{{ formatDate(event.start) }}</span>
-                     <span class="appointment-time">
-                        <Clock :size="14" />
-                        {{ formatTimeRange(event.start, event.end) }}
+                     <span class="icon-badge icon-blue">
+                       <Calendar :size="14" />
                      </span>
+                     <span class="appointment-date">{{ formatDate(event.start) }}</span>
                   </div>
                </div>
                <div class="booking-item">
                   <span class="label">Tipo</span>
                   <div class="value">
-                     <MessageSquare :size="16" />
+                     <span class="icon-badge icon-violet">
+                       <MessageSquare :size="14" />
+                     </span>
                      <span>{{ isReturn ? 'Retorno' : 'Consulta' }}</span>
                   </div>
                </div>
-            </div>
-            
-            <!-- Row 2: Status & Doctor -->
-            <div class="booking-row mt-4">
                <div class="booking-item">
                   <span class="label">Status Atual</span>
                   <div :class="['status-pill', badgeInfo.badgeClass]" :style="badgeInfo.badgeStyle">
@@ -396,7 +378,14 @@ function handleApprove() {
                     <span class="label">Profissional</span>
                     <div class="value doctor-name-container">
                         <div class="doctor-avatar-small">
-                            {{ appointment.doctor?.name ? appointment.doctor.name.charAt(0).toUpperCase() : '?' }}
+                            <img
+                              v-if="appointment.doctor?.profilePhotoUrl"
+                              :src="appointment.doctor.profilePhotoUrl"
+                              alt="Foto do profissional"
+                            />
+                            <span v-else>
+                              {{ appointment.doctor?.name ? appointment.doctor.name.charAt(0).toUpperCase() : '?' }}
+                            </span>
                         </div>
                         <span class="text-truncate" :title="appointment.doctor?.name">
                             {{ appointment.doctor?.name || 'Não atribuído' }}
@@ -444,9 +433,9 @@ function handleApprove() {
       <section class="section">
          <h3 class="section-title">Histórico</h3>
          <div v-if="appointment.timeline && appointment.timeline.length > 0" class="timeline-history">
-            <div 
-              v-for="(item, index) in appointment.timeline" 
-              :key="index" 
+            <div
+              v-for="(item, index) in appointment.timeline"
+              :key="index"
               class="history-item"
             >
                <div class="history-marker">
@@ -464,7 +453,7 @@ function handleApprove() {
                </div>
             </div>
          </div>
-         
+
          <div v-else class="timeline-placeholder">
             <AlertCircle :size="20" />
             <p>Nenhum histórico disponível para este agendamento.</p>
@@ -493,7 +482,7 @@ function handleApprove() {
             <XCircle :size="18" />
             {{ isConfirmingCancel ? 'Confirmar?' : 'Cancelar' }}
          </AppButton>
-         
+
          <!-- Se não confirmado, mostra Confirmar -->
          <AppButton
             v-if="appointment.status !== 'Confirmado' && appointment.status !== 'Cancelado' && appointment.status !== 'Realizado' && appointment.status !== 'Em Atendimento' && appointment.status !== 'Iniciado'"
@@ -516,8 +505,8 @@ function handleApprove() {
 
 
          <!-- ✨ Delete Button -->
-         <button 
-           @click="handleDeleteClick" 
+         <button
+           @click="handleDeleteClick"
            class="btn-delete-modal"
            :class="{ 'confirming': isDeleteConfirming }"
            :title="isDeleteConfirming ? 'Confirmar Exclusão' : 'Excluir Agendamento'"
@@ -528,8 +517,8 @@ function handleApprove() {
          </button>
       </footer>
        <!-- Bottom Sheet de Cancelamento (Inside Footer slot to avoid body overflow clipping) -->
-      <CancelAppointmentSheet 
-        v-if="showCancelInput" 
+      <CancelAppointmentSheet
+        v-if="showCancelInput"
         :loading="isCancelling"
         :absolute="true"
         @close="cancelCancellation"
@@ -795,6 +784,12 @@ function handleApprove() {
   padding: 1rem;
 }
 
+.booking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+}
+
 .booking-row {
   display: flex;
   flex-wrap: wrap;
@@ -818,6 +813,7 @@ function handleApprove() {
 .booking-item .label {
   font-size: 0.75rem;
   color: #6b7280;
+  line-height: 1.2;
 }
 
 .booking-item .value {
@@ -827,15 +823,33 @@ function handleApprove() {
   font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
+  line-height: 1.3;
 }
 
 .date-time-value {
-  flex-wrap: wrap;
-  row-gap: 0.375rem;
+  min-height: 28px;
 }
 
 .appointment-date {
   overflow-wrap: anywhere;
+}
+
+.icon-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-blue {
+  color: #2563eb;
+}
+
+.icon-violet {
+  color: #7c3aed;
 }
 
 .appointment-time {
@@ -861,7 +875,7 @@ function handleApprove() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px; /* Ajuste conforme a largura desejada */
+  max-width: 220px;
   display: inline-block;
   vertical-align: middle;
 }
@@ -885,6 +899,13 @@ function handleApprove() {
   font-weight: 600;
   font-size: 0.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.doctor-avatar-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status-pill {
@@ -1232,7 +1253,7 @@ function handleApprove() {
     align-items: center;
     justify-content: center;
   }
-  
+
   .drawer-content {
     max-width: 100%;
   }
@@ -1245,6 +1266,54 @@ function handleApprove() {
     align-items: flex-start;
   }
 
+  .booking-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem 0.875rem;
+  }
+
+  .booking-info-card {
+    padding: 0.75rem;
+    border-radius: 0.625rem;
+  }
+
+  .booking-item {
+    gap: 0.25rem;
+  }
+
+  .booking-item .label {
+    font-size: 0.75rem;
+  }
+
+  .booking-item .value {
+    font-size: 0.8rem;
+    gap: 0.375rem;
+  }
+
+  .icon-badge {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+  }
+
+  .icon-badge svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .status-pill {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .doctor-name-container {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .text-truncate {
+    max-width: 100%;
+  }
+
   .appointment-time {
     margin-left: 1.5rem;
   }
@@ -1253,7 +1322,7 @@ function handleApprove() {
     padding: 1rem;
     gap: 0.5rem;
   }
-  
+
   .drawer-footer :deep(button) {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
