@@ -135,20 +135,22 @@ onMounted(() => {
 
         <div class="device-info">
           <div class="device-name">
-            {{ getBrowserName(session.device?.user_agent) }}
-            <span v-if="getOSName(session.device?.user_agent)">
-              no {{ getOSName(session.device?.user_agent) }}
-            </span>
+            <div class="device-name-text">
+              <span>{{ getBrowserName(session.device?.user_agent) }}</span>
+              <span v-if="getOSName(session.device?.user_agent)" class="device-os">
+                no {{ getOSName(session.device?.user_agent) }}
+              </span>
+            </div>
             <span v-if="session.is_current" class="current-badge">Atual</span>
           </div>
           <div class="device-meta">
             <div class="meta-item">
               <Globe :size="14" />
-              <span>{{ session.device?.ip || 'IP não disponível' }}</span>
+              <span class="meta-text">{{ session.device?.ip || 'IP não disponível' }}</span>
             </div>
             <div class="meta-item">
               <Clock :size="14" />
-              <span>Último acesso: {{ formatDate(session.last_used_at || session.created_at) }}</span>
+              <span class="meta-text">Último acesso: {{ formatDate(session.last_used_at || session.created_at) }}</span>
             </div>
           </div>
         </div>
@@ -217,7 +219,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 400px;
   overflow-y: auto;
   padding-right: 0.5rem;
 }
@@ -282,13 +283,25 @@ onMounted(() => {
 }
 
 .device-name {
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 0.25rem;
   font-size: 0.95rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.device-name-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.device-os {
+  word-break: break-word;
 }
 
 .current-badge {
@@ -299,6 +312,7 @@ onMounted(() => {
   border-radius: 9999px;
   font-weight: 700;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .device-meta {
@@ -311,8 +325,20 @@ onMounted(() => {
 
 .meta-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.4rem;
+  min-width: 0;
+}
+
+.meta-item svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.meta-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .revoke-btn {
@@ -326,6 +352,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .revoke-btn:hover {
@@ -370,6 +397,19 @@ onMounted(() => {
 
   .device-meta {
     gap: 0.25rem;
+  }
+
+  .device-item {
+    align-items: flex-start;
+  }
+
+  .device-name {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .current-badge {
+    align-self: flex-start;
   }
 }
 </style>

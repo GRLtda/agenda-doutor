@@ -502,7 +502,7 @@ watch(
 
 .mobile-head {
   position: sticky;
-  top: 0;
+  top: -2%;
   z-index: 4;
   margin-left: -1rem;
   margin-right: -1rem;
