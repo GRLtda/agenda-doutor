@@ -137,6 +137,19 @@ export const useCrmStore = defineStore('crm', () => {
           status.value = 'qrcode_pending'; // Define como pendente primeiro
           isLoadingQrImage.value = !qrCode.value; // Loading se não tiver QR
 
+          if (!qrCode.value && !isFetchingQrCodeApi) {
+            isFetchingQrCodeApi = true
+            try {
+              const qrResponse = await initiateWhatsAppConnection()
+              if (qrResponse.data.qrcodeImage || qrResponse.data.qr) {
+                qrCode.value = qrResponse.data.qrcodeImage || qrResponse.data.qr
+                isLoadingQrImage.value = false
+              }
+            } finally {
+              isFetchingQrCodeApi = false
+            }
+          }
+
           if (currentPollingIntervalDuration !== 4000) {
             startPolling(4000)
           }
@@ -204,6 +217,11 @@ export const useCrmStore = defineStore('crm', () => {
       else if (currentStatus === 'qrcode_pending' || currentStatus === 'qrcode') {
         status.value = 'qrcode_pending' // Define como pendente
         isLoadingQrImage.value = true // Assume que vai carregar um novo QR
+        const qrResponse = await initiateWhatsAppConnection()
+        if (qrResponse.data.qrcodeImage || qrResponse.data.qr) {
+          qrCode.value = qrResponse.data.qrcodeImage || qrResponse.data.qr
+          isLoadingQrImage.value = false
+        }
         startPolling(4000) // Inicia polling para QR code
         // O fetchQrCode será chamado pelo checkStatus dentro do startPolling
       } else if (currentStatus === 'creating_qr' || currentStatus === 'initializing') {
@@ -290,7 +308,7 @@ export const useCrmStore = defineStore('crm', () => {
     try {
       isLoading.value = true
       const response = await sendMessage(payload)
-      toast.success('Mensagem enviada com sucesso!')
+      toast.success(response.data?.message || 'Mensagem enviada com sucesso!')
       return response.data
     } catch (error) {
       toast.error(error.response?.data?.message || 'Erro ao enviar mensagem.')
@@ -304,7 +322,7 @@ export const useCrmStore = defineStore('crm', () => {
     try {
       isLoading.value = true
       const response = await sendTestMessage(payload)
-      toast.success('Mensagem de teste enviada!')
+      toast.success(response.data?.message || 'Mensagem de teste enviada!')
       return response.data
     } catch (error) {
       toast.error(error.response?.data?.message || 'Erro ao enviar teste.')

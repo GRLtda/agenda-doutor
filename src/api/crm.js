@@ -1,16 +1,87 @@
 import apiClient from './index'
 
+const mapWhatsAppV2Status = (status) => {
+  const normalized = String(status || '').toUpperCase()
+
+  if (normalized === 'ACTIVE') return 'connected'
+  if (normalized === 'PENDING') return 'qrcode_pending'
+  if (normalized === 'SUSPENDED') return 'disconnected'
+  if (normalized === 'CANCELLED') return 'disconnected'
+  if (normalized === 'NOT_CONFIGURED') return 'disconnected'
+
+  return 'disconnected'
+}
+
+const unwrapWhatsAppV2Data = (response) => response.data?.data || response.data || {}
+
+const normalizeWhatsAppV2Status = (response) => {
+  const data = unwrapWhatsAppV2Data(response)
+  const instance = data.instance || {}
+  const status = mapWhatsAppV2Status(data.status || instance.status)
+
+  return {
+    ...response,
+    data: {
+      provider: data.provider || 'whatszu',
+      instanceId: data.instanceId || instance.id || null,
+      status,
+      rawStatus: data.status || instance.status || null,
+      phoneNumber: data.phoneNumber || instance.phoneNumber || null,
+      number: data.phoneNumber || instance.phoneNumber || null,
+      name: instance.name || 'WhatsApp Principal',
+      username: instance.phoneNumber || data.phoneNumber || null,
+      instance,
+      apiVersion: 'whatszu-v2',
+      message:
+        status === 'connected'
+          ? 'WhatsApp conectado!'
+          : status === 'qrcode_pending'
+            ? 'Escaneie o QR Code para conectar o WhatsApp.'
+            : 'WhatsApp desconectado.',
+    },
+  }
+}
+
+const normalizeWhatsAppV2Qr = (response) => {
+  const data = unwrapWhatsAppV2Data(response)
+  const state = data.state || {}
+  const qr = data.qr || {}
+  const status = mapWhatsAppV2Status(qr.status || state.status)
+
+  return {
+    ...response,
+    data: {
+      provider: state.provider || 'whatszu',
+      instanceId: state.instanceId || null,
+      status,
+      rawStatus: qr.status || state.status || null,
+      phoneNumber: state.phoneNumber || null,
+      number: state.phoneNumber || null,
+      base64: qr.base64 || null,
+      qr: qr.base64 || null,
+      qrcodeImage: qr.base64 || null,
+      apiVersion: 'whatszu-v2',
+      message:
+        status === 'connected'
+          ? 'WhatsApp conectado!'
+          : qr.base64
+            ? 'QR Code gerado. Escaneie para conectar.'
+            : 'Preparando QR Code do WhatsApp.',
+    },
+  }
+}
+
 // --- Funções de Conexão WhatsApp (existentes) ---
 export const initiateWhatsAppConnection = () => {
-  return apiClient.get('/crm/qrcode')
+  return apiClient.get('/v2/whatsapp/qr').then(normalizeWhatsAppV2Qr)
 }
 
 export const checkWhatsAppStatus = () => {
-  return apiClient.get('/crm/status')
+  return apiClient.get('/v2/whatsapp/status').then(normalizeWhatsAppV2Status)
 }
 
 export const logoutWhatsAppConnection = () => {
-  return apiClient.post('/crm/logout')
+  return apiClient.post('/v2/whatsapp/disconnect').then(normalizeWhatsAppV2Status)
 }
 
 /**
