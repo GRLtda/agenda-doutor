@@ -10,7 +10,6 @@ import { useCrmTemplatesStore } from '@/stores/crmTemplates'
 import WorkflowNode from './WorkflowNode.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
-import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
 import dagre from 'dagre'
 import { ArrowLeft, Save, Pause, Play, Plus, Trash2, GripVertical, X, MessageSquare, Zap, Clock, Star, User, CalendarPlus, GitBranch } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
@@ -47,9 +46,17 @@ const nodeTypes = {
 const eventLabels = {
   'appointment_created': 'Agendamento Criado',
   'appointment_updated': 'Agendamento Atualizado',
+  'appointment_confirmed': 'Agendamento Confirmado',
   'appointment_completed': 'Agendamento Realizado',
   'appointment_canceled': 'Agendamento Cancelado',
-  'procedure_completed': 'Procedimento Realizado'
+  'appointment_rescheduled': 'Agendamento Remarcado',
+  'procedure_completed': 'Procedimento Realizado',
+  'anamnesis_completed': 'Anamnese Respondida',
+  'consent_signed': 'Termo Assinado',
+  'whatsapp_inbound': 'WhatsApp Recebido',
+  'whatsapp_button_clicked': 'Botao WhatsApp Clicado',
+  'whatsapp_list_selected': 'Lista WhatsApp Selecionada',
+  'manual_started': 'Inicio Manual'
 }
 
 // Options formatted for StyledSelect
@@ -68,11 +75,76 @@ const templateOptions = computed(() => {
 
 // Procedure options for StyledMultiSelect (sem opção 'todos', pois multi-select vazio = todos)
 const procedureOptions = computed(() => {
-  return proceduresStore.procedures.map(procedure => ({
+  const procedures = Array.isArray(proceduresStore.procedures) ? proceduresStore.procedures : []
+  return procedures.map(procedure => ({
     value: procedure._id,
     label: procedure.name
   }))
 })
+
+const selectedProcedureIds = computed(() => selectedNode.value?.config?.procedure_codes || [])
+
+const conditionPresetOptions = [
+  { value: 'appointment_status', label: 'Status do agendamento' },
+  { value: 'whatsapp_button', label: 'Botao clicado no WhatsApp' },
+  { value: 'whatsapp_text_contains', label: 'Mensagem recebida contem texto' },
+  { value: 'whatsapp_has_reply', label: 'Paciente respondeu no WhatsApp' },
+  { value: 'invalid_whatsapp', label: 'Paciente com WhatsApp invalido' },
+  { value: 'procedure_contains', label: 'Procedimento realizado' },
+]
+
+const appointmentStatusOptions = [
+  { value: 'Agendado', label: 'Agendado' },
+  { value: 'Confirmado', label: 'Confirmado' },
+  { value: 'Realizado', label: 'Realizado' },
+  { value: 'Cancelado', label: 'Cancelado' },
+]
+
+function ensureFirstCondition() {
+  if (!selectedNode.value) return null
+  selectedNode.value.config ||= {}
+  if (!Array.isArray(selectedNode.value.config.conditions) || selectedNode.value.config.conditions.length === 0) {
+    selectedNode.value.config.conditions = [{ field: 'event.data.status', operator: 'equals', value: '' }]
+  }
+  return selectedNode.value.config.conditions[0]
+}
+
+function applyConditionPreset(preset) {
+  const condition = ensureFirstCondition()
+  if (!condition || !selectedNode.value) return
+
+  selectedNode.value.config.preset = preset
+  selectedNode.value.config.logic = 'AND'
+
+  const presets = {
+    appointment_status: { field: 'event.data.status', operator: 'equals', value: 'Realizado' },
+    whatsapp_button: { field: 'event.data.buttonId', operator: 'equals', value: '' },
+    whatsapp_text_contains: { field: 'event.data.body', operator: 'contains', value: '' },
+    whatsapp_has_reply: { field: 'event.data.body', operator: 'exists', value: '' },
+    invalid_whatsapp: { field: 'patient.isInvalidWhatsapp', operator: 'equals', value: true },
+    procedure_contains: { field: 'event.data.procedureCodes', operator: 'contains', value: '' },
+  }
+
+  Object.assign(condition, presets[preset] || presets.appointment_status)
+}
+
+function toggleProcedure(procedureId) {
+  if (!selectedNode.value) return
+  const current = new Set(selectedNode.value.config.procedure_codes || [])
+  if (current.has(procedureId)) current.delete(procedureId)
+  else current.add(procedureId)
+  selectedNode.value.config.procedure_codes = Array.from(current)
+}
+
+function inferConditionPreset(condition) {
+  if (!condition) return 'appointment_status'
+  if (condition.field === 'event.data.buttonId') return 'whatsapp_button'
+  if (condition.field === 'event.data.body' && condition.operator === 'contains') return 'whatsapp_text_contains'
+  if (condition.field === 'event.data.body' && condition.operator === 'exists') return 'whatsapp_has_reply'
+  if (condition.field === 'patient.isInvalidWhatsapp') return 'invalid_whatsapp'
+  if (condition.field === 'event.data.procedureCodes') return 'procedure_contains'
+  return 'appointment_status'
+}
 
 onMounted(async () => {
   if (workflowId) {
@@ -92,10 +164,10 @@ function initializeGraph() {
     id: n._id, // Use _id from backend
     type: 'custom',
     position: n.position || { x: 0, y: 0 },
-    data: { 
+    data: {
       // Pass all node data to the component
       ...n,
-      label: n.name, // Fallback if name exists
+      label: n.label || n.name,
     }
   }))
 
@@ -110,7 +182,7 @@ function initializeGraph() {
 
   // If positions are missing (0,0), run auto-layout
   const needsLayout = storeNodes.some(n => n.position.x === 0 && n.position.y === 0)
-  
+
   if (needsLayout && storeNodes.length > 0) {
     const layouted = getLayoutedElements(storeNodes, storeEdges)
     nodes.value = layouted.nodes
@@ -119,7 +191,7 @@ function initializeGraph() {
     nodes.value = storeNodes
     edges.value = storeEdges
   }
-  
+
   // Fit view after a short delay to allow rendering
   setTimeout(() => {
     fitView()
@@ -182,7 +254,7 @@ onConnect((params) => {
 
 onNodeClick(({ node }) => {
   const config = node.data.config || {}
-  
+
   // Garante que procedure_codes seja sempre um array para o multi-select
   if (node.data.subtype === 'event_trigger' && config.eventType === 'procedure_completed') {
     if (!Array.isArray(config.procedure_codes)) {
@@ -194,8 +266,29 @@ onNodeClick(({ node }) => {
       }
     }
   }
-  
-  selectedNode.value = { 
+
+  if (node.data.subtype === 'condition_rules') {
+    config.logic = config.logic || 'AND'
+    if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
+      config.conditions = [{ field: 'event.data.status', operator: 'equals', value: '' }]
+    }
+    config.preset = config.preset || inferConditionPreset(config.conditions[0])
+  }
+
+  if (node.data.subtype === 'wait_event') {
+    config.eventType = config.eventType || 'whatsapp_inbound'
+    config.timeoutAmount = config.timeoutAmount || 3
+    config.timeoutUnit = config.timeoutUnit || 'days'
+  }
+
+  if (node.data.subtype === 'restart_on_event') {
+    config.eventType = config.eventType || 'procedure_completed'
+    if (!Array.isArray(config.procedure_codes)) {
+      config.procedure_codes = config.procedureIds || []
+    }
+  }
+
+  selectedNode.value = {
     ...node.data,
     config
   }
@@ -214,17 +307,17 @@ function closeDrawer() {
 
 async function saveNodeChanges() {
   if (!selectedNode.value) return
-  
+
   try {
     // Call store update
     await workflowsStore.updateNode(selectedNode.value._id, selectedNode.value)
-    
+
     // Update local graph data to reflect changes immediately
     const nodeIndex = nodes.value.findIndex(n => n.id === selectedNode.value._id)
     if (nodeIndex !== -1) {
       nodes.value[nodeIndex].data = { ...selectedNode.value }
     }
-    
+
     closeDrawer()
   } catch (error) {
     // Error handled in store
@@ -237,11 +330,11 @@ async function deleteSelectedNode() {
 
   try {
     await workflowsStore.deleteNode(selectedNode.value._id)
-    
+
     // Remove from local graph
     nodes.value = nodes.value.filter(n => n.id !== selectedNode.value._id)
     edges.value = edges.value.filter(e => e.source !== selectedNode.value._id && e.target !== selectedNode.value._id)
-    
+
     closeDrawer()
   } catch (error) {
     // Error already handled in store
@@ -281,7 +374,7 @@ async function onDrop(event) {
   if (!data) return
 
   const { type, subtype } = JSON.parse(data)
-  
+
   // Calculate position
   const { left, top } = document.querySelector('.vue-flow-basic').getBoundingClientRect()
   const position = project({
@@ -290,7 +383,7 @@ async function onDrop(event) {
   })
 
   // Show loading toast or indicator if needed
-  
+
   try {
     const newNode = await workflowsStore.addNode({
       type,
@@ -315,17 +408,18 @@ async function onDrop(event) {
 // Dynamic Form Helpers
 const currentNodeSchema = computed(() => {
   if (!selectedNode.value) return []
-  
+  if (!Array.isArray(nodeTypesList.value)) return []
+
   const typeDef = nodeTypesList.value.find(t => t.type === selectedNode.value.type)
   if (!typeDef) return []
-  
+
   const subtypeDef = typeDef.subtypes.find(s => s.subtype === selectedNode.value.subtype)
   return subtypeDef ? subtypeDef.configSchema : []
 })
 
 async function handleSave() {
   if (!workflowsStore.currentWorkflow) return
-  
+
   // Since nodes/edges are auto-saved, we just confirm or update metadata if needed
   // For now, we'll just show a success message or trigger a metadata update
   try {
@@ -341,12 +435,7 @@ async function handleSave() {
 
 async function handleToggleStatus() {
   if (!workflowsStore.currentWorkflow) return
-  
-  if (workflowsStore.currentWorkflow.isActive) {
-    await workflowsStore.deactivateWorkflow(workflowId)
-  } else {
-    await workflowsStore.activateWorkflow(workflowId)
-  }
+  await workflowsStore.activateWorkflow(workflowId)
 }
 </script>
 
@@ -362,7 +451,7 @@ async function handleToggleStatus() {
           <Save :size="18" />
         </button>
       </div>
-      
+
       <div class="header-center" v-if="!isLoading">
         <span class="workflow-name">{{ workflowsStore.currentWorkflow?.name || 'Novo Workflow' }}</span>
         <span class="workflow-status-badge" :class="{ active: workflowsStore.currentWorkflow?.isActive }">
@@ -372,9 +461,9 @@ async function handleToggleStatus() {
       <div v-else class="header-center">
         <div class="skeleton skeleton-text" style="width: 150px; height: 20px;"></div>
       </div>
-      
+
       <div class="header-right">
-        <button 
+        <button
           class="toggle-status-btn"
           :class="{ active: workflowsStore.currentWorkflow?.isActive }"
           @click="handleToggleStatus"
@@ -395,7 +484,7 @@ async function handleToggleStatus() {
           <!-- GATILHO -->
           <div class="node-category">
             <h4 class="category-title">Gatilho</h4>
-            <div 
+            <div
               class="node-item node-event"
               draggable="true"
               @dragstart="onDragStart($event, 'event', 'event_trigger')"
@@ -413,7 +502,7 @@ async function handleToggleStatus() {
           <!-- AÇÃO -->
           <div class="node-category">
             <h4 class="category-title">Ação</h4>
-            <div 
+            <div
               class="node-item node-action"
               draggable="true"
               @dragstart="onDragStart($event, 'action', 'send_message')"
@@ -426,13 +515,26 @@ async function handleToggleStatus() {
                 <span class="node-item-desc">Envia uma mensagem para o paciente</span>
               </div>
             </div>
+            <div v-if="false"
+              class="node-item node-action"
+              draggable="true"
+              @dragstart="onDragStart($event, 'action', 'request_media')"
+            >
+              <div class="node-item-icon icon-action">
+                <MessageSquare :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Pedir Foto</span>
+                <span class="node-item-desc">Solicita midia do paciente pelo WhatsApp</span>
+              </div>
+            </div>
 
           </div>
 
           <!-- AGUARDAR -->
           <div class="node-category">
             <h4 class="category-title">Aguardar</h4>
-            <div 
+            <div
               class="node-item node-wait"
               draggable="true"
               @dragstart="onDragStart($event, 'wait', 'wait_days')"
@@ -445,8 +547,80 @@ async function handleToggleStatus() {
                 <span class="node-item-desc">Aguarda X dias/horas antes de continuar</span>
               </div>
             </div>
+            <div
+              class="node-item node-wait"
+              draggable="true"
+              @dragstart="onDragStart($event, 'wait', 'wait_event')"
+            >
+              <div class="node-item-icon icon-wait">
+                <Clock :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Esperar Evento</span>
+                <span class="node-item-desc">Aguarda resposta, clique, termo ou procedimento</span>
+              </div>
+            </div>
           </div>
 
+          <div class="node-category">
+            <h4 class="category-title">Filtro</h4>
+            <div
+              class="node-item node-condition"
+              draggable="true"
+              @dragstart="onDragStart($event, 'condition', 'condition_rules')"
+            >
+              <div class="node-item-icon icon-condition">
+                <GitBranch :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Filtro por Regras</span>
+                <span class="node-item-desc">Divide o fluxo em verdadeiro ou falso</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="node-category">
+            <h4 class="category-title">Controle</h4>
+            <div
+              class="node-item node-control"
+              draggable="true"
+              @dragstart="onDragStart($event, 'control', 'restart_on_event')"
+            >
+              <div class="node-item-icon icon-control">
+                <Zap :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Reiniciar se acontecer</span>
+                <span class="node-item-desc">Para a jornada atual quando um evento se repetir</span>
+              </div>
+            </div>
+            <div
+              class="node-item node-control"
+              draggable="true"
+              @dragstart="onDragStart($event, 'control', 'restart_flow')"
+            >
+              <div class="node-item-icon icon-control">
+                <Play :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Recomecar Fluxo</span>
+                <span class="node-item-desc">Reinicia a jornada do paciente</span>
+              </div>
+            </div>
+            <div
+              class="node-item node-control"
+              draggable="true"
+              @dragstart="onDragStart($event, 'control', 'end_flow')"
+            >
+              <div class="node-item-icon icon-control">
+                <X :size="18" />
+              </div>
+              <div class="node-item-content">
+                <span class="node-item-label">Finalizar</span>
+                <span class="node-item-desc">Encerra a execucao do workflow</span>
+              </div>
+            </div>
+          </div>
 
         </div>
       </aside>
@@ -496,7 +670,7 @@ async function handleToggleStatus() {
       </template>
 
       <div v-if="selectedNode" class="node-edit-form">
-        
+
         <!-- Node Description Section -->
         <div class="node-description-card" v-if="selectedNode.subtype === 'send_message'">
           <div class="description-icon">
@@ -512,14 +686,14 @@ async function handleToggleStatus() {
         <template v-if="selectedNode.subtype === 'send_message'">
           <div class="form-section">
             <h3 class="section-title">Configuração da Mensagem</h3>
-            
+
             <StyledSelect
               v-model="selectedNode.config.templateId"
               label="Modelo de Mensagem"
               :options="templateOptions"
               :required="true"
             />
-            
+
             <div class="field-hint">
               <span class="hint-icon">💡</span>
               <span>Os modelos são criados em <strong>Marketing → Modelos</strong>. Eles podem conter variáveis como {paciente}, {data_consulta}, etc.</span>
@@ -533,6 +707,28 @@ async function handleToggleStatus() {
               <li>As variáveis do modelo serão substituídas pelos dados reais do paciente</li>
               <li>O envio será registrado no histórico de mensagens</li>
             </ul>
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.subtype === 'request_media'">
+          <div class="node-description-card">
+            <div class="description-icon">
+              <MessageSquare :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>Pedir Foto ou Arquivo</h4>
+              <p>Envie um modelo pedindo uma midia e conecte este bloco a um Esperar Evento para aguardar a resposta.</p>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title">Mensagem de Solicitação</h3>
+            <StyledSelect
+              v-model="selectedNode.config.templateId"
+              label="Modelo de Mensagem"
+              :options="templateOptions"
+              :required="true"
+            />
           </div>
         </template>
 
@@ -551,7 +747,7 @@ async function handleToggleStatus() {
 
           <div class="form-section">
             <h3 class="section-title">Configuração do Gatilho</h3>
-            
+
             <StyledSelect
               v-model="selectedNode.config.eventType"
               label="Tipo de Evento"
@@ -560,17 +756,30 @@ async function handleToggleStatus() {
             />
 
             <!-- Conditional Procedure Multi-Select for Combos -->
-            <StyledMultiSelect
-              v-if="selectedNode.config.eventType === 'procedure_completed'"
-              v-model="selectedNode.config.procedure_codes"
-              label="Procedimentos (Combo)"
-              :options="procedureOptions"
-              :required="false"
-              :searchable="true"
-              placeholder="Selecione um ou mais procedimentos"
-              class="mt-4"
-            />
-            
+            <div v-if="selectedNode.config.eventType === 'procedure_completed'" class="procedure-picker">
+              <div class="procedure-picker-header">
+                <label>Procedimentos</label>
+                <button type="button" class="link-button" @click="selectedNode.config.procedure_codes = []">
+                  Todos
+                </button>
+              </div>
+              <div v-if="procedureOptions.length === 0" class="empty-inline">
+                Nenhum procedimento cadastrado para esta clinica.
+              </div>
+              <div v-else class="procedure-chip-list">
+                <button
+                  v-for="procedure in procedureOptions"
+                  :key="procedure.value"
+                  type="button"
+                  class="procedure-chip"
+                  :class="{ selected: selectedProcedureIds.includes(procedure.value) }"
+                  @click="toggleProcedure(procedure.value)"
+                >
+                  {{ procedure.label }}
+                </button>
+              </div>
+            </div>
+
             <div v-if="selectedNode.config.eventType === 'procedure_completed'" class="field-hint">
               <span class="hint-icon">💡</span>
               <span>Deixe em branco para disparar em qualquer procedimento. Selecione múltiplos para criar uma combo (ex: Botox + Fios). O workflow só dispara quando TODOS forem realizados juntos.</span>
@@ -602,11 +811,22 @@ async function handleToggleStatus() {
 
           <div class="form-section">
             <h3 class="section-title">Configuração do Tempo</h3>
-            
+
             <div class="time-inputs-grid">
               <div class="form-group">
+                <label>Meses</label>
+                <input
+                  type="number"
+                  v-model.number="selectedNode.config.months"
+                  class="form-input"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+
+              <div class="form-group">
                 <label>Dias</label>
-                <input 
+                <input
                   type="number"
                   v-model.number="selectedNode.config.days"
                   class="form-input"
@@ -614,10 +834,10 @@ async function handleToggleStatus() {
                   min="0"
                 />
               </div>
-              
+
               <div class="form-group">
                 <label>Horas</label>
-                <input 
+                <input
                   type="number"
                   v-model.number="selectedNode.config.hours"
                   class="form-input"
@@ -626,10 +846,10 @@ async function handleToggleStatus() {
                   max="23"
                 />
               </div>
-              
+
               <div class="form-group">
                 <label>Minutos</label>
-                <input 
+                <input
                   type="number"
                   v-model.number="selectedNode.config.minutes"
                   class="form-input"
@@ -639,7 +859,7 @@ async function handleToggleStatus() {
                 />
               </div>
             </div>
-            
+
             <div class="field-hint">
               <span class="hint-icon">💡</span>
               <span>Defina pelo menos um valor. O tempo total será a soma de dias + horas + minutos.</span>
@@ -656,19 +876,192 @@ async function handleToggleStatus() {
           </div>
         </template>
 
+        <template v-else-if="selectedNode.subtype === 'wait_event'">
+          <div class="node-description-card node-description-wait">
+            <div class="description-icon wait-icon">
+              <Clock :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>Esperar Acontecimento</h4>
+              <p>Pausa a jornada ate chegar um evento real do sistema ou ate acabar o prazo.</p>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title">Evento Esperado</h3>
+            <StyledSelect
+              v-model="selectedNode.config.eventType"
+              label="Evento"
+              :options="eventTypeOptions"
+              :required="true"
+            />
+            <div class="time-inputs-grid">
+              <div class="form-group">
+                <label>Prazo</label>
+                <input
+                  type="number"
+                  v-model.number="selectedNode.config.timeoutAmount"
+                  class="form-input"
+                  min="1"
+                />
+              </div>
+              <div class="form-group">
+                <label>Unidade</label>
+                <select v-model="selectedNode.config.timeoutUnit" class="form-input">
+                  <option value="minutes">Minutos</option>
+                  <option value="hours">Horas</option>
+                  <option value="days">Dias</option>
+                  <option value="weeks">Semanas</option>
+                  <option value="months">Meses</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-hint">
+              <span class="hint-icon">i</span>
+              <span>Conecte a saida received para quando o evento chegar e timeout para o caminho alternativo.</span>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.subtype === 'condition_rules'">
+          <div class="node-description-card">
+            <div class="description-icon">
+              <GitBranch :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>Filtro por Regras</h4>
+              <p>Divide o fluxo em dois caminhos: true ou false.</p>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title">Filtro</h3>
+            <div class="form-group">
+              <label>O que deseja verificar?</label>
+              <select
+                v-model="selectedNode.config.preset"
+                class="form-input"
+                @change="applyConditionPreset(selectedNode.config.preset)"
+              >
+                <option v-for="option in conditionPresetOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+
+            <div v-if="selectedNode.config.preset === 'appointment_status'" class="form-group">
+              <label>Status</label>
+              <select v-model="selectedNode.config.conditions[0].value" class="form-input">
+                <option v-for="option in appointmentStatusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+
+            <div v-else-if="selectedNode.config.preset === 'whatsapp_button'" class="form-group">
+              <label>ID do botao</label>
+              <input v-model="selectedNode.config.conditions[0].value" class="form-input" placeholder="Ex: retocar_sim" />
+            </div>
+
+            <div v-else-if="selectedNode.config.preset === 'whatsapp_text_contains'" class="form-group">
+              <label>Texto recebido contem</label>
+              <input v-model="selectedNode.config.conditions[0].value" class="form-input" placeholder="Ex: sim" />
+            </div>
+
+            <div v-else-if="selectedNode.config.preset === 'procedure_contains'" class="form-group">
+              <label>Procedimento</label>
+              <select v-model="selectedNode.config.conditions[0].value" class="form-input">
+                <option value="">Selecione</option>
+                <option v-for="procedure in procedureOptions" :key="procedure.value" :value="procedure.value">
+                  {{ procedure.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field-hint">
+              <span class="hint-icon">i</span>
+              <span>Conecte Sim para quando o filtro bater e Nao para o caminho alternativo.</span>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.subtype === 'restart_flow' || selectedNode.subtype === 'end_flow'">
+          <div class="node-description-card">
+            <div class="description-icon">
+              <Play v-if="selectedNode.subtype === 'restart_flow'" :size="20" />
+              <X v-else :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>{{ selectedNode.subtype === 'restart_flow' ? 'Recomecar Fluxo' : 'Finalizar Fluxo' }}</h4>
+              <p>{{ selectedNode.subtype === 'restart_flow' ? 'Encerra a execucao atual e abre uma nova jornada do mesmo workflow.' : 'Finaliza a execucao atual com sucesso.' }}</p>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.subtype === 'restart_on_event'">
+          <div class="node-description-card">
+            <div class="description-icon">
+              <Zap :size="20" />
+            </div>
+            <div class="description-content">
+              <h4>Reiniciar se acontecer</h4>
+              <p>Enquanto esta jornada estiver ativa, se esse evento acontecer para o mesmo paciente, a jornada atual para. Se o evento tambem for o gatilho do fluxo, uma nova jornada comeca do zero.</p>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title">Evento que reinicia</h3>
+            <StyledSelect
+              v-model="selectedNode.config.eventType"
+              label="Evento"
+              :options="eventTypeOptions"
+              :required="true"
+            />
+
+            <div v-if="selectedNode.config.eventType === 'procedure_completed'" class="procedure-picker">
+              <div class="procedure-picker-header">
+                <label>Procedimentos</label>
+                <button type="button" class="link-button" @click="selectedNode.config.procedure_codes = []">
+                  Qualquer procedimento
+                </button>
+              </div>
+              <div v-if="procedureOptions.length === 0" class="empty-inline">
+                Nenhum procedimento cadastrado para esta clinica.
+              </div>
+              <div v-else class="procedure-chip-list">
+                <button
+                  v-for="procedure in procedureOptions"
+                  :key="procedure.value"
+                  type="button"
+                  class="procedure-chip"
+                  :class="{ selected: selectedProcedureIds.includes(procedure.value) }"
+                  @click="toggleProcedure(procedure.value)"
+                >
+                  {{ procedure.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="field-hint">
+              <span class="hint-icon">i</span>
+              <span>Para Botox: escolha Procedimento Realizado e marque Botox. Se o paciente fizer Botox novamente, o fluxo antigo para e o novo Botox inicia outra jornada.</span>
+            </div>
+          </div>
+        </template>
+
         <!-- Dynamic Fields based on Schema (for other node types) -->
         <template v-else-if="currentNodeSchema.length > 0">
           <div class="form-section">
             <h3 class="section-title">Configurações</h3>
-            
+
             <div v-for="field in currentNodeSchema" :key="field.key" class="form-group">
               <label>
                 {{ field.label }}
                 <span v-if="field.required" class="required-indicator">*</span>
               </label>
-              
+
               <!-- Text Input -->
-              <input 
+              <input
                 v-if="field.type === 'string' || field.type === 'number'"
                 :type="field.type === 'number' ? 'number' : 'text'"
                 v-model="selectedNode.config[field.key]"
@@ -677,7 +1070,7 @@ async function handleToggleStatus() {
               />
 
               <!-- Textarea -->
-              <textarea 
+              <textarea
                 v-else-if="field.type === 'text'"
                 v-model="selectedNode.config[field.key]"
                 rows="4"
@@ -686,7 +1079,7 @@ async function handleToggleStatus() {
               ></textarea>
 
               <!-- Select -->
-              <select 
+              <select
                 v-else-if="field.type === 'select'"
                 v-model="selectedNode.config[field.key]"
                 class="form-input"
@@ -695,7 +1088,7 @@ async function handleToggleStatus() {
               </select>
 
               <!-- Procedure Select (Dynamic from Store) -->
-              <select 
+              <select
                 v-else-if="field.type === 'procedure-select'"
                 v-model="selectedNode.config[field.key]"
                 class="form-input"
@@ -707,7 +1100,7 @@ async function handleToggleStatus() {
               </select>
 
               <!-- Template Select (Dynamic from Templates Store) -->
-              <select 
+              <select
                 v-else-if="field.type === 'template-select'"
                 v-model="selectedNode.config[field.key]"
                 class="form-input"
@@ -981,32 +1374,40 @@ async function handleToggleStatus() {
 }
 
 /* Node Item Colors - Left Border */
-.node-event { 
-  border-left-color: #f59e0b; 
+.node-event {
+  border-left-color: #f59e0b;
 }
 .node-event:hover {
   border-left-color: #d97706;
 }
 
-.node-action { 
-  border-left-color: #3b82f6; 
+.node-action {
+  border-left-color: #3b82f6;
 }
 .node-action:hover {
   border-left-color: #2563eb;
 }
 
-.node-wait { 
-  border-left-color: #6b7280; 
+.node-wait {
+  border-left-color: #6b7280;
 }
 .node-wait:hover {
   border-left-color: #4b5563;
 }
 
-.node-condition { 
-  border-left-color: #a855f7; 
+.node-condition {
+  border-left-color: #a855f7;
 }
 .node-condition:hover {
   border-left-color: #9333ea;
+}
+
+.node-control {
+  border-left-color: #10b981;
+}
+
+.node-control:hover {
+  border-left-color: #059669;
 }
 
 /* Icon Colors */
@@ -1038,6 +1439,11 @@ async function handleToggleStatus() {
 .icon-condition {
   background-color: #f3e8ff;
   color: #9333ea;
+}
+
+.icon-control {
+  background-color: #d1fae5;
+  color: #047857;
 }
 
 .editor-container {
@@ -1212,7 +1618,7 @@ async function handleToggleStatus() {
 /* Time Inputs Grid */
 .time-inputs-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -1299,6 +1705,78 @@ async function handleToggleStatus() {
 
 .field-hint strong {
   color: #713f12;
+}
+
+.procedure-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.procedure-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.procedure-picker-header label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  color: var(--azul-principal);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.375rem;
+  border-radius: 6px;
+}
+
+.link-button:hover {
+  background: #eff6ff;
+}
+
+.procedure-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.procedure-chip {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.procedure-chip:hover {
+  border-color: var(--azul-principal);
+  background: #f8fbff;
+}
+
+.procedure-chip.selected {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #075985;
+}
+
+.empty-inline {
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 0.875rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  background: #f9fafb;
 }
 
 /* Info Card */
