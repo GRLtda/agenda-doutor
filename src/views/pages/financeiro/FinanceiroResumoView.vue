@@ -41,6 +41,10 @@ const financeiroStore = useFinanceiroStore()
 const analyticsStore = useFinanceStore()
 
 const dateRange = ref([startOfMonthDate(), endOfMonthDate()])
+const summaryCarouselIndex = ref(0)
+const analyticsCarouselIndex = ref(0)
+const summaryCarouselDrag = createCarouselDragState()
+const analyticsCarouselDrag = createCarouselDragState()
 
 const resumo = computed(() => financeiroStore.resumo || {})
 const profit = computed(() => resumo.value.profit || {})
@@ -73,6 +77,76 @@ const proceduresSparkline = computed(() =>
 const appointmentsSparkline = computed(() =>
   buildSparkline(analyticsStore.kpi.appointmentsCount, [0.64, 0.6, 0.7, 0.68, 0.8, 0.84, 0.82, 0.94])
 )
+
+const financeSummaryCards = computed(() => [
+  {
+    key: 'receivable',
+    theme: 'blue',
+    label: 'Entradas em aberto',
+    value: money(receivable.value.openCents),
+    subtext: `${receivable.value.count || 0} contas no período`,
+    sparkline: receivableSparkline.value,
+    sparklineTone: 'green',
+  },
+  {
+    key: 'payable',
+    theme: 'red',
+    label: 'Saídas em aberto',
+    value: money(payable.value.openCents),
+    subtext: `${payable.value.count || 0} contas no período`,
+    sparkline: payableSparkline.value,
+    sparklineTone: 'red',
+  },
+  {
+    key: 'cash',
+    theme: 'green',
+    label: 'Caixa disponível',
+    value: money(cash.value.balanceCents),
+    subtext: `Recebido ${money(cash.value.receivedCents)}`,
+    sparkline: cashSparkline.value,
+    sparklineTone: 'green',
+  },
+  {
+    key: 'profit',
+    theme: 'amber',
+    label: 'Resultado bruto',
+    value: money(profit.value.grossProfitCents),
+    subtext: `${profit.value.marginPercent || 0}% de margem`,
+    sparkline: profitSparkline.value,
+    sparklineTone: 'amber',
+  },
+])
+
+const analyticsSummaryCards = computed(() => [
+  {
+    key: 'revenue',
+    label: 'Faturamento',
+    value: moneyValue(analyticsStore.revenueSummary.totalRevenue),
+    sparkline: revenueSparkline.value,
+    sparklineTone: 'green',
+  },
+  {
+    key: 'ticket',
+    label: 'Ticket médio',
+    value: moneyValue(analyticsStore.kpi.averageTicket),
+    sparkline: averageTicketSparkline.value,
+    sparklineTone: 'blue',
+  },
+  {
+    key: 'procedures',
+    label: 'Procedimentos',
+    value: analyticsStore.kpi.proceduresCount || 0,
+    sparkline: proceduresSparkline.value,
+    sparklineTone: 'slate',
+  },
+  {
+    key: 'appointments',
+    label: 'Atendimentos',
+    value: analyticsStore.kpi.appointmentsCount || 0,
+    sparkline: appointmentsSparkline.value,
+    sparklineTone: 'blue',
+  },
+])
 const procedureProfitMap = computed(() => {
   const map = new Map()
   financeiroStore.lucratividadeProcedimentos.forEach((item) => {
@@ -92,6 +166,167 @@ const analyticsTopProcedures = computed(() =>
     }
   })
 )
+
+function wrapIndex(current, total, direction) {
+  if (total <= 0) return 0
+  const next = current + direction
+  return (next + total) % total
+}
+
+function createCarouselDragState() {
+  return {
+    pointerId: null,
+    startX: 0,
+    currentX: 0,
+    offset: 0,
+    isDragging: false,
+    suppressClick: false,
+  }
+}
+
+function getCarouselContext(type) {
+  if (type === 'summary') {
+    return {
+      index: summaryCarouselIndex,
+      drag: summaryCarouselDrag,
+      total: financeSummaryCards.value.length,
+    }
+  }
+
+  return {
+    index: analyticsCarouselIndex,
+    drag: analyticsCarouselDrag,
+    total: analyticsSummaryCards.value.length,
+  }
+}
+
+function activateCarouselCard(type, nextIndex) {
+  const { index, total } = getCarouselContext(type)
+  if (total <= 0) return
+  index.value = ((nextIndex % total) + total) % total
+}
+
+function handleCarouselPointerDown(type, event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+
+  const { drag } = getCarouselContext(type)
+  drag.pointerId = event.pointerId
+  drag.startX = event.clientX
+  drag.currentX = event.clientX
+  drag.offset = 0
+  drag.isDragging = false
+  drag.suppressClick = false
+
+  if (event.currentTarget?.setPointerCapture) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+}
+
+function handleCarouselPointerMove(type, event) {
+  const { drag } = getCarouselContext(type)
+  if (drag.pointerId !== event.pointerId) return
+
+  drag.currentX = event.clientX
+  const delta = drag.currentX - drag.startX
+  drag.offset = delta
+
+  if (Math.abs(delta) > 6) {
+    drag.isDragging = true
+  }
+}
+
+function handleCarouselPointerUp(type) {
+  const { index, drag, total } = getCarouselContext(type)
+  if (drag.pointerId === null) return
+
+  const delta = drag.currentX - drag.startX
+  const threshold = 42
+
+  if (Math.abs(delta) >= threshold && total > 1) {
+    index.value = delta < 0 ? wrapIndex(index.value, total, 1) : wrapIndex(index.value, total, -1)
+  }
+
+  drag.pointerId = null
+  drag.startX = 0
+  drag.currentX = 0
+  drag.offset = 0
+  drag.suppressClick = true
+  window.setTimeout(() => {
+    drag.suppressClick = false
+    drag.isDragging = false
+  }, 0)
+}
+
+function handleCarouselPointerCancel(type) {
+  const { drag } = getCarouselContext(type)
+  drag.pointerId = null
+  drag.startX = 0
+  drag.currentX = 0
+  drag.offset = 0
+  drag.isDragging = false
+  drag.suppressClick = false
+}
+
+function handleCarouselCardClick(type, index) {
+  const { drag, total } = getCarouselContext(type)
+  if (drag.suppressClick || drag.isDragging || total <= 1) return
+  activateCarouselCard(type, index)
+}
+
+function getCarouselCardState(index, activeIndex, total) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  if (distance === 0) return 'is-active'
+  if (Math.abs(distance) === 1) return 'is-neighbor'
+  return 'is-far'
+}
+
+function getCarouselDistance(index, activeIndex, total) {
+  if (total <= 0) return 0
+  const raw = index - activeIndex
+  const wrapped = ((raw % total) + total) % total
+  return wrapped > total / 2 ? wrapped - total : wrapped
+}
+
+function getCarouselCardStyle(index, activeIndex, total, dragOffset = 0) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  const absDistance = Math.abs(distance)
+  const isActive = distance === 0
+  const isNeighbor = absDistance === 1
+  const direction = distance === 0 ? 0 : Math.sign(distance)
+  const dragShift = Math.max(-60, Math.min(60, dragOffset * 0.2))
+
+  let translateX = '0px'
+  let scale = 1
+  let opacity = 1
+  let blur = '0px'
+  let zIndex = 4
+
+  if (isActive) {
+    translateX = `${dragShift}px`
+    scale = 1
+    opacity = 1
+    zIndex = 5
+  } else if (isNeighbor) {
+    translateX = `${direction * 56 + dragShift * 0.35}px`
+    scale = 0.95
+    opacity = 0.74
+    blur = '1.8px'
+    zIndex = 4 - absDistance
+  } else {
+    translateX = `${direction * 82 + dragShift * 0.2}px`
+    scale = 0.9
+    opacity = 0.42
+    blur = '4px'
+    zIndex = 1
+  }
+
+  return {
+    transform: `translateX(${translateX}) scale(${scale})`,
+    opacity,
+    filter: `blur(${blur})`,
+    zIndex,
+  }
+}
 
 const revenueHoverLinePlugin = {
   id: 'revenueHoverLine',
@@ -409,39 +644,43 @@ onMounted(load)
       </div>
     </div>
 
-    <div class="kpi-grid" :class="{ 'is-loading': financeiroStore.loadingResumo }">
+    <div class="kpi-grid desktop-grid" :class="{ 'is-loading': financeiroStore.loadingResumo }">
       <FinanceSummaryCard
-        theme="blue"
-        label="Entradas em aberto"
-        :value="money(receivable.openCents)"
-        :subtext="`${receivable.count || 0} contas no período`"
-        :sparkline="receivableSparkline"
-        sparkline-tone="green"
+        v-for="card in financeSummaryCards"
+        :key="card.key"
+        :theme="card.theme"
+        :label="card.label"
+        :value="card.value"
+        :subtext="card.subtext"
+        :sparkline="card.sparkline"
+        :sparkline-tone="card.sparklineTone"
       />
-      <FinanceSummaryCard
-        theme="red"
-        label="Saídas em aberto"
-        :value="money(payable.openCents)"
-        :subtext="`${payable.count || 0} contas no período`"
-        :sparkline="payableSparkline"
-        sparkline-tone="red"
-      />
-      <FinanceSummaryCard
-        theme="green"
-        label="Caixa disponível"
-        :value="money(cash.balanceCents)"
-        :subtext="`Recebido ${money(cash.receivedCents)}`"
-        :sparkline="cashSparkline"
-        sparkline-tone="green"
-      />
-      <FinanceSummaryCard
-        theme="amber"
-        label="Resultado bruto"
-        :value="money(profit.grossProfitCents)"
-        :subtext="`${profit.marginPercent || 0}% de margem`"
-        :sparkline="profitSparkline"
-        sparkline-tone="amber"
-      />
+    </div>
+
+    <div
+      class="carousel-shell mobile-carousel"
+      :class="{ 'is-loading': financeiroStore.loadingResumo }"
+      @pointerdown="handleCarouselPointerDown('summary', $event)"
+      @pointermove="handleCarouselPointerMove('summary', $event)"
+      @pointerup="handleCarouselPointerUp('summary')"
+      @pointercancel="handleCarouselPointerCancel('summary')"
+    >
+      <div class="carousel-stack">
+        <FinanceSummaryCard
+          v-for="(card, index) in financeSummaryCards"
+          :key="card.key"
+          class="carousel-card"
+          :class="getCarouselCardState(index, summaryCarouselIndex, financeSummaryCards.length)"
+          :style="getCarouselCardStyle(index, summaryCarouselIndex, financeSummaryCards.length, summaryCarouselDrag.offset)"
+          @click="handleCarouselCardClick('summary', index)"
+          :theme="card.theme"
+          :label="card.label"
+          :value="card.value"
+          :subtext="card.subtext"
+          :sparkline="card.sparkline"
+          :sparkline-tone="card.sparklineTone"
+        />
+      </div>
     </div>
 
     <div class="pending-strip">
@@ -558,31 +797,39 @@ onMounted(load)
       </div>
     </div>
 
-    <div class="analytics-kpis" :class="{ 'is-loading': analyticsStore.isLoading }">
+    <div class="analytics-kpis desktop-grid" :class="{ 'is-loading': analyticsStore.isLoading }">
       <FinanceSummaryCard
-        label="Faturamento"
-        :value="moneyValue(analyticsStore.revenueSummary.totalRevenue)"
-        :sparkline="revenueSparkline"
-        sparkline-tone="green"
+        v-for="card in analyticsSummaryCards"
+        :key="card.key"
+        :label="card.label"
+        :value="card.value"
+        :sparkline="card.sparkline"
+        :sparkline-tone="card.sparklineTone"
       />
-      <FinanceSummaryCard
-        label="Ticket médio"
-        :value="moneyValue(analyticsStore.kpi.averageTicket)"
-        :sparkline="averageTicketSparkline"
-        sparkline-tone="blue"
-      />
-      <FinanceSummaryCard
-        label="Procedimentos"
-        :value="analyticsStore.kpi.proceduresCount || 0"
-        :sparkline="proceduresSparkline"
-        sparkline-tone="slate"
-      />
-      <FinanceSummaryCard
-        label="Atendimentos"
-        :value="analyticsStore.kpi.appointmentsCount || 0"
-        :sparkline="appointmentsSparkline"
-        sparkline-tone="blue"
-      />
+    </div>
+
+    <div
+      class="carousel-shell mobile-carousel"
+      :class="{ 'is-loading': analyticsStore.isLoading }"
+      @pointerdown="handleCarouselPointerDown('analytics', $event)"
+      @pointermove="handleCarouselPointerMove('analytics', $event)"
+      @pointerup="handleCarouselPointerUp('analytics')"
+      @pointercancel="handleCarouselPointerCancel('analytics')"
+    >
+      <div class="carousel-stack">
+        <FinanceSummaryCard
+          v-for="(card, index) in analyticsSummaryCards"
+          :key="card.key"
+          class="carousel-card"
+          :class="getCarouselCardState(index, analyticsCarouselIndex, analyticsSummaryCards.length)"
+          :style="getCarouselCardStyle(index, analyticsCarouselIndex, analyticsSummaryCards.length, analyticsCarouselDrag.offset)"
+          @click="handleCarouselCardClick('analytics', index)"
+          :label="card.label"
+          :value="card.value"
+          :sparkline="card.sparkline"
+          :sparkline-tone="card.sparklineTone"
+        />
+      </div>
     </div>
 
     <div class="charts-grid">
@@ -781,6 +1028,8 @@ onMounted(load)
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  justify-content: flex-start;
+  text-align: left;
   min-height: 40px;
   padding: 0 0.9rem;
   border: 1px solid #e5eaf1;
@@ -804,6 +1053,7 @@ onMounted(load)
 .period-trigger__text {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.45rem;
   min-width: 0;
   white-space: nowrap;
@@ -823,6 +1073,14 @@ onMounted(load)
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.9rem;
+}
+
+.desktop-grid {
+  display: grid;
+}
+
+.mobile-carousel {
+  display: none;
 }
 
 .kpi-grid.is-loading,
@@ -1061,6 +1319,89 @@ th {
   gap: 0.9rem;
 }
 
+.carousel-shell {
+  position: relative;
+  min-width: 0;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  overflow: visible;
+}
+
+.carousel-shell::before,
+.carousel-shell::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(100, 116, 139, 0.52);
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 6;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.82);
+}
+
+.carousel-shell::before {
+  content: '‹';
+  left: 0.1rem;
+}
+
+.carousel-shell::after {
+  content: '›';
+  right: 0.1rem;
+}
+
+.carousel-shell:active {
+  cursor: grabbing;
+}
+
+.carousel-stack {
+  position: relative;
+  height: 156px;
+  min-width: 0;
+  overflow: visible;
+  padding-inline: 0.55rem;
+}
+
+.carousel-card {
+  position: absolute;
+  inset: 0 0.35rem;
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  cursor: pointer;
+}
+
+.carousel-card.is-active {
+  z-index: 5;
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: none;
+}
+
+.carousel-card.is-neighbor {
+  opacity: 0.74;
+  pointer-events: auto;
+}
+
+.carousel-card.is-far {
+  z-index: 1;
+  opacity: 0.38;
+  filter: blur(4px) saturate(0.9);
+  pointer-events: none;
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
@@ -1240,9 +1581,31 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .desktop-grid {
+    display: none !important;
+  }
+
+  .mobile-carousel {
+    display: block;
+  }
+
   .period-trigger {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding-inline: 0.8rem;
+  }
+
+  .carousel-stack {
+    height: 162px;
+    padding-inline: 0.2rem;
+  }
+
+  .carousel-shell::before,
+  .carousel-shell::after {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.2rem;
   }
 
   .pending-item {
