@@ -56,6 +56,11 @@ const badgeInfo = computed(() => {
   return useStatusBadge(props.event.originalEvent.status)
 })
 
+const sortedTimeline = computed(() => {
+  const timeline = props.event.originalEvent?.timeline || []
+  return [...timeline].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+})
+
 const isReturn = computed(() => {
   return props.event.originalEvent?.isReturn === true
 })
@@ -117,7 +122,7 @@ function goToPatient() {
 
 async function updateStatus(status) {
   const appointmentId = props.event.originalEvent._id
-  const success = await appointmentsStore.updateAppointmentStatus(appointmentId, status)
+  const { success } = await appointmentsStore.updateAppointmentStatus(appointmentId, status)
   if (success) {
     toast.success(`Status atualizado para: ${status}`)
     emit('close')
@@ -432,15 +437,15 @@ function handleApprove() {
       <!-- Timeline (History) -->
       <section class="section">
          <h3 class="section-title">Histórico</h3>
-         <div v-if="appointment.timeline && appointment.timeline.length > 0" class="timeline-history">
+         <div v-if="sortedTimeline.length > 0" class="timeline-history">
             <div
-              v-for="(item, index) in appointment.timeline"
-              :key="index"
+              v-for="(item, index) in sortedTimeline"
+              :key="item._id || `${item.action}-${item.timestamp}-${index}`"
               class="history-item"
             >
                <div class="history-marker">
                   <Bell v-if="item.action === 'REMINDER_SENT'" :size="12" class="marker-icon" />
-                  <Check v-else-if="index < appointment.timeline.length - 1" :size="12" class="marker-icon" />
+                  <Check v-else-if="index > 0" :size="12" class="marker-icon" />
                   <div v-else class="marker-dot"></div>
                </div>
                <div class="history-content">
@@ -1070,8 +1075,8 @@ function handleApprove() {
   box-shadow: 0 0 0 1px #e5e7eb; /* Anel sutil externo */
 }
 
-/* Estilo para o último item (ponto atual) */
-.history-item:last-child .history-marker {
+/* Estilo para o item mais recente */
+.history-item:first-child .history-marker {
   background-color: #fff;
   border: 2px solid #f59e0b; /* Amarelo/Laranja moderno */
   box-shadow: 0 0 0 4px #fef3c7; /* Anel de foco suave */

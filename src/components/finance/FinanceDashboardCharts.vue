@@ -197,7 +197,7 @@ const mainChartOptions = {
       labels: {
         usePointStyle: true,
         boxWidth: 8,
-        font: { family: "'Montserrat', sans-serif", size: 11 },
+        font: { family: "'DM Sans', sans-serif", size: 11 },
         color: '#64748b'
       }
     },
@@ -228,7 +228,7 @@ const mainChartOptions = {
         borderDash: [5, 5]
       },
       ticks: {
-        font: { family: "'Montserrat', sans-serif", size: 11 },
+        font: { family: "'DM Sans', sans-serif", size: 11 },
         color: '#94a3b8',
         callback: (value) => new Intl.NumberFormat('pt-BR', { notation: "compact", compactDisplay: "short" }).format(value)
       },
@@ -237,7 +237,7 @@ const mainChartOptions = {
     x: {
       grid: { display: false },
       ticks: {
-        font: { family: "'Montserrat', sans-serif", size: 11 },
+        font: { family: "'DM Sans', sans-serif", size: 11 },
         color: '#94a3b8'
       },
       border: { display: false }
@@ -319,7 +319,7 @@ const doughnutOptions = {
           <template v-else>
             <div class="doughnut-wrapper relative" style="height: 240px; margin-bottom: 2rem; flex-shrink: 0;">
               <Doughnut :data="proceduresChartData" :options="doughnutOptions" />
-              <div class="doughnut-center-text absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif;">
+              <div class="doughnut-center-text absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style="font-family: var(--fonte-principal);">
                 <span class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-widest mb-0.5">Total</span>
                 <span class="text-lg font-bold text-[#0f172a]">{{ formatCurrency(proceduresChartData.datasets[0].data.reduce((acc, val) => acc + val, 0)) }}</span>
               </div>
@@ -330,7 +330,7 @@ const doughnutOptions = {
                 <ChevronLeft :size="14" />
               </button>
 
-              <div ref="legendScrollContainer" @scroll="checkScrollConstraints" class="custom-doughnut-legend flex-1 flex gap-4 px-2 overflow-x-auto hide-scrollbar scroll-smooth" style="font-family: var(--fonte-principal), 'Montserrat', sans-serif; padding-bottom: 0.25rem;">
+              <div ref="legendScrollContainer" @scroll="checkScrollConstraints" class="custom-doughnut-legend flex-1 flex gap-4 px-2 overflow-x-auto hide-scrollbar scroll-smooth" style="font-family: var(--fonte-principal); padding-bottom: 0.25rem;">
                 <div v-for="(label, index) in proceduresChartData.labels" :key="index" class="flex items-start gap-2 py-0.5 flex-shrink-0 w-36">
                   <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" :style="{ backgroundColor: proceduresChartData.datasets[0].backgroundColor[index] }"></div>
                   <div class="flex flex-col min-w-0 flex-1 gap-0.5">
