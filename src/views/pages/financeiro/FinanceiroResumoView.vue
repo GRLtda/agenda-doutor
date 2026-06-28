@@ -717,34 +717,22 @@ onMounted(load)
           <table>
             <thead>
               <tr>
-                <th>
-                  Procedimento
-                </th>
-                <th>
-                  Quantidade
-                </th>
-                <th>
-                  Receita
-                </th>
-                <th>
-                  Custo
-                </th>
-                <th>
-                  Lucro
-                </th>
-                <th>
-                  Margem
-                </th>
+                <th>Procedimento</th>
+                <th>Quantidade</th>
+                <th>Receita</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in financeiroStore.lucratividadeProcedimentos" :key="item._id?.procedureId || item._id?.name">
-                <td>{{ item._id?.name || 'Procedimento' }}</td>
-                <td>{{ item.quantity || 0 }}</td>
-                <td>{{ money(item.revenueCents) }}</td>
-                <td>{{ money(item.costCents) }}</td>
-                <td class="txt-green">{{ money(item.grossProfitCents) }}</td>
-                <td>{{ item.marginPercent || 0 }}%</td>
+                <td data-label="Procedimento"><strong>{{ item._id?.name || 'Procedimento' }}</strong></td>
+                <td data-label="Quantidade">{{ item.quantity || 0 }}</td>
+                <td data-label="Receita">{{ money(item.revenueCents) }}</td>
+                <td data-label="Custo">{{ money(item.costCents) }}</td>
+                <td data-label="Lucro" class="txt-green">{{ money(item.grossProfitCents) }}</td>
+                <td data-label="Margem">{{ item.marginPercent || 0 }}%</td>
               </tr>
               <tr v-if="!financeiroStore.loadingLucratividade && financeiroStore.lucratividadeProcedimentos.length === 0">
                 <td colspan="6" style="padding: 0; border: 0;">
@@ -889,27 +877,21 @@ onMounted(load)
           <table>
             <thead>
               <tr>
-                <th>
-                  Paciente
-                </th>
-                <th>
-                  Procedimentos
-                </th>
-                <th>
-                  Receita
-                </th>
+                <th>Paciente</th>
+                <th>Procedimentos</th>
+                <th>Receita</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="client in analyticsStore.topClientsPaginated.data" :key="client._id">
-                <td>
+                <td data-label="Paciente">
                   <div class="ranking-name">
                     <span class="avatar">{{ client.name?.charAt(0) || 'P' }}</span>
                     <strong>{{ client.name || 'Paciente' }}</strong>
                   </div>
                 </td>
-                <td>{{ client.appointmentsCount || 0 }}</td>
-                <td class="txt-green">{{ moneyValue(client.totalRevenue) }}</td>
+                <td data-label="Procedimentos">{{ client.appointmentsCount || 0 }}</td>
+                <td data-label="Receita" class="txt-green">{{ moneyValue(client.totalRevenue) }}</td>
               </tr>
               <tr v-if="!analyticsStore.topClientsPaginated.isLoading && analyticsStore.topClientsPaginated.data.length === 0">
                 <td colspan="3" style="padding: 0; border: 0;">
@@ -937,30 +919,20 @@ onMounted(load)
           <table>
             <thead>
               <tr>
-                <th>
-                  Procedimento
-                </th>
-                <th>
-                  Qtd.
-                </th>
-                <th>
-                  Receita
-                </th>
-                <th>
-                  Lucro
-                </th>
-                <th>
-                  Margem
-                </th>
+                <th>Procedimento</th>
+                <th>Qtd.</th>
+                <th>Receita</th>
+                <th>Lucro</th>
+                <th>Margem</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="proc in analyticsTopProcedures" :key="proc._id">
-                <td><strong>{{ proc._id || 'Procedimento' }}</strong></td>
-                <td>{{ proc.count || 0 }}</td>
-                <td>{{ moneyValue(proc.totalRevenue) }}</td>
-                <td class="txt-green">{{ proc.profitCents !== undefined ? money(proc.profitCents) : '-' }}</td>
-                <td>{{ proc.marginPercent !== undefined ? `${proc.marginPercent}%` : '-' }}</td>
+                <td data-label="Procedimento"><strong>{{ proc._id || 'Procedimento' }}</strong></td>
+                <td data-label="Qtd.">{{ proc.count || 0 }}</td>
+                <td data-label="Receita">{{ moneyValue(proc.totalRevenue) }}</td>
+                <td data-label="Lucro" class="txt-green">{{ proc.profitCents !== undefined ? money(proc.profitCents) : '-' }}</td>
+                <td data-label="Margem">{{ proc.marginPercent !== undefined ? `${proc.marginPercent}%` : '-' }}</td>
               </tr>
               <tr v-if="!analyticsStore.topProceduresPaginated.isLoading && analyticsStore.topProceduresPaginated.data.length === 0">
                 <td colspan="5" style="padding: 0; border: 0;">
@@ -1594,6 +1566,109 @@ th {
     justify-content: flex-start;
     gap: 0.5rem;
     padding-inline: 0.8rem;
+  }
+
+  .section--procedures,
+  .rankings-grid .table-wrapper {
+    max-height: 380px;
+  }
+
+  .section--procedures,
+  .rankings-grid .table-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .section--procedures .table-container,
+  .rankings-grid .table-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.65rem 0.7rem 0.8rem;
+  }
+
+  .section--procedures table,
+  .rankings-grid table {
+    display: block;
+    border-spacing: 0;
+  }
+
+  .section--procedures thead,
+  .rankings-grid thead {
+    display: none;
+  }
+
+  .section--procedures tbody,
+  .rankings-grid tbody {
+    display: block;
+  }
+
+  .section--procedures tbody tr,
+  .rankings-grid tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 0.8rem;
+    padding: 0.8rem 0.85rem;
+    margin-bottom: 0.7rem;
+    background: #ffffff;
+    border: 1px solid #e8edf4;
+    border-radius: 0.9rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  }
+
+  .section--procedures tbody tr td,
+  .rankings-grid tbody tr td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    min-width: 0;
+  }
+
+  .section--procedures tbody tr td::before,
+  .rankings-grid tbody tr td::before {
+    content: attr(data-label);
+    color: #94a3b8;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+  }
+
+  .section--procedures tbody tr td:first-child,
+  .rankings-grid tbody tr td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .section--procedures tbody tr td:first-child strong,
+  .rankings-grid tbody tr td:first-child strong {
+    font-size: 0.94rem;
+    font-weight: 650;
+    color: #0f172a;
+  }
+
+  .section--procedures tbody tr td:nth-child(5),
+  .section--procedures tbody tr td:nth-child(6),
+  .rankings-grid tbody tr td:nth-child(3) {
+    justify-content: flex-end;
+  }
+
+  .rankings-grid tbody tr td:first-child::before {
+    margin-bottom: 0.15rem;
+  }
+
+  .ranking-name {
+    width: 100%;
+  }
+
+  .ranking-name strong {
+    white-space: normal;
   }
 
   .carousel-stack {
