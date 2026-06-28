@@ -17,8 +17,9 @@ export const useProceduresStore = defineStore('procedures', () => {
     error.value = null
     try {
       const response = await proceduresApi.getProcedures()
-      procedures.value = response.data
-      return { success: true, data: response.data }
+      const payload = response.data?.data || response.data
+      procedures.value = Array.isArray(payload) ? payload : []
+      return { success: true, data: procedures.value }
     } catch (err) {
       error.value = err.response?.data?.message || 'Erro ao carregar procedimentos'
       return { success: false, error: error.value }

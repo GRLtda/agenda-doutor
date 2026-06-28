@@ -1,72 +1,71 @@
 import apiClient from './index'
 
 export default {
-    // Workflows
     getWorkflows(params = {}) {
-        return apiClient.get('/workflows', { params })
+        return apiClient.get('/v2/workflows/definitions', { params })
     },
 
     getNodeTypes() {
-        return apiClient.get('/workflows/node-types')
+        return apiClient.get('/v2/workflows/catalog')
     },
 
     getWorkflowById(id) {
-        return apiClient.get(`/workflows/${id}`)
+        return apiClient.get(`/v2/workflows/definitions/${id}`)
     },
 
     createWorkflow(data) {
-        return apiClient.post('/workflows', data)
+        return apiClient.post('/v2/workflows/definitions', data)
     },
 
     updateWorkflow(id, data) {
-        return apiClient.patch(`/workflows/${id}`, data)
+        return apiClient.patch(`/v2/workflows/definitions/${id}/draft`, data)
     },
 
     activateWorkflow(id) {
-        return apiClient.post(`/workflows/${id}/activate`)
+        return apiClient.post(`/v2/workflows/definitions/${id}/publish`)
     },
 
     deactivateWorkflow(id) {
-        return apiClient.post(`/workflows/${id}/deactivate`)
+        return apiClient.patch(`/v2/workflows/definitions/${id}/draft`, { status: 'draft' })
     },
 
     deleteWorkflow(id) {
-        return apiClient.delete(`/workflows/${id}`)
+        return apiClient.delete(`/v2/workflows/definitions/${id}`)
     },
 
     // Nodes
     createNode(workflowId, data) {
-        return apiClient.post(`/workflows/${workflowId}/nodes`, data)
+        return apiClient.patch(`/v2/workflows/definitions/${workflowId}/draft`, data)
     },
 
     updateNode(nodeId, data) {
-        return apiClient.patch(`/workflows/nodes/${nodeId}`, data)
+        return apiClient.patch(`/v2/workflows/definitions/${nodeId}/draft`, data)
     },
 
     updateNodePosition(nodeId, position) {
-        return apiClient.patch(`/workflows/nodes/${nodeId}/position`, position)
+        return Promise.resolve({ data: { nodeId, position } })
     },
 
     deleteNode(nodeId) {
-        return apiClient.delete(`/workflows/nodes/${nodeId}`)
+        return Promise.resolve({ data: { nodeId } })
     },
 
     // Edges
     createEdge(workflowId, data) {
-        return apiClient.post(`/workflows/${workflowId}/edges`, data)
+        return apiClient.patch(`/v2/workflows/definitions/${workflowId}/draft`, data)
     },
 
     deleteEdge(edgeId) {
-        return apiClient.delete(`/workflows/edges/${edgeId}`)
+        return Promise.resolve({ data: { edgeId } })
     },
 
     // Runs
     getRuns(params = {}) {
-        return apiClient.get('/workflows/runs', { params })
+        return apiClient.get('/v2/workflows/runs', { params })
     },
 
     getRunById(runId) {
-        return apiClient.get(`/workflows/runs/${runId}`)
+        return apiClient.get(`/v2/workflows/runs/${runId}`)
     },
 
     getRunLogs(runId) {
@@ -74,11 +73,10 @@ export default {
     },
 
     cancelRun(runId) {
-        return apiClient.post(`/workflows/runs/${runId}/cancel`)
+        return apiClient.post(`/v2/workflows/runs/${runId}/cancel`)
     },
 
-    // Triggers
     triggerWorkflow(data) {
-        return apiClient.post('/workflows/trigger', data)
+        return apiClient.post('/v2/workflows/events', data)
     }
 }

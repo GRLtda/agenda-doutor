@@ -26,6 +26,7 @@ const iconComponent = computed(() => {
     case 'action': return MessageSquare
     case 'condition': return GitBranch
     case 'wait': return Clock
+    case 'control': return MoreHorizontal
     default: return MessageSquare
   }
 })
@@ -36,12 +37,30 @@ const nodeColor = computed(() => {
     case 'action': return 'node-action'
     case 'condition': return 'node-condition'
     case 'wait': return 'node-wait'
+    case 'control': return 'node-control'
     default: return 'node-default'
   }
 })
 
 // Check if node is event trigger (renders as circular node)
 const isEventTrigger = computed(() => props.data.subtype === 'event_trigger')
+const branchHandles = computed(() => {
+  if (props.data.subtype === 'condition_rules') {
+    return [
+      { id: 'true', label: 'Sim' },
+      { id: 'false', label: 'Nao' }
+    ]
+  }
+
+  if (props.data.subtype === 'wait_event') {
+    return [
+      { id: 'received', label: 'Chegou' },
+      { id: 'timeout', label: 'Prazo acabou' }
+    ]
+  }
+
+  return []
+})
 
 const formattedLabel = computed(() => {
   if (props.data.label) return props.data.label
@@ -52,7 +71,13 @@ const formattedLabel = computed(() => {
   const subtypeLabels = {
     'event_trigger': 'Gatilho de Evento',
     'send_message': 'Enviar Mensagem',
+    'request_media': 'Pedir Foto',
     'wait_days': 'Aguardar',
+    'wait_event': 'Esperar Evento',
+    'condition_rules': 'Filtro',
+    'restart_flow': 'Recomecar Fluxo',
+    'restart_on_event': 'Reiniciar se acontecer',
+    'end_flow': 'Finalizar',
     'create_appointment': 'Criar Agendamento',
     'update_patient': 'Atualizar Paciente',
     'check_variable': 'Verificar Condição',
@@ -81,7 +106,11 @@ const details = computed(() => {
       'appointment_completed': 'Agendamento Realizado',
       'appointment_canceled': 'Agendamento Cancelado',
       'appointment_confirmed': 'Agendamento Confirmado',
-      'procedure_completed': 'Procedimento Realizado'
+      'appointment_rescheduled': 'Agendamento Remarcado',
+      'procedure_completed': 'Procedimento Realizado',
+      'whatsapp_inbound': 'WhatsApp Recebido',
+      'whatsapp_button_clicked': 'Botao Clicado',
+      'whatsapp_list_selected': 'Lista Selecionada'
     }
     return eventLabels[eventType] || eventType
   }
@@ -107,6 +136,30 @@ const details = computed(() => {
       return 'Modelo selecionado'
     }
     return 'Selecionar modelo'
+  }
+
+  if (props.data.subtype === 'request_media') {
+    return config.templateId ? 'Modelo selecionado' : 'Selecionar modelo'
+  }
+
+  if (props.data.subtype === 'wait_event') {
+    return `${config.eventType || 'Evento'} por ${config.timeoutAmount || 3} ${config.timeoutUnit || 'days'}`
+  }
+
+  if (props.data.subtype === 'condition_rules') {
+    return 'Caminhos Sim / Nao'
+  }
+
+  if (props.data.subtype === 'restart_flow') {
+    return 'Reinicia a jornada'
+  }
+
+  if (props.data.subtype === 'restart_on_event') {
+    return 'Interrompe se o evento acontecer'
+  }
+
+  if (props.data.subtype === 'end_flow') {
+    return 'Encerra a execucao'
   }
   
   if (props.data.subtype === 'create_appointment') {
@@ -167,7 +220,15 @@ const details = computed(() => {
       </div>
     </div>
 
-    <Handle type="source" :position="Position.Bottom" class="handle" />
+    <template v-if="branchHandles.length">
+      <div class="branch-handles">
+        <div v-for="branch in branchHandles" :key="branch.id" class="branch-handle-wrap">
+          <span>{{ branch.label }}</span>
+          <Handle :id="branch.id" type="source" :position="Position.Bottom" class="handle branch-handle" />
+        </div>
+      </div>
+    </template>
+    <Handle v-else type="source" :position="Position.Bottom" class="handle" />
   </div>
 </template>
 
@@ -256,6 +317,11 @@ const details = computed(() => {
   color: white;
 }
 
+.icon-control {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
 .icon-event {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
@@ -293,6 +359,28 @@ const details = computed(() => {
   background: var(--azul-principal);
   width: 12px;
   height: 12px;
+}
+
+.branch-handles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eef2f7;
+}
+
+.branch-handle-wrap {
+  position: relative;
+  min-height: 18px;
+  text-align: center;
+  font-size: 0.65rem;
+  color: #6b7280;
+}
+
+.branch-handle {
+  left: 50% !important;
+  bottom: -14px !important;
 }
 
 
