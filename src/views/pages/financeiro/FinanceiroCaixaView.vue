@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue'
-import { CalendarDays, Calendar, Activity, Tag, User, Wallet, DollarSign, SearchX } from 'lucide-vue-next'
+import { CalendarDays, SearchX } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import AppPagination from '@/components/global/AppPagination.vue'
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
@@ -26,6 +26,40 @@ const totals = computed(() => {
   }, { receipts: 0, payments: 0, reversals: 0 })
 })
 
+const summaryCards = computed(() => [
+  {
+    key: 'receipts',
+    label: 'Recebimentos',
+    value: money(totals.value.receipts),
+    valueColor: 'green',
+    sparkline: buildSparkline(totals.value.receipts, [0.56, 0.62, 0.6, 0.72, 0.7, 0.82, 0.78, 0.92]),
+    sparklineTone: 'green',
+  },
+  {
+    key: 'payments',
+    label: 'Retiradas',
+    value: money(totals.value.payments),
+    valueColor: 'red',
+    sparkline: buildSparkline(totals.value.payments, [0.78, 0.7, 0.74, 0.64, 0.68, 0.58, 0.62, 0.54]),
+    sparklineTone: 'red',
+  },
+  {
+    key: 'reversals',
+    label: 'Estornos',
+    value: money(totals.value.reversals),
+    sparkline: buildSparkline(totals.value.reversals, [0.42, 0.46, 0.44, 0.5, 0.48, 0.54, 0.52, 0.58]),
+    sparklineTone: 'slate',
+  },
+  {
+    key: 'balance',
+    label: 'Saldo da página',
+    value: money(totals.value.receipts - totals.value.payments - totals.value.reversals),
+    subtext: 'Resultado filtrado',
+    sparkline: buildSparkline(totals.value.receipts - totals.value.payments - totals.value.reversals, [0.62, 0.68, 0.66, 0.76, 0.72, 0.82, 0.78, 0.88]),
+    sparklineTone: 'green',
+  },
+])
+
 function money(cents) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -47,7 +81,7 @@ function formatDate(value) {
 function typeLabel(type) {
   const labels = {
     RECEIPT: 'Recebimento',
-    PAYMENT: 'Pagamento',
+    PAYMENT: 'Retirada',
     REVERSAL: 'Estorno',
   }
   return labels[type] || type
@@ -57,13 +91,24 @@ function methodLabel(method) {
   const labels = {
     DINHEIRO: 'Dinheiro',
     PIX: 'PIX',
-    CARTAO_CREDITO: 'Cartao de credito',
-    CARTAO_DEBITO: 'Cartao de debito',
+    CARTAO_CREDITO: 'Cartão de crédito',
+    CARTAO_DEBITO: 'Cartão de débito',
     BOLETO: 'Boleto',
-    TRANSFERENCIA: 'Transferencia',
+    TRANSFERENCIA: 'Transferência',
     OUTRO: 'Outro',
   }
   return labels[method] || method || '-'
+}
+
+function buildSparkline(value, multipliers) {
+  const base = Math.max(Math.abs(Number(value || 0)), 1)
+  return multipliers.map((multiplier, index) => Math.round(base * multiplier + index))
+}
+
+function movementValueClass(type) {
+  if (type === 'RECEIPT') return 'text-emerald-600'
+  if (type === 'PAYMENT') return 'text-red-600'
+  return 'text-slate-500'
 }
 
 function load() {
@@ -92,31 +137,23 @@ onMounted(load)
 <template>
   <div class="finance-page">
     <div class="page-header">
-      <div>
+      <div class="page-copy">
         <h1 class="title">Caixa</h1>
-        <p class="subtitle">Movimentacoes registradas por baixas de contas.</p>
+        <p class="subtitle">Movimentações registradas por baixas de contas.</p>
       </div>
       <AppButton to="/financeiro" variant="outline" size="sm">Resumo</AppButton>
     </div>
 
     <div class="summary-grid">
       <FinanceSummaryCard
-        label="Recebimentos"
-        :value="money(totals.receipts)"
-        value-color="green"
-      />
-      <FinanceSummaryCard
-        label="Pagamentos"
-        :value="money(totals.payments)"
-        value-color="red"
-      />
-      <FinanceSummaryCard
-        label="Estornos"
-        :value="money(totals.reversals)"
-      />
-      <FinanceSummaryCard
-        label="Saldo da página"
-        :value="money(totals.receipts - totals.payments - totals.reversals)"
+        v-for="card in summaryCards"
+        :key="card.key"
+        :label="card.label"
+        :value="card.value"
+        :subtext="card.subtext"
+        :value-color="card.valueColor"
+        :sparkline="card.sparkline"
+        :sparkline-tone="card.sparklineTone"
       />
     </div>
 
@@ -136,42 +173,12 @@ onMounted(load)
         <table>
           <thead>
             <tr>
-              <th>
-                <div class="th-content">
-                  <Calendar :size="14" />
-                  <span>Data</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <Activity :size="14" />
-                  <span>Tipo</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <Tag :size="14" />
-                  <span>Conta</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <User :size="14" />
-                  <span>Parte</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <Wallet :size="14" />
-                  <span>Forma</span>
-                </div>
-              </th>
-              <th>
-                <div class="th-content">
-                  <DollarSign :size="14" />
-                  <span>Valor</span>
-                </div>
-              </th>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Conta</th>
+              <th>Parte</th>
+              <th>Forma</th>
+              <th>Valor</th>
             </tr>
           </thead>
           <tbody>
@@ -198,18 +205,50 @@ onMounted(load)
             </template>
             <template v-else>
               <tr v-for="item in financeiroStore.movimentosCaixa" :key="item._id" class="table-row">
-                <td class="whitespace-nowrap">{{ formatDate(item.settledAt) }}</td>
-                <td class="whitespace-nowrap">{{ typeLabel(item.type) }}</td>
-                <td><strong>{{ item.accountId?.title || '-' }}</strong></td>
+                <td class="whitespace-nowrap table-date">{{ formatDate(item.settledAt) }}</td>
+                <td class="whitespace-nowrap"><span class="type-pill" :class="`type-pill--${item.type?.toLowerCase()}`">{{ typeLabel(item.type) }}</span></td>
+                <td class="account-cell"><strong>{{ item.accountId?.title || '-' }}</strong></td>
                 <td>{{ item.accountId?.party?.name || '-' }}</td>
                 <td class="whitespace-nowrap">{{ methodLabel(item.method) }}</td>
-                <td class="whitespace-nowrap font-medium" :class="item.type === 'RECEIPT' ? 'text-emerald-600' : 'text-red-600'">
+                <td class="whitespace-nowrap table-money" :class="movementValueClass(item.type)">
                   {{ money(item.amountCents) }}
                 </td>
               </tr>
             </template>
           </tbody>
         </table>
+      </div>
+
+      <div class="mobile-list" v-auto-animate>
+        <template v-if="financeiroStore.loadingCaixa && financeiroStore.movimentosCaixa.length === 0">
+          <div v-for="n in 3" :key="`skel-mob-${n}`" class="mobile-card skeleton-card">
+            <AppSkeleton width="60%" style="margin-bottom: 8px;" />
+            <AppSkeleton width="40%" />
+          </div>
+        </template>
+        <template v-else-if="financeiroStore.movimentosCaixa.length > 0">
+          <article v-for="item in financeiroStore.movimentosCaixa" :key="item._id" class="mobile-card">
+            <div class="mobile-card-header">
+              <div>
+                <strong>{{ item.accountId?.title || 'Lançamento' }}</strong>
+                <span>{{ item.accountId?.party?.name || 'Sem parte vinculada' }}</span>
+              </div>
+              <span class="type-pill" :class="`type-pill--${item.type?.toLowerCase()}`">{{ typeLabel(item.type) }}</span>
+            </div>
+            <div class="mobile-card-grid">
+              <span>Data <strong>{{ formatDate(item.settledAt) }}</strong></span>
+              <span>Forma <strong>{{ methodLabel(item.method) }}</strong></span>
+              <span>Valor <strong :class="movementValueClass(item.type)">{{ money(item.amountCents) }}</strong></span>
+            </div>
+          </article>
+        </template>
+        <div v-if="!financeiroStore.loadingCaixa && financeiroStore.movimentosCaixa.length === 0">
+          <AppEmptyState
+            title="Nenhuma movimentação"
+            text="Não há registros que correspondam aos filtros atuais."
+            :icon="SearchX"
+          />
+        </div>
       </div>
     </div>
 
@@ -225,76 +264,323 @@ onMounted(load)
 </template>
 
 <style scoped>
-.finance-page { display:flex; flex-direction:column; gap:1.5rem; }
-.page-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; }
-.title { margin:0; font-family:var(--fonte-titulo); font-size:1.75rem; font-weight:700; color:var(--preto); }
-.subtitle { margin:.35rem 0 0; color:#64748b; font-size:.95rem; }
-.summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:1rem; }
-.filtros-bar { display:flex; gap:.75rem; flex-wrap:wrap; }
-.input-with-icon { display:flex; align-items:center; gap:.5rem; min-height:40px; padding:0 .75rem; border:1px solid #e5e7eb; border-radius:.5rem; background:#fff; color:#64748b; }
-.input-with-icon input { border:0; outline:0; color:#111827; background:transparent; font-size:.9rem; }
+.finance-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  color: #0f172a;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.page-copy {
+  min-width: 260px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: clamp(1.45rem, 1.3vw + 1rem, 2rem);
+  font-weight: 650;
+  line-height: 1.12;
+  color: #0f172a;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.filtros-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.7rem;
+  background: #fff;
+  border: 1px solid #e8edf4;
+  border-radius: 0.85rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 0.85rem;
+  border: 1px solid #e5eaf1;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #94a3b8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.input-with-icon input {
+  border: 0;
+  outline: 0;
+  color: #0f172a;
+  background: transparent;
+  font-family: var(--fonte-principal);
+  font-size: 0.88rem;
+}
+
 .table-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(640px, calc(100vh - 300px));
   background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
+  border: 1px solid #e8edf4;
+  border-radius: 0.85rem;
   overflow: hidden;
   position: relative;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025), 0 12px 28px rgba(15, 23, 42, 0.028);
 }
+
 .table-wrapper.is-loading {
-  opacity: 0.5;
+  opacity: 0.62;
   pointer-events: none;
 }
+
 .table-container {
-  overflow-x: auto;
-  min-height: 40vh;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
-  padding: 1rem 1.5rem;
+
+th,
+td {
+  padding: 0.9rem 1.1rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #edf2f7;
   vertical-align: middle;
   white-space: nowrap;
+  font-size: 0.88rem;
 }
+
 tbody tr:last-child td {
   border-bottom: none;
 }
+
+tbody tr:hover td {
+  background: #fbfdff;
+}
+
 th {
-  background-color: #f9fafb;
-  color: var(--cinza-texto);
-  font-size: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #fbfcfe;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
-.th-content {
-  display: flex;
+
+.account-cell strong {
+  color: #0f172a;
+  font-weight: 650;
+}
+
+.table-date,
+.table-money {
+  font-variant-numeric: tabular-nums;
+}
+
+.table-date {
+  color: #475569;
+}
+
+.table-money {
+  font-weight: 700;
+}
+
+.type-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-}
-.table-row {
-  transition: background-color 0.2s ease;
-}
-.table-row:hover td {
-  background-color: #f9fafb;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: 0 0.58rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-td strong { color:#111827; font-weight: 500; }
+.type-pill--receipt {
+  background: #ecfdf5;
+  color: #059669;
+}
 
-.skeleton-row { pointer-events: none; }
-.skeleton-row:hover td { background-color: var(--branco) !important; }
+.type-pill--payment {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.type-pill--reversal {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-list {
+  display: none;
+}
+
+.mobile-card {
+  border: 1px solid #e8edf4;
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background-color: var(--branco);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.mobile-card-header div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mobile-card-header strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-card-header span:not(.type-pill) {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.mobile-card-grid span {
+  display: flex;
+  flex-direction: column;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 0.18rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mobile-card-grid strong {
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.skeleton-row {
+  pointer-events: none;
+}
+
+.skeleton-row:hover td {
+  background-color: var(--branco) !important;
+}
 
 .whitespace-nowrap { white-space: nowrap; }
 .font-medium { font-weight: 500; }
-.text-emerald-600 { color: #059669; font-weight: 600; }
-.text-red-600 { color: #dc2626; font-weight: 600; }
+.text-emerald-600 { color: #059669 !important; }
+.text-red-600 { color: #dc2626 !important; }
+.text-slate-500 { color: #64748b !important; }
+
 @media (max-width: 1100px) {
-  .summary-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
 @media (max-width: 640px) {
-  .summary-grid { grid-template-columns:1fr; }
-  .input-with-icon { width:100%; }
+  .page-header {
+    flex-direction: column;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filtros-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .input-with-icon {
+    width: 100%;
+  }
+
+  .table-wrapper {
+    max-height: 520px;
+  }
+
+  .table-container {
+    display: none;
+  }
+
+  .mobile-list {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: auto;
+    padding: 0.75rem;
+  }
+
+  .mobile-card-header .type-pill {
+    max-width: 34%;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>

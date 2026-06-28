@@ -52,6 +52,11 @@ const receivable = computed(() => resumo.value.receivable || {})
 const payable = computed(() => resumo.value.payable || {})
 const cash = computed(() => resumo.value.cash || {})
 const alerts = computed(() => resumo.value.alerts || {})
+const recentCashMovements = computed(() =>
+  [...(financeiroStore.movimentosCaixa || [])]
+    .sort((a, b) => new Date(b.settledAt || b.createdAt || 0) - new Date(a.settledAt || a.createdAt || 0))
+    .slice(0, 6)
+)
 const revenueSparkline = computed(() => {
   const values = (analyticsStore.dailyRevenue || []).map((item) => Number(item.totalRevenue || 0))
   return values.length >= 2 ? values : buildSparkline(analyticsStore.revenueSummary.totalRevenue, [0.64, 0.72, 0.7, 0.82, 0.78, 0.91, 1])
@@ -559,6 +564,41 @@ function formatDateDisplay(dateInput) {
   return date.toLocaleDateString('pt-BR')
 }
 
+function typeLabel(type) {
+  const labels = {
+    RECEIPT: 'Recebimento',
+    PAYMENT: 'Retirada',
+    REVERSAL: 'Estorno',
+  }
+  return labels[type] || type || 'Movimentação'
+}
+
+function methodLabel(method) {
+  const labels = {
+    DINHEIRO: 'Dinheiro',
+    PIX: 'PIX',
+    CARTAO_CREDITO: 'Cartão de crédito',
+    CARTAO_DEBITO: 'Cartão de débito',
+    BOLETO: 'Boleto',
+    TRANSFERENCIA: 'Transferência',
+    OUTRO: 'Outro',
+  }
+  return labels[method] || method || '-'
+}
+
+function movementValueClass(type) {
+  if (type === 'RECEIPT') return 'is-receipt'
+  if (type === 'PAYMENT') return 'is-payment'
+  return 'is-reversal'
+}
+
+function formatMovementMeta(item) {
+  return [
+    formatDateDisplay(item.settledAt || item.createdAt),
+    methodLabel(item.method),
+  ].filter(Boolean).join(' · ')
+}
+
 function formatDateForApi(dateInput) {
   if (!dateInput) return null
   const date = new Date(dateInput)
@@ -590,6 +630,7 @@ function load() {
   }
   financeiroStore.fetchResumo(params)
   financeiroStore.fetchLucratividadeProcedimentos(params)
+  financeiroStore.fetchCaixa(params)
   analyticsStore.fetchDashboardData('custom', startDate, endDate)
   analyticsStore.fetchTopClients({
     period: 'custom',
@@ -727,12 +768,12 @@ onMounted(load)
             </thead>
             <tbody>
               <tr v-for="item in financeiroStore.lucratividadeProcedimentos" :key="item._id?.procedureId || item._id?.name">
-                <td data-label="Procedimento"><strong>{{ item._id?.name || 'Procedimento' }}</strong></td>
-                <td data-label="Quantidade">{{ item.quantity || 0 }}</td>
-                <td data-label="Receita">{{ money(item.revenueCents) }}</td>
-                <td data-label="Custo">{{ money(item.costCents) }}</td>
-                <td data-label="Lucro" class="txt-green">{{ money(item.grossProfitCents) }}</td>
-                <td data-label="Margem">{{ item.marginPercent || 0 }}%</td>
+                <td data-label="Procedimento" class="procedure-cell"><strong>{{ item._id?.name || 'Procedimento' }}</strong></td>
+                <td data-label="Quantidade" class="procedure-metric"><span>{{ item.quantity || 0 }}</span></td>
+                <td data-label="Receita" class="procedure-money">{{ money(item.revenueCents) }}</td>
+                <td data-label="Custo" class="procedure-money procedure-money--muted">{{ money(item.costCents) }}</td>
+                <td data-label="Lucro" class="procedure-money procedure-money--profit">{{ money(item.grossProfitCents) }}</td>
+                <td data-label="Margem" class="procedure-badge"><span>{{ item.marginPercent || 0 }}%</span></td>
               </tr>
               <tr v-if="!financeiroStore.loadingLucratividade && financeiroStore.lucratividadeProcedimentos.length === 0">
                 <td colspan="6" style="padding: 0; border: 0;">
@@ -748,32 +789,35 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="table-wrapper section--limited section--categories">
+      <section class="table-wrapper section--limited section--movements">
         <div class="section-header">
           <div>
-            <h2>Categorias do período</h2>
-            <p>Receitas e despesas agrupadas por categoria.</p>
+            <h2>Lançamentos do caixa</h2>
+            <p>Recebimentos e retiradas registrados no período.</p>
           </div>
         </div>
 
-        <div class="distribution-list">
-          <div class="distribution-group">
-            <h3>Receitas</h3>
-            <div v-for="item in resumo.revenueByCategory || []" :key="item._id || 'sem-categoria-receita'" class="distribution-item">
-              <span>{{ item.category?.name || 'Sem categoria' }}</span>
-              <strong>{{ money(item.amountCents) }}</strong>
+        <div class="movement-list">
+          <div
+            v-for="item in recentCashMovements"
+            :key="item._id"
+            class="movement-card"
+            :class="`movement-card--${item.type === 'RECEIPT' ? 'receipt' : item.type === 'PAYMENT' ? 'payment' : 'reversal'}`"
+          >
+            <div class="movement-card__main">
+              <div class="movement-card__head">
+                <strong>{{ item.accountId?.title || 'Lançamento' }}</strong>
+                <span>{{ typeLabel(item.type) }}</span>
+              </div>
+              <p>{{ item.accountId?.party?.name || 'Sem parte vinculada' }}</p>
+              <small>{{ formatMovementMeta(item) }}</small>
             </div>
-            <p v-if="!(resumo.revenueByCategory || []).length" class="muted">Sem receitas categorizadas.</p>
+            <div class="movement-card__value" :class="movementValueClass(item.type)">
+              {{ money(item.amountCents) }}
+            </div>
           </div>
 
-          <div class="distribution-group">
-            <h3>Despesas</h3>
-            <div v-for="item in resumo.expenseByCategory || []" :key="item._id || 'sem-categoria-despesa'" class="distribution-item">
-              <span>{{ item.category?.name || 'Sem categoria' }}</span>
-              <strong>{{ money(item.amountCents) }}</strong>
-            </div>
-            <p v-if="!(resumo.expenseByCategory || []).length" class="muted">Sem despesas categorizadas.</p>
-          </div>
+          <p v-if="!recentCashMovements.length" class="muted">Nenhum lançamento encontrado no período.</p>
         </div>
       </section>
     </div>
@@ -1140,14 +1184,15 @@ onMounted(load)
   overflow: auto;
 }
 
-.section--categories {
+.section--movements {
   max-height: 430px;
 }
 
-.section--categories .distribution-list {
+.section--movements .movement-list {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding: 1rem 1.1rem 1.05rem;
 }
 
 .section-header {
@@ -1223,6 +1268,154 @@ th {
 .txt-green {
   color: #059669;
   font-weight: 650;
+}
+
+.procedure-cell strong {
+  display: block;
+  color: #0f172a;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.procedure-metric,
+.procedure-money,
+.procedure-badge {
+  font-variant-numeric: tabular-nums;
+}
+
+.procedure-metric span,
+.procedure-badge span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  min-height: 1.8rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 650;
+}
+
+.procedure-money {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.procedure-money--muted {
+  color: #475569;
+}
+
+.procedure-money--profit {
+  color: #059669;
+  font-weight: 700;
+}
+
+.procedure-badge span {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.movement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.movement-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  background: #fff;
+  border: 1px solid #e8edf4;
+  border-right: 0;
+  border-radius: 0.85rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.movement-card--receipt {
+  border-left: 3px solid #10b981;
+}
+
+.movement-card--payment {
+  border-left: 3px solid #ef4444;
+}
+
+.movement-card--reversal {
+  border-left: 3px solid #64748b;
+}
+
+.movement-card__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.movement-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.movement-card__head strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movement-card__head span {
+  max-width: 42%;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movement-card__main p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movement-card__main small {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.movement-card__value {
+  flex-shrink: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.movement-card__value.is-receipt {
+  color: #059669;
+}
+
+.movement-card__value.is-payment {
+  color: #dc2626;
+}
+
+.movement-card__value.is-reversal {
+  color: #475569;
 }
 
 .distribution-list {
@@ -1569,11 +1762,13 @@ th {
   }
 
   .section--procedures,
+  .section--movements,
   .rankings-grid .table-wrapper {
     max-height: 380px;
   }
 
   .section--procedures,
+  .section--movements,
   .rankings-grid .table-wrapper {
     display: flex;
     flex-direction: column;
@@ -1581,11 +1776,32 @@ th {
   }
 
   .section--procedures .table-container,
+  .section--movements .movement-list,
   .rankings-grid .table-container {
     flex: 1;
     min-height: 0;
     overflow: auto;
     padding: 0.65rem 0.7rem 0.8rem;
+  }
+
+  .section--movements .movement-list {
+    gap: 0.75rem;
+  }
+
+  .movement-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.85rem 0.85rem 0.9rem;
+  }
+
+  .movement-card__head span {
+    max-width: 34%;
+    font-size: 0.66rem;
+  }
+
+  .movement-card__value {
+    margin-left: auto;
   }
 
   .section--procedures table,
