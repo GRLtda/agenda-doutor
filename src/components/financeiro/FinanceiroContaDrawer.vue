@@ -1,6 +1,19 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
-import { X } from 'lucide-vue-next'
+import {
+  Calendar,
+  CreditCard,
+  DollarSign,
+  FileSignature,
+  FileText,
+  Save,
+  StickyNote,
+  Tag,
+  User,
+  X,
+} from 'lucide-vue-next'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -44,6 +57,20 @@ const title = computed(() => {
   return props.tipo === 'RECEIVABLE' ? 'Nova conta a receber' : 'Nova despesa'
 })
 
+const dueDatePickerModel = computed({
+  get: () => parseLocalDate(form.dueDate),
+  set: (value) => {
+    form.dueDate = formatDateForApi(value)
+  },
+})
+
+const competenceDatePickerModel = computed({
+  get: () => parseLocalDate(form.competenceDate),
+  set: (value) => {
+    form.competenceDate = formatDateForApi(value)
+  },
+})
+
 const categoryOptions = computed(() => [
   { label: 'Sem categoria', value: '' },
   ...props.categorias.map((categoria) => ({
@@ -53,13 +80,13 @@ const categoryOptions = computed(() => [
 ])
 
 const paymentOptions = [
-  { label: 'Nao informado', value: '' },
+  { label: 'Não informado', value: '' },
   { label: 'Dinheiro', value: 'DINHEIRO' },
   { label: 'PIX', value: 'PIX' },
-  { label: 'Cartao de credito', value: 'CARTAO_CREDITO' },
-  { label: 'Cartao de debito', value: 'CARTAO_DEBITO' },
+  { label: 'Cartão de crédito', value: 'CARTAO_CREDITO' },
+  { label: 'Cartão de débito', value: 'CARTAO_DEBITO' },
   { label: 'Boleto', value: 'BOLETO' },
-  { label: 'Transferencia', value: 'TRANSFERENCIA' },
+  { label: 'Transferência', value: 'TRANSFERENCIA' },
   { label: 'Outro', value: 'OUTRO' },
 ]
 
@@ -68,6 +95,23 @@ function dateForInput(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toISOString().slice(0, 10)
+}
+
+function parseLocalDate(value) {
+  if (!value) return null
+  const [year, month, day] = String(value).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function formatDateForApi(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function centsToReais(value) {
@@ -127,72 +171,146 @@ watch(() => props.tipo, resetForm)
 </script>
 
 <template>
-  <SideDrawer size="md" @close="$emit('close')">
+  <SideDrawer size="lg" @close="$emit('close')">
     <template #header>
       <div class="drawer-header">
-        <div>
-          <h2>{{ title }}</h2>
-          <p>{{ tipo === 'RECEIVABLE' ? 'Receita prevista ou em aberto.' : 'Despesa prevista ou em aberto.' }}</p>
+        <div class="header-content">
+          <h2 class="drawer-title">
+            <div class="header-icon">
+              <FileSignature :size="22" />
+            </div>
+            {{ title }}
+          </h2>
+          <p class="drawer-description">
+            {{ tipo === 'RECEIVABLE' ? 'Receita prevista ou em aberto.' : 'Despesa prevista ou em aberto.' }}
+          </p>
         </div>
-        <button type="button" class="mobile-close-btn" @click="$emit('close')">
-          <X :size="20" />
+        <button type="button" class="close-btn-header" @click="$emit('close')">
+          <X :size="22" />
         </button>
       </div>
     </template>
 
     <form class="finance-form" @submit.prevent="submit">
-      <div class="form-group">
-        <label>Titulo</label>
-        <input v-model="form.title" type="text" placeholder="Ex: Consulta particular" required />
-      </div>
+      <div class="drawer-body-content">
+        <section class="form-section">
+          <div class="form-group">
+            <label class="form-label">
+              <FileText :size="14" />
+              Título <span class="required-asterisk">*</span>
+            </label>
+            <input v-model="form.title" class="form-input" type="text" placeholder="Ex: Consulta particular" required />
+          </div>
 
-      <div class="form-group">
-        <label>{{ tipo === 'RECEIVABLE' ? 'Paciente ou convenio' : 'Fornecedor' }}</label>
-        <input v-model="form.partyName" type="text" placeholder="Nome" required />
-      </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                <User :size="14" />
+                {{ tipo === 'RECEIVABLE' ? 'Paciente ou convênio' : 'Fornecedor' }}
+                <span class="required-asterisk">*</span>
+              </label>
+              <input v-model="form.partyName" class="form-input" type="text" placeholder="Nome" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                <Tag :size="14" />
+                Categoria
+              </label>
+              <StyledSelect
+                v-model="form.categoryId"
+                :options="categoryOptions"
+                placeholder="Sem categoria"
+              />
+            </div>
+          </div>
+        </section>
 
-      <StyledSelect
-        v-model="form.categoryId"
-        label="Categoria"
-        :options="categoryOptions"
-        placeholder="Sem categoria"
-      />
+        <section class="form-section">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                <DollarSign :size="14" />
+                Valor <span class="required-asterisk">*</span>
+              </label>
+              <input v-model="form.amount" class="form-input" type="number" min="0" step="0.01" placeholder="0,00" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                <Calendar :size="14" />
+                Vencimento <span class="required-asterisk">*</span>
+              </label>
+              <VueDatePicker
+                :model-value="dueDatePickerModel"
+                @update:model-value="dueDatePickerModel = $event"
+                class="date-picker-field"
+                :enable-time-picker="false"
+                locale="pt-BR"
+                format="dd/MM/yyyy"
+                placeholder="dd/mm/aaaa"
+                auto-apply
+                teleport="body"
+                :z-index="12000"
+                :clearable="false"
+                :hide-input-icon="true"
+              />
+            </div>
+          </div>
 
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Valor</label>
-          <input v-model="form.amount" type="number" min="0" step="0.01" placeholder="0,00" required />
-        </div>
-        <div class="form-group">
-          <label>Vencimento</label>
-          <input v-model="form.dueDate" type="date" required />
-        </div>
-      </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                <Calendar :size="14" />
+                Competência
+              </label>
+              <VueDatePicker
+                :model-value="competenceDatePickerModel"
+                @update:model-value="competenceDatePickerModel = $event"
+                class="date-picker-field"
+                :enable-time-picker="false"
+                locale="pt-BR"
+                format="dd/MM/yyyy"
+                placeholder="dd/mm/aaaa"
+                auto-apply
+                teleport="body"
+                :z-index="12000"
+                :hide-input-icon="true"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                <CreditCard :size="14" />
+                Forma prevista
+              </label>
+              <StyledSelect
+                v-model="form.expectedPaymentMethod"
+                :options="paymentOptions"
+                placeholder="Não informado"
+              />
+            </div>
+          </div>
+        </section>
 
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Competencia</label>
-          <input v-model="form.competenceDate" type="date" />
-        </div>
-        <StyledSelect
-          v-model="form.expectedPaymentMethod"
-          label="Forma prevista"
-          :options="paymentOptions"
-          placeholder="Nao informado"
-        />
-      </div>
-
-      <div class="form-group">
-        <label>Observacoes</label>
-        <textarea v-model="form.notes" rows="4" placeholder="Informacoes internas"></textarea>
+        <section class="form-section">
+          <div class="form-group">
+            <label class="form-label">
+              <StickyNote :size="14" />
+              Observações
+            </label>
+            <textarea v-model="form.notes" class="form-textarea" rows="4" placeholder="Informações internas"></textarea>
+          </div>
+        </section>
       </div>
     </form>
 
     <template #footer>
       <div class="drawer-footer">
-        <AppButton variant="default" @click="$emit('close')">Fechar</AppButton>
+        <AppButton variant="default" @click="$emit('close')">
+          <X :size="17" />
+          Fechar
+        </AppButton>
         <AppButton variant="primary" :loading="loading" @click="submit">
-          {{ isEditing ? 'Salvar alteracoes' : 'Adicionar' }}
+          <Save :size="17" />
+          {{ isEditing ? 'Salvar alterações' : 'Adicionar' }}
         </AppButton>
       </div>
     </template>
@@ -201,89 +319,209 @@ watch(() => props.tipo, resetForm)
 
 <style scoped>
 .drawer-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
 }
 
-.drawer-header h2 {
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.drawer-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   font-family: var(--fonte-titulo);
-  font-size: 1.15rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: var(--preto);
+  color: #111827;
 }
 
-.drawer-header p {
-  margin: 0.25rem 0 0;
-  color: #64748b;
-  font-size: 0.9rem;
+.header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--azul-principal);
 }
 
+.drawer-description {
+  margin: 0 0 0 2rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.close-btn-header {
+  display: none;
+}
+
+.drawer-body-content,
 .finance-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
 }
 
 .form-group {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
-.form-group label {
-  font-size: 0.875rem;
-  font-weight: 600;
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   color: #374151;
+  font-size: 0.8125rem;
+  font-weight: 650;
 }
 
-.form-group input,
-.form-group textarea {
+.required-asterisk {
+  color: #dc2626;
+}
+
+.form-input,
+.form-textarea {
   width: 100%;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
   background: #fff;
   color: #111827;
-  font-size: 0.95rem;
-  min-height: 44px;
-  padding: 0 0.85rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-group textarea {
-  padding: 0.75rem 0.85rem;
+.form-input {
+  height: 44px;
+  padding: 0 1rem;
+}
+
+.form-textarea {
+  min-height: 96px;
+  padding: 0.75rem 1rem;
   resize: vertical;
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
-  border-color: var(--azul-principal);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--azul-principal, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group :deep(.select-button) {
+  min-height: 44px;
+  border-color: #d1d5db;
+  border-radius: 0.75rem;
+  box-shadow: none;
+  font-size: 0.9375rem;
+}
+
+.form-group :deep(.select-button:focus),
+.form-group :deep(.select-button:focus-visible) {
+  border-color: var(--azul-principal, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.date-picker-field :deep(.dp__main) {
+  width: 100%;
+}
+
+.date-picker-field :deep(.dp__input_wrap) {
+  width: 100%;
+}
+
+.date-picker-field :deep(.dp__input) {
+  min-height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  color: #111827;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-picker-field :deep(.dp__input:hover) {
+  border-color: #9ca3af;
+}
+
+.date-picker-field :deep(.dp__input_focus) {
+  border-color: var(--azul-principal, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.date-picker-field :deep(.dp__input_icon) {
+  display: none;
 }
 
 .drawer-footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #f3f4f6;
   background: #fff;
 }
 
-@media (max-width: 640px) {
-  .form-grid {
-    grid-template-columns: 1fr;
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+@media (max-width: 768px) {
+  .drawer-header {
+    padding: 1.15rem 1rem;
+  }
+
+  .drawer-description {
+    margin-left: 0;
+  }
+
+  .close-btn-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #6b7280;
+    padding: 0.45rem;
+    cursor: pointer;
+  }
+
+  .form-row {
+    flex-direction: column;
   }
 
   .drawer-footer {
