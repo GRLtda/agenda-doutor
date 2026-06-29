@@ -279,6 +279,9 @@ onNodeClick(({ node }) => {
     config.eventType = config.eventType || 'whatsapp_inbound'
     config.timeoutAmount = config.timeoutAmount || 3
     config.timeoutUnit = config.timeoutUnit || 'days'
+    config.buttonId = config.buttonId || ''
+    config.rowId = config.rowId || ''
+    config.textContains = config.textContains || ''
   }
 
   if (node.data.subtype === 'restart_on_event') {
@@ -895,6 +898,37 @@ async function handleToggleStatus() {
               :options="eventTypeOptions"
               :required="true"
             />
+
+            <div v-if="selectedNode.config.eventType === 'whatsapp_button_clicked'" class="form-group">
+              <label>ID do botao esperado</label>
+              <input
+                v-model="selectedNode.config.buttonId"
+                class="form-input"
+                placeholder="Ex: retocar_sim"
+              />
+              <span class="helper-text">Use o mesmo ID configurado no botao do modelo de mensagem.</span>
+            </div>
+
+            <div v-else-if="selectedNode.config.eventType === 'whatsapp_list_selected'" class="form-group">
+              <label>ID da opcao esperada</label>
+              <input
+                v-model="selectedNode.config.rowId"
+                class="form-input"
+                placeholder="Ex: quero_reagendar"
+              />
+              <span class="helper-text">Use o mesmo ID da linha configurada na lista do modelo.</span>
+            </div>
+
+            <div v-else-if="selectedNode.config.eventType === 'whatsapp_inbound'" class="form-group">
+              <label>Texto esperado na resposta</label>
+              <input
+                v-model="selectedNode.config.textContains"
+                class="form-input"
+                placeholder="Opcional. Ex: sim"
+              />
+              <span class="helper-text">Deixe vazio para aceitar qualquer mensagem recebida.</span>
+            </div>
+
             <div class="time-inputs-grid">
               <div class="form-group">
                 <label>Prazo</label>

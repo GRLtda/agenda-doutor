@@ -143,6 +143,15 @@ const details = computed(() => {
   }
 
   if (props.data.subtype === 'wait_event') {
+    if (config.eventType === 'whatsapp_button_clicked' && config.buttonId) {
+      return `Botao: ${config.buttonId}`
+    }
+    if (config.eventType === 'whatsapp_list_selected' && config.rowId) {
+      return `Opcao: ${config.rowId}`
+    }
+    if (config.eventType === 'whatsapp_inbound' && config.textContains) {
+      return `Texto contem: ${config.textContains}`
+    }
     return `${config.eventType || 'Evento'} por ${config.timeoutAmount || 3} ${config.timeoutUnit || 'days'}`
   }
 
