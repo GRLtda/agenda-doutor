@@ -94,7 +94,7 @@ const handlePageChange = async (page) => {
             <Users :size="20" class="text-blue-600" />
           </div>
         </div>
-        
+
         <div class="search-box table-search-container">
           <Search :size="14" />
           <input

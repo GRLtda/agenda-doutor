@@ -23,6 +23,24 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   const currentStartDate = ref(null)
   const currentEndDate = ref(null)
 
+  function mergeLocalAppointment(updatedAppointment) {
+    if (!updatedAppointment?._id) return
+
+    const updateList = (list) => {
+      const index = list.value.findIndex(a => a._id === updatedAppointment._id)
+      if (index !== -1) {
+        list.value[index] = {
+          ...list.value[index],
+          ...updatedAppointment,
+        }
+      }
+    }
+
+    updateList(todayAppointments)
+    updateList(appointments)
+    updateList(patientAppointments)
+  }
+
   async function fetchAppointmentsByDate(startDate, endDate) {
     isLoading.value = true
 
@@ -107,21 +125,26 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     }
   }
 
-  async function updateAppointment(appointmentId, appointmentData) {
-    isLoading.value = true
+  async function updateAppointment(appointmentId, appointmentData, options = {}) {
+    if (options.setLoading !== false) {
+      isLoading.value = true
+    }
     try {
-      await apiUpdateAppointment(appointmentId, appointmentData)
+      const response = await apiUpdateAppointment(appointmentId, appointmentData)
+      mergeLocalAppointment(response.data)
 
-      if (currentStartDate.value) {
-        fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
+      if (options.refetch !== false && currentStartDate.value) {
+        await fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
       }
 
-      return { success: true }
+      return { success: true, data: response.data }
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error)
       return { success: false, error }
     } finally {
-      isLoading.value = false
+      if (options.setLoading !== false) {
+        isLoading.value = false
+      }
     }
   }
 
@@ -155,17 +178,19 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     }
   }
 
-  async function updateAppointmentStatus(appointmentId, status) {
+  async function updateAppointmentStatus(appointmentId, status, options = {}) {
     try {
-      await apiUpdateAppointment(appointmentId, { status })
+      const response = await apiUpdateAppointment(appointmentId, { status })
+      mergeLocalAppointment(response.data)
+
       const dashboardStore = useDashboardStore()
       dashboardStore.fetchDashboardStats()
 
-      if (currentStartDate.value) {
-        fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
+      if (options.refetch !== false && currentStartDate.value) {
+        await fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
       }
 
-      return { success: true }
+      return { success: true, data: response.data }
     } catch (error) {
       console.error('Erro ao atualizar status do agendamento:', error)
       return { success: false, error }
