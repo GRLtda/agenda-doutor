@@ -23,6 +23,24 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   const currentStartDate = ref(null)
   const currentEndDate = ref(null)
 
+  function mergeAppointmentInList(listRef, appointmentId, data) {
+    if (!data) return
+
+    const index = listRef.value.findIndex(a => a._id === appointmentId)
+    if (index !== -1) {
+      listRef.value[index] = {
+        ...listRef.value[index],
+        ...data,
+      }
+    }
+  }
+
+  function mergeAppointmentEverywhere(appointmentId, data) {
+    mergeAppointmentInList(appointments, appointmentId, data)
+    mergeAppointmentInList(todayAppointments, appointmentId, data)
+    mergeAppointmentInList(patientAppointments, appointmentId, data)
+  }
+
   async function fetchAppointmentsByDate(startDate, endDate) {
     isLoading.value = true
 
@@ -110,13 +128,16 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   async function updateAppointment(appointmentId, appointmentData) {
     isLoading.value = true
     try {
-      await apiUpdateAppointment(appointmentId, appointmentData)
+      const response = await apiUpdateAppointment(appointmentId, appointmentData)
+      const updatedAppointment = response.data || { _id: appointmentId, ...appointmentData }
+
+      mergeAppointmentEverywhere(appointmentId, updatedAppointment)
 
       if (currentStartDate.value) {
         fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
       }
 
-      return { success: true }
+      return { success: true, data: updatedAppointment }
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error)
       return { success: false, error }
@@ -157,7 +178,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
   async function updateAppointmentStatus(appointmentId, status) {
     try {
-      await apiUpdateAppointment(appointmentId, { status })
+      const response = await apiUpdateAppointment(appointmentId, { status })
+      const updatedAppointment = response.data || { _id: appointmentId, status }
+
+      mergeAppointmentEverywhere(appointmentId, updatedAppointment)
+
       const dashboardStore = useDashboardStore()
       dashboardStore.fetchDashboardStats()
 
@@ -165,7 +190,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         fetchAppointmentsByDate(currentStartDate.value, currentEndDate.value)
       }
 
-      return { success: true }
+      return { success: true, data: updatedAppointment }
     } catch (error) {
       console.error('Erro ao atualizar status do agendamento:', error)
       return { success: false, error }

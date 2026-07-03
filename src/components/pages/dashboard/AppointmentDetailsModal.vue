@@ -25,6 +25,8 @@ import {
   RotateCw,
   CalendarClock,
   AlertCircle,
+  Pencil,
+  Save,
   Trash2 // ✨ Import Trash2 icon
 } from 'lucide-vue-next'
 import { useStatusBadge } from '@/composables/useStatusBadge.js'
@@ -59,6 +61,77 @@ const badgeInfo = computed(() => {
 const isReturn = computed(() => {
   return props.event.originalEvent?.isReturn === true
 })
+
+const reasonDraft = ref('')
+const isEditingReason = ref(false)
+const isSavingReason = ref(false)
+const showReasonPastConfirm = ref(false)
+
+const currentReason = computed(() => appointment.value?.notes || '')
+const normalizedCurrentReason = computed(() => currentReason.value.trim())
+const normalizedReasonDraft = computed(() => reasonDraft.value.trim())
+const hasReasonChanges = computed(() => normalizedReasonDraft.value !== normalizedCurrentReason.value)
+const isPastAppointment = computed(() => {
+  const endTime = appointment.value?.endTime || props.event?.end
+  if (!endTime) return false
+
+  const endDate = new Date(endTime)
+  if (isNaN(endDate.getTime())) return false
+
+  return endDate < new Date()
+})
+const requiresReasonEditConfirmation = computed(() => {
+  return appointment.value?.status === 'Realizado' || isPastAppointment.value
+})
+
+function startReasonEdit() {
+  reasonDraft.value = currentReason.value
+  isEditingReason.value = true
+  showReasonPastConfirm.value = false
+}
+
+function cancelReasonEdit() {
+  reasonDraft.value = ''
+  isEditingReason.value = false
+  showReasonPastConfirm.value = false
+}
+
+async function saveReason({ confirmedPastEdit = false } = {}) {
+  if (isSavingReason.value || !hasReasonChanges.value) return
+
+  if (requiresReasonEditConfirmation.value && !confirmedPastEdit) {
+    showReasonPastConfirm.value = true
+    return
+  }
+
+  const appointmentId = appointment.value?._id
+  if (!appointmentId) {
+    toast.error('Não foi possível identificar o agendamento.')
+    return
+  }
+
+  try {
+    isSavingReason.value = true
+    const nextNotes = normalizedReasonDraft.value
+    const result = await appointmentsStore.updateAppointment(appointmentId, { notes: nextNotes })
+
+    if (!result.success) {
+      throw result.error || new Error('Falha ao atualizar')
+    }
+
+    if (appointment.value) {
+      appointment.value.notes = result.data?.notes ?? nextNotes
+    }
+
+    toast.success('Motivo/queixa atualizado.')
+    cancelReasonEdit()
+  } catch (error) {
+    console.error('Erro ao atualizar motivo/queixa:', error)
+    toast.error(error?.response?.data?.message || 'Erro ao atualizar motivo/queixa.')
+  } finally {
+    isSavingReason.value = false
+  }
+}
 
 const isConfirmingCancel = ref(false)
 const cancelConfirmTimer = ref(null)
@@ -117,8 +190,8 @@ function goToPatient() {
 
 async function updateStatus(status) {
   const appointmentId = props.event.originalEvent._id
-  const success = await appointmentsStore.updateAppointmentStatus(appointmentId, status)
-  if (success) {
+  const result = await appointmentsStore.updateAppointmentStatus(appointmentId, status)
+  if (result.success) {
     toast.success(`Status atualizado para: ${status}`)
     emit('close')
   } else {
@@ -337,8 +410,83 @@ function handleApprove() {
       <!-- Reason -->
       <section class="section">
          <div class="reason-box">
-            <h4 class="reason-title">Motivo / Queixa</h4>
-            <p class="reason-text">
+            <div class="reason-header">
+              <h4 class="reason-title">Motivo / Queixa</h4>
+              <button
+                v-if="!isEditingReason"
+                type="button"
+                class="reason-edit-btn"
+                title="Editar motivo/queixa"
+                @click="startReasonEdit"
+              >
+                <Pencil :size="14" />
+              </button>
+            </div>
+
+            <template v-if="isEditingReason">
+              <textarea
+                v-model="reasonDraft"
+                class="reason-textarea"
+                maxlength="250"
+                rows="4"
+                placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
+                @input="showReasonPastConfirm = false"
+              ></textarea>
+              <div class="reason-edit-meta">
+                <span
+                  v-if="requiresReasonEditConfirmation"
+                  class="reason-edit-warning"
+                >
+                  Alterações em atendimentos passados precisam de confirmação.
+                </span>
+                <span class="reason-counter">{{ reasonDraft.length }}/250</span>
+              </div>
+
+              <div
+                v-if="showReasonPastConfirm"
+                class="reason-confirm-box"
+              >
+                <AlertCircle :size="18" />
+                <div class="reason-confirm-content">
+                  <strong>Confirmar alteração?</strong>
+                  <p>Este atendimento já passou. Confirme para alterar o motivo/queixa registrado.</p>
+                </div>
+              </div>
+
+              <div class="reason-edit-actions">
+                <AppButton
+                  size="sm"
+                  variant="default"
+                  :disabled="isSavingReason"
+                  @click="cancelReasonEdit"
+                >
+                  Cancelar
+                </AppButton>
+                <AppButton
+                  v-if="showReasonPastConfirm"
+                  size="sm"
+                  variant="warning"
+                  :loading="isSavingReason"
+                  @click="saveReason({ confirmedPastEdit: true })"
+                >
+                  <Check :size="16" />
+                  Confirmar alteração
+                </AppButton>
+                <AppButton
+                  v-else
+                  size="sm"
+                  variant="primary"
+                  :loading="isSavingReason"
+                  :disabled="!hasReasonChanges"
+                  @click="saveReason"
+                >
+                  <Save :size="16" />
+                  Salvar
+                </AppButton>
+              </div>
+            </template>
+
+            <p v-else class="reason-text">
               {{ appointment.notes || 'Nenhuma observação registrada para este agendamento.' }}
             </p>
          </div>
@@ -716,11 +864,40 @@ function handleApprove() {
   border-radius: 0.5rem;
 }
 
+.reason-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
 .reason-title {
   font-size: 0.75rem;
   font-weight: 600;
   color: #6b7280;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
+}
+
+.reason-edit-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background: #fff;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.reason-edit-btn:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .reason-text {
@@ -732,6 +909,91 @@ function handleApprove() {
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+.reason-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #111827;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reason-textarea:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.reason-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.reason-edit-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.reason-edit-warning {
+  color: #92400e;
+}
+
+.reason-counter {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.reason-confirm-box {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #fbbf24;
+  border-radius: 0.5rem;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.reason-confirm-box svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.reason-confirm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reason-confirm-content strong {
+  font-size: 0.8125rem;
+  color: #78350f;
+}
+
+.reason-confirm-content p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.reason-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 /* Grid Sections */
