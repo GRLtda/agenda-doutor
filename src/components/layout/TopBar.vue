@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share, Apple } from 'lucide-vue-next'
+import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -37,7 +37,6 @@ const openSettingsModal = () => {
 
 const searchQuery = ref('')
 const isSearchFocused = ref(false)
-const isMacPlatform = ref(false)
 
 const appointmentsStore = useAppointmentsStore()
 const patientsStore = usePatientsStore()
@@ -145,8 +144,6 @@ const allItems = computed(() => {
 const showPatients = computed(() => recentPatients.value.length > 0)
 const showShortcuts = computed(() => filteredShortcuts.value.length > 0)
 const hasNoResults = computed(() => searchQuery.value && !showPatients.value && !showShortcuts.value)
-const searchShortcutLabel = computed(() => (isMacPlatform.value ? '+ K' : 'Ctrl + K'))
-
 // Reset selection quando busca muda
 watch(searchQuery, () => {
   selectedIndex.value = 0
@@ -213,15 +210,7 @@ function handleGlobalKeydown(e) {
   handleKeyNavigation(e)
 }
 
-function detectMacPlatform() {
-  const platform = navigator.userAgentData?.platform || navigator.platform || ''
-  const userAgent = navigator.userAgent || ''
-  isMacPlatform.value = true
-  // isMacPlatform.value = /(Mac|iPhone|iPad|iPod)/i.test(platform) || /(Mac|iPhone|iPad|iPod)/i.test(userAgent)
-}
-
 onMounted(() => {
-  detectMacPlatform()
   window.addEventListener('keydown', handleGlobalKeydown)
   checkIfIPhonePwa()
 })
@@ -249,10 +238,6 @@ onUnmounted(() => {
       <button class="search-trigger" @click="isSearchFocused = true">
         <Search :size="18" class="search-icon" />
         <span class="search-placeholder">Pesquisar...</span>
-        <kbd class="search-kbd">
-          <Apple v-if="isMacPlatform" :size="12" class="search-kbd-apple" />
-          {{ searchShortcutLabel }}
-        </kbd>
       </button>
     </div>
 
@@ -547,27 +532,6 @@ onUnmounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   margin-left: 0.75rem;
-}
-
-.search-kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  height: 20px;
-  padding: 0 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-family: inherit;
-  color: #9ca3af;
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  white-space: nowrap;
-}
-
-.search-kbd-apple {
-  color: #6b7280;
 }
 
 /* --- Command Palette Overlay --- */

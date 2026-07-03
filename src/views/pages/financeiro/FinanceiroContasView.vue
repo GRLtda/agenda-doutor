@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
   AlertTriangle,
@@ -41,6 +42,8 @@ const props = defineProps({
 })
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const financeiroStore = useFinanceiroStore()
 const patientsStore = usePatientsStore()
 
@@ -63,8 +66,11 @@ const resumoContaId = ref(null)
 const selectedPatientId = ref(null)
 const patientSearchQuery = ref('')
 const dateRange = ref([startOfMonthDate(), endOfMonthDate()])
+const summaryCarouselIndex = ref(0)
+const summaryCarouselDrag = createCarouselDragState()
 let patientSearchTimeout = null
 let accountSearchTimeout = null
+let isUpdatingQuery = false
 
 const isReceivable = computed(() => props.tipo === 'RECEIVABLE')
 const pageTitle = computed(() => isReceivable.value ? 'Contas a receber' : 'Contas a pagar')
@@ -205,9 +211,219 @@ function formatDateForApi(dateInput) {
   return `${year}-${month}-${day}`
 }
 
+function parseApiDate(value) {
+  if (!value) return null
+  const [year, month, day] = String(value).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function normalizeQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function positiveNumberQuery(value, fallback) {
+  const number = Number(normalizeQueryValue(value))
+  return Number.isFinite(number) && number > 0 ? number : fallback
+}
+
+function queryStringValue(value, fallback = '') {
+  return normalizeQueryValue(value) || fallback
+}
+
+function queriesAreEqual(current, next) {
+  const currentKeys = Object.keys(current).filter((key) => current[key] !== undefined)
+  const nextKeys = Object.keys(next).filter((key) => next[key] !== undefined)
+  if (currentKeys.length !== nextKeys.length) return false
+  return nextKeys.every((key) => String(normalizeQueryValue(current[key]) ?? '') === String(next[key] ?? ''))
+}
+
+function applyQueryToFilters() {
+  const query = route.query
+  const dueStart = queryStringValue(query.dueStart, formatDateForApi(startOfMonthDate()))
+  const dueEnd = queryStringValue(query.dueEnd, formatDateForApi(endOfMonthDate()))
+
+  filters.status = queryStringValue(query.status)
+  filters.search = queryStringValue(query.search)
+  filters.dueStart = dueStart
+  filters.dueEnd = dueEnd
+  filters.page = positiveNumberQuery(query.page, 1)
+  filters.limit = positiveNumberQuery(query.limit, 20)
+  filters.sort = queryStringValue(query.sort, 'dueDate')
+
+  selectedPatientId.value = null
+  patientSearchQuery.value = filters.search
+  dateRange.value = [
+    parseApiDate(dueStart) || startOfMonthDate(),
+    parseApiDate(dueEnd) || endOfMonthDate(),
+  ]
+}
+
+function buildQueryFromFilters() {
+  const query = {
+    dueStart: filters.dueStart,
+    dueEnd: filters.dueEnd,
+  }
+
+  if (filters.status) query.status = filters.status
+  if (filters.search) query.search = filters.search
+  if (filters.page > 1) query.page = String(filters.page)
+  if (filters.limit !== 20) query.limit = String(filters.limit)
+  if (filters.sort && filters.sort !== 'dueDate') query.sort = filters.sort
+
+  return query
+}
+
+async function syncQueryFromFilters() {
+  const query = buildQueryFromFilters()
+  if (queriesAreEqual(route.query, query)) return
+
+  isUpdatingQuery = true
+  await router.replace({ query })
+}
+
+async function syncQueryAndLoad() {
+  await syncQueryFromFilters()
+  load()
+}
+
 function buildSparkline(value, multipliers) {
   const base = Math.max(Math.abs(Number(value || 0)), 1)
   return multipliers.map((multiplier, index) => Math.round(base * multiplier + index))
+}
+
+function createCarouselDragState() {
+  return {
+    pointerId: null,
+    startX: 0,
+    currentX: 0,
+    offset: 0,
+    isDragging: false,
+    suppressClick: false,
+  }
+}
+
+function wrapIndex(current, total, direction) {
+  if (total <= 0) return 0
+  const next = current + direction
+  return (next + total) % total
+}
+
+function activateCarouselCard(nextIndex) {
+  const total = summaryCards.value.length
+  if (total <= 0) return
+  summaryCarouselIndex.value = ((nextIndex % total) + total) % total
+}
+
+function handleCarouselPointerDown(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  summaryCarouselDrag.pointerId = event.pointerId
+  summaryCarouselDrag.startX = event.clientX
+  summaryCarouselDrag.currentX = event.clientX
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.suppressClick = false
+
+  if (event.currentTarget?.setPointerCapture) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+}
+
+function handleCarouselPointerMove(event) {
+  if (summaryCarouselDrag.pointerId !== event.pointerId) return
+  summaryCarouselDrag.currentX = event.clientX
+  const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
+  summaryCarouselDrag.offset = delta
+  if (Math.abs(delta) > 6) summaryCarouselDrag.isDragging = true
+}
+
+function handleCarouselPointerUp() {
+  if (summaryCarouselDrag.pointerId === null) return
+  const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
+  const total = summaryCards.value.length
+
+  if (Math.abs(delta) >= 42 && total > 1) {
+    summaryCarouselIndex.value = delta < 0
+      ? wrapIndex(summaryCarouselIndex.value, total, 1)
+      : wrapIndex(summaryCarouselIndex.value, total, -1)
+  }
+
+  summaryCarouselDrag.pointerId = null
+  summaryCarouselDrag.startX = 0
+  summaryCarouselDrag.currentX = 0
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.suppressClick = true
+  window.setTimeout(() => {
+    summaryCarouselDrag.suppressClick = false
+    summaryCarouselDrag.isDragging = false
+  }, 0)
+}
+
+function handleCarouselPointerCancel() {
+  summaryCarouselDrag.pointerId = null
+  summaryCarouselDrag.startX = 0
+  summaryCarouselDrag.currentX = 0
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.suppressClick = false
+}
+
+function handleCarouselCardClick(index) {
+  if (summaryCarouselDrag.suppressClick || summaryCarouselDrag.isDragging || summaryCards.value.length <= 1) return
+  activateCarouselCard(index)
+}
+
+function getCarouselDistance(index, activeIndex, total) {
+  if (total <= 0) return 0
+  const raw = index - activeIndex
+  const wrapped = ((raw % total) + total) % total
+  return wrapped > total / 2 ? wrapped - total : wrapped
+}
+
+function getCarouselCardState(index, activeIndex, total) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  if (distance === 0) return 'is-active'
+  if (Math.abs(distance) === 1) return 'is-neighbor'
+  return 'is-far'
+}
+
+function getCarouselCardStyle(index, activeIndex, total, dragOffset = 0) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  const absDistance = Math.abs(distance)
+  const isActive = distance === 0
+  const isNeighbor = absDistance === 1
+  const direction = distance === 0 ? 0 : Math.sign(distance)
+  const dragShift = Math.max(-60, Math.min(60, dragOffset * 0.2))
+
+  let translateX = '0px'
+  let scale = 1
+  let opacity = 1
+  let blur = '0px'
+  let zIndex = 4
+
+  if (isActive) {
+    translateX = `${dragShift}px`
+    zIndex = 5
+  } else if (isNeighbor) {
+    translateX = `${direction * 56 + dragShift * 0.35}px`
+    scale = 0.95
+    opacity = 0.74
+    blur = '1.8px'
+    zIndex = 4 - absDistance
+  } else {
+    translateX = `${direction * 82 + dragShift * 0.2}px`
+    scale = 0.9
+    opacity = 0.42
+    blur = '4px'
+    zIndex = 1
+  }
+
+  return {
+    transform: `translateX(${translateX}) scale(${scale})`,
+    opacity,
+    filter: `blur(${blur})`,
+    zIndex,
+  }
 }
 
 function load() {
@@ -226,7 +442,7 @@ function load() {
 
 function applyFilters() {
   filters.page = 1
-  load()
+  syncQueryAndLoad()
 }
 
 function onRangeChange(value) {
@@ -347,12 +563,19 @@ async function removeConta(conta) {
 
 function changePage(page) {
   filters.page = page
-  load()
+  syncQueryAndLoad()
 }
 
 watch(() => props.tipo, () => {
   filters.page = 1
-  clearFilters()
+  filters.status = ''
+  filters.search = ''
+  selectedPatientId.value = null
+  patientSearchQuery.value = ''
+  dateRange.value = [startOfMonthDate(), endOfMonthDate()]
+  filters.dueStart = formatDateForApi(dateRange.value[0])
+  filters.dueEnd = formatDateForApi(dateRange.value[1])
+  syncQueryAndLoad()
   financeiroStore.fetchCategorias({ active: 'true' })
 })
 
@@ -366,11 +589,19 @@ watch(selectedPatientId, (patientId) => {
 
 onMounted(() => {
   financeiroStore.fetchCategorias({ active: 'true' })
-  filters.dueStart = formatDateForApi(dateRange.value[0])
-  filters.dueEnd = formatDateForApi(dateRange.value[1])
+  applyQueryToFilters()
   if (isReceivable.value) {
     patientsStore.fetchAllPatients(1, 100)
   }
+  syncQueryAndLoad()
+})
+
+watch(() => route.query, () => {
+  if (isUpdatingQuery) {
+    isUpdatingQuery = false
+    return
+  }
+  applyQueryToFilters()
   load()
 })
 </script>
@@ -383,7 +614,6 @@ onMounted(() => {
         <p class="subtitle">{{ pageSubtitle }}</p>
       </div>
       <div class="header-actions">
-        <AppButton to="/financeiro" variant="outline" size="sm">Resumo</AppButton>
         <AppButton variant="primary" size="sm" @click="openCreate">
           <Plus :size="16" />
           {{ addLabel }}
@@ -391,7 +621,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="summary-grid">
+    <div class="summary-grid desktop-grid">
       <FinanceSummaryCard
         v-for="card in summaryCards"
         :key="card.key"
@@ -401,7 +631,34 @@ onMounted(() => {
         :value-color="card.valueColor"
         :sparkline="card.sparkline"
         :sparkline-tone="card.sparklineTone"
+        :loading="financeiroStore.loadingContas"
       />
+    </div>
+
+    <div
+      class="carousel-shell mobile-carousel"
+      @pointerdown="handleCarouselPointerDown"
+      @pointermove="handleCarouselPointerMove"
+      @pointerup="handleCarouselPointerUp"
+      @pointercancel="handleCarouselPointerCancel"
+    >
+      <div class="carousel-stack">
+        <FinanceSummaryCard
+          v-for="(card, index) in summaryCards"
+          :key="card.key"
+          class="carousel-card"
+          :class="getCarouselCardState(index, summaryCarouselIndex, summaryCards.length)"
+          :style="getCarouselCardStyle(index, summaryCarouselIndex, summaryCards.length, summaryCarouselDrag.offset)"
+          @click="handleCarouselCardClick(index)"
+          :label="card.label"
+          :value="card.value"
+          :subtext="card.subtext"
+          :value-color="card.valueColor"
+          :sparkline="card.sparkline"
+          :sparkline-tone="card.sparklineTone"
+          :loading="financeiroStore.loadingContas"
+        />
+      </div>
     </div>
 
     <div class="filtros-bar">
@@ -426,6 +683,7 @@ onMounted(() => {
         class="patient-filter"
         :options="patientOptions"
         :loading="patientsStore.isLoading"
+        :search-value="filters.search"
         empty-label="Busque por paciente ou título"
         @search="handlePatientSearch"
       />
@@ -705,6 +963,94 @@ onMounted(() => {
 .summary-grid :deep(.summary-card) {
   min-height: 92px;
   padding: 0.85rem 1rem;
+}
+
+.desktop-grid {
+  display: grid;
+}
+
+.mobile-carousel {
+  display: none;
+}
+
+.carousel-shell {
+  position: relative;
+  min-width: 0;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  overflow: visible;
+}
+
+.carousel-shell::before,
+.carousel-shell::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.35rem;
+  height: 1.35rem;
+  color: rgba(100, 116, 139, 0.52);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 6;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.82);
+}
+
+.carousel-shell::before {
+  content: '‹';
+  left: 0.1rem;
+}
+
+.carousel-shell::after {
+  content: '›';
+  right: 0.1rem;
+}
+
+.carousel-shell:active {
+  cursor: grabbing;
+}
+
+.carousel-stack {
+  position: relative;
+  height: 156px;
+  min-width: 0;
+  overflow: visible;
+  padding-inline: 0.25rem;
+}
+
+.carousel-card {
+  position: absolute;
+  inset: 0 0.35rem;
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  cursor: pointer;
+}
+
+.carousel-card.is-active {
+  z-index: 5;
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: none;
+}
+
+.carousel-card.is-neighbor {
+  opacity: 0.74;
+  pointer-events: auto;
+}
+
+.carousel-card.is-far {
+  z-index: 1;
+  opacity: 0.38;
+  filter: blur(4px) saturate(0.9);
+  pointer-events: none;
 }
 
 .filtros-bar {
@@ -1148,6 +1494,14 @@ th.actions-header {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .desktop-grid {
+    display: none !important;
+  }
+
+  .mobile-carousel {
+    display: block;
   }
 
   .filtros-bar {

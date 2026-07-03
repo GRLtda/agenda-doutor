@@ -695,6 +695,7 @@ onMounted(load)
         :subtext="card.subtext"
         :sparkline="card.sparkline"
         :sparkline-tone="card.sparklineTone"
+        :loading="financeiroStore.loadingResumo"
       />
     </div>
 
@@ -720,6 +721,7 @@ onMounted(load)
           :subtext="card.subtext"
           :sparkline="card.sparkline"
           :sparkline-tone="card.sparklineTone"
+          :loading="financeiroStore.loadingResumo"
         />
       </div>
     </div>
@@ -837,6 +839,7 @@ onMounted(load)
         :value="card.value"
         :sparkline="card.sparkline"
         :sparkline-tone="card.sparklineTone"
+        :loading="analyticsStore.isLoading"
       />
     </div>
 
@@ -860,6 +863,7 @@ onMounted(load)
           :value="card.value"
           :sparkline="card.sparkline"
           :sparkline-tone="card.sparklineTone"
+          :loading="analyticsStore.isLoading"
         />
       </div>
     </div>
