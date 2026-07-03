@@ -116,13 +116,21 @@ const dashboardRoutes = [
       },
       {
         path: 'financeiro/a-receber',
+        redirect: to => ({ name: 'financeiro-a-receber', query: to.query }),
+      },
+      {
+        path: 'financeiro/a-pagar',
+        redirect: to => ({ name: 'financeiro-a-pagar', query: to.query }),
+      },
+      {
+        path: 'financeiro/receber',
         name: 'financeiro-a-receber',
         component: () => import('../views/pages/financeiro/FinanceiroContasView.vue'),
         props: { tipo: 'RECEIVABLE' },
         meta: { title: 'Contas a Receber' },
       },
       {
-        path: 'financeiro/a-pagar',
+        path: 'financeiro/pagar',
         name: 'financeiro-a-pagar',
         component: () => import('../views/pages/financeiro/FinanceiroContasView.vue'),
         props: { tipo: 'PAYABLE' },

@@ -1,7 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { CalendarDays, SearchX } from 'lucide-vue-next'
-import AppButton from '@/components/global/AppButton.vue'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import AppPagination from '@/components/global/AppPagination.vue'
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
@@ -9,6 +11,8 @@ import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 
 const financeiroStore = useFinanceiroStore()
+const route = useRoute()
+const router = useRouter()
 
 const filters = reactive({
   startDate: '',
@@ -16,6 +20,11 @@ const filters = reactive({
   page: 1,
   limit: 20,
 })
+
+const dateRange = ref([startOfMonthDate(), endOfMonthDate()])
+const summaryCarouselIndex = ref(0)
+const summaryCarouselDrag = createCarouselDragState()
+let isUpdatingQuery = false
 
 const totals = computed(() => {
   return financeiroStore.movimentosCaixa.reduce((acc, item) => {
@@ -105,6 +114,230 @@ function buildSparkline(value, multipliers) {
   return multipliers.map((multiplier, index) => Math.round(base * multiplier + index))
 }
 
+function startOfMonthDate() {
+  const date = new Date()
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function endOfMonthDate() {
+  const date = new Date()
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function formatDateDisplay(dateInput) {
+  if (!dateInput) return ''
+  const date = new Date(dateInput)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('pt-BR')
+}
+
+function formatDateForApi(dateInput) {
+  if (!dateInput) return ''
+  const date = new Date(dateInput)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function parseApiDate(value) {
+  if (!value) return null
+  const [year, month, day] = String(value).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function normalizeQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function queryStringValue(value, fallback = '') {
+  return normalizeQueryValue(value) || fallback
+}
+
+function positiveNumberQuery(value, fallback) {
+  const number = Number(normalizeQueryValue(value))
+  return Number.isFinite(number) && number > 0 ? number : fallback
+}
+
+function queriesAreEqual(current, next) {
+  const currentKeys = Object.keys(current).filter((key) => current[key] !== undefined)
+  const nextKeys = Object.keys(next).filter((key) => next[key] !== undefined)
+  if (currentKeys.length !== nextKeys.length) return false
+  return nextKeys.every((key) => String(normalizeQueryValue(current[key]) ?? '') === String(next[key] ?? ''))
+}
+
+function applyQueryToFilters() {
+  const query = route.query
+  const startDate = queryStringValue(query.startDate, formatDateForApi(startOfMonthDate()))
+  const endDate = queryStringValue(query.endDate, formatDateForApi(endOfMonthDate()))
+
+  filters.startDate = startDate
+  filters.endDate = endDate
+  filters.page = positiveNumberQuery(query.page, 1)
+  filters.limit = positiveNumberQuery(query.limit, 20)
+  dateRange.value = [
+    parseApiDate(startDate) || startOfMonthDate(),
+    parseApiDate(endDate) || endOfMonthDate(),
+  ]
+}
+
+function buildQueryFromFilters() {
+  const query = {
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  }
+
+  if (filters.page > 1) query.page = String(filters.page)
+  if (filters.limit !== 20) query.limit = String(filters.limit)
+
+  return query
+}
+
+async function syncQueryFromFilters() {
+  const query = buildQueryFromFilters()
+  if (queriesAreEqual(route.query, query)) return
+
+  isUpdatingQuery = true
+  await router.replace({ query })
+}
+
+async function syncQueryAndLoad() {
+  await syncQueryFromFilters()
+  load()
+}
+
+function createCarouselDragState() {
+  return {
+    pointerId: null,
+    startX: 0,
+    currentX: 0,
+    offset: 0,
+    isDragging: false,
+    suppressClick: false,
+  }
+}
+
+function wrapIndex(current, total, direction) {
+  if (total <= 0) return 0
+  const next = current + direction
+  return (next + total) % total
+}
+
+function activateCarouselCard(nextIndex) {
+  const total = summaryCards.value.length
+  if (total <= 0) return
+  summaryCarouselIndex.value = ((nextIndex % total) + total) % total
+}
+
+function handleCarouselPointerDown(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  summaryCarouselDrag.pointerId = event.pointerId
+  summaryCarouselDrag.startX = event.clientX
+  summaryCarouselDrag.currentX = event.clientX
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.suppressClick = false
+
+  if (event.currentTarget?.setPointerCapture) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+}
+
+function handleCarouselPointerMove(event) {
+  if (summaryCarouselDrag.pointerId !== event.pointerId) return
+  summaryCarouselDrag.currentX = event.clientX
+  const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
+  summaryCarouselDrag.offset = delta
+  if (Math.abs(delta) > 6) summaryCarouselDrag.isDragging = true
+}
+
+function handleCarouselPointerUp() {
+  if (summaryCarouselDrag.pointerId === null) return
+  const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
+  const total = summaryCards.value.length
+
+  if (Math.abs(delta) >= 42 && total > 1) {
+    summaryCarouselIndex.value = delta < 0
+      ? wrapIndex(summaryCarouselIndex.value, total, 1)
+      : wrapIndex(summaryCarouselIndex.value, total, -1)
+  }
+
+  summaryCarouselDrag.pointerId = null
+  summaryCarouselDrag.startX = 0
+  summaryCarouselDrag.currentX = 0
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.suppressClick = true
+  window.setTimeout(() => {
+    summaryCarouselDrag.suppressClick = false
+    summaryCarouselDrag.isDragging = false
+  }, 0)
+}
+
+function handleCarouselPointerCancel() {
+  summaryCarouselDrag.pointerId = null
+  summaryCarouselDrag.startX = 0
+  summaryCarouselDrag.currentX = 0
+  summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.suppressClick = false
+}
+
+function handleCarouselCardClick(index) {
+  if (summaryCarouselDrag.suppressClick || summaryCarouselDrag.isDragging || summaryCards.value.length <= 1) return
+  activateCarouselCard(index)
+}
+
+function getCarouselDistance(index, activeIndex, total) {
+  if (total <= 0) return 0
+  const raw = index - activeIndex
+  const wrapped = ((raw % total) + total) % total
+  return wrapped > total / 2 ? wrapped - total : wrapped
+}
+
+function getCarouselCardState(index, activeIndex, total) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  if (distance === 0) return 'is-active'
+  if (Math.abs(distance) === 1) return 'is-neighbor'
+  return 'is-far'
+}
+
+function getCarouselCardStyle(index, activeIndex, total, dragOffset = 0) {
+  const distance = getCarouselDistance(index, activeIndex, total)
+  const absDistance = Math.abs(distance)
+  const isNeighbor = absDistance === 1
+  const direction = distance === 0 ? 0 : Math.sign(distance)
+  const dragShift = Math.max(-60, Math.min(60, dragOffset * 0.2))
+
+  let translateX = `${dragShift}px`
+  let scale = 1
+  let opacity = 1
+  let blur = '0px'
+  let zIndex = 5
+
+  if (distance !== 0 && isNeighbor) {
+    translateX = `${direction * 56 + dragShift * 0.35}px`
+    scale = 0.95
+    opacity = 0.74
+    blur = '1.8px'
+    zIndex = 4 - absDistance
+  } else if (distance !== 0) {
+    translateX = `${direction * 82 + dragShift * 0.2}px`
+    scale = 0.9
+    opacity = 0.42
+    blur = '4px'
+    zIndex = 1
+  }
+
+  return {
+    transform: `translateX(${translateX}) scale(${scale})`,
+    opacity,
+    filter: `blur(${blur})`,
+    zIndex,
+  }
+}
+
 function movementValueClass(type) {
   if (type === 'RECEIPT') return 'text-emerald-600'
   if (type === 'PAYMENT') return 'text-red-600'
@@ -123,15 +356,35 @@ function load() {
 
 function applyFilters() {
   filters.page = 1
-  load()
+  syncQueryAndLoad()
+}
+
+function onRangeChange(value) {
+  if (!Array.isArray(value) || value.length < 2 || !value[0] || !value[1]) return
+  dateRange.value = value
+  filters.startDate = formatDateForApi(value[0])
+  filters.endDate = formatDateForApi(value[1])
+  applyFilters()
 }
 
 function changePage(page) {
   filters.page = page
-  load()
+  syncQueryAndLoad()
 }
 
-onMounted(load)
+onMounted(() => {
+  applyQueryToFilters()
+  syncQueryAndLoad()
+})
+
+watch(() => route.query, () => {
+  if (isUpdatingQuery) {
+    isUpdatingQuery = false
+    return
+  }
+  applyQueryToFilters()
+  load()
+})
 </script>
 
 <template>
@@ -141,10 +394,36 @@ onMounted(load)
         <h1 class="title">Caixa</h1>
         <p class="subtitle">Movimentações registradas por baixas de contas.</p>
       </div>
-      <AppButton to="/financeiro" variant="outline" size="sm">Resumo</AppButton>
+      <div class="header-actions">
+        <VueDatePicker
+          class="period-picker"
+          :model-value="dateRange"
+          @update:model-value="onRangeChange"
+          range
+          multi-calendars
+          :enable-time-picker="false"
+          locale="pt-BR"
+          format="dd/MM/yyyy"
+          auto-apply
+          teleport="body"
+          :z-index="12000"
+          :clearable="false"
+        >
+          <template #trigger>
+            <button class="period-trigger" type="button" aria-label="Selecionar período">
+              <CalendarDays :size="15" />
+              <span class="period-trigger__text">
+                <strong>{{ formatDateDisplay(dateRange[0]) || 'Início' }}</strong>
+                <span>até</span>
+                <strong>{{ formatDateDisplay(dateRange[1]) || 'Fim' }}</strong>
+              </span>
+            </button>
+          </template>
+        </VueDatePicker>
+      </div>
     </div>
 
-    <div class="summary-grid">
+    <div class="summary-grid desktop-grid">
       <FinanceSummaryCard
         v-for="card in summaryCards"
         :key="card.key"
@@ -157,16 +436,31 @@ onMounted(load)
       />
     </div>
 
-    <div class="filtros-bar">
-      <div class="input-with-icon">
-        <CalendarDays :size="16" />
-        <input v-model="filters.startDate" type="date" @change="applyFilters" />
-      </div>
-      <div class="input-with-icon">
-        <CalendarDays :size="16" />
-        <input v-model="filters.endDate" type="date" @change="applyFilters" />
+    <div
+      class="carousel-shell mobile-carousel"
+      @pointerdown="handleCarouselPointerDown"
+      @pointermove="handleCarouselPointerMove"
+      @pointerup="handleCarouselPointerUp"
+      @pointercancel="handleCarouselPointerCancel"
+    >
+      <div class="carousel-stack">
+        <FinanceSummaryCard
+          v-for="(card, index) in summaryCards"
+          :key="card.key"
+          class="carousel-card"
+          :class="getCarouselCardState(index, summaryCarouselIndex, summaryCards.length)"
+          :style="getCarouselCardStyle(index, summaryCarouselIndex, summaryCards.length, summaryCarouselDrag.offset)"
+          @click="handleCarouselCardClick(index)"
+          :label="card.label"
+          :value="card.value"
+          :subtext="card.subtext"
+          :value-color="card.valueColor"
+          :sparkline="card.sparkline"
+          :sparkline-tone="card.sparklineTone"
+        />
       </div>
     </div>
+
 
     <div class="table-wrapper" :class="{ 'is-loading': financeiroStore.loadingCaixa && financeiroStore.movimentosCaixa.length > 0 }">
       <div class="table-container desktop-only">
@@ -267,7 +561,10 @@ onMounted(load)
 .finance-page {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 0.85rem;
+  min-height: 0;
+  height: calc(100vh - 7.5rem);
+  overflow: hidden;
   color: #0f172a;
 }
 
@@ -280,6 +577,14 @@ onMounted(load)
 
 .page-copy {
   min-width: 260px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex: 0 0 auto;
 }
 
 .title {
@@ -302,48 +607,165 @@ onMounted(load)
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
-.filtros-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-  padding: 0.7rem;
-  background: #fff;
-  border: 1px solid #e8edf4;
-  border-radius: 0.85rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+.summary-grid :deep(.summary-card) {
+  min-height: 92px;
+  padding: 0.85rem 1rem;
 }
 
-.input-with-icon {
-  display: flex;
+.desktop-grid {
+  display: grid;
+}
+
+.mobile-carousel {
+  display: none;
+}
+
+.carousel-shell {
+  position: relative;
+  min-width: 0;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  overflow: visible;
+}
+
+.carousel-shell::before,
+.carousel-shell::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.35rem;
+  height: 1.35rem;
+  color: rgba(100, 116, 139, 0.52);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 6;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.82);
+}
+
+.carousel-shell::before {
+  content: '‹';
+  left: 0.1rem;
+}
+
+.carousel-shell::after {
+  content: '›';
+  right: 0.1rem;
+}
+
+.carousel-shell:active {
+  cursor: grabbing;
+}
+
+.carousel-stack {
+  position: relative;
+  height: 156px;
+  min-width: 0;
+  overflow: visible;
+  padding-inline: 0.25rem;
+}
+
+.carousel-card {
+  position: absolute;
+  inset: 0 0.35rem;
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  cursor: pointer;
+}
+
+.carousel-card.is-active {
+  z-index: 5;
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: none;
+}
+
+.carousel-card.is-neighbor {
+  opacity: 0.74;
+  pointer-events: auto;
+}
+
+.carousel-card.is-far {
+  z-index: 1;
+  opacity: 0.38;
+  filter: blur(4px) saturate(0.9);
+  pointer-events: none;
+}
+
+.period-picker {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.period-picker :deep(.dp__main) {
+  width: auto;
+}
+
+.period-trigger {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  gap: 0.55rem;
   min-height: 40px;
-  padding: 0 0.85rem;
+  width: auto;
+  min-width: 246px;
+  padding: 0 0.9rem;
   border: 1px solid #e5eaf1;
   border-radius: 0.75rem;
   background: #fff;
-  color: #94a3b8;
+  color: #0f172a;
+  text-align: left;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+  font-family: var(--fonte-principal);
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.input-with-icon input {
-  border: 0;
-  outline: 0;
-  color: #0f172a;
-  background: transparent;
-  font-family: var(--fonte-principal);
-  font-size: 0.88rem;
+.period-trigger:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.period-trigger__text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.42rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.period-trigger__text strong {
+  font-weight: 600;
+}
+
+.period-trigger__text span {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .table-wrapper {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: min(640px, calc(100vh - 300px));
+  flex: 1 1 auto;
+  height: min(100%, calc(100vh - 21.5rem));
+  max-height: calc(100vh - 21.5rem);
   background-color: var(--branco);
   border: 1px solid #e8edf4;
   border-radius: 0.85rem;
@@ -370,7 +792,7 @@ table {
 
 th,
 td {
-  padding: 0.9rem 1.1rem;
+  padding: 0.72rem 1.1rem;
   text-align: left;
   border-bottom: 1px solid #edf2f7;
   vertical-align: middle;
@@ -541,24 +963,51 @@ th {
 }
 
 @media (max-width: 640px) {
+  .finance-page {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
   .page-header {
     flex-direction: column;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: stretch;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .filtros-bar {
-    align-items: stretch;
-    flex-direction: column;
+  .desktop-grid {
+    display: none !important;
   }
 
-  .input-with-icon {
+  .mobile-carousel {
+    display: block;
+  }
+
+  .period-picker,
+  .period-trigger {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .period-picker :deep(.dp__main) {
     width: 100%;
   }
 
+  .period-trigger__text {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .table-wrapper {
+    height: auto;
     max-height: 520px;
   }
 
