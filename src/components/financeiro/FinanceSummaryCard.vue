@@ -1,10 +1,11 @@
 <template>
-  <section class="summary-card" :class="[themeClass, { 'has-sparkline': hasSparkline }]">
+  <section class="summary-card" :class="[themeClass, { 'has-sparkline': hasSparkline, 'is-loading': loading }]">
     <div class="summary-card__top">
       <span>{{ label }}</span>
     </div>
     <div class="summary-card__body">
-      <strong :class="valueClass">{{ value }}</strong>
+      <strong v-if="!loading" :class="valueClass">{{ displayValue }}</strong>
+      <span v-else class="summary-card__value-skeleton" aria-label="Carregando valor"></span>
       <svg
         v-if="hasSparkline"
         class="summary-card__sparkline"
@@ -33,15 +34,16 @@
         />
       </svg>
     </div>
-    <div v-if="subtext || trend" class="summary-card__meta">
+    <div v-if="subtext || trend || loading" class="summary-card__meta">
       <small v-if="subtext">{{ subtext }}</small>
+      <small v-else-if="loading" class="summary-card__loading-text">Atualizando dados</small>
       <span v-if="trend" class="summary-card__trend">{{ trend }}</span>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
   label: { type: String, required: true },
@@ -52,7 +54,12 @@ const props = defineProps({
   valueColor: { type: String, default: 'default', validator: v => ['default', 'green', 'red'].includes(v) },
   sparkline: { type: Array, default: () => [] },
   sparklineTone: { type: String, default: '', validator: v => ['', 'blue', 'red', 'green', 'amber', 'slate'].includes(v) },
+  loading: { type: Boolean, default: false },
 })
+
+const displayValue = ref(String(props.value ?? ''))
+const lastNumericValue = ref(parseDisplayNumber(props.value))
+let animationFrame = null
 
 const themeClass = computed(() => {
   return `theme-${props.theme}`
@@ -127,6 +134,26 @@ const sparklineFocusPoint = computed(() => {
   return coordinates[Math.max(1, coordinates.length - 2)]
 })
 
+watch(() => props.value, (nextValue, previousValue) => {
+  if (props.loading) {
+    displayValue.value = String(nextValue ?? '')
+    lastNumericValue.value = parseDisplayNumber(nextValue)
+    return
+  }
+
+  animateValue(previousValue, nextValue)
+}, { immediate: true })
+
+watch(() => props.loading, (isLoading, wasLoading) => {
+  if (!isLoading && wasLoading) {
+    animateValue(0, props.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (animationFrame) cancelAnimationFrame(animationFrame)
+})
+
 function buildSmoothPath(points) {
   if (!points.length) return ''
   if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
@@ -150,6 +177,77 @@ function buildSmoothPath(points) {
   }
 
   return commands.join(' ')
+}
+
+function parseDisplayNumber(value) {
+  if (typeof value === 'number') return value
+  if (value === null || value === undefined) return null
+
+  const text = String(value)
+  const numericText = text
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.')
+
+  const number = Number(numericText)
+  return Number.isFinite(number) ? number : null
+}
+
+function formatAnimatedValue(value, template) {
+  const text = String(template ?? '')
+  const rounded = Math.round(value)
+
+  if (/R\$\s*/.test(text)) {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value)
+  }
+
+  if (/%/.test(text)) {
+    return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)}%`
+  }
+
+  if (typeof template === 'number' || /^\d+([,.]\d+)?$/.test(text.trim())) {
+    return new Intl.NumberFormat('pt-BR').format(rounded)
+  }
+
+  return text
+}
+
+function animateValue(fromValue, toValue) {
+  if (animationFrame) cancelAnimationFrame(animationFrame)
+
+  const targetNumber = parseDisplayNumber(toValue)
+  const startNumber = lastNumericValue.value ?? parseDisplayNumber(fromValue) ?? 0
+
+  if (targetNumber === null) {
+    displayValue.value = String(toValue ?? '')
+    lastNumericValue.value = null
+    return
+  }
+
+  const duration = 760
+  const startTime = performance.now()
+
+  const tick = (now) => {
+    const progress = Math.min((now - startTime) / duration, 1)
+    const eased = 1 - Math.pow(1 - progress, 3)
+    const current = startNumber + (targetNumber - startNumber) * eased
+
+    displayValue.value = formatAnimatedValue(current, toValue)
+
+    if (progress < 1) {
+      animationFrame = requestAnimationFrame(tick)
+      return
+    }
+
+    displayValue.value = formatAnimatedValue(targetNumber, toValue)
+    lastNumericValue.value = targetNumber
+    animationFrame = null
+  }
+
+  animationFrame = requestAnimationFrame(tick)
 }
 </script>
 
@@ -204,6 +302,33 @@ function buildSmoothPath(points) {
   min-width: 0;
   overflow: visible;
 }
+.summary-card.is-loading .summary-card__sparkline {
+  opacity: 0.28;
+}
+.summary-card__value-skeleton {
+  display: inline-block;
+  width: min(68%, 11rem);
+  height: 1.75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef3f8 0%, #f8fafc 45%, #eef3f8 90%);
+  background-size: 220% 100%;
+  animation: summary-card-pulse 1.2s ease-in-out infinite;
+}
+.summary-card__loading-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.summary-card__loading-text::after {
+  content: '';
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0.55rem 0 0 currentColor, 1.1rem 0 0 currentColor;
+  opacity: 0.45;
+  animation: summary-card-dots 1.1s ease-in-out infinite;
+}
 .summary-card__meta {
   display: flex;
   align-items: center;
@@ -228,6 +353,16 @@ function buildSmoothPath(points) {
 }
 .txt-red {
   color: #dc2626 !important;
+}
+
+@keyframes summary-card-pulse {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+@keyframes summary-card-dots {
+  0%, 100% { opacity: 0.28; transform: translateY(0); }
+  50% { opacity: 0.72; transform: translateY(-1px); }
 }
 
 </style>

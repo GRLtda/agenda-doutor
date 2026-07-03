@@ -433,6 +433,7 @@ watch(() => route.query, () => {
         :value-color="card.valueColor"
         :sparkline="card.sparkline"
         :sparkline-tone="card.sparklineTone"
+        :loading="financeiroStore.loadingCaixa"
       />
     </div>
 
@@ -457,6 +458,7 @@ watch(() => route.query, () => {
           :value-color="card.valueColor"
           :sparkline="card.sparkline"
           :sparkline-tone="card.sparklineTone"
+          :loading="financeiroStore.loadingCaixa"
         />
       </div>
     </div>
