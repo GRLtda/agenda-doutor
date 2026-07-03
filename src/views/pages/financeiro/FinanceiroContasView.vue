@@ -28,6 +28,7 @@ import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import FinanceiroContaDrawer from '@/components/financeiro/FinanceiroContaDrawer.vue'
 import FinanceiroBaixaDrawer from '@/components/financeiro/FinanceiroBaixaDrawer.vue'
+import FinanceiroResumoDrawer from '@/components/financeiro/FinanceiroResumoDrawer.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { usePatientsStore } from '@/stores/patients'
@@ -55,8 +56,10 @@ const filters = reactive({
 
 const showContaDrawer = ref(false)
 const showBaixaDrawer = ref(false)
+const showResumoDrawer = ref(false)
 const editingConta = ref(null)
 const selectedConta = ref(null)
+const resumoContaId = ref(null)
 const selectedPatientId = ref(null)
 const patientSearchQuery = ref('')
 const dateRange = ref([startOfMonthDate(), endOfMonthDate()])
@@ -291,6 +294,19 @@ function openBaixa(conta) {
   showBaixaDrawer.value = true
 }
 
+function openResumo(conta) {
+  if (!conta?._id) return
+  resumoContaId.value = conta._id
+  showResumoDrawer.value = true
+}
+
+function onResumoBaixa(conta) {
+  if (!conta) return
+  selectedConta.value = conta
+  showResumoDrawer.value = false
+  showBaixaDrawer.value = true
+}
+
 async function saveConta(payload) {
   const result = editingConta.value
     ? await financeiroStore.updateConta(editingConta.value._id, payload)
@@ -497,7 +513,7 @@ onMounted(() => {
               </tr>
             </template>
             <template v-else>
-              <tr v-for="conta in financeiroStore.contas" :key="conta._id" class="table-row">
+              <tr v-for="conta in financeiroStore.contas" :key="conta._id" class="table-row table-row--clickable" @click="openResumo(conta)">
                 <td class="whitespace-nowrap table-date">{{ formatDate(conta.dueDate) }}</td>
                 <td>
                   <div class="party-cell">
@@ -551,7 +567,7 @@ onMounted(() => {
            </div>
         </template>
         <template v-else-if="financeiroStore.contas.length > 0">
-          <article v-for="conta in financeiroStore.contas" :key="conta._id" class="mobile-card">
+          <article v-for="conta in financeiroStore.contas" :key="conta._id" class="mobile-card mobile-card--clickable" @click="openResumo(conta)">
             <div class="mobile-card-header">
               <div>
                 <strong>{{ conta.party?.name || '-' }}</strong>
@@ -620,6 +636,14 @@ onMounted(() => {
       :loading="financeiroStore.loadingAcao"
       @close="showBaixaDrawer = false"
       @save="saveBaixa"
+    />
+
+    <FinanceiroResumoDrawer
+      v-if="showResumoDrawer && resumoContaId"
+      :conta-id="resumoContaId"
+      :tipo="tipo"
+      @close="showResumoDrawer = false"
+      @baixa="onResumoBaixa"
     />
   </div>
 </template>
@@ -942,6 +966,25 @@ tbody tr:last-child td {
 
 tbody tr:hover td {
   background: #fbfdff;
+}
+
+.table-row--clickable {
+  cursor: pointer;
+}
+
+.table-row--clickable:hover td {
+  background: #f8fbff;
+}
+
+.mobile-card--clickable {
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.mobile-card--clickable:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
 }
 
 th {
