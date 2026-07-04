@@ -192,6 +192,11 @@ const appointmentsByStatus = computed(() => {
 
 // Contagem total
 const totalAppointments = computed(() => filteredAppointments.value.length)
+const formattedDateRange = computed(() => {
+  const start = formatDateDisplay(dateRange.value?.[0])
+  const end = formatDateDisplay(dateRange.value?.[1] || dateRange.value?.[0])
+  return { start, end }
+})
 
 // ✨ Fetch appointments based on date range
 async function fetchAppointments() {
@@ -593,20 +598,24 @@ function closeActionMenu(event) {
           <VueDatePicker
             v-model="dateRange"
             range
+            multi-calendars
             :enable-time-picker="false"
             locale="pt-BR"
             format="dd/MM/yyyy"
             auto-apply
+            teleport="body"
+            :z-index="12000"
             :clearable="false"
-            placeholder="Selecione o período"
           >
             <template #trigger>
-               <div class="custom-date-trigger">
-                  <div class="date-value">
-                     {{ formatDateDisplay(dateRange[0]) }}
-                     <CalendarDays :size="14" class="text-slate-400" />
-                  </div>
-               </div>
+              <button class="period-trigger" type="button" aria-label="Selecionar período">
+                <CalendarDays :size="15" />
+                <span class="period-trigger__text">
+                  <strong>{{ formattedDateRange.start }}</strong>
+                  <span>até</span>
+                  <strong>{{ formattedDateRange.end }}</strong>
+                </span>
+              </button>
             </template>
           </VueDatePicker>
         </div>
@@ -1036,7 +1045,7 @@ function closeActionMenu(event) {
 }
 
 .date-picker-wrapper {
-  width: 290px;
+  width: 320px;
 }
 
 @media (max-width: 768px) {
@@ -1057,6 +1066,11 @@ function closeActionMenu(event) {
     width: 100%;
   }
 
+  .period-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .active-filters-indicator {
     align-self: flex-start;
     display: none;
@@ -1075,37 +1089,47 @@ function closeActionMenu(event) {
   }
 }
 
-.custom-date-trigger {
+.period-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  gap: 0.65rem;
+  width: 100%;
   background-color: var(--branco);
   border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.5rem;
+  border-radius: 0.6rem;
+  padding: 0 0.9rem;
   cursor: pointer;
   height: 42px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.custom-date-trigger:hover {
+.period-trigger:hover {
   border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
-.date-value {
+.period-trigger__text {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: #1e293b;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.separator {
+.period-trigger__text strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.period-trigger__text span {
   color: #94a3b8;
-  font-size: 0.85rem;
-  font-weight: 400;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 /* Kanban Container */
