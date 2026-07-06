@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, onUnmounted } from 'vue'
+import { computed, ref, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useAuthStore } from '@/stores/auth'
@@ -63,6 +63,7 @@ const isReturn = computed(() => {
 })
 
 const reasonDraft = ref('')
+const reasonTextarea = ref(null)
 const isEditingReason = ref(false)
 const isSavingReason = ref(false)
 const showReasonPastConfirm = ref(false)
@@ -88,12 +89,26 @@ function startReasonEdit() {
   reasonDraft.value = currentReason.value
   isEditingReason.value = true
   showReasonPastConfirm.value = false
+  nextTick(adjustReasonTextareaHeight)
 }
 
 function cancelReasonEdit() {
   reasonDraft.value = ''
   isEditingReason.value = false
   showReasonPastConfirm.value = false
+}
+
+function adjustReasonTextareaHeight() {
+  const textarea = reasonTextarea.value
+  if (!textarea) return
+
+  textarea.style.height = 'auto'
+  textarea.style.height = `${textarea.scrollHeight}px`
+}
+
+function handleReasonInput() {
+  showReasonPastConfirm.value = false
+  adjustReasonTextareaHeight()
 }
 
 async function saveReason({ confirmedPastEdit = false } = {}) {
@@ -121,6 +136,9 @@ async function saveReason({ confirmedPastEdit = false } = {}) {
 
     if (appointment.value) {
       appointment.value.notes = result.data?.notes ?? nextNotes
+      if (result.data?.timeline) {
+        appointment.value.timeline = result.data.timeline
+      }
     }
 
     toast.success('Motivo/queixa atualizado.')
@@ -132,6 +150,10 @@ async function saveReason({ confirmedPastEdit = false } = {}) {
     isSavingReason.value = false
   }
 }
+
+watch(reasonDraft, () => {
+  if (isEditingReason.value) nextTick(adjustReasonTextareaHeight)
+})
 
 const isConfirmingCancel = ref(false)
 const cancelConfirmTimer = ref(null)
@@ -424,21 +446,16 @@ function handleApprove() {
             </div>
 
             <template v-if="isEditingReason">
-              <textarea
-                v-model="reasonDraft"
-                class="reason-textarea"
-                maxlength="250"
-                rows="4"
-                placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
-                @input="showReasonPastConfirm = false"
-              ></textarea>
-              <div class="reason-edit-meta">
-                <span
-                  v-if="requiresReasonEditConfirmation"
-                  class="reason-edit-warning"
-                >
-                  Alterações em atendimentos passados precisam de confirmação.
-                </span>
+              <div class="reason-textarea-wrapper">
+                <textarea
+                  ref="reasonTextarea"
+                  v-model="reasonDraft"
+                  class="reason-textarea"
+                  maxlength="250"
+                  rows="1"
+                  placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
+                  @input="handleReasonInput"
+                ></textarea>
                 <span class="reason-counter">{{ reasonDraft.length }}/250</span>
               </div>
 
@@ -500,18 +517,14 @@ function handleApprove() {
                <div class="booking-item">
                   <span class="label">Data</span>
                   <div class="value date-time-value">
-                     <span class="icon-badge icon-blue">
-                       <Calendar :size="14" />
-                     </span>
+                     <Calendar :size="14" class="booking-icon icon-blue" />
                      <span class="appointment-date">{{ formatDate(event.start) }}</span>
                   </div>
                </div>
                <div class="booking-item">
                   <span class="label">Tipo</span>
                   <div class="value">
-                     <span class="icon-badge icon-violet">
-                       <MessageSquare :size="14" />
-                     </span>
+                     <MessageSquare :size="14" class="booking-icon icon-violet" />
                      <span>{{ isReturn ? 'Retorno' : 'Consulta' }}</span>
                   </div>
                </div>
@@ -911,10 +924,14 @@ function handleApprove() {
   white-space: pre-wrap;
 }
 
+.reason-textarea-wrapper {
+  position: relative;
+}
+
 .reason-textarea {
   width: 100%;
   min-height: 96px;
-  padding: 0.75rem;
+  padding: 0.75rem 0.75rem 1.75rem;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
   background: #fff;
@@ -922,7 +939,8 @@ function handleApprove() {
   font-family: inherit;
   font-size: 0.875rem;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
+  overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -936,22 +954,14 @@ function handleApprove() {
   color: #9ca3af;
 }
 
-.reason-edit-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+.reason-counter {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.55rem;
   color: #6b7280;
   font-size: 0.75rem;
-}
-
-.reason-edit-warning {
-  color: #92400e;
-}
-
-.reason-counter {
-  margin-left: auto;
+  line-height: 1;
+  pointer-events: none;
   white-space: nowrap;
 }
 
@@ -1096,13 +1106,7 @@ function handleApprove() {
   overflow-wrap: anywhere;
 }
 
-.icon-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.booking-icon {
   flex-shrink: 0;
 }
 
@@ -1551,13 +1555,7 @@ function handleApprove() {
     gap: 0.375rem;
   }
 
-  .icon-badge {
-    width: 18px;
-    height: 18px;
-    border-radius: 5px;
-  }
-
-  .icon-badge svg {
+  .booking-icon {
     width: 12px;
     height: 12px;
   }
