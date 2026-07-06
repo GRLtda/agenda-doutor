@@ -110,9 +110,37 @@ const dashboardRoutes = [
       },
       {
         path: 'financeiro',
-        name: 'financeiro',
-        component: () => import('../views/pages/finance/FinanceDashboardView.vue'),
+        name: 'financeiro-resumo',
+        component: () => import('../views/pages/financeiro/FinanceiroResumoView.vue'),
         meta: { title: 'Financeiro' },
+      },
+      {
+        path: 'financeiro/a-receber',
+        redirect: to => ({ name: 'financeiro-a-receber', query: to.query }),
+      },
+      {
+        path: 'financeiro/a-pagar',
+        redirect: to => ({ name: 'financeiro-a-pagar', query: to.query }),
+      },
+      {
+        path: 'financeiro/receber',
+        name: 'financeiro-a-receber',
+        component: () => import('../views/pages/financeiro/FinanceiroContasView.vue'),
+        props: { tipo: 'RECEIVABLE' },
+        meta: { title: 'Contas a Receber' },
+      },
+      {
+        path: 'financeiro/pagar',
+        name: 'financeiro-a-pagar',
+        component: () => import('../views/pages/financeiro/FinanceiroContasView.vue'),
+        props: { tipo: 'PAYABLE' },
+        meta: { title: 'Contas a Pagar' },
+      },
+      {
+        path: 'financeiro/caixa',
+        name: 'financeiro-caixa',
+        component: () => import('../views/pages/financeiro/FinanceiroCaixaView.vue'),
+        meta: { title: 'Caixa' },
       },
       {
         path: 'ajuda',

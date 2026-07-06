@@ -179,7 +179,17 @@ const sidebarSections = computed(() => {
 
   // Adiciona Financeiro apenas se tiver acesso
   if (hasAccess('finance')) {
-    gestaoLinks.push({ icon: 'dollar', text: 'Financeiro', to: '/financeiro' })
+    gestaoLinks.push({
+      icon: 'dollar',
+      text: 'Financeiro',
+      key: 'financeiro',
+      children: [
+        { text: 'Resumo', to: '/financeiro', icon: 'dashboard' },
+        { text: 'Receber', to: '/financeiro/receber', icon: 'dollar' },
+        { text: 'Pagar', to: '/financeiro/pagar', icon: 'clipboard-list' },
+        { text: 'Caixa', to: '/financeiro/caixa', icon: 'history' },
+      ],
+    })
   }
 
   const gestaoSection = {

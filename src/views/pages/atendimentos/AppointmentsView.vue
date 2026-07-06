@@ -53,6 +53,17 @@ const selectedAppointment = ref(null)
 const searchQuery = ref('')
 const viewMode = ref('kanban') // 'kanban' | 'list'
 const activeActionMenu = ref(null) // ID of appointment with open menu
+const pendingStatusUpdates = ref(new Set())
+const canUseKanbanDrag = ref(false)
+const draggedAppointment = ref(null)
+const dragOriginalStatus = ref(null)
+const dragPosition = ref({ x: 0, y: 0 })
+const dragStartPosition = ref({ x: 0, y: 0 })
+const activeDropStatus = ref(null)
+const isDraggingCard = ref(false)
+const suppressCardClick = ref(false)
+let dragPointerId = null
+let kanbanDragMediaQuery = null
 
 // Data Inicial: Hoje
 const today = new Date()
@@ -126,6 +137,10 @@ const kanbanColumns = [
   { key: 'Não Compareceu', label: 'Não Compareceu', icon: AlertCircle, color: '#f59e0b', bgColor: '#fffbeb' },
   { key: 'Cancelado', label: 'Cancelado', icon: Ban, color: '#ef4444', bgColor: '#fef2f2' },
 ]
+
+const draggedColumn = computed(() => {
+  return kanbanColumns.find(column => column.key === dragOriginalStatus.value) || kanbanColumns[0]
+})
 
 function getStatusIcon(status) {
   switch (status) {
@@ -217,18 +232,49 @@ function closeDetailsModal() {
   selectedAppointment.value = null
 }
 
-async function handleStatusChange(appointment, newStatus) {
+function setStatusPending(appointmentId, isPending) {
+  const nextPending = new Set(pendingStatusUpdates.value)
+  if (isPending) {
+    nextPending.add(appointmentId)
+  } else {
+    nextPending.delete(appointmentId)
+  }
+  pendingStatusUpdates.value = nextPending
+}
+
+function isStatusPending(appointmentId) {
+  return pendingStatusUpdates.value.has(appointmentId)
+}
+
+async function persistStatusChange(appointment, newStatus, { successMessage = null, refetch = false } = {}) {
+  if (!appointment?._id || isStatusPending(appointment._id) || appointment.status === newStatus) return false
+
   const oldStatus = appointment.status
+  setStatusPending(appointment._id, true)
   appointmentsStore.updateLocalStatus(appointment._id, newStatus)
 
-  const { success } = await appointmentsStore.updateAppointmentStatus(appointment._id, newStatus)
+  try {
+    const { success } = await appointmentsStore.updateAppointmentStatus(appointment._id, newStatus, { refetch })
 
-  if (success) {
-    toast.success(`Status alterado para "${newStatus}"`)
-  } else {
+    if (success) {
+      if (successMessage) toast.success(successMessage)
+    } else {
+      appointmentsStore.updateLocalStatus(appointment._id, oldStatus)
+      toast.error('Erro ao atualizar status.')
+    }
+
+    return success
+  } catch (error) {
     appointmentsStore.updateLocalStatus(appointment._id, oldStatus)
     toast.error('Erro ao atualizar status.')
+    return false
+  } finally {
+    setStatusPending(appointment._id, false)
   }
+}
+
+async function handleStatusChange(appointment, newStatus) {
+  await persistStatusChange(appointment, newStatus)
 }
 
 // Lógica de Cancelamento
@@ -241,6 +287,7 @@ const apptToCancel = ref(null)
 const isCancelling = ref(false)
 
 function initiateCancel(appt) {
+    if (isStatusPending(appt?._id)) return
     const requirement = cancellationConfig.value
     if (requirement === 'desativado') {
         handleStatusChange(appt, 'Cancelado')
@@ -256,13 +303,18 @@ async function handleCancelConfirm(reason) {
       toast.warning('Por favor, informe o motivo do cancelamento.')
       return
    }
+   if (!apptToCancel.value?._id || isStatusPending(apptToCancel.value._id)) return
 
+   const appointment = apptToCancel.value
+   const oldStatus = appointment.status
    isCancelling.value = true
+   setStatusPending(appointment._id, true)
+   appointmentsStore.updateLocalStatus(appointment._id, 'Cancelado')
    try {
        const payload = { status: 'Cancelado' }
        if (reason && String(reason).trim()) payload.cancellationReason = String(reason).trim()
 
-       const result = await appointmentsStore.updateAppointment(apptToCancel.value._id, payload)
+       const result = await appointmentsStore.updateAppointment(appointment._id, payload, { refetch: false, setLoading: false })
        if (result.success) {
            toast.success('Agendamento cancelado com sucesso.')
            showCancelInput.value = false
@@ -271,8 +323,10 @@ async function handleCancelConfirm(reason) {
            throw new Error('Falha ao atualizar')
        }
    } catch (error) {
+       appointmentsStore.updateLocalStatus(appointment._id, oldStatus)
        toast.error('Erro ao cancelar agendamento.')
    } finally {
+       setStatusPending(appointment._id, false)
        isCancelling.value = false
    }
 }
@@ -283,6 +337,7 @@ function cancelCancellation() {
 }
 
 function goToAppointmentPage(appointment) {
+  if (isStatusPending(appointment?._id)) return
   router.push({
     name: 'atendimento-em-andamento',
     params: {
@@ -293,6 +348,7 @@ function goToAppointmentPage(appointment) {
 }
 
 function rebookAppointment(appointment) {
+  if (isStatusPending(appointment?._id)) return
   modalInitialData.value = {
     ...appointment,
     _mode: 'rebook'
@@ -303,6 +359,98 @@ function rebookAppointment(appointment) {
 function handleEditAction(eventData) {
   modalInitialData.value = eventData
   isModalOpen.value = true
+}
+
+function isFinePointerDragEnabled(event) {
+  return canUseKanbanDrag.value && event.pointerType !== 'touch' && event.button === 0
+}
+
+function getDropStatusFromPoint(x, y) {
+  const element = document.elementFromPoint(x, y)
+  return element?.closest?.('[data-kanban-status]')?.dataset?.kanbanStatus || null
+}
+
+function startCardDrag(appointment, event) {
+  if (!isFinePointerDragEnabled(event) || isStatusPending(appointment?._id)) return
+
+  draggedAppointment.value = appointment
+  dragOriginalStatus.value = appointment.status
+  dragPointerId = event.pointerId
+  dragStartPosition.value = { x: event.clientX, y: event.clientY }
+  dragPosition.value = { x: event.clientX, y: event.clientY }
+
+  window.addEventListener('pointermove', handleCardDragMove, { passive: false })
+  window.addEventListener('pointerup', finishCardDrag)
+  window.addEventListener('pointercancel', cancelCardDrag)
+}
+
+function handleCardDragMove(event) {
+  if (!draggedAppointment.value || event.pointerId !== dragPointerId) return
+
+  const distanceX = event.clientX - dragStartPosition.value.x
+  const distanceY = event.clientY - dragStartPosition.value.y
+  const distance = Math.hypot(distanceX, distanceY)
+
+  if (!isDraggingCard.value && distance < 6) return
+
+  event.preventDefault()
+  isDraggingCard.value = true
+  document.body.classList.add('is-kanban-card-dragging')
+  dragPosition.value = { x: event.clientX, y: event.clientY }
+  activeDropStatus.value = getDropStatusFromPoint(event.clientX, event.clientY)
+}
+
+function cleanupCardDrag() {
+  window.removeEventListener('pointermove', handleCardDragMove)
+  window.removeEventListener('pointerup', finishCardDrag)
+  window.removeEventListener('pointercancel', cancelCardDrag)
+  dragPointerId = null
+  activeDropStatus.value = null
+  document.body.classList.remove('is-kanban-card-dragging')
+}
+
+function cancelCardDrag() {
+  cleanupCardDrag()
+  draggedAppointment.value = null
+  dragOriginalStatus.value = null
+  isDraggingCard.value = false
+}
+
+function finishCardDrag(event) {
+  if (!draggedAppointment.value || event.pointerId !== dragPointerId) return
+
+  const appointment = draggedAppointment.value
+  const targetStatus = isDraggingCard.value
+    ? getDropStatusFromPoint(event.clientX, event.clientY)
+    : null
+  const shouldDrop = Boolean(targetStatus && targetStatus !== dragOriginalStatus.value)
+
+  cleanupCardDrag()
+  draggedAppointment.value = null
+  dragOriginalStatus.value = null
+  suppressCardClick.value = isDraggingCard.value
+  isDraggingCard.value = false
+  window.setTimeout(() => {
+    suppressCardClick.value = false
+  }, 80)
+
+  if (!shouldDrop) return
+
+  if (targetStatus === 'Cancelado') {
+    initiateCancel(appointment)
+    return
+  }
+
+  persistStatusChange(appointment, targetStatus)
+}
+
+function handleCardClick(appointment) {
+  if (isDraggingCard.value || suppressCardClick.value) return
+  openDetailsModal(appointment)
+}
+
+function syncKanbanDragCapability() {
+  canUseKanbanDrag.value = Boolean(kanbanDragMediaQuery?.matches)
 }
 
 function handleReschedule(appointment) {
@@ -400,6 +548,9 @@ watch(searchQuery, async () => {
 })
 
 onMounted(async () => {
+  kanbanDragMediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)')
+  syncKanbanDragCapability()
+  kanbanDragMediaQuery.addEventListener('change', syncKanbanDragCapability)
   applyAppointmentsFiltersFromQuery()
   isHydratingAppointmentsFilters.value = false
   await syncAppointmentsFiltersToQuery()
@@ -409,6 +560,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', closeActionMenu)
+  kanbanDragMediaQuery?.removeEventListener('change', syncKanbanDragCapability)
+  cleanupCardDrag()
 })
 
 function toggleActionMenu(id, event) {
@@ -427,7 +580,7 @@ function closeActionMenu(event) {
 </script>
 
 <template>
-  <div class="appointments-page">
+  <div class="appointments-page" :class="{ 'is-kanban-card-dragging': isDraggingCard }">
     <header class="page-header">
       <div>
         <h1 class="title">Atendimentos</h1>
@@ -513,6 +666,8 @@ function closeActionMenu(event) {
             v-for="column in kanbanColumns"
             :key="column.key"
             class="kanban-column"
+            :class="{ 'is-drop-target': activeDropStatus === column.key }"
+            :data-kanban-status="column.key"
           >
             <!-- Column Header -->
             <div class="column-header" :style="{ '--column-color': column.color, '--column-bg': column.bgColor }">
@@ -551,7 +706,13 @@ function closeActionMenu(event) {
                     v-for="appt in appointmentsByStatus[column.key]"
                     :key="appt._id"
                     class="appointment-card"
-                    @click="openDetailsModal(appt)"
+                    :class="{
+                      'is-drag-source': isDraggingCard && draggedAppointment?._id === appt._id,
+                      'is-status-pending': isStatusPending(appt._id),
+                      'is-draggable': canUseKanbanDrag
+                    }"
+                    @pointerdown="startCardDrag(appt, $event)"
+                    @click="handleCardClick(appt)"
                   >
                     <div class="card-header">
                       <div class="patient-info">
@@ -604,6 +765,8 @@ function closeActionMenu(event) {
                           size="sm"
                           title="Confirmar Chegada"
                           class="flex-grow"
+                          :disabled="isStatusPending(appt._id)"
+                          :loading="isStatusPending(appt._id)"
                         >
                           <Check :size="16" /> Confirmar
                         </AppButton>
@@ -613,28 +776,29 @@ function closeActionMenu(event) {
                           size="sm"
                           title="Cancelar"
                           class="cancel-btn"
+                          :disabled="isStatusPending(appt._id)"
                         >
                           <X :size="18" />
                           <span class="btn-text">Cancelar</span>
                         </AppButton>
                       </template>
                       <template v-else-if="appt.status === 'Confirmado'">
-                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow">
+                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow" :disabled="isStatusPending(appt._id)">
                           <Play :size="16" /> Iniciar
                         </AppButton>
                       </template>
                       <template v-else-if="appt.status === 'Iniciado'">
-                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow">
+                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="primary" size="sm" class="flex-grow" :disabled="isStatusPending(appt._id)">
                           <Play :size="16" /> Continuar
                         </AppButton>
                       </template>
                       <template v-else-if="appt.status === 'Não Compareceu'">
-                        <AppButton @click.stop="rebookAppointment(appt)" variant="warning" size="sm" class="flex-grow">
+                        <AppButton @click.stop="rebookAppointment(appt)" variant="warning" size="sm" class="flex-grow" :disabled="isStatusPending(appt._id)">
                           <CalendarPlus :size="16" /> Reagendar
                         </AppButton>
                       </template>
                       <template v-else>
-                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="default" size="sm" class="flex-grow">
+                        <AppButton @click.stop="goToAppointmentPage(appt)" variant="default" size="sm" class="flex-grow" :disabled="isStatusPending(appt._id)">
                           Ver Detalhes
                         </AppButton>
                       </template>
@@ -648,6 +812,24 @@ function closeActionMenu(event) {
                   <span>Nenhum atendimento</span>
                 </div>
               </template>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="isDraggingCard && draggedAppointment"
+          class="drag-ghost-card"
+          :style="{
+            '--ghost-color': draggedColumn.color,
+            transform: `translate3d(${dragPosition.x + 14}px, ${dragPosition.y + 14}px, 0)`
+          }"
+        >
+          <div class="ghost-header">
+            <div class="patient-avatar" :style="{ '--avatar-color': draggedColumn.color }">
+              {{ draggedAppointment.patient?.name?.charAt(0) || '?' }}
+            </div>
+            <div class="patient-details">
+              <span class="patient-name">{{ draggedAppointment.patient?.name || 'Paciente' }}</span>
+              <span class="patient-phone">{{ formatTime(draggedAppointment.startTime) }} - {{ formatTime(draggedAppointment.endTime) }}</span>
             </div>
           </div>
         </div>
@@ -748,18 +930,18 @@ function closeActionMenu(event) {
                       <span>Ações</span>
                     </div>
                     <div class="action-menu-container centered">
-                       <button @click="(e) => toggleActionMenu(appt._id, e)" class="action-dots-btn">
+                       <button @click="(e) => toggleActionMenu(appt._id, e)" class="action-dots-btn" :disabled="isStatusPending(appt._id)">
                           <MoreHorizontal :size="20" />
                        </button>
 
                        <div v-if="activeActionMenu === appt._id" class="action-dropdown">
                           <template v-if="appt.status === 'Agendado'">
-                              <button @click.stop="handleStatusChange(appt, 'Confirmado')" class="dropdown-item success">
+                              <button @click.stop="handleStatusChange(appt, 'Confirmado')" class="dropdown-item success" :disabled="isStatusPending(appt._id)">
                                  <Check :size="16" /> Confirmar
                               </button>
                           </template>
                           <template v-if="appt.status === 'Confirmado' || appt.status === 'Iniciado'">
-                              <button @click.stop="goToAppointmentPage(appt)" class="dropdown-item primary">
+                              <button @click.stop="goToAppointmentPage(appt)" class="dropdown-item primary" :disabled="isStatusPending(appt._id)">
                                  <Play :size="16" /> Atender
                               </button>
                           </template>
@@ -933,7 +1115,7 @@ function closeActionMenu(event) {
 
 .kanban-board {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.3rem;
   width: 100%;
 }
 
@@ -947,6 +1129,13 @@ function closeActionMenu(event) {
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
   height: 75vh;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+}
+
+.kanban-column.is-drop-target {
+  background-color: #fbfdff;
+  border-color: #bfdbfe;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1), 0 6px 16px rgba(15, 23, 42, 0.04);
 }
 
 .column-header {
@@ -1024,12 +1213,63 @@ function closeActionMenu(event) {
   transition: all 0.2s ease;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .appointment-card:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border-color: #cbd5e1;
+}
+
+.appointment-card.is-draggable {
+  cursor: grab;
+}
+
+.appointment-card.is-draggable:active {
+  cursor: grabbing;
+}
+
+.appointments-page.is-kanban-card-dragging,
+.appointments-page.is-kanban-card-dragging *,
+:global(body.is-kanban-card-dragging),
+:global(body.is-kanban-card-dragging *) {
+  cursor: grabbing !important;
+}
+
+.appointment-card.is-drag-source {
+  opacity: 0.35;
+  transform: scale(0.98);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
+}
+
+.appointment-card.is-status-pending {
+  opacity: 0.74;
+}
+
+.drag-ghost-card {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 3000;
+  width: min(260px, calc(100vw - 32px));
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-top-color: color-mix(in srgb, var(--ghost-color) 45%, #ffffff);
+  border-radius: 14px;
+  padding: 0.65rem;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18), 0 0 0 4px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(10px);
+  animation: dragBubbleIn 0.16s cubic-bezier(0.2, 0.9, 0.2, 1.2);
+  will-change: transform;
+}
+
+.ghost-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .card-header {
@@ -1275,21 +1515,32 @@ function closeActionMenu(event) {
 /* Card Transitions */
 .card-enter-active,
 .card-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.24s ease, transform 0.34s cubic-bezier(0.18, 0.89, 0.32, 1.16);
 }
 
 .card-enter-from {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-10px) scale(0.98);
 }
 
 .card-leave-to {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateX(18px) scale(0.98);
 }
 
 .card-move {
-  transition: transform 0.3s ease;
+  transition: transform 0.34s cubic-bezier(0.18, 0.89, 0.32, 1.16);
+}
+
+@keyframes dragBubbleIn {
+  from {
+    opacity: 0;
+    /* filter: blur(1px); */
+  }
+  to {
+    opacity: 1;
+    /* filter: blur(0); */
+  }
 }
 
 /* Responsividade */
@@ -1590,6 +1841,11 @@ function closeActionMenu(event) {
   color: #1e293b;
 }
 
+.action-dots-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .action-dropdown {
   position: absolute;
   top: 100%;
@@ -1626,6 +1882,12 @@ function closeActionMenu(event) {
 .dropdown-item:hover {
   background-color: #f8fafc;
   color: #1e293b;
+}
+
+.dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .dropdown-item.success {

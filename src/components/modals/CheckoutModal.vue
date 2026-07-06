@@ -1,116 +1,128 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { X, CreditCard, Banknote, Smartphone, Receipt, DollarSign, Plus, Trash2, Check, Stethoscope, Calendar, User } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { CreditCard, Banknote, Smartphone, Receipt, DollarSign, Plus, Trash2, Check, Calendar } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 
 const props = defineProps({
-  procedures: {
-    type: Array,
-    required: true,
-  },
-  patientId: {
-    type: String,
-    required: true,
-  },
-  appointmentId: {
-    type: String,
-    required: true,
-  },
-  patientName: {
-    type: String,
-    required: true,
-  },
-  appointmentDate: {
-    type: String,
-    required: true,
-  },
-  appointmentTime: {
-    type: String,
-    required: true,
-  },
+  procedures: { type: Array, required: true },
+  patientId: { type: String, required: true },
+  appointmentId: { type: String, required: true },
+  patientName: { type: String, required: true },
+  appointmentDate: { type: String, required: true },
+  appointmentTime: { type: String, required: true },
 })
 
 const emit = defineEmits(['close', 'confirm', 'schedule-return'])
 
 const isLoading = ref(false)
-
-// Payment methods options
-const paymentMethodOptions = [
-  { label: 'Dinheiro', value: 'DINHEIRO', icon: Banknote },
-  { label: 'PIX', value: 'PIX', icon: Smartphone },
-  { label: 'Cartão de Crédito', value: 'CARTAO_CREDITO', icon: CreditCard },
-  { label: 'Cartão de Débito', value: 'CARTAO_DEBITO', icon: CreditCard },
-  { label: 'Boleto', value: 'BOLETO', icon: Receipt },
-]
-
-// Payment methods state
+const paidNow = ref(true)
+const launchReceivable = ref(true)
+const expectedPaymentMethod = ref('PIX')
+const dueDate = ref(toDateInput(new Date()))
+const useInstallments = ref(false)
+const installmentCount = ref(2)
+const confirmedPayments = ref([])
+const displayAmount = ref('0,00')
 const currentPayment = ref({
   method: 'DINHEIRO',
   amount: 0,
   installments: 1,
 })
 
-const confirmedPayments = ref([])
+const paymentMethodOptions = [
+  { label: 'Dinheiro', value: 'DINHEIRO', icon: Banknote },
+  { label: 'PIX', value: 'PIX', icon: Smartphone },
+  { label: 'Cartao de Credito', value: 'CARTAO_CREDITO', icon: CreditCard },
+  { label: 'Cartao de Debito', value: 'CARTAO_DEBITO', icon: CreditCard },
+  { label: 'Boleto', value: 'BOLETO', icon: Receipt },
+]
 
-// Display value for formatted input
-const displayAmount = ref('')
+const totalAmount = computed(() =>
+  props.procedures.reduce((sum, proc) => sum + Number(proc.finalValue || 0), 0)
+)
 
-// Total amount from procedures
-const totalAmount = computed(() => {
-  return props.procedures.reduce((sum, proc) => sum + (proc.finalValue || 0), 0)
-})
+const totalOriginalAmount = computed(() =>
+  props.procedures.reduce((sum, proc) => sum + Number(proc.originalValue || proc.finalValue || 0), 0)
+)
 
-// Total paid
+const totalDiscount = computed(() => Math.max(totalOriginalAmount.value - totalAmount.value, 0))
+
+const totalCost = computed(() =>
+  props.procedures.reduce((sum, proc) => {
+    const costInCents = proc.totalCostCents ?? proc.procedureCostCents ?? proc.costCents
+    if (costInCents !== undefined && costInCents !== null) {
+      return sum + Number(costInCents || 0) / 100
+    }
+    return sum + Number(proc.totalCost || proc.cost || 0)
+  }, 0)
+)
+
+const grossProfit = computed(() => Math.max(totalAmount.value - totalCost.value, 0))
+
 const totalPaid = computed(() => {
-  return confirmedPayments.value.reduce((sum, pm) => sum + (pm.amount || 0), 0)
+  if (!paidNow.value) return 0
+  return confirmedPayments.value.reduce((sum, pm) => sum + Number(pm.amount || 0), 0)
 })
 
-// Remaining amount
-const remainingAmount = computed(() => {
-  return totalAmount.value - totalPaid.value
+const remainingAmount = computed(() => Math.max(totalAmount.value - totalPaid.value, 0))
+const hasPendingBalance = computed(() => remainingAmount.value > 0.01)
+
+const generatedInstallments = computed(() => {
+  if (!useInstallments.value || !hasPendingBalance.value) return []
+
+  const totalCents = Math.round(remainingAmount.value * 100)
+  const count = Math.max(1, Math.min(24, Number(installmentCount.value || 1)))
+  const baseCents = Math.floor(totalCents / count)
+  let remainder = totalCents - baseCents * count
+  const firstDueDate = dueDate.value ? new Date(`${dueDate.value}T12:00:00`) : new Date()
+
+  return Array.from({ length: count }, (_, index) => {
+    const amountCents = baseCents + (remainder > 0 ? 1 : 0)
+    if (remainder > 0) remainder -= 1
+
+    const due = new Date(firstDueDate)
+    due.setMonth(firstDueDate.getMonth() + index)
+
+    return {
+      amount: amountCents / 100,
+      dueDate: toDateInput(due),
+      expectedPaymentMethod: expectedPaymentMethod.value,
+    }
+  })
 })
 
-// Validation
 const isValid = computed(() => {
-  // Allow checkout if total is zero
-  if (totalAmount.value === 0 && totalPaid.value === 0) return true
+  if (totalAmount.value === 0) return true
+  if (totalPaid.value - totalAmount.value > 0.01) return false
 
-  // Check if there are confirmed payments
-  if (confirmedPayments.value.length === 0) return false
-  
-  // Check if all payment methods have amounts > 0
-  const allHaveAmounts = confirmedPayments.value.every(pm => pm.amount > 0)
-  
-  // Check if total paid equals total amount (with 0.01 tolerance)
-  const diff = Math.abs(totalPaid.value - totalAmount.value)
-  const totalsMatch = diff <= 0.01
-  
-  return allHaveAmounts && totalsMatch
+  const allPaymentsArePositive = confirmedPayments.value.every(pm => Number(pm.amount || 0) > 0)
+  if (paidNow.value && confirmedPayments.value.length > 0 && !allPaymentsArePositive) return false
+
+  if (!hasPendingBalance.value) return true
+  if (!launchReceivable.value) return false
+  if (!dueDate.value || !expectedPaymentMethod.value) return false
+  if (useInstallments.value) return generatedInstallments.value.length > 0
+  return true
 })
 
-// Confirm current payment
-// Confirm payment
-const confirmPayment = () => {
+function confirmPayment() {
   if (currentPayment.value.amount <= 0) return
-  
-  // Prevent overpayment
+
   const newTotal = totalPaid.value + currentPayment.value.amount
   if (newTotal > totalAmount.value) {
-    // Adjust to remaining amount
     currentPayment.value.amount = remainingAmount.value
     displayAmount.value = formatValueForDisplay(remainingAmount.value)
     return
   }
-  
+
   confirmedPayments.value.push({
     method: currentPayment.value.method,
     amount: currentPayment.value.amount,
     installments: currentPayment.value.installments,
   })
-  
-  // Reset form
+
   currentPayment.value = {
     method: 'DINHEIRO',
     amount: 0,
@@ -119,57 +131,63 @@ const confirmPayment = () => {
   displayAmount.value = '0,00'
 }
 
-// Remove confirmed payment
-const removeConfirmedPayment = (index) => {
+function removeConfirmedPayment(index) {
   confirmedPayments.value.splice(index, 1)
 }
 
-// Auto-fill remaining amount
-const fillRemainingAmount = () => {
+function fillRemainingAmount() {
   if (remainingAmount.value > 0) {
     currentPayment.value.amount = remainingAmount.value
     displayAmount.value = formatValueForDisplay(remainingAmount.value)
   }
 }
 
-// Get icon for payment method
-const getPaymentIcon = (method) => {
-  const option = paymentMethodOptions.find(opt => opt.value === method)
-  return option?.icon || DollarSign
-}
-
-// Handle submit
-const handleSubmit = async () => {
+async function handleSubmit() {
   if (!isValid.value) return
 
   isLoading.value = true
-  
   try {
+    const paymentsNow = paidNow.value
+      ? confirmedPayments.value.map(pm => ({
+          method: pm.method,
+          amount: pm.amount,
+          installments: pm.method === 'CARTAO_CREDITO' ? pm.installments : 1,
+        }))
+      : []
+
+    let mode = 'RECEIVE_LATER'
+    if (useInstallments.value && hasPendingBalance.value) {
+      mode = 'INSTALLMENTS'
+    } else if (totalPaid.value >= totalAmount.value - 0.01) {
+      mode = 'PAID_NOW'
+    } else if (totalPaid.value > 0) {
+      mode = 'PARTIAL'
+    }
+
     emit('confirm', {
       patientId: props.patientId,
       appointmentId: props.appointmentId,
-      paymentMethods: confirmedPayments.value.map(pm => ({
-        method: pm.method,
-        amount: pm.amount,
-        installments: pm.method === 'CARTAO_CREDITO' ? pm.installments : 1,
-      })),
+      paymentMethods: paymentsNow,
+      paymentPlan: {
+        mode,
+        dueDate: dueDate.value,
+        expectedPaymentMethod: expectedPaymentMethod.value,
+        paymentsNow,
+        installments: mode === 'INSTALLMENTS' ? generatedInstallments.value : [],
+      },
     })
-  } catch (error) {
-    console.error('Erro ao processar checkout:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// Format currency for display
-const formatCurrency = (value) => {
+function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(value)
+  }).format(value || 0)
 }
 
-// Format value for input display (without R$)
 function formatValueForDisplay(value) {
   if (!value && value !== 0) return ''
   return new Intl.NumberFormat('pt-BR', {
@@ -178,76 +196,68 @@ function formatValueForDisplay(value) {
   }).format(value)
 }
 
-// Parse formatted value to number
 function parseFormattedValue(formattedValue) {
   if (!formattedValue) return 0
-  // Remove all dots (thousands separator)
-  let cleaned = formattedValue.replace(/\./g, '')
-  // Replace comma with dot (decimal separator)
-  cleaned = cleaned.replace(',', '.')
-  return parseFloat(cleaned) || 0
+  return parseFloat(formattedValue.replace(/\./g, '').replace(',', '.')) || 0
 }
 
-// Handle input change with real-time formatting
 function handleAmountInput(event) {
-  let input = event.target.value
-  
-  // Remove all non-numeric characters except comma
-  input = input.replace(/[^\d,]/g, '')
-  
-  // Remove multiple commas, keep only the last one
+  let input = event.target.value.replace(/[^\d,]/g, '')
   const parts = input.split(',')
   if (parts.length > 2) {
     input = parts.slice(0, -1).join('') + ',' + parts[parts.length - 1]
   }
-  
-  // Limit decimal places to 2
+
   if (input.includes(',')) {
     const [integer, decimal] = input.split(',')
     input = integer + ',' + (decimal || '').slice(0, 2)
   }
-  
-  // Parse to number
-  const numericValue = parseFormattedValue(input)
-  currentPayment.value.amount = numericValue
-  
-  // Format with thousands separator in real-time
-  if (input && input !== ',') {
-    const [integerPart, decimalPart] = input.split(',')
-    
-    // Add thousands separator to integer part
-    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    
-    // Combine with decimal part
-    if (decimalPart !== undefined) {
-      displayAmount.value = formattedInteger + ',' + decimalPart
-    } else {
-      displayAmount.value = formattedInteger
-    }
-  } else {
+
+  currentPayment.value.amount = parseFormattedValue(input)
+
+  if (!input || input === ',') {
     displayAmount.value = input
+    return
   }
+
+  const [integerPart, decimalPart] = input.split(',')
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  displayAmount.value = decimalPart !== undefined ? `${formattedInteger},${decimalPart}` : formattedInteger
 }
 
-// Handle input focus
 function handleAmountFocus() {
-  if (currentPayment.value.amount === 0) {
-    displayAmount.value = ''
-  }
+  if (currentPayment.value.amount === 0) displayAmount.value = ''
 }
 
-// Handle input blur
 function handleAmountBlur() {
   if (!displayAmount.value || currentPayment.value.amount === 0) {
     currentPayment.value.amount = 0
     displayAmount.value = '0,00'
-  } else {
-    displayAmount.value = formatValueForDisplay(currentPayment.value.amount)
+    return
   }
+
+  displayAmount.value = formatValueForDisplay(currentPayment.value.amount)
 }
 
-// Initialize display amount
-displayAmount.value = '0,00'
+function toDateInput(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+watch(paidNow, (value) => {
+  if (!value) {
+    confirmedPayments.value = []
+    currentPayment.value.amount = 0
+    displayAmount.value = '0,00'
+  }
+})
+
+watch(hasPendingBalance, (value) => {
+  launchReceivable.value = value
+  if (!value) useInstallments.value = false
+})
 </script>
 
 <template>
@@ -255,32 +265,31 @@ displayAmount.value = '0,00'
     <template #header>
       <header class="drawer-header">
         <div class="header-texts">
-          <h2 class="header-title">Finalizar Atendimento</h2>
-          <p class="header-subtitle">Revise os procedimentos e selecione a forma de pagamento</p>
+          <h2 class="header-title">Finalizar atendimento</h2>
+          <p class="header-subtitle">Fechamento financeiro do atendimento</p>
         </div>
       </header>
     </template>
 
     <template #default>
       <div class="drawer-body-content">
-        <!-- Procedimentos -->
-        <div class="form-section">
+        <section class="form-section">
           <div class="section-header">
-            <h3 class="section-title">Procedimentos Realizados</h3>
+            <h3 class="section-title">Procedimentos realizados</h3>
           </div>
 
-          <div v-if="procedures.length > 0" class="procedures-list">
-            <div v-for="(proc, index) in procedures" :key="index" class="procedure-item">
-              <div class="proc-info">
-                <span class="proc-name">{{ proc.name }}</span>
-                <span class="proc-details">
+          <div v-if="procedures.length > 0" class="item-list">
+            <div v-for="(proc, index) in procedures" :key="index" class="line-item">
+              <div class="item-info">
+                <span class="item-title">{{ proc.name }}</span>
+                <span class="item-meta">
                   {{ proc.quantity > 1 ? `${proc.quantity}x` : '' }}
                   <span v-if="proc.discountPercentage > 0" class="discount-badge">
                     -{{ proc.discountPercentage }}%
                   </span>
                 </span>
               </div>
-              <div class="proc-values">
+              <div class="item-values">
                 <span v-if="proc.originalValue > proc.finalValue" class="original-price">
                   {{ formatCurrency(proc.originalValue) }}
                 </span>
@@ -289,29 +298,41 @@ displayAmount.value = '0,00'
             </div>
           </div>
           <div v-else class="empty-list">Nenhum procedimento neste atendimento.</div>
-        </div>
+        </section>
 
-        <!-- Totais dos procedimentos -->
-        <div class="totals-section">
+        <section class="totals-section">
+          <div v-if="totalDiscount > 0" class="total-row">
+            <span>Desconto</span>
+            <span class="text-red">-{{ formatCurrency(totalDiscount) }}</span>
+          </div>
+          <div v-if="totalCost > 0" class="total-row">
+            <span>Custo estimado</span>
+            <span>{{ formatCurrency(totalCost) }}</span>
+          </div>
+          <div v-if="totalCost > 0" class="total-row">
+            <span>Lucro estimado</span>
+            <span class="text-green">{{ formatCurrency(grossProfit) }}</span>
+          </div>
           <div class="total-row final">
-            <span>Total dos Procedimentos:</span>
+            <span>Total do atendimento</span>
             <strong>{{ formatCurrency(totalAmount) }}</strong>
           </div>
-        </div>
+        </section>
 
-        <!-- Forma de Pagamento -->
-        <div class="form-section">
+        <section class="form-section">
           <div class="section-header">
-            <h3 class="section-title">Forma de Pagamento</h3>
+            <h3 class="section-title">Pago agora</h3>
           </div>
 
-          <div class="form-row">
+          <label class="checkbox-row">
+            <input v-model="paidNow" type="checkbox" />
+            <span>Paciente pagou agora</span>
+          </label>
+
+          <div v-if="paidNow" class="form-row">
             <div class="form-group">
-              <label class="form-label">Método</label>
-              <StyledSelect
-                v-model="currentPayment.method"
-                :options="paymentMethodOptions"
-              />
+              <label class="form-label">Metodo</label>
+              <StyledSelect v-model="currentPayment.method" :options="paymentMethodOptions" />
             </div>
             <div class="form-group">
               <label class="form-label">Valor</label>
@@ -330,64 +351,45 @@ displayAmount.value = '0,00'
             </div>
           </div>
 
-          <div v-if="currentPayment.method === 'CARTAO_CREDITO'" class="form-row">
+          <div v-if="paidNow && currentPayment.method === 'CARTAO_CREDITO'" class="form-row">
             <div class="form-group">
-              <label class="form-label">Parcelas</label>
-              <input
-                v-model.number="currentPayment.installments"
-                type="number"
-                min="1"
-                max="12"
-                class="form-input"
-              />
+              <label class="form-label">Parcelas no cartao</label>
+              <input v-model.number="currentPayment.installments" type="number" min="1" max="12" class="form-input" />
             </div>
             <div class="form-group values-preview">
               <div class="preview-row">
-                <span>Parcela:</span>
+                <span>Parcela</span>
                 <strong>{{ formatCurrency(currentPayment.amount / currentPayment.installments) }}</strong>
               </div>
             </div>
           </div>
 
-          <div class="add-procedure-actions">
-            <AppButton
-              v-if="remainingAmount > 0"
-              @click="fillRemainingAmount"
-              variant="default"
-              size="sm"
-            >
+          <div v-if="paidNow" class="actions-row">
+            <AppButton v-if="remainingAmount > 0" @click="fillRemainingAmount" variant="default" size="sm">
               <DollarSign :size="14" />
               Preencher {{ formatCurrency(remainingAmount) }}
             </AppButton>
-            <AppButton
-              @click="confirmPayment"
-              variant="primary"
-              size="sm"
-              :disabled="currentPayment.amount <= 0"
-            >
+            <AppButton @click="confirmPayment" variant="primary" size="sm" :disabled="currentPayment.amount <= 0">
               <Plus :size="14" />
               Adicionar
             </AppButton>
           </div>
-        </div>
+        </section>
 
-        <!-- Pagamentos Adicionados -->
-        <div class="form-section">
+        <section v-if="paidNow" class="form-section">
           <div class="section-header">
-            <h3 class="section-title">Pagamentos</h3>
+            <h3 class="section-title">Pagamentos recebidos agora</h3>
           </div>
 
-          <div v-if="confirmedPayments.length > 0" class="procedures-list">
-            <div v-for="(payment, index) in confirmedPayments" :key="index" class="procedure-item">
-              <div class="proc-info">
-                <span class="proc-name">
-                  {{ paymentMethodOptions.find(opt => opt.value === payment.method)?.label }}
-                </span>
-                <span v-if="payment.method === 'CARTAO_CREDITO' && payment.installments > 1" class="proc-details">
+          <div v-if="confirmedPayments.length > 0" class="item-list">
+            <div v-for="(payment, index) in confirmedPayments" :key="index" class="line-item">
+              <div class="item-info">
+                <span class="item-title">{{ paymentMethodOptions.find(opt => opt.value === payment.method)?.label }}</span>
+                <span v-if="payment.method === 'CARTAO_CREDITO' && payment.installments > 1" class="item-meta">
                   {{ payment.installments }}x de {{ formatCurrency(payment.amount / payment.installments) }}
                 </span>
               </div>
-              <div class="proc-values">
+              <div class="item-values">
                 <span class="final-price">{{ formatCurrency(payment.amount) }}</span>
                 <button @click="removeConfirmedPayment(index)" class="remove-btn">
                   <Trash2 :size="14" />
@@ -396,114 +398,266 @@ displayAmount.value = '0,00'
             </div>
           </div>
           <div v-else class="empty-list">Nenhum pagamento adicionado.</div>
-        </div>
+        </section>
 
-        <!-- Resumo Final -->
-        <div class="totals-section sticky-footer">
+        <section v-if="hasPendingBalance" class="form-section">
+          <div class="section-header">
+            <h3 class="section-title">Saldo em A receber</h3>
+          </div>
+
+          <label class="checkbox-row">
+            <input v-model="launchReceivable" type="checkbox" />
+            <span>Lancar saldo em A receber</span>
+          </label>
+
+          <div v-if="launchReceivable" class="pending-box">
+            <div class="balance-status">
+              <span>Valor pendente</span>
+              <strong>{{ formatCurrency(remainingAmount) }}</strong>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Forma prevista</label>
+                <StyledSelect v-model="expectedPaymentMethod" :options="paymentMethodOptions" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Vencimento</label>
+                <input v-model="dueDate" type="date" class="form-input" />
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input v-model="useInstallments" type="checkbox" />
+              <span>Parcelar saldo pendente</span>
+            </label>
+
+            <div v-if="useInstallments" class="installments-panel">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Quantidade de parcelas</label>
+                  <input v-model.number="installmentCount" type="number" min="1" max="24" class="form-input" />
+                </div>
+              </div>
+
+              <div class="item-list">
+                <div v-for="(installment, index) in generatedInstallments" :key="index" class="line-item">
+                  <div class="item-info">
+                    <span class="item-title">Parcela {{ index + 1 }}/{{ generatedInstallments.length }}</span>
+                    <span class="item-meta">
+                      Vence em {{ new Date(`${installment.dueDate}T12:00:00`).toLocaleDateString('pt-BR') }}
+                    </span>
+                  </div>
+                  <div class="item-values">
+                    <span class="final-price">{{ formatCurrency(installment.amount) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="totals-section sticky-footer">
           <div class="total-row">
-            <span>Total Pago:</span>
+            <span>Pago agora</span>
             <span :class="{ 'text-green': totalPaid >= totalAmount }">{{ formatCurrency(totalPaid) }}</span>
           </div>
           <div class="total-row" :class="{ discount: remainingAmount > 0.01 }">
-            <span>Restante:</span>
+            <span>Pendente</span>
             <span>{{ formatCurrency(remainingAmount) }}</span>
           </div>
-        </div>
+          <div class="total-row">
+            <span>Status financeiro</span>
+            <strong v-if="!hasPendingBalance">Pago</strong>
+            <strong v-else-if="totalPaid > 0">Parcial</strong>
+            <strong v-else>Aberto</strong>
+          </div>
+        </section>
       </div>
     </template>
 
     <template #footer>
-      <div class="drawer-footer space-between">
-        <AppButton
-          variant="default"
-          class="footer-btn-cancel"
-          @click="$emit('close')"
-          :disabled="isLoading"
-        >
+      <div class="drawer-footer">
+        <AppButton variant="default" class="footer-btn-cancel" @click="$emit('close')" :disabled="isLoading">
           <span class="footer-btn-label">Cancelar</span>
         </AppButton>
         <div class="footer-actions-right">
-          <AppButton
-            variant="default"
-            class="footer-btn-return"
-            @click="emit('schedule-return')"
-            :disabled="isLoading"
-          >
+          <AppButton variant="default" class="footer-btn-return" @click="emit('schedule-return')" :disabled="isLoading">
             <Calendar :size="18" />
-            <span class="footer-btn-label">Agendar Retorno</span>
+            <span class="footer-btn-label">Agendar retorno</span>
           </AppButton>
-          <AppButton
-            variant="primary"
-            class="footer-btn-finish"
-            @click="handleSubmit"
-            :disabled="!isValid || isLoading"
-            :loading="isLoading"
-          >
+          <AppButton variant="primary" class="footer-btn-finish" @click="handleSubmit" :disabled="!isValid || isLoading" :loading="isLoading">
             <Check :size="18" />
-            <span class="footer-btn-label">Finalizar</span>
+            <span class="footer-btn-label">Finalizar atendimento</span>
           </AppButton>
         </div>
       </div>
     </template>
   </SideDrawer>
 </template>
-<style>
-/* Header */
+
+<style scoped>
 .drawer-header {
   padding: 1.5rem;
   border-bottom: 1px solid #f3f4f6;
 }
 
-.header-texts {
+.header-texts,
+.drawer-body-content,
+.form-section,
+.item-info {
   display: flex;
   flex-direction: column;
+}
+
+.header-texts {
   gap: 0.25rem;
 }
 
 .header-title {
+  margin: 0;
+  color: #111827;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #111827;
-  margin: 0;
 }
 
 .header-subtitle {
-  font-size: 0.875rem;
-  color: #6b7280;
   margin: 0;
+  color: #6b7280;
+  font-size: 0.875rem;
 }
 
-/* Body Content */
 .drawer-body-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
-/* Form Section */
 .form-section {
-  display: flex;
-  flex-direction: column;
   gap: 0.75rem;
 }
 
 .section-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
   margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 700;
 }
 
-.badge {
-  padding: 0.25rem 0.625rem;
-  background: var(--azul-principal, #3b82f6);
-  color: white;
-  border-radius: 9999px;
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.line-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+}
+
+.item-info {
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.item-title {
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
   font-size: 0.75rem;
+}
+
+.item-values {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+.original-price {
+  color: #9ca3af;
+  font-size: 0.8125rem;
+  text-decoration: line-through;
+}
+
+.final-price {
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 800;
+}
+
+.discount-badge {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.totals-section,
+.pending-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.total-row,
+.balance-status,
+.preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+.total-row.final {
+  color: var(--azul-principal, #3b82f6);
+  font-size: 1.075rem;
+  font-weight: 700;
+}
+
+.text-green {
+  color: #059669;
+}
+
+.text-red,
+.total-row.discount {
+  color: #dc2626;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: #374151;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
-/* Form */
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--azul-principal, #3b82f6);
+}
+
 .form-row {
   display: flex;
   gap: 1rem;
@@ -511,31 +665,27 @@ displayAmount.value = '0,00'
 
 .form-group {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1;
-}
-
-.form-group.flex-2 {
-  flex: 2;
+  min-width: 0;
 }
 
 .form-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
   color: #374151;
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 .form-input {
+  width: 100%;
+  height: 48px;
   padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.75rem;
-  font-size: 0.9375rem;
-  transition: all 0.2s;
-  width: 100%;
-  color: #111827;
+  border-radius: 0.5rem;
   background: #fff;
-  height: 48px;
+  color: #111827;
+  font-size: 0.9375rem;
 }
 
 .form-input:focus {
@@ -550,202 +700,73 @@ displayAmount.value = '0,00'
 
 .prefix {
   position: absolute;
-  left: 1rem;
   top: 50%;
+  left: 1rem;
   transform: translateY(-50%);
   color: #6b7280;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .pl-10 {
   padding-left: 2.5rem;
 }
 
-/* Procedures List */
-.procedures-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.procedure-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: #f9fafb;
-  border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-}
-
-.proc-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.proc-name {
-  font-weight: 600;
-  color: #111827;
-  font-size: 0.9375rem;
-}
-
-.proc-details {
-  font-size: 0.75rem;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.discount-badge {
-  background: #fef2f2;
-  color: #dc2626;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-}
-
-.proc-values {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.original-price {
-  font-size: 0.8125rem;
-  color: #9ca3af;
-  text-decoration: line-through;
-}
-
-.final-price {
-  font-weight: 700;
-  color: #111827;
-  font-size: 0.9375rem;
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 0.375rem;
-  border-radius: 0.375rem;
-  transition: all 0.2s;
-}
-
-.remove-btn:hover {
-  color: #dc2626;
-  background: #fef2f2;
-}
-
-.empty-list {
-  padding: 1rem;
-  text-align: center;
-  color: #9ca3af;
-  font-size: 0.875rem;
-  background: #f9fafb;
-  border-radius: 0.75rem;
-  border: 1px #d1d5db;
-}
-
-/* Totals */
-.totals-section {
-  background: #fff;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border: 1px solid #e5e7eb;
-}
-
-.totals-section.sticky-footer {
-  position: static;
-  background: #fff;
-}
-
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9375rem;
-  color: #6b7280;
-}
-
-.total-row.discount {
-  color: #dc2626;
-}
-
-.total-row.final {
-  font-weight: 500;
-  color: var(--azul-principal, #3b82f6);
-  font-size: 1.125rem;
-}
-
-.text-green {
-  color: #059669;
-}
-
-/* Actions */
-.add-procedure-actions {
+.actions-row {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
 .values-preview {
-  background: #fff;
+  justify-content: center;
   padding: 0.75rem;
-  border-radius: 0.5rem;
   border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
 }
 
-.preview-row {
+.remove-btn {
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.remove-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.empty-list {
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.installments-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.drawer-footer {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8125rem;
-  color: #6b7280;
-}
-
-/* Footer */
-.drawer-footer {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
   gap: 0.75rem;
+  padding: 1.5rem;
   border-top: 1px solid #f3f4f6;
   background: #fff;
-}
-
-.drawer-footer.space-between {
-  justify-content: space-between;
 }
 
 .footer-actions-right {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.footer-btn-cancel,
-.footer-btn-return,
-.footer-btn-finish {
-  min-width: 0;
-}
-
-.footer-btn-cancel :deep(.button-content),
-.footer-btn-return :deep(.button-content),
-.footer-btn-finish :deep(.button-content) {
-  width: 100%;
-  min-width: 0;
-}
-
-.footer-btn-return :deep(svg),
-.footer-btn-finish :deep(svg) {
-  flex-shrink: 0;
 }
 
 .footer-btn-label {
@@ -756,34 +777,27 @@ displayAmount.value = '0,00'
   white-space: nowrap;
 }
 
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+input[type='number'] {
+  appearance: textfield;
+}
+
 @media (max-width: 640px) {
-  .drawer-footer.space-between {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .footer-btn-cancel {
-    width: 100%;
-  }
-
+  .form-row,
+  .drawer-footer,
   .footer-actions-right {
-    width: 100%;
+    flex-direction: column;
   }
 
+  .footer-btn-cancel,
   .footer-btn-return,
   .footer-btn-finish {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
   }
-}
-
-/* Hide number spinners */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type=number] {
-  -moz-appearance: textfield;
 }
 </style>
