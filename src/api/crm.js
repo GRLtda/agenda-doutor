@@ -2,15 +2,23 @@ import apiClient from './index'
 
 // --- Funções de Conexão WhatsApp (existentes) ---
 export const initiateWhatsAppConnection = () => {
-  return apiClient.get('/crm/qrcode')
+  return apiClient.post('/v2/whatsapp/connection')
 }
 
 export const checkWhatsAppStatus = () => {
-  return apiClient.get('/crm/status')
+  return apiClient.get('/v2/whatsapp/connection')
+}
+
+export const getWhatsAppQrCode = () => {
+  return apiClient.get('/v2/whatsapp/connection/qr')
+}
+
+export const getWhatsAppProfile = () => {
+  return apiClient.get('/v2/whatsapp/connection/profile')
 }
 
 export const logoutWhatsAppConnection = () => {
-  return apiClient.post('/crm/logout')
+  return apiClient.post('/v2/whatsapp/connection/disconnect')
 }
 
 /**

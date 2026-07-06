@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
-import { ArrowLeft, Eye, MessageSquare, Tag, Save, LoaderCircle } from 'lucide-vue-next'
+import { ArrowLeft, Eye, MessageSquare, Tag, Save, LoaderCircle, Plus, Trash2, MousePointerClick } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import { useToast } from 'vue-toastification'
 
@@ -14,21 +14,44 @@ const templatesStore = useCrmTemplatesStore()
 const toast = useToast()
 
 const templateName = ref('')
+const templateTitle = ref('')
 const templateContent = ref('')
+const templateFooter = ref('')
 const templateTags = ref('')
+const interactiveEnabled = ref(false)
+const interactiveButtonType = ref('reply')
+const interactiveButtons = ref([
+  { displayText: '', id: '', url: '', phoneNumber: '' },
+])
 const editorError = ref(null)
 const isLoading = ref(false)
 const activeInfoTab = ref('variables')
 
 const isEditMode = computed(() => !!props.templateId)
 const availableVariables = computed(() => templatesStore.availableVariables)
+const visibleInteractiveButtons = computed(() =>
+  interactiveButtons.value
+    .map((button, index) => ({
+      type: interactiveButtonType.value,
+      displayText: button.displayText?.trim(),
+      id: button.id?.trim() || `btn_${index + 1}`,
+      url: button.url?.trim(),
+      phoneNumber: button.phoneNumber?.trim(),
+    }))
+    .filter((button) => {
+      if (!button.displayText) return false
+      if (button.type === 'url') return Boolean(button.url)
+      if (button.type === 'call') return Boolean(button.phoneNumber)
+      return true
+    })
+)
 
 // Regex para encontrar as variáveis no texto
 const variableRegex = /({[a-zA-Z_]+})/g
 
 // Computado para destacar variáveis no preview
-const formattedPreview = computed(() => {
-  let html = templateContent.value || ''
+function formatWhatsappPreview(value) {
+  let html = value || ''
 
   // Escapa HTML básico para segurança no preview
   html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -43,7 +66,11 @@ const formattedPreview = computed(() => {
 
   // Substitui quebras de linha por <br> para o HTML
   return html.replace(/\n/g, '<br>')
-})
+}
+
+const formattedTitlePreview = computed(() => formatWhatsappPreview(templateTitle.value))
+const formattedBodyPreview = computed(() => formatWhatsappPreview(templateContent.value))
+const formattedFooterPreview = computed(() => formatWhatsappPreview(templateFooter.value))
 
 // Carrega dados do template se estiver editando
 onMounted(async () => {
@@ -52,8 +79,20 @@ onMounted(async () => {
     const { success, data } = await templatesStore.getTemplateById(props.templateId)
     if (success && data) {
       templateName.value = data.name
+      templateTitle.value = data.title || ''
       templateContent.value = data.content
+      templateFooter.value = data.footer || ''
       templateTags.value = Array.isArray(data.tags) ? data.tags.join(', ') : ''
+      interactiveEnabled.value = Boolean(data.interactive?.enabled)
+      interactiveButtonType.value = data.interactive?.buttons?.[0]?.type || 'reply'
+      interactiveButtons.value = Array.isArray(data.interactive?.buttons) && data.interactive.buttons.length
+        ? data.interactive.buttons.slice(0, 3).map((button) => ({
+            displayText: button.displayText || button.text || '',
+            id: button.id || '',
+            url: button.url || '',
+            phoneNumber: button.phoneNumber || '',
+          }))
+        : [{ displayText: '', id: '', url: '', phoneNumber: '' }]
     } else {
       toast.error('Não foi possível carregar o modelo para edição.')
       emit('close')
@@ -69,6 +108,18 @@ function insertVariable(variable) {
   templateContent.value += variable
 }
 
+function addInteractiveButton() {
+  if (interactiveButtons.value.length >= 3) return
+  interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '' })
+}
+
+function removeInteractiveButton(index) {
+  interactiveButtons.value.splice(index, 1)
+  if (!interactiveButtons.value.length) {
+    interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '' })
+  }
+}
+
 async function handleSave() {
   editorError.value = null
   if (!templateName.value || !templateContent.value) {
@@ -79,13 +130,28 @@ async function handleSave() {
 
   const payload = {
     name: templateName.value,
+    title: templateTitle.value,
     content: templateContent.value,
+    footer: templateFooter.value,
     tags: templateTags.value
       ? templateTags.value
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean)
       : [],
+    interactive: {
+      enabled: interactiveEnabled.value && visibleInteractiveButtons.value.length > 0,
+      type: 'buttons',
+      buttons: visibleInteractiveButtons.value.map((button) => ({
+        type: button.type,
+        displayText: button.displayText,
+        id: button.id,
+        url: button.url,
+        phoneNumber: button.phoneNumber,
+      })),
+      buttonText: '',
+      listSections: [],
+    },
   }
 
   let success = false
@@ -181,13 +247,108 @@ async function handleSave() {
             </div>
           </div>
           <div class="card-body">
+            <FormInput
+              v-model="templateTitle"
+              label="Título"
+              placeholder="Ex: Confirmação de consulta"
+              maxlength="60"
+            />
+            <label class="field-label" for="template-body">Corpo</label>
             <textarea
+              id="template-body"
               v-model="templateContent"
               placeholder="Digite sua mensagem aqui... Use *negrito*, _itálico_ ou ~riscado~. Insira variáveis clicando no painel à direita."
               rows="12"
               class="message-textarea"
             ></textarea>
+            <FormInput
+              v-model="templateFooter"
+              label="Rodapé"
+              placeholder="Ex: Equipe {clinica}"
+              maxlength="60"
+            />
             <div v-if="editorError" class="error-message">{{ editorError }}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon icon-teal">
+              <MousePointerClick :size="18" />
+            </div>
+            <div class="card-header-text">
+              <h3 class="card-title">Botões do WhatsApp</h3>
+              <p class="card-subtitle">Respostas rápidas vinculadas ao modelo</p>
+            </div>
+            <label class="switch-control">
+              <input v-model="interactiveEnabled" type="checkbox" />
+              <span></span>
+            </label>
+          </div>
+          <div v-if="interactiveEnabled" class="card-body interactive-body">
+            <label class="field-label" for="button-type">Tipo de botão</label>
+            <select
+              id="button-type"
+              v-model="interactiveButtonType"
+              class="type-select"
+            >
+              <option value="reply">Resposta</option>
+              <option value="url">Link</option>
+              <option value="call">Telefone</option>
+            </select>
+            <div class="buttons-editor">
+              <div
+                v-for="(button, index) in interactiveButtons"
+                :key="index"
+                class="button-row"
+              >
+                <FormInput
+                  v-model="button.displayText"
+                  label="Texto do botão"
+                  placeholder="Ex: Confirmar"
+                  maxlength="20"
+                />
+                <FormInput
+                  v-if="interactiveButtonType === 'reply'"
+                  v-model="button.id"
+                  label="ID interno"
+                  placeholder="Ex: confirmar"
+                  maxlength="256"
+                />
+                <FormInput
+                  v-else-if="interactiveButtonType === 'url'"
+                  v-model="button.url"
+                  label="URL"
+                  placeholder="Ex: {link_anamnese}"
+                  maxlength="256"
+                />
+                <FormInput
+                  v-else
+                  v-model="button.phoneNumber"
+                  label="Telefone"
+                  placeholder="Ex: 5511999999999"
+                  maxlength="20"
+                />
+                <button
+                  type="button"
+                  class="icon-button danger"
+                  :disabled="interactiveButtons.length === 1"
+                  @click="removeInteractiveButton(index)"
+                  title="Remover botão"
+                >
+                  <Trash2 :size="16" />
+                </button>
+              </div>
+              <button
+                type="button"
+                class="btn-add-button"
+                :disabled="interactiveButtons.length >= 3"
+                @click="addInteractiveButton"
+              >
+                <Plus :size="16" />
+                Adicionar botão
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -207,7 +368,34 @@ async function handleSave() {
           </div>
           <div class="card-body preview-body">
             <div class="preview-box">
-              <div v-if="templateContent" class="whatsapp-bubble" v-html="formattedPreview"></div>
+              <div v-if="templateContent" class="whatsapp-message-preview">
+                <div class="whatsapp-bubble">
+                  <div
+                    v-if="templateTitle"
+                    class="bubble-title"
+                    v-html="formattedTitlePreview"
+                  ></div>
+                  <div v-html="formattedBodyPreview"></div>
+                  <div
+                    v-if="templateFooter"
+                    class="bubble-footer"
+                    v-html="formattedFooterPreview"
+                  ></div>
+                </div>
+                <div
+                  v-if="interactiveEnabled && visibleInteractiveButtons.length"
+                  class="preview-buttons"
+                >
+                  <button
+                    v-for="button in visibleInteractiveButtons"
+                    :key="button.id"
+                    type="button"
+                    class="preview-button"
+                  >
+                    {{ button.displayText }}
+                  </button>
+                </div>
+              </div>
               <div v-else class="preview-placeholder">
                 <MessageSquare :size="32" />
                 <span>A pré-visualização aparecerá aqui</span>
@@ -444,6 +632,11 @@ async function handleSave() {
   color: #a855f7;
 }
 
+.card-icon.icon-teal {
+  background: #ecfeff;
+  color: #0891b2;
+}
+
 .card-header-text {
   display: flex;
   flex-direction: column;
@@ -465,6 +658,37 @@ async function handleSave() {
 
 .card-body {
   padding: 1.25rem;
+}
+
+.message-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--preto);
+  margin-bottom: -0.5rem;
+}
+
+.type-select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: var(--branco);
+  color: var(--preto);
+  padding: 0 0.75rem;
+  font: inherit;
+}
+
+.type-select:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 /* Message Textarea */
@@ -496,6 +720,123 @@ async function handleSave() {
   border-radius: 0.5rem;
 }
 
+.switch-control {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.switch-control input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-control span {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.switch-control span::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  border-radius: 50%;
+  background: var(--branco);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s;
+}
+
+.switch-control input:checked + span {
+  background: var(--azul-principal);
+}
+
+.switch-control input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.interactive-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.buttons-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: var(--branco);
+  color: var(--cinza-texto);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: #f9fafb;
+  color: var(--preto);
+}
+
+.icon-button.danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: var(--azul-principal);
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-button:hover:not(:disabled) {
+  border-color: var(--azul-principal);
+  background: #eff6ff;
+}
+
+.btn-add-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Preview Card */
 .card-preview {
   position: sticky;
@@ -515,6 +856,13 @@ async function handleSave() {
   flex-direction: column;
 }
 
+.whatsapp-message-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 90%;
+}
+
 .whatsapp-bubble {
   background-color: #dcf8c6;
   padding: 0.75rem 1rem;
@@ -525,6 +873,36 @@ async function handleSave() {
   font-size: 0.9rem;
   color: #303030;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.bubble-title {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.bubble-footer {
+  color: #667781;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.preview-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
+.preview-button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #0ea5e9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: default;
 }
 
 .whatsapp-bubble :deep(.variable-highlight) {

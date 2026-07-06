@@ -10,6 +10,7 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   error: { type: Boolean, default: false },
+  searchValue: { type: String, default: '' },
 });
 
 const emit = defineEmits(['update:modelValue', 'search']);
@@ -25,6 +26,11 @@ watch(() => props.modelValue, (newVal) => {
     searchQuery.value = selectedLabel.value;
   }
 });
+
+watch(() => props.searchValue, (newVal) => {
+  if (props.modelValue) return;
+  searchQuery.value = newVal || '';
+}, { immediate: true });
 
 function openDropdown() {
   if (isOpen.value) return;
