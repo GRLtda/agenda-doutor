@@ -91,6 +91,18 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
+function formatFinancialDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -113,7 +125,9 @@ function isOverdue(contaItem) {
   if (remainingAmountCents.value <= 0) return false
   const due = contaItem.dueDate ? new Date(contaItem.dueDate) : null
   if (!due) return false
-  return due.getTime() < Date.now()
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  return due.toISOString().slice(0, 10) < todayKey
 }
 
 function chronBaixas() {
@@ -197,7 +211,7 @@ onMounted(() => {
           </div>
           <div v-else-if="isOverdue(conta)" class="paid-banner paid-banner--overdue">
             <AlertTriangle :size="16" />
-            <span>Conta em atraso desde {{ formatDate(conta.dueDate) }}.</span>
+            <span>Conta em atraso desde {{ formatFinancialDate(conta.dueDate) }}.</span>
           </div>
           <div v-else class="paid-banner paid-banner--neutral">
             <Clock3 :size="16" />
@@ -235,11 +249,11 @@ onMounted(() => {
           <ul class="detail-list">
             <li>
               <span class="detail-key"><CalendarDays :size="14" /> Vencimento</span>
-              <span class="detail-value">{{ formatDate(conta.dueDate) }}</span>
+              <span class="detail-value">{{ formatFinancialDate(conta.dueDate) }}</span>
             </li>
             <li>
               <span class="detail-key"><Calendar :size="14" /> Competência</span>
-              <span class="detail-value">{{ formatDate(conta.competenceDate) }}</span>
+              <span class="detail-value">{{ formatFinancialDate(conta.competenceDate) }}</span>
             </li>
             <li>
               <span class="detail-key"><Tag :size="14" /> Categoria</span>
