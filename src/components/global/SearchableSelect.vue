@@ -19,13 +19,13 @@ const isOpen = ref(false);
 const searchQuery = ref('');
 const selectedLabel = ref('');
 
-watch(() => props.modelValue, (newVal) => {
+watch([() => props.modelValue, () => props.options], ([newVal]) => {
   const selectedOption = props.options.find(opt => opt.value === newVal);
   selectedLabel.value = selectedOption ? selectedOption.label : '';
   if (selectedLabel.value) {
     searchQuery.value = selectedLabel.value;
   }
-});
+}, { immediate: true, deep: true });
 
 watch(() => props.searchValue, (newVal) => {
   if (props.modelValue) return;

@@ -185,7 +185,11 @@ function selectOption(option) {
               </div>
               <component v-if="option.icon" :is="option.icon" :size="16" class="option-icon" />
               <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
-              <span>{{ option.label }}</span>
+              <span class="option-label">{{ option.label }}</span>
+              <slot name="option-action" :option="option"></slot>
+            </li>
+            <li v-if="$slots.footer" class="options-footer" @mousedown.stop>
+              <slot name="footer"></slot>
             </li>
           </ul>
         </Transition>
@@ -268,6 +272,10 @@ function selectOption(option) {
   cursor: pointer;
   font-weight: 500;
 }
+.option-label {
+  min-width: 0;
+  flex: 1;
+}
 .option-item:hover {
   background-color: #f3f4f6;
 }
@@ -276,6 +284,12 @@ function selectOption(option) {
   color: #6b7280;
   text-align: center;
   font-size: 0.875rem;
+}
+.options-footer {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  list-style: none;
 }
 .fade-enter-active,
 .fade-leave-active {

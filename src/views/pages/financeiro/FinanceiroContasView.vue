@@ -531,7 +531,7 @@ async function saveConta(payload) {
     toast.error(result.error)
     return
   }
-  toast.success(editingConta.value ? 'Conta atualizada.' : 'Conta criada.')
+  toast.success(payload.recurrence?.enabled ? 'Despesa recorrente criada.' : (editingConta.value ? 'Conta atualizada.' : 'Conta criada.'))
   showContaDrawer.value = false
   editingConta.value = null
   load()

@@ -270,6 +270,50 @@ export const useFinanceiroStore = defineStore('financeiroV2', () => {
     }
   }
 
+  async function createCategoria(data) {
+    loadingCategorias.value = true
+    error.value = null
+    try {
+      const response = await financeiroApi.createCategoria(data)
+      const payload = unwrap(response.data)
+      const categoria = normalizeId(payload.categoria ?? payload.category ?? payload)
+      if (categoria?._id && !categorias.value.some((item) => item._id === categoria._id)) {
+        categorias.value.push(categoria)
+      }
+      return { success: true, data: categoria }
+    } catch (err) {
+      console.error('[financeiro] createCategoria:', err)
+      error.value = extractError(err, 'Erro ao criar categoria')
+      return { success: false, error: error.value }
+    } finally {
+      loadingCategorias.value = false
+    }
+  }
+
+  async function deleteCategoria(id) {
+    loadingCategorias.value = true
+    error.value = null
+    try {
+      await financeiroApi.deleteCategoria(id)
+      categorias.value = categorias.value.filter((categoria) => categoria._id !== id)
+      contas.value = contas.value.map((conta) => {
+        const currentCategoryId = conta.categoryId?._id || conta.categoryId
+        if (currentCategoryId !== id) return conta
+        return { ...conta, categoryId: undefined }
+      })
+      if ((contaAtual.value?.categoryId?._id || contaAtual.value?.categoryId) === id) {
+        contaAtual.value = { ...contaAtual.value, categoryId: undefined }
+      }
+      return { success: true }
+    } catch (err) {
+      console.error('[financeiro] deleteCategoria:', err)
+      error.value = extractError(err, 'Erro ao excluir categoria')
+      return { success: false, error: error.value }
+    } finally {
+      loadingCategorias.value = false
+    }
+  }
+
   async function fetchLucratividadeProcedimentos(params = {}) {
     loadingLucratividade.value = true
     error.value = null
@@ -319,6 +363,8 @@ export const useFinanceiroStore = defineStore('financeiroV2', () => {
     estornarBaixa,
     fetchCaixa,
     fetchCategorias,
+    createCategoria,
+    deleteCategoria,
     fetchLucratividadeProcedimentos,
   }
 })

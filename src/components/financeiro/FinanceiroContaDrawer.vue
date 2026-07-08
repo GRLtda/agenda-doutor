@@ -1,14 +1,17 @@
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   Calendar,
   CreditCard,
   DollarSign,
   FileSignature,
   FileText,
+  Plus,
+  Repeat,
   Save,
   StickyNote,
   Tag,
+  Trash2,
   User,
   X,
 } from 'lucide-vue-next'
@@ -17,6 +20,9 @@ import '@vuepic/vue-datepicker/dist/main.css'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import SearchableSelect from '@/components/global/SearchableSelect.vue'
+import { useFinanceiroStore } from '@/stores/financeiro'
+import { usePatientsStore } from '@/stores/patients'
 
 const props = defineProps({
   tipo: {
@@ -39,9 +45,12 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save'])
+const financeiroStore = useFinanceiroStore()
+const patientsStore = usePatientsStore()
 
 const form = reactive({
   title: '',
+  patientId: '',
   partyName: '',
   categoryId: '',
   amount: '',
@@ -49,6 +58,17 @@ const form = reactive({
   competenceDate: '',
   expectedPaymentMethod: '',
   notes: '',
+  recurrenceEnabled: false,
+  recurrenceEndDate: '',
+  recurrenceMonthsAhead: 12,
+})
+
+const showCategoryForm = ref(false)
+const categoryError = ref('')
+const patientSearchQuery = ref('')
+let patientSearchTimeout = null
+const newCategory = reactive({
+  name: '',
 })
 
 const isEditing = computed(() => Boolean(props.conta?._id))
@@ -56,6 +76,9 @@ const title = computed(() => {
   if (isEditing.value) return 'Editar conta'
   return props.tipo === 'RECEIVABLE' ? 'Nova conta a receber' : 'Nova despesa'
 })
+const canUseRecurrence = computed(() => props.tipo === 'PAYABLE' && !isEditing.value)
+const categoryType = computed(() => props.tipo === 'RECEIVABLE' ? 'REVENUE' : 'EXPENSE')
+const isReceivable = computed(() => props.tipo === 'RECEIVABLE')
 
 const dueDatePickerModel = computed({
   get: () => parseLocalDate(form.dueDate),
@@ -71,13 +94,43 @@ const competenceDatePickerModel = computed({
   },
 })
 
+const recurrenceEndDatePickerModel = computed({
+  get: () => parseLocalDate(form.recurrenceEndDate),
+  set: (value) => {
+    form.recurrenceEndDate = formatDateForApi(value)
+  },
+})
+
 const categoryOptions = computed(() => [
   { label: 'Sem categoria', value: '' },
   ...props.categorias.map((categoria) => ({
     label: categoria.name,
     value: categoria._id || categoria.id,
+    isDefault: categoria.isDefault,
+    canDelete: !categoria.isDefault,
   })),
 ])
+
+const patientOptions = computed(() => {
+  const source = patientSearchQuery.value.trim().length > 0
+    ? patientsStore.searchResults
+    : patientsStore.allPatients
+  const options = (source || []).map((patient) => ({
+    value: patient._id,
+    label: patient.name,
+  }))
+
+  const currentPatientId = getId(props.conta?.party?.patientId)
+  const currentPatientName = getCurrentPatientName()
+  if (currentPatientId && currentPatientName && !options.some((option) => option.value === currentPatientId)) {
+    options.unshift({
+      value: currentPatientId,
+      label: currentPatientName,
+    })
+  }
+
+  return options
+})
 
 const paymentOptions = [
   { label: 'Não informado', value: '' },
@@ -88,6 +141,13 @@ const paymentOptions = [
   { label: 'Boleto', value: 'BOLETO' },
   { label: 'Transferência', value: 'TRANSFERENCIA' },
   { label: 'Outro', value: 'OUTRO' },
+]
+
+const recurrenceWindowOptions = [
+  { label: 'Proximos 6 meses', value: 6 },
+  { label: 'Proximos 12 meses', value: 12 },
+  { label: 'Proximos 24 meses', value: 24 },
+  { label: 'Proximos 36 meses', value: 36 },
 ]
 
 function dateForInput(value) {
@@ -129,8 +189,19 @@ function reaisToCents(value) {
   return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0
 }
 
+function getId(value) {
+  if (!value) return ''
+  return typeof value === 'object' ? (value._id || value.id || '') : value
+}
+
+function getCurrentPatientName() {
+  const patient = props.conta?.party?.patientId
+  return typeof patient === 'object' ? (patient.name || props.conta?.party?.name || '') : (props.conta?.party?.name || '')
+}
+
 function resetForm() {
   form.title = props.conta?.title || ''
+  form.patientId = getId(props.conta?.party?.patientId)
   form.partyName = props.conta?.party?.name || ''
   form.categoryId = props.conta?.categoryId?._id || props.conta?.categoryId || ''
   form.amount = props.conta ? centsToReais(props.conta.amountCents) : ''
@@ -138,11 +209,82 @@ function resetForm() {
   form.competenceDate = dateForInput(props.conta?.competenceDate || props.conta?.dueDate)
   form.expectedPaymentMethod = props.conta?.expectedPaymentMethod || ''
   form.notes = props.conta?.notes || ''
+  form.recurrenceEnabled = false
+  form.recurrenceEndDate = ''
+  form.recurrenceMonthsAhead = 12
+  showCategoryForm.value = false
+  categoryError.value = ''
+  patientSearchQuery.value = ''
+  newCategory.name = ''
+}
+
+async function createCategory() {
+  const name = newCategory.name.trim()
+  if (name.length < 2) {
+    categoryError.value = 'Informe um nome com pelo menos 2 caracteres.'
+    return
+  }
+
+  categoryError.value = ''
+  const result = await financeiroStore.createCategoria({
+    type: categoryType.value,
+    name,
+  })
+
+  if (!result.success) {
+    categoryError.value = result.error
+    return
+  }
+
+  form.categoryId = result.data?._id || ''
+  showCategoryForm.value = false
+  newCategory.name = ''
+}
+
+async function deleteCategory(option) {
+  if (!option?.value || option.isDefault) return
+  const confirmed = window.confirm(`Excluir a categoria "${option.label}"?`)
+  if (!confirmed) return
+
+  categoryError.value = ''
+  const result = await financeiroStore.deleteCategoria(option.value)
+  if (!result.success) {
+    categoryError.value = result.error
+    return
+  }
+
+  if (form.categoryId === option.value) {
+    form.categoryId = ''
+  }
+}
+
+function handlePatientSearch(query) {
+  patientSearchQuery.value = query || ''
+  clearTimeout(patientSearchTimeout)
+
+  if (!query) {
+    patientSearchTimeout = setTimeout(() => {
+      if (patientsStore.allPatients.length === 0 && !patientsStore.isLoading) {
+        patientsStore.fetchAllPatients(1, 20)
+      }
+    }, 120)
+    return
+  }
+
+  patientSearchTimeout = setTimeout(() => {
+    patientsStore.searchPatients(query)
+  }, 280)
+}
+
+function selectedPatientName() {
+  return patientOptions.value.find((option) => option.value === form.patientId)?.label || form.partyName
 }
 
 function submit() {
   const amountCents = reaisToCents(form.amount)
-  if (!form.title.trim() || !form.partyName.trim() || !form.dueDate || amountCents <= 0) return
+  const partyName = isReceivable.value ? selectedPatientName() : form.partyName.trim()
+  if (!form.title.trim() || !partyName || !form.dueDate || amountCents <= 0) return
+  if (isReceivable.value && !form.patientId) return
 
   const payload = {
     type: props.tipo,
@@ -151,8 +293,8 @@ function submit() {
     dueDate: form.dueDate,
     competenceDate: form.competenceDate || form.dueDate,
     party: {
-      type: props.tipo === 'RECEIVABLE' ? 'PATIENT' : 'SUPPLIER',
-      name: form.partyName.trim(),
+      type: isReceivable.value ? 'PATIENT' : 'SUPPLIER',
+      name: partyName,
     },
     source: {
       type: props.tipo === 'PAYABLE' ? 'EXPENSE' : 'MANUAL',
@@ -160,14 +302,29 @@ function submit() {
     notes: form.notes?.trim() || undefined,
   }
 
+  if (isReceivable.value) payload.party.patientId = form.patientId
   if (form.categoryId) payload.categoryId = form.categoryId
   if (form.expectedPaymentMethod) payload.expectedPaymentMethod = form.expectedPaymentMethod
+  if (canUseRecurrence.value && form.recurrenceEnabled) {
+    payload.recurrence = {
+      enabled: true,
+      frequency: 'MONTHLY',
+      monthsAhead: Number(form.recurrenceMonthsAhead) || 12,
+    }
+    if (form.recurrenceEndDate) payload.recurrence.endDate = form.recurrenceEndDate
+  }
 
   emit('save', payload)
 }
 
 watch(() => props.conta, resetForm, { immediate: true })
 watch(() => props.tipo, resetForm)
+
+onMounted(() => {
+  if (isReceivable.value && patientsStore.allPatients.length === 0) {
+    patientsStore.fetchAllPatients(1, 20)
+  }
+})
 </script>
 
 <template>
@@ -206,10 +363,27 @@ watch(() => props.tipo, resetForm)
             <div class="form-group">
               <label class="form-label">
                 <User :size="14" />
-                {{ tipo === 'RECEIVABLE' ? 'Paciente ou convênio' : 'Fornecedor' }}
+                {{ tipo === 'RECEIVABLE' ? 'Paciente' : 'Fornecedor' }}
                 <span class="required-asterisk">*</span>
               </label>
-              <input v-model="form.partyName" class="form-input" type="text" placeholder="Nome" required />
+              <SearchableSelect
+                v-if="isReceivable"
+                v-model="form.patientId"
+                :options="patientOptions"
+                :loading="patientsStore.isLoading"
+                :search-value="patientSearchQuery"
+                empty-label="Buscar paciente"
+                required
+                @search="handlePatientSearch"
+              />
+              <input
+                v-else
+                v-model="form.partyName"
+                class="form-input"
+                type="text"
+                placeholder="Nome do fornecedor"
+                required
+              />
             </div>
             <div class="form-group">
               <label class="form-label">
@@ -220,7 +394,57 @@ watch(() => props.tipo, resetForm)
                 v-model="form.categoryId"
                 :options="categoryOptions"
                 placeholder="Sem categoria"
-              />
+              >
+                <template #footer>
+                  <div class="category-select-footer">
+                    <button
+                      v-if="!showCategoryForm"
+                      type="button"
+                      class="category-footer-action"
+                      @click.stop="showCategoryForm = true"
+                    >
+                      <Plus :size="14" />
+                      Criar nova categoria
+                    </button>
+
+                    <div v-else class="category-footer-form">
+                      <input
+                        v-model="newCategory.name"
+                        class="category-footer-input"
+                        type="text"
+                        placeholder="Nome da categoria"
+                        @keydown.enter.prevent="createCategory"
+                      />
+                      <div class="category-footer-actions">
+                        <button
+                          type="button"
+                          class="category-footer-save"
+                          :disabled="financeiroStore.loadingCategorias"
+                          @click.stop="createCategory"
+                        >
+                          Criar
+                        </button>
+                        <button type="button" class="category-footer-cancel" @click.stop="showCategoryForm = false">
+                          Cancelar
+                        </button>
+                      </div>
+                      <span v-if="categoryError" class="inline-error">{{ categoryError }}</span>
+                    </div>
+                  </div>
+                </template>
+                <template #option-action="{ option }">
+                  <button
+                    v-if="option.canDelete"
+                    type="button"
+                    class="category-option-delete"
+                    title="Excluir categoria"
+                    @mousedown.prevent.stop="deleteCategory(option)"
+                  >
+                    <Trash2 :size="13" />
+                  </button>
+                </template>
+              </StyledSelect>
+              <span v-if="categoryError && !showCategoryForm" class="inline-error">{{ categoryError }}</span>
             </div>
           </div>
         </section>
@@ -290,6 +514,38 @@ watch(() => props.tipo, resetForm)
           </div>
         </section>
 
+        <div v-if="canUseRecurrence" class="recurrence-inline" :class="{ 'is-active': form.recurrenceEnabled }">
+          <button type="button" class="recurrence-toggle" @click="form.recurrenceEnabled = !form.recurrenceEnabled">
+            <span class="mini-switch" :class="{ 'is-on': form.recurrenceEnabled }"></span>
+            <span class="recurrence-label">
+              <Repeat :size="14" />
+              Repetir todo mes
+            </span>
+          </button>
+
+          <div v-if="form.recurrenceEnabled" class="recurrence-options">
+            <StyledSelect
+              v-model="form.recurrenceMonthsAhead"
+              :options="recurrenceWindowOptions"
+              placeholder="Proximos 12 meses"
+              dropdown-direction="up"
+            />
+            <VueDatePicker
+              :model-value="recurrenceEndDatePickerModel"
+              @update:model-value="recurrenceEndDatePickerModel = $event"
+              class="date-picker-field recurrence-date"
+              :enable-time-picker="false"
+              locale="pt-BR"
+              format="dd/MM/yyyy"
+              placeholder="Sem data final"
+              auto-apply
+              teleport="body"
+              :z-index="12000"
+              :hide-input-icon="true"
+            />
+          </div>
+        </div>
+
         <section class="form-section">
           <div class="form-group">
             <label class="form-label">
@@ -299,6 +555,7 @@ watch(() => props.tipo, resetForm)
             <textarea v-model="form.notes" class="form-textarea" rows="4" placeholder="Informações internas"></textarea>
           </div>
         </section>
+
       </div>
     </form>
 
@@ -394,6 +651,199 @@ watch(() => props.tipo, resetForm)
   color: #374151;
   font-size: 0.8125rem;
   font-weight: 650;
+}
+
+.inline-error {
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.category-select-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.category-footer-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+  color: var(--azul-principal, #2563eb);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0.62rem 0.75rem;
+  text-align: left;
+}
+
+.category-footer-action:hover {
+  background: #eff6ff;
+}
+
+.category-footer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.category-footer-input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.55rem;
+  color: #111827;
+  font: inherit;
+  padding: 0 0.75rem;
+}
+
+.category-footer-input:focus {
+  outline: none;
+  border-color: var(--azul-principal, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.category-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.category-footer-save,
+.category-footer-cancel {
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-height: 30px;
+  padding: 0 0.65rem;
+}
+
+.category-footer-save {
+  background: var(--azul-principal, #2563eb);
+  color: #fff;
+}
+
+.category-footer-save:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.category-footer-cancel {
+  background: transparent;
+  color: #64748b;
+}
+
+.category-footer-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.category-option-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.76;
+}
+
+.category-option-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  opacity: 1;
+}
+
+.recurrence-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: -0.25rem;
+}
+
+.recurrence-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0.15rem 0;
+}
+
+.recurrence-toggle:hover,
+.recurrence-inline.is-active .recurrence-toggle {
+  color: #0f172a;
+}
+
+.mini-switch {
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  position: relative;
+  transition: background 0.18s ease;
+}
+
+.mini-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+
+.mini-switch.is-on {
+  background: var(--azul-principal, #2563eb);
+}
+
+.mini-switch.is-on::after {
+  transform: translateX(12px);
+}
+
+.recurrence-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.recurrence-options {
+  display: grid;
+  grid-template-columns: minmax(160px, 190px) minmax(150px, 190px);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.recurrence-options :deep(.form-group) {
+  margin: 0;
+}
+
+.recurrence-options :deep(.select-button),
+.recurrence-date :deep(.dp__input) {
+  min-height: 38px;
+  border-radius: 0.65rem;
+  font-size: 0.86rem;
 }
 
 .required-asterisk {
@@ -522,6 +972,20 @@ input[type=number] {
 
   .form-row {
     flex-direction: column;
+  }
+
+  .recurrence-inline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recurrence-options {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .recurrence-toggle {
+    justify-content: flex-start;
   }
 
   .drawer-footer {
