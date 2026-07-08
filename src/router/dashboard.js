@@ -190,6 +190,41 @@ const dashboardRoutes = [
         meta: { title: 'Workflows' },
       },
       {
+        path: 'secretaria-ia',
+        redirect: '/secretaria-ia/conversas',
+        meta: { feature: 'ai_secretary' },
+      },
+      {
+        path: 'secretaria-ia/conversas',
+        name: 'secretaria-ia-conversas',
+        component: () => import('../views/pages/secretaria-ia/ConversationsView.vue'),
+        meta: { title: 'Conversas - Secretaria IA', feature: 'ai_secretary' },
+      },
+      {
+        path: 'secretaria-ia/base-conhecimento',
+        name: 'secretaria-ia-base-conhecimento',
+        component: () => import('../views/pages/secretaria-ia/KnowledgeBaseView.vue'),
+        meta: { title: 'Base de Conhecimento - Secretaria IA', feature: 'ai_secretary' },
+      },
+      {
+        path: 'secretaria-ia/regras',
+        name: 'secretaria-ia-regras',
+        component: () => import('../views/pages/secretaria-ia/RulesView.vue'),
+        meta: { title: 'Regras - Secretaria IA', feature: 'ai_secretary' },
+      },
+      {
+        path: 'secretaria-ia/configuracoes',
+        name: 'secretaria-ia-configuracoes',
+        component: () => import('../views/pages/secretaria-ia/SettingsView.vue'),
+        meta: { title: 'Configurações - Secretaria IA', feature: 'ai_secretary' },
+      },
+      {
+        path: 'secretaria-ia/logs',
+        name: 'secretaria-ia-logs',
+        component: () => import('../views/pages/secretaria-ia/LogsView.vue'),
+        meta: { title: 'Histórico - Secretaria IA', feature: 'ai_secretary' },
+      },
+      {
         path: 'workflows/:id',
         name: 'workflow-editor',
         component: () => import('../views/pages/workflows/WorkflowEditor.vue'),

@@ -21,6 +21,7 @@ const planFeatures = {
         'marketing_logs',
         'finance',
         'workflows',
+        'ai_secretary',
         'settings',
     ],
     premium: [
@@ -35,6 +36,7 @@ const planFeatures = {
         'marketing_logs',
         'finance',
         'workflows',
+        'ai_secretary',
         'settings',
     ],
     enterprise: ['*'], // Acesso total a todas funcionalidades
@@ -48,6 +50,11 @@ const routeFeatureMap = {
     'financeiro': 'finance',
     'workflows-list': 'workflows',
     'workflow-editor': 'workflows',
+    'secretaria-ia-conversas': 'ai_secretary',
+    'secretaria-ia-base-conhecimento': 'ai_secretary',
+    'secretaria-ia-regras': 'ai_secretary',
+    'secretaria-ia-configuracoes': 'ai_secretary',
+    'secretaria-ia-logs': 'ai_secretary',
 }
 
 /**

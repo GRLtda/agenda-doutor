@@ -221,6 +221,21 @@ const sidebarSections = computed(() => {
     marketingLinks.push({ icon: 'workflow', text: 'Workflows', to: '/workflows' })
   }
 
+  if (hasAccess('ai_secretary')) {
+    marketingLinks.push({
+      icon: 'bot',
+      text: 'Secretaria IA',
+      key: 'secretaria-ia',
+      children: [
+        { text: 'Conversas', to: '/secretaria-ia/conversas', icon: 'message' },
+        { text: 'Base', to: '/secretaria-ia/base-conhecimento', icon: 'book' },
+        { text: 'Regras', to: '/secretaria-ia/regras', icon: 'shield' },
+        { text: 'Configurações', to: '/secretaria-ia/configuracoes', icon: 'settings' },
+        { text: 'Histórico', to: '/secretaria-ia/logs', icon: 'history' },
+      ],
+    })
+  }
+
   const marketingSection = {
     title: 'Automação',
     links: marketingLinks

@@ -77,6 +77,18 @@ defineProps({
     <path d="M18 9v3a2 2 0 0 1-2 2h-2" />
   </svg>
 
+  <!-- Bot / AI Secretary -->
+  <svg v-else-if="name === 'bot'" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 8V4" />
+    <circle cx="12" cy="3" r="1" />
+    <rect x="5" y="8" width="14" height="11" rx="3" />
+    <path d="M9 13h.01" />
+    <path d="M15 13h.01" />
+    <path d="M9.5 16.5h5" />
+    <path d="M3 13h2" />
+    <path d="M19 13h2" />
+  </svg>
+
   <!-- Message -->
   <svg v-else-if="name === 'message'" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -87,6 +99,18 @@ defineProps({
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <path d="M3 9h18" />
     <path d="M9 21V9" />
+  </svg>
+
+  <!-- Book -->
+  <svg v-else-if="name === 'book'" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />
+  </svg>
+
+  <!-- Shield -->
+  <svg v-else-if="name === 'shield'" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="M9 12l2 2 4-4" />
   </svg>
 
   <!-- Link -->
