@@ -1545,16 +1545,25 @@ input[type='number'] {
   max-width: none;
 }
 
+.header-close-btn {
+  display: none;
+}
+
 @media (max-width: 820px) {
   .payment-layout {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 640px) {
   .panel-heading {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-close-btn {
+    display: flex;
   }
 
   .drawer-header {
@@ -1589,6 +1598,7 @@ input[type='number'] {
   .checkout-stepper::-webkit-scrollbar {
     display: none;
   }
+
 
   .step-button {
     flex: 0 0 180px;
