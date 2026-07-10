@@ -204,7 +204,7 @@ function nextStep() {
       return
     }
   }
-  
+
   if (currentStep.value < steps.length) {
     currentStep.value++
   }
@@ -561,14 +561,14 @@ watch(newProcedureDiscountMode, () => {
     <template #footer>
       <div class="drawer-footer space-between">
         <!-- Botão Esquerdo (Cancelar ou Voltar) -->
-        <AppButton 
-          variant="default" 
+        <AppButton
+          variant="default"
           @click="currentStep === 1 ? $emit('close') : prevStep()"
         >
           <component :is="currentStep === 1 ? X : ArrowLeft" :size="18" />
           {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}
         </AppButton>
-        
+
         <!-- Botão Direito (Próximo ou Salvar) -->
         <AppButton
           variant="primary"
@@ -644,10 +644,10 @@ watch(newProcedureDiscountMode, () => {
 }
 
 /* Hide number input spinners */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 input[type=number] {
   -moz-appearance: textfield;
@@ -707,9 +707,9 @@ input[type=number] {
   gap: 0.375rem;
 }
 
-.form-label svg {
+/*.form-label svg {
   color: var(--azul-principal);
-}
+}*/
 
 .required-asterisk {
   color: #dc2626;

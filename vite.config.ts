@@ -64,6 +64,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'vue-toastification': path.resolve(__dirname, './src/lib/sonnerToastification.js'),
     },
   },
   build: {
