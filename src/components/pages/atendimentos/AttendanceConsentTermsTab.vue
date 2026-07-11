@@ -241,9 +241,6 @@ h3 {
   transition: border-color 0.2s;
 }
 
-.term-card:hover {
-  border-color: var(--azul-principal-leve);
-}
 
 .term-card.signed {
   border-left: 3px solid #10b981;

@@ -149,8 +149,7 @@ function handleOverlayPointerUp(event) {
 .close-btn-outside {
   position: absolute;
   top: 1rem;
-  /* right via class specific rules below */
-  background: #fff;
+  background: #ffffff;
   border: none;
   color: #6b7280;
   cursor: pointer;
@@ -183,7 +182,7 @@ function handleOverlayPointerUp(event) {
 
 /* Size positioning for close button */
 .close-btn-outside.size-sm { right: 432px; }
-.close-btn-outside.size-md { right: 512px; }
+.close-btn-outside.size-md { right: 500px; }
 .close-btn-outside.size-lg { right: 632px; }
 .close-btn-outside.size-xl { right: 832px; }
 
@@ -192,7 +191,7 @@ function handleOverlayPointerUp(event) {
   height: 100%;
   background: #fff;
   border: 1.3px solid #abb0b8;
-  border-radius: 14px;
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -272,6 +271,8 @@ function handleOverlayPointerUp(event) {
     max-width: 100% !important; /* Force full width on mobile */
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-radius: 0rem;
+    border: 0;
   }
   .drawer-body {
     padding: 1rem;
@@ -299,6 +300,11 @@ function handleOverlayPointerUp(event) {
     border-radius: 50%;
     transition: all 0.2s;
   }
+
+  .drawer-overlay {
+    padding: 0rem !important;
+  }
+
 
   :deep(.mobile-close-btn:hover),
   :deep(.close-btn-header:hover) {

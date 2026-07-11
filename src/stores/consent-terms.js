@@ -254,7 +254,6 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         isLoading.value = true
         try {
             const response = await apiSubmitSignature(token, payload)
-            toast.success(response.data.message || 'Termo assinado com sucesso!')
             return { success: true }
         } catch (error) {
             console.error('Erro ao submeter assinatura:', error)

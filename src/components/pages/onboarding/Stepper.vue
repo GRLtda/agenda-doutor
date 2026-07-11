@@ -96,27 +96,26 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 44px;
   gap: 0;
+  min-width: 0;
 }
 
 .app-stepper-item {
   flex: 1 1 0;
-  min-width: 180px;
-}
-
-.app-stepper-item.is-last {
-  flex: 0 0 148px;
-  min-width: 148px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .app-stepper-trigger {
-  flex: 0 0 148px;
+  flex: 0 1 auto;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
   gap: 0.75rem;
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -150,6 +149,7 @@ onBeforeUnmount(() => {
 .app-stepper-details {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -178,10 +178,10 @@ onBeforeUnmount(() => {
 }
 
 .app-stepper-separator {
-  flex: 1 1 auto;
+  flex: 1 1 1.5rem;
   height: 2px;
-  min-width: 2rem;
-  margin: 0 1rem;
+  min-width: 1rem;
+  margin: 0 0.75rem;
   background: #e5e7eb;
   transition: background 0.3s ease;
 }
@@ -190,11 +190,11 @@ onBeforeUnmount(() => {
   background: var(--azul-principal);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .app-stepper {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    padding: 0.5rem 15%;
+    padding: 0.5rem 12%;
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
@@ -204,8 +204,8 @@ onBeforeUnmount(() => {
   }
 
   .app-stepper-item {
-    min-width: 70%;
-    flex-basis: 70%;
+    min-width: min(72%, 16rem);
+    flex-basis: min(72%, 16rem);
     scroll-snap-align: center;
     justify-content: center;
     opacity: 0.5;
@@ -225,6 +225,7 @@ onBeforeUnmount(() => {
   .app-stepper-trigger {
     flex-basis: 100%;
     justify-content: center;
+    width: 100%;
   }
 
   .app-stepper-separator {
