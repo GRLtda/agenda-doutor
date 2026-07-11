@@ -31,11 +31,11 @@ const props = defineProps({
   patientName: { type: String, required: true },
   appointmentDate: { type: String, required: true },
   appointmentTime: { type: String, required: true },
+  isLoading: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['close', 'confirm', 'schedule-return'])
 
-const isLoading = ref(false)
 const paidNow = ref(true)
 const expectedPaymentMethod = ref('PIX')
 const dueDate = ref(toDateInput(new Date()))
@@ -213,43 +213,38 @@ function previousStep() {
   goToStep(activeStep.value - 1)
 }
 
-async function handleSubmit() {
-  if (!isValid.value) return
+function handleSubmit() {
+  if (!isValid.value || props.isLoading) return
 
-  isLoading.value = true
-  try {
-    const paymentsNow = paidNow.value
-      ? confirmedPayments.value.map(pm => ({
-          method: pm.method,
-          amount: pm.amount,
-          installments: pm.method === 'CARTAO_CREDITO' ? pm.installments : 1,
-        }))
-      : []
+  const paymentsNow = paidNow.value
+    ? confirmedPayments.value.map(pm => ({
+        method: pm.method,
+        amount: pm.amount,
+        installments: pm.method === 'CARTAO_CREDITO' ? pm.installments : 1,
+      }))
+    : []
 
-    let mode = 'RECEIVE_LATER'
-    if (useInstallments.value && hasPendingBalance.value) {
-      mode = 'INSTALLMENTS'
-    } else if (totalPaid.value >= totalAmount.value - 0.01) {
-      mode = 'PAID_NOW'
-    } else if (totalPaid.value > 0) {
-      mode = 'PARTIAL'
-    }
-
-    emit('confirm', {
-      patientId: props.patientId,
-      appointmentId: props.appointmentId,
-      paymentMethods: paymentsNow,
-      paymentPlan: {
-        mode,
-        dueDate: dueDate.value,
-        expectedPaymentMethod: expectedPaymentMethod.value,
-        paymentsNow,
-        installments: mode === 'INSTALLMENTS' ? generatedInstallments.value : [],
-      },
-    })
-  } finally {
-    isLoading.value = false
+  let mode = 'RECEIVE_LATER'
+  if (useInstallments.value && hasPendingBalance.value) {
+    mode = 'INSTALLMENTS'
+  } else if (totalPaid.value >= totalAmount.value - 0.01) {
+    mode = 'PAID_NOW'
+  } else if (totalPaid.value > 0) {
+    mode = 'PARTIAL'
   }
+
+  emit('confirm', {
+    patientId: props.patientId,
+    appointmentId: props.appointmentId,
+    paymentMethods: paymentsNow,
+    paymentPlan: {
+      mode,
+      dueDate: dueDate.value,
+      expectedPaymentMethod: expectedPaymentMethod.value,
+      paymentsNow,
+      installments: mode === 'INSTALLMENTS' ? generatedInstallments.value : [],
+    },
+  })
 }
 
 function formatCurrency(value) {

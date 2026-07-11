@@ -15,11 +15,16 @@ import {
   SlidersHorizontal,
   X,
   Check,
-  LoaderCircle,
   Package,
+  FileText,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
+import CurrencyInput from '@/components/global/CurrencyInput.vue'
+import Stepper from '@/components/pages/onboarding/Stepper.vue'
 
 const proceduresStore = useProceduresStore()
 const estoqueStore = useEstoqueStore()
@@ -31,6 +36,19 @@ const actionsMenuOpenFor = ref(null)
 const selectedProcedure = ref(null)
 const showFormModal = ref(false)
 const isSaving = ref(false)
+const currentStep = ref(1)
+
+const formSteps = [
+  { name: 'Dados', icon: FileText, subtitle: 'Identificação' },
+  { name: 'Preço', icon: DollarSign, subtitle: 'Cobrança' },
+  { name: 'Revisão', icon: Check, subtitle: 'Confirmar' },
+]
+
+const pricingOptions = [
+  { value: 'FIXED', label: 'Preço Fixo' },
+  { value: 'UNIT', label: 'Por Unidade' },
+  { value: 'ML', label: 'Por mL' },
+]
 
 onMounted(async () => {
   await Promise.all([
@@ -54,6 +72,7 @@ function goToKits() {
 
 function handleEdit(procedure) {
   selectedProcedure.value = { ...procedure }
+  currentStep.value = 1
   showFormModal.value = true
   actionsMenuOpenFor.value = null
 }
@@ -65,6 +84,7 @@ function handleNew() {
     baseValue: 0,
     pricingType: 'FIXED',
   }
+  currentStep.value = 1
   showFormModal.value = true
 }
 
@@ -83,6 +103,27 @@ async function handleDelete(procedureId) {
 function closeModal() {
   showFormModal.value = false
   selectedProcedure.value = null
+  currentStep.value = 1
+}
+
+function nextStep() {
+  if (currentStep.value === 1 && !selectedProcedure.value?.name?.trim()) {
+    toast.error('O nome do procedimento é obrigatório.')
+    return
+  }
+
+  if (currentStep.value === 2 && selectedProcedure.value.baseValue <= 0) {
+    toast.error('O valor deve ser maior que zero.')
+    return
+  }
+
+  if (currentStep.value < formSteps.length) {
+    currentStep.value++
+  }
+}
+
+function prevStep() {
+  if (currentStep.value > 1) currentStep.value--
 }
 
 async function handleSave() {
@@ -359,16 +400,19 @@ const getPricingTypeInfo = (type) => {
 
     <!-- Modal de Formulário -->
     <!-- Side Drawer de Formulário -->
-    <SideDrawer v-if="showFormModal" @close="closeModal">
+    <SideDrawer v-if="showFormModal" @close="closeModal" size="xl">
       <template #header>
-        <div class="drawer-header">
-          <div class="header-left">
-            <h2 class="drawer-title">
+        <div class="procedure-create-header">
+          <div class="procedure-create-header-content">
+            <h2 class="procedure-create-title">
+              <div class="procedure-create-icon">
+                <Stethoscope :size="24" />
+              </div>
               {{ selectedProcedure._id ? 'Editar Procedimento' : 'Novo Procedimento' }}
             </h2>
-            <span v-if="selectedProcedure._id" class="procedure-id">
-              ID #{{ selectedProcedure._id.slice(-6).toUpperCase() }}
-            </span>
+            <p class="procedure-create-description">
+              {{ selectedProcedure._id ? 'Atualize os dados e a precificação do procedimento.' : 'Cadastre o serviço com dados claros e preço base.' }}
+            </p>
           </div>
           <button @click="closeModal" class="close-btn-header">
             <X :size="24" />
@@ -376,35 +420,117 @@ const getPricingTypeInfo = (type) => {
         </div>
       </template>
 
-      <ProcedureForm v-model="selectedProcedure" />
+      <div v-if="selectedProcedure" class="procedure-create-body">
+        <div class="procedure-create-stepper">
+          <Stepper :steps="formSteps" :currentStep="currentStep" />
+        </div>
+
+        <section v-show="currentStep === 1" class="procedure-create-step">
+          <div class="procedure-create-card">
+            <div class="procedure-create-card-header">
+              <div>
+                <h3>Dados do procedimento</h3>
+                <p>Nome e descrição que aparecem nas telas clínicas e financeiras.</p>
+              </div>
+            </div>
+
+            <div class="procedure-create-field">
+              <label for="procedure-name">Nome do procedimento <span>*</span></label>
+              <input
+                id="procedure-name"
+                v-model="selectedProcedure.name"
+                type="text"
+                class="procedure-create-input"
+                placeholder="Ex: Consulta, Limpeza, Bioestimulador"
+                required
+                autofocus
+              />
+            </div>
+
+            <div class="procedure-create-field">
+              <label for="procedure-description">Descrição</label>
+              <textarea
+                id="procedure-description"
+                v-model="selectedProcedure.description"
+                class="procedure-create-textarea"
+                placeholder="Descrição opcional do procedimento"
+                rows="4"
+              ></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section v-show="currentStep === 2" class="procedure-create-step">
+          <div class="procedure-create-card">
+            <div class="procedure-create-card-header">
+              <div>
+                <h3>Precificação</h3>
+                <p>Defina como o procedimento será cobrado nos atendimentos e orçamentos.</p>
+              </div>
+            </div>
+
+            <div class="procedure-create-price-grid">
+              <div class="procedure-create-field">
+                <label>Tipo de cobrança</label>
+                <StyledSelect v-model="selectedProcedure.pricingType" :options="pricingOptions" />
+              </div>
+
+              <div class="procedure-create-field">
+                <label>Valor base <span>*</span></label>
+                <CurrencyInput v-model="selectedProcedure.baseValue" placeholder="R$ 0,00" />
+              </div>
+            </div>
+          </div>
+
+          <div class="procedure-create-summary">
+            <span>Prévia</span>
+            <strong>{{ selectedProcedure.name || 'Novo procedimento' }}</strong>
+            <p>{{ getPricingTypeInfo(selectedProcedure.pricingType).label }} · {{ formatCurrency(selectedProcedure.baseValue || 0) }}</p>
+          </div>
+        </section>
+
+        <section v-show="currentStep === 3" class="procedure-create-step">
+          <div class="procedure-create-review">
+            <div class="procedure-create-review-main">
+              <span>Procedimento</span>
+              <strong>{{ selectedProcedure.name }}</strong>
+              <p>{{ selectedProcedure.description || 'Sem descrição informada.' }}</p>
+            </div>
+
+            <div class="procedure-create-review-grid">
+              <div>
+                <span>Tipo de cobrança</span>
+                <strong>{{ getPricingTypeInfo(selectedProcedure.pricingType).label }}</strong>
+              </div>
+              <div>
+                <span>Valor base</span>
+                <strong>{{ formatCurrency(selectedProcedure.baseValue || 0) }}</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <template #footer>
-        <div class="drawer-footer">
-          <AppButton variant="default" @click="closeModal" class="btn-cancel">
-            <X :size="18" />
-            Cancelar
+        <div class="procedure-create-footer">
+          <AppButton variant="default" @click="currentStep === 1 ? closeModal() : prevStep()">
+            <component :is="currentStep === 1 ? X : ArrowLeft" :size="18" />
+            {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}
           </AppButton>
-          <AppButton variant="secondary" @click="handleSave" class="btn-save" :disabled="isSaving">
-            <LoaderCircle v-if="isSaving" :size="18" class="animate-spin" />
-            <Check v-else :size="18" />
-            {{ selectedProcedure._id ? 'Salvar Alterações' : 'Criar Procedimento' }}
+          <AppButton
+            variant="primary"
+            @click="currentStep === formSteps.length ? handleSave() : nextStep()"
+            :disabled="isSaving"
+            :loading="isSaving"
+          >
+            <component :is="currentStep === formSteps.length ? Check : ArrowRight" :size="18" />
+            {{ currentStep === formSteps.length ? (selectedProcedure._id ? 'Salvar Alterações' : 'Criar Procedimento') : 'Próximo' }}
           </AppButton>
         </div>
       </template>
     </SideDrawer>
   </div>
 </template>
-
-<script>
-import ProcedureForm from './ProcedureForm.vue'
-
-export default {
-  components: {
-    ProcedureForm,
-    SideDrawer,
-  },
-}
-</script>
 
 <style scoped>
 .procedures-page {
@@ -833,6 +959,224 @@ th.actions-header .th-content {
   display: none;
 }
 
+.procedure-create-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.procedure-create-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.procedure-create-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.procedure-create-icon {
+  color: var(--azul-principal);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.procedure-create-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 0 2rem;
+  line-height: 1.35;
+}
+
+.procedure-create-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.procedure-create-stepper {
+  margin-bottom: 2rem;
+  padding: 0.5rem 0;
+}
+
+.procedure-create-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: procedureStepIn 0.25s ease;
+}
+
+@keyframes procedureStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.procedure-create-card,
+.procedure-create-summary,
+.procedure-create-review {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.procedure-create-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.procedure-create-card-header h3 {
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.procedure-create-card-header p {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  margin: 0.25rem 0 0;
+  line-height: 1.4;
+}
+
+.procedure-create-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.procedure-create-field label {
+  color: #374151;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.procedure-create-field label span {
+  color: #dc2626;
+}
+
+.procedure-create-input,
+.procedure-create-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #111827;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.procedure-create-input {
+  height: 44px;
+  padding: 0 1rem;
+}
+
+.procedure-create-textarea {
+  min-height: 104px;
+  resize: vertical;
+  padding: 0.75rem 1rem;
+}
+
+.procedure-create-input::placeholder,
+.procedure-create-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.procedure-create-input:focus,
+.procedure-create-textarea:focus {
+  outline: none;
+  border-color: var(--azul-principal);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.procedure-create-price-grid,
+.procedure-create-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.procedure-create-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.procedure-create-summary span,
+.procedure-create-review span {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.procedure-create-summary strong,
+.procedure-create-review strong {
+  color: #111827;
+  font-size: 1rem;
+}
+
+.procedure-create-summary p,
+.procedure-create-review p {
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.procedure-create-review {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.procedure-create-review-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.procedure-create-review-grid > div {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #f9fafb;
+}
+
+.procedure-create-footer {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+  background: #fff;
+}
+
+.procedure-create-footer :deep(.app-button svg) {
+  color: #111827;
+  stroke: #111827;
+}
+
 /* Modal Styles */
 .drawer-header {
   padding: 1.5rem;
@@ -991,6 +1335,38 @@ th.actions-header .th-content {
     padding: 2rem 0;
     background-color: transparent;
     border: none;
+  }
+
+  .procedure-create-header {
+    padding: 1rem;
+  }
+
+  .procedure-create-description {
+    margin-left: 0;
+  }
+
+  .procedure-create-stepper {
+    margin-bottom: 1.25rem;
+  }
+
+  .procedure-create-card,
+  .procedure-create-summary,
+  .procedure-create-review {
+    padding: 1rem;
+  }
+
+  .procedure-create-price-grid,
+  .procedure-create-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .procedure-create-footer {
+    padding: 1rem;
+  }
+
+  .procedure-create-footer :deep(.app-button) {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 </style>

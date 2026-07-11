@@ -657,6 +657,7 @@ function openPatientProfile() {
       :patient-name="currentRecord?.patient?.name || 'Paciente'"
       :appointment-date="currentRecord?.appointmentDate || new Date().toLocaleDateString('pt-BR')"
       :appointment-time="currentRecord?.appointmentTime || '00:00'"
+      :is-loading="isProcessingCheckout"
       @close="showCheckoutModal = false"
       @schedule-return="openReturnAppointmentModal"
       @confirm="handleCheckoutConfirm"
