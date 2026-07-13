@@ -186,7 +186,6 @@ export const useAiSecretaryStore = defineStore('aiSecretary', () => {
     const message = unwrap(await addAiInternalMessage(id, body))
     selectedMessages.value = [...selectedMessages.value, message]
     await fetchConversation(id)
-    toast.success('Nota interna registrada.')
     return message
   }
 
