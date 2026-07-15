@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch, markRaw } from 'vue'
+import { ref, onMounted, computed, watch, markRaw, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -308,6 +308,43 @@ function closeDrawer() {
   isDrawerOpen.value = false
 }
 
+function syncCanvasToStore() {
+  workflowsStore.nodes = nodes.value.map(node => ({
+    ...(node.data || {}),
+    _id: node.id,
+    key: node.data?.key || node.id,
+    position: node.position,
+    label: node.data?.label || node.data?.name,
+  }))
+
+  workflowsStore.edges = edges.value
+    .filter(edge => edge.source && edge.target)
+    .map(edge => ({
+      ...edge,
+      _id: edge.id,
+      id: edge.id,
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+      conditionKey: edge.sourceHandle || edge.label,
+    }))
+}
+
+async function saveCanvasGraph() {
+  syncCanvasToStore()
+  await workflowsStore.saveDraftGraph()
+}
+
+async function persistCanvasRemoval(changes) {
+  if (!Array.isArray(changes) || !changes.some(change => change.type === 'remove')) return
+
+  await nextTick()
+  try {
+    await saveCanvasGraph()
+  } catch (error) {
+    // Error handled in store
+  }
+}
+
 async function saveNodeChanges() {
   if (!selectedNode.value) return
 
@@ -423,9 +460,8 @@ const currentNodeSchema = computed(() => {
 async function handleSave() {
   if (!workflowsStore.currentWorkflow) return
 
-  // Since nodes/edges are auto-saved, we just confirm or update metadata if needed
-  // For now, we'll just show a success message or trigger a metadata update
   try {
+    await saveCanvasGraph()
     await workflowsStore.updateWorkflow(workflowId, {
       name: workflowsStore.currentWorkflow.name,
       description: workflowsStore.currentWorkflow.description
@@ -651,6 +687,8 @@ async function handleToggleStatus() {
           :max-zoom="4"
           fit-view-on-init
           class="vue-flow-basic"
+          @nodes-change="persistCanvasRemoval"
+          @edges-change="persistCanvasRemoval"
         >
           <Background pattern-color="#aaa" :gap="16" />
           <Controls />

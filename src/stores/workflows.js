@@ -3,6 +3,8 @@ import workflowsApi from '@/api/workflows'
 import { useToast } from 'vue-toastification'
 
 const toast = useToast()
+let draftSaveQueue = Promise.resolve()
+let draftSaveSequence = 0
 
 function responseData(response) {
     return response?.data?.data || response?.data || {}
@@ -289,11 +291,22 @@ export const useWorkflowsStore = defineStore('workflows', {
         async saveDraftGraph() {
             if (!this.currentWorkflow?._id) return
             const graph = this.buildDraftGraph()
-            const response = await workflowsApi.updateWorkflow(this.currentWorkflow._id, { graph })
-            const definition = mapDefinition(responseData(response).definition)
-            if (definition) {
-                this.currentWorkflow = definition
+            const workflowId = this.currentWorkflow._id
+            const sequence = ++draftSaveSequence
+
+            const save = async () => {
+                const response = await workflowsApi.updateWorkflow(workflowId, { graph })
+                const definition = mapDefinition(responseData(response).definition)
+                if (definition && sequence === draftSaveSequence) {
+                    this.currentWorkflow = definition
+                    this.nodes = (definition.draftGraph?.nodes || []).map(nodeFromV2)
+                    this.edges = (definition.draftGraph?.edges || []).map(edgeFromV2)
+                }
+                return definition
             }
+
+            draftSaveQueue = draftSaveQueue.catch(() => {}).then(save)
+            return draftSaveQueue
         },
 
         async fetchWorkflows(params = {}) {
