@@ -185,6 +185,7 @@ function createCarouselDragState() {
     currentX: 0,
     offset: 0,
     isDragging: false,
+    hasChanged: false,
     suppressClick: false,
   }
 }
@@ -220,6 +221,7 @@ function handleCarouselPointerDown(type, event) {
   drag.currentX = event.clientX
   drag.offset = 0
   drag.isDragging = false
+  drag.hasChanged = false
   drag.suppressClick = false
 
   if (event.currentTarget?.setPointerCapture) {
@@ -238,6 +240,14 @@ function handleCarouselPointerMove(type, event) {
   if (Math.abs(delta) > 6) {
     drag.isDragging = true
   }
+
+  if (!drag.hasChanged && Math.abs(delta) >= 42 && total > 1) {
+    index.value = delta < 0 ? wrapIndex(index.value, total, 1) : wrapIndex(index.value, total, -1)
+    drag.hasChanged = true
+    drag.startX = event.clientX
+    drag.currentX = event.clientX
+    drag.offset = 0
+  }
 }
 
 function handleCarouselPointerUp(type) {
@@ -247,7 +257,7 @@ function handleCarouselPointerUp(type) {
   const delta = drag.currentX - drag.startX
   const threshold = 42
 
-  if (Math.abs(delta) >= threshold && total > 1) {
+  if (!drag.hasChanged && Math.abs(delta) >= threshold && total > 1) {
     index.value = delta < 0 ? wrapIndex(index.value, total, 1) : wrapIndex(index.value, total, -1)
   }
 
@@ -255,6 +265,7 @@ function handleCarouselPointerUp(type) {
   drag.startX = 0
   drag.currentX = 0
   drag.offset = 0
+  drag.hasChanged = false
   drag.suppressClick = true
   window.setTimeout(() => {
     drag.suppressClick = false
@@ -269,6 +280,7 @@ function handleCarouselPointerCancel(type) {
   drag.currentX = 0
   drag.offset = 0
   drag.isDragging = false
+  drag.hasChanged = false
   drag.suppressClick = false
 }
 
@@ -1491,11 +1503,12 @@ th {
 .carousel-shell {
   position: relative;
   min-width: 0;
-  touch-action: pan-y;
+  touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
-  overflow: visible;
+  overflow: hidden;
+  contain: layout paint;
 }
 
 .carousel-shell::before,
@@ -1534,15 +1547,15 @@ th {
 
 .carousel-stack {
   position: relative;
-  height: 156px;
+  height: 132px;
   min-width: 0;
-  overflow: visible;
-  padding-inline: 0.55rem;
+  overflow: hidden;
+  padding-inline: 0;
 }
 
 .carousel-card {
   position: absolute;
-  inset: 0 0.35rem;
+  inset: 0.15rem 1.45rem 0.55rem;
   transition:
     transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
@@ -1756,6 +1769,9 @@ th {
 
   .mobile-carousel {
     display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: -0.15rem;
   }
 
   .period-trigger {
@@ -1892,8 +1908,8 @@ th {
   }
 
   .carousel-stack {
-    height: 162px;
-    padding-inline: 0.2rem;
+    height: 132px;
+    padding-inline: 0;
   }
 
   .carousel-shell::before,
