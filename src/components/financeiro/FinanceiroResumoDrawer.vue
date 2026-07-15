@@ -52,13 +52,20 @@ const partyLabel = computed(() => (isReceivable.value ? 'Paciente / Convênio' :
 
 const amountCents = computed(() => Number(conta.value?.amountCents || 0))
 const paidAmountCents = computed(() => Number(conta.value?.paidAmountCents || 0))
-const remainingAmountCents = computed(() => Number(conta.value?.remainingAmountCents || 0))
+const remainingAmountCents = computed(() => calculateRemainingCents(conta.value))
 const progressPercent = computed(() => {
   if (amountCents.value <= 0) return 0
   return Math.min(100, Math.round((paidAmountCents.value / amountCents.value) * 100))
 })
 const isFullyPaid = computed(() => conta.value?.status === 'PAID' && remainingAmountCents.value <= 0 && amountCents.value > 0)
 const canRegisterBaixa = computed(() => remainingAmountCents.value > 0 && conta.value?.status !== 'CANCELED')
+const contaWithEffectiveBalance = computed(() => {
+  if (!conta.value) return null
+  return {
+    ...conta.value,
+    remainingAmountCents: remainingAmountCents.value,
+  }
+})
 
 const settlementVerb = computed(() => (isReceivable.value ? 'Recebido' : 'Pago'))
 const registerVerb = computed(() => (isReceivable.value ? 'Registrar recebimento' : 'Registrar pagamento'))
@@ -82,6 +89,17 @@ function money(cents) {
     style: 'currency',
     currency: 'BRL',
   }).format(Number(cents || 0) / 100)
+}
+
+function calculateRemainingCents(contaItem) {
+  if (!contaItem || contaItem.status === 'PAID' || contaItem.status === 'CANCELED') return 0
+
+  const rawRemaining = Number(contaItem.remainingAmountCents || 0)
+  if (rawRemaining > 0) return rawRemaining
+
+  const amount = Number(contaItem.amountCents || 0)
+  const paid = Number(contaItem.paidAmountCents || 0)
+  return Math.max(amount - paid, 0)
 }
 
 function formatDate(value) {
@@ -130,8 +148,14 @@ function isOverdue(contaItem) {
   return due.toISOString().slice(0, 10) < todayKey
 }
 
+function historyTimestamp(baixa) {
+  const value = baixa?.createdAt || baixa?.updatedAt || baixa?.settledAt
+  const timestamp = value ? new Date(value).getTime() : 0
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 function chronBaixas() {
-  return baixas.value.slice().sort((a, b) => new Date(a.settledAt) - new Date(b.settledAt))
+  return baixas.value.slice().sort((a, b) => historyTimestamp(a) - historyTimestamp(b))
 }
 
 async function recarregar() {
@@ -342,7 +366,7 @@ onMounted(() => {
       <div class="drawer-footer">
         <AppButton variant="default" @click="$emit('close')">Fechar</AppButton>
         <div class="footer-actions">
-          <AppButton v-if="canRegisterBaixa" variant="primary" @click="$emit('baixa', conta)">
+          <AppButton v-if="canRegisterBaixa" variant="primary" @click="$emit('baixa', contaWithEffectiveBalance)">
             <ArrowDownCircle :size="16" />
             {{ registerVerb }}
           </AppButton>

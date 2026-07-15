@@ -586,7 +586,7 @@ watch(newProcedureDiscountMode, () => {
 
 <style scoped>
 .stepper-wrapper {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   padding: 0.5rem 0;
 }
 

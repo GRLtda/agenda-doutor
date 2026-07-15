@@ -54,7 +54,7 @@ const cash = computed(() => resumo.value.cash || {})
 const alerts = computed(() => resumo.value.alerts || {})
 const recentCashMovements = computed(() =>
   [...(financeiroStore.movimentosCaixa || [])]
-    .sort((a, b) => new Date(b.settledAt || b.createdAt || 0) - new Date(a.settledAt || a.createdAt || 0))
+    .sort((a, b) => movementTimestamp(b) - movementTimestamp(a))
     .slice(0, 6)
 )
 const revenueSparkline = computed(() => {
@@ -549,6 +549,12 @@ function startOfMonthDate() {
 function endOfMonthDate() {
   const date = new Date()
   return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function movementTimestamp(movement) {
+  const value = movement?.createdAt || movement?.updatedAt || movement?.settledAt
+  const timestamp = value ? new Date(value).getTime() : 0
+  return Number.isNaN(timestamp) ? 0 : timestamp
 }
 
 function money(cents) {

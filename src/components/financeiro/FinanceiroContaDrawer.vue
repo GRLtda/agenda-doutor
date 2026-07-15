@@ -6,6 +6,8 @@ import {
   DollarSign,
   FileSignature,
   FileText,
+  ArrowLeft,
+  ArrowRight,
   Plus,
   Repeat,
   Save,
@@ -21,6 +23,7 @@ import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
+import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { usePatientsStore } from '@/stores/patients'
 
@@ -66,10 +69,22 @@ const form = reactive({
 const showCategoryForm = ref(false)
 const categoryError = ref('')
 const patientSearchQuery = ref('')
+const currentStep = ref(1)
+const attemptedSteps = reactive({
+  1: false,
+  2: false,
+  3: false,
+})
 let patientSearchTimeout = null
 const newCategory = reactive({
   name: '',
 })
+
+const steps = [
+  { name: 'Identificação', icon: User, subtitle: 'Dados básicos' },
+  { name: 'Valores', icon: DollarSign, subtitle: 'Datas e pagamento' },
+  { name: 'Detalhes', icon: StickyNote, subtitle: 'Recorrência e notas' },
+]
 
 const isEditing = computed(() => Boolean(props.conta?._id))
 const title = computed(() => {
@@ -79,6 +94,19 @@ const title = computed(() => {
 const canUseRecurrence = computed(() => props.tipo === 'PAYABLE' && !isEditing.value)
 const categoryType = computed(() => props.tipo === 'RECEIVABLE' ? 'REVENUE' : 'EXPENSE')
 const isReceivable = computed(() => props.tipo === 'RECEIVABLE')
+
+const fieldErrors = computed(() => {
+  const amountCents = reaisToCents(form.amount)
+  const partyName = isReceivable.value ? selectedPatientName() : form.partyName.trim()
+
+  return {
+    title: attemptedSteps[1] && !form.title.trim() ? 'Informe o título.' : '',
+    patientId: attemptedSteps[1] && isReceivable.value && !form.patientId ? 'Selecione o paciente.' : '',
+    partyName: attemptedSteps[1] && !isReceivable.value && !partyName ? 'Informe o fornecedor.' : '',
+    amount: attemptedSteps[2] && amountCents <= 0 ? 'Informe um valor maior que zero.' : '',
+    dueDate: attemptedSteps[2] && !form.dueDate ? 'Informe o vencimento.' : '',
+  }
+})
 
 const dueDatePickerModel = computed({
   get: () => parseLocalDate(form.dueDate),
@@ -216,6 +244,10 @@ function resetForm() {
   categoryError.value = ''
   patientSearchQuery.value = ''
   newCategory.name = ''
+  currentStep.value = 1
+  attemptedSteps[1] = false
+  attemptedSteps[2] = false
+  attemptedSteps[3] = false
 }
 
 async function createCategory() {
@@ -280,11 +312,43 @@ function selectedPatientName() {
   return patientOptions.value.find((option) => option.value === form.patientId)?.label || form.partyName
 }
 
+function canAdvanceStep() {
+  if (currentStep.value === 1) {
+    return !fieldErrors.value.title && !fieldErrors.value.patientId && !fieldErrors.value.partyName
+  }
+
+  if (currentStep.value === 2) {
+    return !fieldErrors.value.amount && !fieldErrors.value.dueDate
+  }
+
+  return true
+}
+
+function nextStep() {
+  attemptedSteps[currentStep.value] = true
+  if (!canAdvanceStep()) return
+  if (currentStep.value < steps.length) currentStep.value += 1
+}
+
+function prevStep() {
+  if (currentStep.value > 1) currentStep.value -= 1
+}
+
 function submit() {
+  attemptedSteps[1] = true
+  attemptedSteps[2] = true
+  attemptedSteps[3] = true
+
   const amountCents = reaisToCents(form.amount)
   const partyName = isReceivable.value ? selectedPatientName() : form.partyName.trim()
-  if (!form.title.trim() || !partyName || !form.dueDate || amountCents <= 0) return
-  if (isReceivable.value && !form.patientId) return
+  if (!form.title.trim() || !partyName || (isReceivable.value && !form.patientId)) {
+    currentStep.value = 1
+    return
+  }
+  if (!form.dueDate || amountCents <= 0) {
+    currentStep.value = 2
+    return
+  }
 
   const payload = {
     type: props.tipo,
@@ -328,7 +392,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <SideDrawer size="lg" @close="$emit('close')">
+  <SideDrawer size="xl" @close="$emit('close')">
     <template #header>
       <div class="drawer-header">
         <div class="header-content">
@@ -350,13 +414,26 @@ onMounted(() => {
 
     <form class="finance-form" @submit.prevent="submit">
       <div class="drawer-body-content">
-        <section class="form-section">
+        <div class="stepper-wrapper">
+          <Stepper :steps="steps" :currentStep="currentStep" />
+        </div>
+
+        <div v-show="currentStep === 1" class="step-content">
+          <section class="form-section">
           <div class="form-group">
             <label class="form-label">
               <FileText :size="14" />
               Título <span class="required-asterisk">*</span>
             </label>
-            <input v-model="form.title" class="form-input" type="text" placeholder="Ex: Consulta particular" required />
+            <input
+              v-model="form.title"
+              class="form-input"
+              :class="{ 'has-error': fieldErrors.title }"
+              type="text"
+              placeholder="Ex: Consulta particular"
+              required
+            />
+            <span v-if="fieldErrors.title" class="field-error">{{ fieldErrors.title }}</span>
           </div>
 
           <div class="form-row">
@@ -372,18 +449,22 @@ onMounted(() => {
                 :options="patientOptions"
                 :loading="patientsStore.isLoading"
                 :search-value="patientSearchQuery"
+                :error="Boolean(fieldErrors.patientId)"
                 empty-label="Buscar paciente"
                 required
                 @search="handlePatientSearch"
               />
+              <span v-if="fieldErrors.patientId" class="field-error">{{ fieldErrors.patientId }}</span>
               <input
                 v-else
                 v-model="form.partyName"
                 class="form-input"
+                :class="{ 'has-error': fieldErrors.partyName }"
                 type="text"
                 placeholder="Nome do fornecedor"
                 required
               />
+              <span v-if="fieldErrors.partyName" class="field-error">{{ fieldErrors.partyName }}</span>
             </div>
             <div class="form-group">
               <label class="form-label">
@@ -447,16 +528,28 @@ onMounted(() => {
               <span v-if="categoryError && !showCategoryForm" class="inline-error">{{ categoryError }}</span>
             </div>
           </div>
-        </section>
+          </section>
+        </div>
 
-        <section class="form-section">
+        <div v-show="currentStep === 2" class="step-content">
+          <section class="form-section">
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">
                 <DollarSign :size="14" />
                 Valor <span class="required-asterisk">*</span>
               </label>
-              <input v-model="form.amount" class="form-input" type="number" min="0" step="0.01" placeholder="0,00" required />
+              <input
+                v-model="form.amount"
+                class="form-input"
+                :class="{ 'has-error': fieldErrors.amount }"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                required
+              />
+              <span v-if="fieldErrors.amount" class="field-error">{{ fieldErrors.amount }}</span>
             </div>
             <div class="form-group">
               <label class="form-label">
@@ -467,6 +560,7 @@ onMounted(() => {
                 :model-value="dueDatePickerModel"
                 @update:model-value="dueDatePickerModel = $event"
                 class="date-picker-field"
+                :class="{ 'has-error': fieldErrors.dueDate }"
                 :enable-time-picker="false"
                 locale="pt-BR"
                 format="dd/MM/yyyy"
@@ -477,6 +571,7 @@ onMounted(() => {
                 :clearable="false"
                 :hide-input-icon="true"
               />
+              <span v-if="fieldErrors.dueDate" class="field-error">{{ fieldErrors.dueDate }}</span>
             </div>
           </div>
 
@@ -512,62 +607,73 @@ onMounted(() => {
               />
             </div>
           </div>
-        </section>
-
-        <div v-if="canUseRecurrence" class="recurrence-inline" :class="{ 'is-active': form.recurrenceEnabled }">
-          <button type="button" class="recurrence-toggle" @click="form.recurrenceEnabled = !form.recurrenceEnabled">
-            <span class="mini-switch" :class="{ 'is-on': form.recurrenceEnabled }"></span>
-            <span class="recurrence-label">
-              <Repeat :size="14" />
-              Repetir todo mes
-            </span>
-          </button>
-
-          <div v-if="form.recurrenceEnabled" class="recurrence-options">
-            <StyledSelect
-              v-model="form.recurrenceMonthsAhead"
-              :options="recurrenceWindowOptions"
-              placeholder="Proximos 12 meses"
-              dropdown-direction="up"
-            />
-            <VueDatePicker
-              :model-value="recurrenceEndDatePickerModel"
-              @update:model-value="recurrenceEndDatePickerModel = $event"
-              class="date-picker-field recurrence-date"
-              :enable-time-picker="false"
-              locale="pt-BR"
-              format="dd/MM/yyyy"
-              placeholder="Sem data final"
-              auto-apply
-              teleport="body"
-              :z-index="12000"
-              :hide-input-icon="true"
-            />
-          </div>
+          </section>
         </div>
 
-        <section class="form-section">
-          <div class="form-group">
-            <label class="form-label">
-              <StickyNote :size="14" />
-              Observações
-            </label>
-            <textarea v-model="form.notes" class="form-textarea" rows="4" placeholder="Informações internas"></textarea>
-          </div>
-        </section>
+        <div v-show="currentStep === 3" class="step-content">
+          <section class="form-section">
+            <div v-if="canUseRecurrence" class="recurrence-inline" :class="{ 'is-active': form.recurrenceEnabled }">
+              <div class="recurrence-head">
+                <button type="button" class="recurrence-toggle" @click="form.recurrenceEnabled = !form.recurrenceEnabled">
+                  <span class="mini-switch" :class="{ 'is-on': form.recurrenceEnabled }"></span>
+                  <span class="recurrence-label">
+                    <Repeat :size="15" />
+                    Repetir todo mês
+                  </span>
+                </button>
+                <span class="recurrence-helper">
+                  Gere despesas mensais automaticamente.
+                </span>
+              </div>
 
+              <div v-if="form.recurrenceEnabled" class="recurrence-options">
+                <StyledSelect
+                  v-model="form.recurrenceMonthsAhead"
+                  :options="recurrenceWindowOptions"
+                  placeholder="Proximos 12 meses"
+                  dropdown-direction="up"
+                />
+                <VueDatePicker
+                  :model-value="recurrenceEndDatePickerModel"
+                  @update:model-value="recurrenceEndDatePickerModel = $event"
+                  class="date-picker-field recurrence-date"
+                  :enable-time-picker="false"
+                  locale="pt-BR"
+                  format="dd/MM/yyyy"
+                  placeholder="Sem data final"
+                  auto-apply
+                  teleport="body"
+                  :z-index="12000"
+                  :hide-input-icon="true"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                <StickyNote :size="14" />
+                Observações
+              </label>
+              <textarea v-model="form.notes" class="form-textarea" rows="4" placeholder="Informações internas"></textarea>
+            </div>
+          </section>
+        </div>
       </div>
     </form>
 
     <template #footer>
-      <div class="drawer-footer">
-        <AppButton variant="default" @click="$emit('close')">
-          <X :size="17" />
-          Fechar
+      <div class="drawer-footer space-between">
+        <AppButton variant="default" @click="currentStep === 1 ? $emit('close') : prevStep()">
+          <component :is="currentStep === 1 ? X : ArrowLeft" :size="17" />
+          {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}
         </AppButton>
-        <AppButton variant="primary" :loading="loading" @click="submit">
-          <Save :size="17" />
-          {{ isEditing ? 'Salvar alterações' : 'Adicionar' }}
+        <AppButton
+          variant="primary"
+          :loading="loading"
+          @click="currentStep === steps.length ? submit() : nextStep()"
+        >
+          <component :is="currentStep === steps.length ? Save : ArrowRight" :size="17" />
+          {{ currentStep === steps.length ? (isEditing ? 'Salvar alterações' : 'Adicionar') : 'Próximo' }}
         </AppButton>
       </div>
     </template>
@@ -622,13 +728,29 @@ onMounted(() => {
 .finance-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+}
+
+.stepper-wrapper {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .form-row {
@@ -650,13 +772,20 @@ onMounted(() => {
   gap: 0.375rem;
   color: #374151;
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .inline-error {
   color: #dc2626;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .category-select-footer {
@@ -767,10 +896,25 @@ onMounted(() => {
 
 .recurrence-inline {
   display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #eef2f7;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+}
+
+.recurrence-inline.is-active {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: #f8fbff;
+}
+
+.recurrence-head {
+  display: flex;
   align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-  margin-top: -0.25rem;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .recurrence-toggle {
@@ -785,7 +929,7 @@ onMounted(() => {
   font: inherit;
   font-size: 0.84rem;
   font-weight: 700;
-  padding: 0.15rem 0;
+  padding: 0;
 }
 
 .recurrence-toggle:hover,
@@ -828,10 +972,17 @@ onMounted(() => {
   gap: 0.35rem;
 }
 
+.recurrence-helper {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
 .recurrence-options {
   display: grid;
-  grid-template-columns: minmax(160px, 190px) minmax(150px, 190px);
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -864,13 +1015,13 @@ onMounted(() => {
 
 .form-input {
   height: 44px;
-  padding: 0 1rem;
+  padding: 0.75rem 1rem;
 }
 
 .form-textarea {
-  min-height: 96px;
+  min-height: 90px;
   padding: 0.75rem 1rem;
-  resize: vertical;
+  resize: none;
 }
 
 .form-input:focus,
@@ -878,6 +1029,12 @@ onMounted(() => {
   outline: none;
   border-color: var(--azul-principal, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input.has-error,
+.form-textarea.has-error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
 }
 
 .form-group :deep(.select-button) {
@@ -925,6 +1082,11 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.date-picker-field.has-error :deep(.dp__input) {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
 .date-picker-field :deep(.dp__input_icon) {
   display: none;
 }
@@ -933,9 +1095,14 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem;
   border-top: 1px solid #f3f4f6;
   background: #fff;
+}
+
+.drawer-footer.space-between {
+  justify-content: space-between;
+  width: 100%;
 }
 
 input[type=number]::-webkit-inner-spin-button,
@@ -977,6 +1144,16 @@ input[type=number] {
   .recurrence-inline {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .recurrence-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .recurrence-helper {
+    text-align: left;
   }
 
   .recurrence-options {
