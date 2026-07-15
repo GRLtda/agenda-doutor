@@ -126,7 +126,7 @@ const showPagination = computed(() => allPages.value > 1)
           </p>
         </div>
       </div>
-      
+
       <div class="header-actions">
         <!-- Status Filter -->
         <StyledSelect
@@ -197,7 +197,7 @@ const showPagination = computed(() => allPages.value > 1)
                 </div>
               </div>
             </div>
-            
+
             <span class="status-badge" :class="{
               'filled': anamnesis.status === 'Preenchido',
               'pending': anamnesis.status === 'Pendente',
@@ -268,7 +268,7 @@ const showPagination = computed(() => allPages.value > 1)
       <div class="pagination-info">
         Exibindo {{ (allPage - 1) * allLimit + 1 }} - {{ Math.min(allPage * allLimit, allTotal) }} de {{ allTotal }} anamneses
       </div>
-      
+
       <div class="pagination-controls">
         <button
           class="page-btn"
@@ -295,7 +295,6 @@ const showPagination = computed(() => allPages.value > 1)
   display: flex;
   flex-direction: column;
   height: calc(100vh - 70px);
-  background-color: #f8fafc;
 }
 
 .page-header {
@@ -303,7 +302,6 @@ const showPagination = computed(() => allPages.value > 1)
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e2e8f0;
   gap: 1rem;
   flex-wrap: wrap;
 }
@@ -640,12 +638,12 @@ const showPagination = computed(() => allPages.value > 1)
     align-items: stretch;
     padding: 1rem;
   }
-  
+
   .header-actions {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .status-filter, .search-bar {
     width: 100%;
   }

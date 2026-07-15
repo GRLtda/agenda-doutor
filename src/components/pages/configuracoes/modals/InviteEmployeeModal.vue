@@ -76,7 +76,6 @@ async function handleInvite() {
   if (success && token) {
     const origin = window.location.origin
     generatedLink.value = `${origin}/e/${token}`
-    toast.success('Convite gerado com sucesso!')
   } else {
     console.error('Erro ao criar convite: ', { success, data, error })
     toast.error(error || 'Não foi possível gerar o convite.')
@@ -227,7 +226,7 @@ async function shareLink() {
           <AppButton @click="copyLink" variant="primary" class="btn-full">
             <Copy :size="20" /> Copiar Link
           </AppButton>
-          
+
           <AppButton
             v-if="canShare"
             @click="shareLink"

@@ -42,6 +42,12 @@ const routes = [
     meta: { public: true, title: 'Responder Anamnese' },
   },
   {
+    path: '/componentes',
+    name: 'components-lab',
+    component: () => import('../views/pages/ComponentesView.vue'),
+    meta: { public: true, title: 'Componentes' },
+  },
+  {
     path: '/termo/:token',
     name: 'sign-consent-term',
     component: () => import('../views/public/SignConsentTermView.vue'),

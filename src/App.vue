@@ -1,6 +1,7 @@
 <script setup>
 import { watch } from 'vue'
 import { RouterView } from 'vue-router'
+import AppToaster from '@/components/global/AppToaster.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSeoStore } from '@/stores/seo'
 
@@ -22,6 +23,7 @@ watch(
 
 <template>
   <RouterView />
+  <AppToaster />
 </template>
 
 <style></style>

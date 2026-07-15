@@ -186,13 +186,13 @@ const patientOptions = computed(() => {
 
 const doctorOptions = computed(() => {
   const staff = clinicStore.currentClinic?.staff || []
-  
+
   const doctors = staff.filter((member) => member.role === 'medico' || member.role === 'owner')
-  
-  return doctors.map((doctor) => ({ 
-    value: doctor._id, 
+
+  return doctors.map((doctor) => ({
+    value: doctor._id,
     label: doctor.name,
-    image: doctor.profilePhotoUrl 
+    image: doctor.profilePhotoUrl
   }))
 })
 
@@ -662,7 +662,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <SideDrawer @close="$emit('close')">
+  <SideDrawer size="lg" @close="$emit('close')">
     <template #header>
       <header class="drawer-header">
       <div class="header-top">
@@ -703,30 +703,32 @@ async function handleSubmit() {
     <template #default>
       <div v-auto-animate class="appointment-form">
         <div v-if="currentStep === 1" class="step-content">
-          <SearchableSelect
-            v-model="appointmentData.patient"
-            :options="patientOptions"
-            label="Quem é o paciente?"
-            :required="true"
-            :loading="patientsStore.isLoading"
-            @search="handlePatientSearch"
-            :error="!!errors.patient"
-            placeholder="Digite para buscar um paciente"
-            :disabled="isEditMode"
-          >
+          <div>
+            <SearchableSelect
+              v-model="appointmentData.patient"
+              :options="patientOptions"
+              label="Quem é o paciente?"
+              :required="true"
+              :loading="patientsStore.isLoading"
+              @search="handlePatientSearch"
+              :error="!!errors.patient"
+              placeholder="Digite para buscar um paciente"
+              :disabled="isEditMode"
+            >
             <template v-if="!isEditMode" #footer>
               <button
-                type="button"
-                class="create-patient-action"
-                @mousedown.prevent
-                @click="goToCreatePatient"
+              type="button"
+              class="create-patient-action"
+              @mousedown.prevent
+              @click="goToCreatePatient"
               >
-                <Plus :size="16" />
-                Cadastrar novo paciente
-              </button>
-            </template>
-          </SearchableSelect>
-          <p v-if="errors.patient" class="error-message">{{ errors.patient }}</p>
+              <Plus :size="16" />
+              Cadastrar novo paciente
+            </button>
+          </template>
+        </SearchableSelect>
+        <p v-if="errors.patient" class="error-message">{{ errors.patient }}</p>
+          </div>
 
           <!-- Seletor de Médico (Apenas para planos acima do Básico) -->
           <div v-if="clinicStore.currentClinic?.plan !== 'basic'" class="form-group">
@@ -1302,7 +1304,14 @@ async function handleSubmit() {
 
 .footer-actions {
   display: flex;
+  width: 100%;
   gap: 0.75rem;
+}
+
+.footer-actions :deep(button),
+.footer-actions :deep(a) {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -1315,7 +1324,7 @@ async function handleSubmit() {
     align-items: center;
     justify-content: center;
   }
-  
+
   .drawer-content {
     max-width: 100%;
   }
@@ -1326,11 +1335,10 @@ async function handleSubmit() {
     gap: 0.5rem;
   }
   .footer-actions {
-    display: flex;
     width: 100%;
     gap: 0.5rem;
   }
-  
+
   .drawer-header {
     padding: 1rem;
     gap: 1rem;

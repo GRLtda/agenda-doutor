@@ -22,6 +22,7 @@ const selectButtonRef = ref(null)
 const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
 const isDropdownUpward = ref(false)
+const isPositioned = ref(false)
 
 const selectedOption = computed(() => {
   if (!props.modelValue) return null
@@ -76,12 +77,13 @@ async function updateDropdownPosition() {
     : Math.min(viewportHeight - dropdownHeight - 8, rect.bottom + 4)
 
   dropdownStyle.value = {
-    position: 'absolute',
+    position: 'fixed',
     top: `${calculatedTop}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
     transformOrigin: shouldOpenUp ? 'bottom center' : 'top center',
   }
+  isPositioned.value = true
 }
 
 // 3. Função para tratar o clique fora
@@ -99,7 +101,10 @@ const handleClickOutside = (event) => {
 // 4. Atualizar o watch para adicionar e remover o listener de clique
 watch(isOpen, (newValue) => {
   if (newValue) {
+    isPositioned.value = false
+    dropdownStyle.value = {}
     updateDropdownPosition()
+    requestAnimationFrame(updateDropdownPosition)
     window.addEventListener('scroll', updateDropdownPosition, true)
     window.addEventListener('resize', updateDropdownPosition)
     // Adiciona o listener de clique no próximo 'tick'
@@ -107,6 +112,7 @@ watch(isOpen, (newValue) => {
       document.addEventListener('click', handleClickOutside)
     })
   } else {
+    isPositioned.value = false
     // Remove os listeners
     window.removeEventListener('scroll', updateDropdownPosition, true)
     window.removeEventListener('resize', updateDropdownPosition)
@@ -130,6 +136,7 @@ function selectOption(option) {
 <template>
   <div class="form-group">
     <label v-if="label" class="form-label">
+      <slot name="label-prefix"></slot>
       {{ label }}
       <span v-if="required" class="required-asterisk">*</span>
     </label>
@@ -162,7 +169,7 @@ function selectOption(option) {
             v-if="isOpen"
             ref="optionsListRef"
             class="options-list"
-            :class="{ 'opens-upward': isDropdownUpward }"
+            :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned }"
             :style="dropdownStyle"
           >
             <li v-if="options.length === 0" class="no-options">
@@ -203,7 +210,9 @@ function selectOption(option) {
   text-align: left;
 }
 .form-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   margin-bottom: 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
@@ -251,7 +260,7 @@ function selectOption(option) {
 }
 .options-list {
   --dropdown-offset: -5px;
-  position: absolute; /* Mudará para 'fixed' ou 'absolute' pelo JS */
+  position: fixed;
   max-height: 200px;
   overflow-y: auto;
   background-color: var(--branco);
@@ -262,6 +271,12 @@ function selectOption(option) {
   padding: 0.375rem;
   list-style: none;
   margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.options-list.is-positioned {
+  opacity: 1;
+  pointer-events: auto;
 }
 .options-list.opens-upward {
   --dropdown-offset: 5px;

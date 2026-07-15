@@ -215,6 +215,7 @@ function createCarouselDragState() {
     currentX: 0,
     offset: 0,
     isDragging: false,
+    hasChanged: false,
     suppressClick: false,
   }
 }
@@ -238,6 +239,7 @@ function handleCarouselPointerDown(event) {
   summaryCarouselDrag.currentX = event.clientX
   summaryCarouselDrag.offset = 0
   summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.hasChanged = false
   summaryCarouselDrag.suppressClick = false
 
   if (event.currentTarget?.setPointerCapture) {
@@ -251,6 +253,16 @@ function handleCarouselPointerMove(event) {
   const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
   summaryCarouselDrag.offset = delta
   if (Math.abs(delta) > 6) summaryCarouselDrag.isDragging = true
+
+  if (!summaryCarouselDrag.hasChanged && Math.abs(delta) >= 42 && summaryCards.value.length > 1) {
+    summaryCarouselIndex.value = delta < 0
+      ? wrapIndex(summaryCarouselIndex.value, summaryCards.value.length, 1)
+      : wrapIndex(summaryCarouselIndex.value, summaryCards.value.length, -1)
+    summaryCarouselDrag.hasChanged = true
+    summaryCarouselDrag.startX = event.clientX
+    summaryCarouselDrag.currentX = event.clientX
+    summaryCarouselDrag.offset = 0
+  }
 }
 
 function handleCarouselPointerUp() {
@@ -258,7 +270,7 @@ function handleCarouselPointerUp() {
   const delta = summaryCarouselDrag.currentX - summaryCarouselDrag.startX
   const total = summaryCards.value.length
 
-  if (Math.abs(delta) >= 42 && total > 1) {
+  if (!summaryCarouselDrag.hasChanged && Math.abs(delta) >= 42 && total > 1) {
     summaryCarouselIndex.value = delta < 0
       ? wrapIndex(summaryCarouselIndex.value, total, 1)
       : wrapIndex(summaryCarouselIndex.value, total, -1)
@@ -268,6 +280,7 @@ function handleCarouselPointerUp() {
   summaryCarouselDrag.startX = 0
   summaryCarouselDrag.currentX = 0
   summaryCarouselDrag.offset = 0
+  summaryCarouselDrag.hasChanged = false
   summaryCarouselDrag.suppressClick = true
   window.setTimeout(() => {
     summaryCarouselDrag.suppressClick = false
@@ -281,6 +294,7 @@ function handleCarouselPointerCancel() {
   summaryCarouselDrag.currentX = 0
   summaryCarouselDrag.offset = 0
   summaryCarouselDrag.isDragging = false
+  summaryCarouselDrag.hasChanged = false
   summaryCarouselDrag.suppressClick = false
 }
 
@@ -628,11 +642,12 @@ watch(() => route.query, () => {
 .carousel-shell {
   position: relative;
   min-width: 0;
-  touch-action: pan-y;
+  touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
-  overflow: visible;
+  overflow: hidden;
+  contain: layout paint;
 }
 
 .carousel-shell::before,
@@ -668,15 +683,15 @@ watch(() => route.query, () => {
 
 .carousel-stack {
   position: relative;
-  height: 156px;
+  height: 132px;
   min-width: 0;
-  overflow: visible;
-  padding-inline: 0.25rem;
+  overflow: hidden;
+  padding-inline: 0;
 }
 
 .carousel-card {
   position: absolute;
-  inset: 0 0.35rem;
+  inset: 0.15rem 1.45rem 0.55rem;
   transition:
     transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
@@ -990,6 +1005,9 @@ th {
 
   .mobile-carousel {
     display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: -0.15rem;
   }
 
   .period-picker,

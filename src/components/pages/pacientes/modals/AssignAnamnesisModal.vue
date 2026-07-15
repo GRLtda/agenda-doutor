@@ -1,12 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useAnamnesisStore } from '@/stores/anamnesis';
 import { useToast } from 'vue-toastification';
 import StyledSelect from '@/components/global/StyledSelect.vue';
 import AppButton from '@/components/global/AppButton.vue';
 import FormInput from '@/components/global/FormInput.vue';
+import LottieAnimation from '@/components/global/LottieAnimation.vue';
 import SideDrawer from '@/components/global/SideDrawer.vue';
-import { Copy } from 'lucide-vue-next';
+import { CheckCircle2, Copy } from 'lucide-vue-next';
 
 const props = defineProps({
   patientId: { type: String, required: true },
@@ -19,8 +20,17 @@ const toast = useToast();
 const templates = ref([]);
 const selectedTemplateId = ref(null);
 const generatedLink = ref(null);
+const notificationSent = ref(null);
+const copied = ref(false);
 const isLoading = ref(false);
 const sendNotification = ref(true); // <-- NOVO ESTADO
+
+function markLinkAsCopied() {
+  copied.value = true;
+  window.setTimeout(() => {
+    copied.value = false;
+  }, 1800);
+}
 
 onMounted(async () => {
   await anamnesisStore.fetchTemplates();
@@ -48,16 +58,7 @@ async function handleGenerateLink() {
   if (success) {
     const token = data.patientAccessToken;
     generatedLink.value = `${window.location.origin}/anamnese/${token}`;
-
-    // Mensagem de sucesso baseada na seleção e na resposta da API
-    if (sendNotification.value && data.notificationSent === false) {
-       toast.success('Link gerado! Notificação na fila de envio.');
-    } else if (sendNotification.value && data.notificationSent === true) {
-       toast.success('Link gerado e notificação enviada!');
-    } else {
-       toast.success('Link gerado com sucesso!');
-    }
-
+    notificationSent.value = data.notificationSent;
     emit('saved', data)
 
   } else {
@@ -72,6 +73,7 @@ function copyLink() {
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(() => {
+      markLinkAsCopied();
       toast.info('Link copiado para a área de transferência!');
     });
   } else {
@@ -84,6 +86,7 @@ function copyLink() {
     textArea.select();
     try {
       document.execCommand('copy');
+      markLinkAsCopied();
       toast.info('Link copiado para a área de transferência!');
     } catch (err) {
       toast.error('Não foi possível copiar o link.');
@@ -95,45 +98,76 @@ function copyLink() {
 </script>
 
 <template>
-  <SideDrawer @close="$emit('close')">
+  <SideDrawer size="md" @close="$emit('close')">
     <template #header>
-      <div class="drawer-header">
-        <h2>Aplicar Anamnese</h2>
-        <p class="subtitle">Selecione um modelo para gerar um link de resposta.</p>
+      <div class="drawer-header" :class="{ success: generatedLink }">
+        <div>
+          <h2>{{ generatedLink ? 'Anamnese anexada' : 'Aplicar Anamnese' }}</h2>
+          <p class="subtitle">
+            {{
+              generatedLink
+                ? 'O link de resposta foi criado e já está vinculado ao paciente.'
+                : 'Selecione o modelo e escolha como o paciente será avisado.'
+            }}
+          </p>
+        </div>
       </div>
     </template>
 
     <div class="drawer-body-content">
-      <div v-if="!generatedLink">
+      <Transition name="confirm-fade" mode="out-in">
+        <div v-if="!generatedLink" class="assign-step">
+          <StyledSelect v-model="selectedTemplateId" :options="templates" label="Modelo de anamnese" />
 
-        <StyledSelect v-model="selectedTemplateId" :options="templates" label="Selecione o Modelo" />
-
-        <FormInput
-          type="checkbox"
-          v-model="sendNotification"
-          label="Enviar notificação via WhatsApp"
-          class="notification-checkbox"
-        />
-      </div>
-      <div v-else>
-        <label class="form-label">Link Público Gerado</label>
-        <div class="link-wrapper">
-          <input type="text" :value="generatedLink" readonly class="link-input" />
-          <button @click="copyLink" class="copy-button" title="Copiar link"><Copy :size="16"/></button>
+          <FormInput
+            type="checkbox"
+            v-model="sendNotification"
+            label="Enviar notificação via WhatsApp"
+          />
         </div>
-        <p class="info">Envie este link para o paciente. Ele é válido por 7 dias.</p>
-      </div>
+        <div v-else class="confirmation-step">
+          <div class="success-visual" aria-hidden="true">
+            <LottieAnimation
+              class="success-lottie"
+              name="check.json"
+              aria-label="Anamnese anexada com sucesso"
+            />
+          </div>
+
+          <div class="confirmation-copy">
+            <span class="eyebrow">Tudo pronto</span>
+            <h3>Link gerado com sucesso</h3>
+            <p>Você pode copiar o link agora ou concluir e acessá-lo depois na aba de anamneses.</p>
+          </div>
+
+          <div class="link-card">
+            <label class="form-label">Link público</label>
+            <div class="link-wrapper">
+              <input type="text" :value="generatedLink" readonly class="link-input" />
+              <button @click="copyLink" class="copy-button" :title="copied ? 'Copiado' : 'Copiar link'">
+                <CheckCircle2 v-if="copied" :size="16" />
+                <Copy v-else :size="16"/>
+              </button>
+            </div>
+            <p class="info">
+              {{ copied ? 'Link copiado para a área de transferência.' : 'Compartilhe este link somente com o paciente.' }}
+            </p>
+          </div>
+        </div>
+      </Transition>
     </div>
 
-    <template #footer>
+    <template #footer="{ close }">
       <div class="drawer-footer">
-        <AppButton @click="$emit('close')" variant="default">
+        <AppButton @click="close" variant="default">
           {{ generatedLink ? 'Concluir' : 'Cancelar' }}
         </AppButton>
         <AppButton v-if="!generatedLink" @click="handleGenerateLink" variant="primary" :loading="isLoading" :disabled="isLoading">
           Gerar Link
         </AppButton>
-        <AppButton v-else @click="copyLink" variant="primary">Copiar Link</AppButton>
+        <AppButton v-else @click="copyLink" variant="primary">
+          {{ copied ? 'Copiado' : 'Copiar Link' }}
+        </AppButton>
       </div>
     </template>
   </SideDrawer>
@@ -141,8 +175,17 @@ function copyLink() {
 
 <style scoped>
 .drawer-header {
+  background: #ffffff;
   padding: 1.5rem;
   border-bottom: 1px solid #f3f4f6;
+  overflow: hidden;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.drawer-header > div {
+  position: relative;
+  z-index: 1;
 }
 
 .drawer-footer {
@@ -163,7 +206,176 @@ h2 { font-size: 1.25rem; font-weight: 600; color: #111827; margin: 0; }
 .copy-button { position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%); padding: 0.5rem; background: none; border: none; cursor: pointer; color: var(--cinza-texto); }
 .info { font-size: 0.875rem; color: var(--cinza-texto); margin-top: 0.5rem; }
 
-.notification-checkbox {
-  margin-top: 1.5rem;
+.drawer-body-content,
+.assign-step,
+.confirmation-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.drawer-header.success {
+  animation: success-header-on 1.45s ease-out both;
+  background:
+    radial-gradient(120% 120% at 20% 0%, rgba(187, 247, 208, 0.9) 0%, rgba(240, 253, 244, 0.72) 38%, transparent 70%),
+    linear-gradient(180deg, #dcfce7 0%, #f0fdf4 52%, #ffffff 100%);
+}
+
+.drawer-header.success::before {
+  animation: success-wave 1.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background:
+    linear-gradient(
+      105deg,
+      transparent 0%,
+      rgba(134, 239, 172, 0.08) 22%,
+      rgba(34, 197, 94, 0.24) 42%,
+      rgba(220, 252, 231, 0.72) 53%,
+      rgba(34, 197, 94, 0.18) 64%,
+      transparent 84%
+    );
+  content: '';
+  inset: -45% -70%;
+  position: absolute;
+  transform: translateX(-55%) rotate(-8deg);
+  z-index: 0;
+}
+
+.drawer-header.success::after {
+  animation: success-ripple 1.85s ease-out both;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.24) 0%, rgba(187, 247, 208, 0.18) 34%, transparent 68%);
+  border-radius: 999px;
+  content: '';
+  height: 180px;
+  left: -24px;
+  position: absolute;
+  top: -84px;
+  width: 180px;
+  z-index: 0;
+}
+
+.confirmation-copy h3 {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.confirmation-copy p {
+  color: var(--cinza-texto);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.confirm-fade-enter-active,
+.confirm-fade-leave-active {
+  transition:
+    opacity 0.48s ease,
+    transform 0.48s ease;
+}
+
+.confirm-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.confirm-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@keyframes success-header-on {
+  0% {
+    filter: saturate(0.75);
+    opacity: 0.72;
+  }
+  55% {
+    filter: saturate(1.18);
+    opacity: 1;
+  }
+  100% {
+    filter: saturate(1);
+    opacity: 1;
+  }
+}
+
+@keyframes success-wave {
+  0% {
+    opacity: 0;
+    transform: translateX(-65%) rotate(-8deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(62%) rotate(-8deg);
+  }
+}
+
+@keyframes success-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.25;
+    transform: scale(1.42);
+  }
+}
+
+.confirmation-step {
+  align-items: stretch;
+}
+
+.success-visual {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 154px;
+}
+
+.success-lottie {
+  height: 154px;
+  width: 154px;
+}
+
+.confirmation-copy {
+  text-align: center;
+}
+
+.eyebrow {
+  color: #059669;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.link-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.copy-button:hover {
+  color: var(--azul-principal);
+}
+
+@media (max-width: 520px) {
+  .drawer-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .success-lottie {
+    height: 136px;
+    width: 136px;
+  }
 }
 </style>

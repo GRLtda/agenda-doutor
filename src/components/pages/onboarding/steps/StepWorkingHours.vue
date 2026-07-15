@@ -36,9 +36,11 @@ const totalWeeklyHours = computed(() => {
   return workingHours.value
     .filter((day) => day.isOpen)
     .reduce((total, day) => {
-      const start = parseFloat(day.startTime.replace(':', '.'))
-      const end = parseFloat(day.endTime.replace(':', '.'))
-      const dailyHours = end > start ? end - start : 0
+      const [startHours, startMinutes] = day.startTime.split(':').map(Number)
+      const [endHours, endMinutes] = day.endTime.split(':').map(Number)
+      const start = startHours * 60 + startMinutes
+      const end = endHours * 60 + endMinutes
+      const dailyHours = end > start ? (end - start) / 60 : 0
       return total + dailyHours
     }, 0)
 })
@@ -79,9 +81,14 @@ async function handleSaveHours() {
         </div>
         <div class="card-body">
           <div class="time-inputs" v-if="day.isOpen">
-            <CustomSelect v-model="day.startTime" :options="timeOptions" />
-            <span class="separator">às</span>
-            <CustomSelect v-model="day.endTime" :options="timeOptions" />
+            <label class="time-field">
+              <span>Abre</span>
+              <CustomSelect v-model="day.startTime" :options="timeOptions" />
+            </label>
+            <label class="time-field">
+              <span>Fecha</span>
+              <CustomSelect v-model="day.endTime" :options="timeOptions" />
+            </label>
           </div>
           <div v-else class="closed-text">Fechado</div>
         </div>
@@ -120,15 +127,17 @@ p {
   margin: 0;
 }
 
-/* Novo layout em grade */
 .days-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .day-card {
-  padding: 0.65rem;
+  display: grid;
+  grid-template-columns: minmax(118px, 0.45fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem;
   border-radius: 8px;
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
@@ -143,17 +152,16 @@ p {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0;
 }
 .day-name {
   font-weight: 600;
   color: #374151;
+  font-size: 0.8rem;
+  text-transform: uppercase;
 }
 .card-body {
-  min-height: 34px; /* Altura suficiente para os seletores */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  min-width: 0;
 }
 
 .closed-text {
@@ -162,12 +170,31 @@ p {
   width: 100%;
 }
 .time-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  min-width: 0;
 }
-.separator {
+.time-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.time-field span {
   color: var(--cinza-texto);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.time-field :deep(.custom-select) {
+  width: 100%;
+  min-width: 0;
+}
+
+.time-field :deep(.select-button) {
+  min-height: 38px;
+  padding: 0.5rem 0.65rem;
 }
 
 /* Sumário */
@@ -253,5 +280,31 @@ p {
 }
 .auth-button:hover {
   background-color: var(--azul-escuro);
+}
+
+@media (max-width: 640px) {
+  .day-card {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .card-header {
+    justify-content: flex-start;
+  }
+
+  .hours-summary {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .time-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .hours-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
 </style>

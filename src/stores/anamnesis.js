@@ -251,8 +251,6 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
         patientAnamneses.value.push(normalizeAnamnesisResponse(response.data.anamnesis))
       }
 
-      toast.success('Anamnese atribuída com sucesso!')
-
       return { success: true, data: response.data }
     } catch (error) {
       console.error('Erro ao atribuir anamnese:', error)

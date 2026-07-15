@@ -1,34 +1,46 @@
 <script setup>
-import { defineProps, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
+import {
+  Stepper,
+  StepperIndicator,
+  StepperItem,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from '@/components/ui/stepper'
 
 const props = defineProps({
-  steps: Array,
-  currentStep: Number,
+  steps: {
+    type: Array,
+    default: () => [],
+  },
+  currentStep: {
+    type: Number,
+    default: 1,
+  },
 })
 
-const stepperContainer = ref(null)
 const stepItems = ref([])
 
-// Função para centralizar o passo ativo
-const scrollToActiveStep = async () => {
+async function scrollToActiveStep() {
   await nextTick()
-  if (props.currentStep > 0 && stepItems.value.length >= props.currentStep) {
-    const activeStepElement = stepItems.value[props.currentStep - 1]
-    if (activeStepElement && window.innerWidth <= 768) {
-      activeStepElement.scrollIntoView({
-        behavior: 'smooth',
-        inline: 'center',
-        block: 'nearest',
-      })
-    }
+
+  const activeStepElement = stepItems.value[props.currentStep - 1]
+
+  if (activeStepElement && window.innerWidth <= 768) {
+    activeStepElement.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    })
   }
 }
 
 watch(() => props.currentStep, scrollToActiveStep)
 
 onMounted(() => {
-  setTimeout(scrollToActiveStep, 100)
+  window.setTimeout(scrollToActiveStep, 100)
   window.addEventListener('resize', scrollToActiveStep)
 })
 
@@ -38,175 +50,188 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="stepper" ref="stepperContainer">
-    <template v-for="(step, index) in steps" :key="index">
-      <div
-        class="step-item"
-        :class="{ active: index + 1 === currentStep, completed: index + 1 < currentStep }"
-        :ref="
-          (el) => {
-            if (el) stepItems[index] = el
-          }
-        "
-      >
-        <div class="step-circle">
+  <Stepper class="app-stepper" :model-value="currentStep" :linear="false">
+    <StepperItem
+      v-for="(step, index) in steps"
+      :key="index"
+      :step="index + 1"
+      class="app-stepper-item"
+      :class="{
+        'is-active': index + 1 === currentStep,
+        'is-completed': index + 1 < currentStep,
+        'is-last': index === steps.length - 1,
+      }"
+      :ref="
+        (el) => {
+          if (el) stepItems[index] = el.$el || el
+        }
+      "
+    >
+      <StepperTrigger class="app-stepper-trigger" disabled>
+        <StepperIndicator class="app-stepper-indicator">
           <Check v-if="index + 1 < currentStep" :size="16" stroke-width="3" />
-          <component v-else :is="step.icon" :size="16" />
+          <component v-else-if="step.icon" :is="step.icon" :size="16" />
+          <span v-else>{{ index + 1 }}</span>
+        </StepperIndicator>
+
+        <div class="app-stepper-details">
+          <StepperTitle class="app-stepper-title">
+            {{ step.name }}
+          </StepperTitle>
+          <span v-if="step.subtitle" class="app-stepper-subtitle">{{ step.subtitle }}</span>
         </div>
-        <div class="step-details">
-          <div class="step-name">{{ step.name }}</div>
-          <div v-if="step.subtitle" class="step-subtitle">{{ step.subtitle }}</div>
-        </div>
-      </div>
-      <div
+      </StepperTrigger>
+
+      <StepperSeparator
         v-if="index < steps.length - 1"
-        class="step-line"
-        :class="{ completed: index + 1 < currentStep }"
-      ></div>
-    </template>
-  </div>
+        class="app-stepper-separator"
+        :class="{ 'is-completed': index + 1 < currentStep }"
+      />
+    </StepperItem>
+  </Stepper>
 </template>
 
 <style scoped>
-.stepper {
+.app-stepper {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 44px;
-}
-
-.step-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 0 0 148px;
-  min-width: 148px;
-}
-
-.step-circle {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  border: 2px solid #e5e7eb;
-  background-color: var(--branco);
-  color: var(--cinza-texto);
-  transition: all 0.3s ease;
-}
-
-.step-details {
-  display: flex;
-  flex-direction: column;
+  gap: 0;
   min-width: 0;
 }
 
-.step-name {
+.app-stepper-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.app-stepper-trigger {
+  flex: 0 1 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+  opacity: 1;
+}
+
+.app-stepper-trigger:disabled {
+  cursor: default;
+}
+
+.app-stepper-indicator {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 2px solid #e5e7eb;
+  background: var(--branco);
+  color: var(--cinza-texto);
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.is-active .app-stepper-indicator,
+.is-completed .app-stepper-indicator {
+  background: var(--azul-principal);
+  border-color: var(--azul-principal);
+  color: var(--branco);
+}
+
+.app-stepper-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.app-stepper-title {
+  color: var(--cinza-texto);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--cinza-texto);
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.step-subtitle {
-  font-size: 0.75rem;
+.is-active .app-stepper-title,
+.is-completed .app-stepper-title {
+  color: var(--preto);
+}
+
+.app-stepper-subtitle {
   color: #9ca3af;
+  font-size: 0.75rem;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.step-line {
-  flex-grow: 1;
+.app-stepper-separator {
+  flex: 1 1 1.5rem;
   height: 2px;
-  background-color: #e5e7eb;
-  margin: 0 1rem;
-  transition: background-color 0.3s ease;
+  min-width: 1rem;
+  margin: 0 0.75rem;
+  background: #e5e7eb;
+  transition: background 0.3s ease;
 }
 
-/* Estilos de Ativo e Concluído */
-.step-item.active .step-circle {
-  background-color: var(--azul-principal);
-  border-color: var(--azul-principal);
-  color: var(--branco);
+.app-stepper-separator.is-completed {
+  background: var(--azul-principal);
 }
 
-.step-item.active .step-name {
-  color: var(--preto);
-}
-
-.step-item.completed .step-circle {
-  background-color: var(--azul-principal);
-  border-color: var(--azul-principal);
-  color: var(--branco);
-}
-
-.step-item.completed .step-name {
-  color: var(--preto);
-}
-
-.step-line.completed {
-  background-color: var(--azul-principal);
-}
-
-/* ✨ INÍCIO DAS MUDANÇAS PARA RESPONSIVO ✨ */
-@media (max-width: 768px) {
-  .stepper {
-    flex-direction: row; /* Horizontal layout */
-    align-items: center;
-    overflow: -moz-hidden-unscrollable;
-    gap: 0; /* Remove gap, use line for spacing */
-    width: 100%;
-    overflow-x: auto; /* Enable horizontal scrolling */
-    scroll-snap-type: x mandatory; /* Snap to elements */
-    padding: 0.5rem 15%; /* (100% - 70%) / 2 = 15% padding to center items */
-    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
-    scrollbar-width: none; /* Hide scrollbar Firefox */
+@media (max-width: 640px) {
+  .app-stepper {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 0.5rem 12%;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
-  .stepper::-webkit-scrollbar {
-    display: none; /* Hide scrollbar Chrome/Safari */
+  .app-stepper::-webkit-scrollbar {
+    display: none;
   }
 
-  /* Restore line but style for carousel */
-  .step-line {
-    display: block;
-    min-width: 2rem;
-    flex-grow: 0;
-    margin: 0 0.5rem;
-    height: 2px;
-    background-color: #e5e7eb;
+  .app-stepper-item {
+    min-width: min(72%, 16rem);
+    flex-basis: min(72%, 16rem);
+    scroll-snap-align: center;
+    justify-content: center;
+    opacity: 0.5;
+    transform: scale(0.9);
+    transition: opacity 0.3s ease, transform 0.3s ease;
   }
 
-  .step-item {
-    min-width: 70%; /* Shows part of the next item */
-    flex-basis: 70%;
-    scroll-snap-align: center; /* Snap to center */
-    /* Removed box styling (border, padding, bg) to match PC aesthetic */
-    display: flex;
-    justify-content: center; /* Center content within the item width */
-    transition: all 0.3s ease;
-    opacity: 0.5; /* Dim inactive items */
-    transform: scale(0.9); /* Slightly smaller inactive items */
-  }
-
-  .step-item.active {
+  .app-stepper-item.is-active,
+  .app-stepper-item.is-completed {
     opacity: 1;
+  }
+
+  .app-stepper-item.is-active {
     transform: scale(1);
-    /* Removed box-shadow and border-color */
   }
 
-  .step-item.completed {
-   opacity: 1; 
+  .app-stepper-trigger {
+    flex-basis: 100%;
+    justify-content: center;
+    width: 100%;
   }
 
-  .step-item.completed .step-name {
-    color: var(--preto);
+  .app-stepper-separator {
+    flex: 0 0 2rem;
+    min-width: 2rem;
+    margin: 0 0.5rem;
   }
 }
 </style>

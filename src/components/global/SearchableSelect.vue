@@ -129,6 +129,10 @@ function handleSearch() {
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
 }
+.searchable-select.has-error .input-wrapper {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
 .chevron-icon { color: #6b7280; }
 .chevron-icon { transition: transform 0.2s; }
 .chevron-icon.is-open { transform: rotate(180deg); }

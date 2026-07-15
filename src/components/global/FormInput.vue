@@ -219,7 +219,6 @@ function handleBlur(event) {
 .hidden-native-checkbox:checked + .custom-checkbox-box {
   background-color: var(--azul-principal);
   border-color: var(--azul-principal);
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3); /* Sombra suave */
 }
 
 /* Estado Disabled */

@@ -321,7 +321,6 @@ onUnmounted(() => {
 async function handleStartService() {
   const appointmentId = props.event.originalEvent._id
 
-    toast.success('Iniciando atendimento...')
     emit('close')
 
     if (patient.value && patient.value._id) {
@@ -340,7 +339,6 @@ async function handleStartService() {
 async function handleContinueService() {
   const appointmentId = props.event.originalEvent._id
 
-    toast.success('Retomando atendimento...')
     emit('close')
 
     if (patient.value && patient.value._id) {
