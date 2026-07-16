@@ -27,7 +27,15 @@ const subscription = ref(null)
 const error = ref(null)
 const actionLoading = ref(false)
 
-const isTrialActive = computed(() => authStore.user?.planStatus?.trial?.isActive)
+const isTrialActive = computed(() => {
+  const trial = authStore.user?.planStatus?.trial
+  const subscriptionStatus = authStore.user?.clinic?.subscriptionStatus
+  return Boolean(
+    trial?.isActive &&
+    Number(trial.daysRemaining || 0) > 0 &&
+    !['active', 'lifetime'].includes(subscriptionStatus)
+  )
+})
 const trialDaysRemaining = computed(() => authStore.user?.planStatus?.trial?.daysRemaining)
 
 const statusMap = {

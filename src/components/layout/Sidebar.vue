@@ -30,6 +30,15 @@ const isUserDropdownOpen = ref(false)
 const isClinicDropdownOpen = ref(false)
 
 const planStatus = computed(() => authStore.user?.planStatus)
+const showTrialAlert = computed(() => {
+  const trial = planStatus.value?.trial
+  const subscriptionStatus = authStore.user?.clinic?.subscriptionStatus
+  return Boolean(
+    trial?.isActive &&
+    Number(trial.daysRemaining || 0) > 0 &&
+    !['active', 'lifetime'].includes(subscriptionStatus)
+  )
+})
 
 // Estado para controlar quais menus estão expandidos
 const expandedItems = ref([])
@@ -385,7 +394,7 @@ const sidebarSections = computed(() => {
       </div>
     </div>
 
-    <div v-if="planStatus?.trial?.isActive && !isCollapsed" class="trial-alert success">
+    <div v-if="showTrialAlert && !isCollapsed" class="trial-alert success">
       <div class="trial-content">
         <div class="trial-icon-wrapper">
           <AppIcon name="check" :size="16" class="trial-icon" />
