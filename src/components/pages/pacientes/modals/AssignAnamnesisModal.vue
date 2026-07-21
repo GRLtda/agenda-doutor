@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useAnamnesisStore } from '@/stores/anamnesis';
+import { useCrmStore } from '@/stores/crm';
 import { useToast } from 'vue-toastification';
 import StyledSelect from '@/components/global/StyledSelect.vue';
 import AppButton from '@/components/global/AppButton.vue';
@@ -15,6 +16,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved']);
 
 const anamnesisStore = useAnamnesisStore();
+const crmStore = useCrmStore();
 const toast = useToast();
 
 const templates = ref([]);
@@ -24,6 +26,14 @@ const notificationSent = ref(null);
 const copied = ref(false);
 const isLoading = ref(false);
 const sendNotification = ref(true); // <-- NOVO ESTADO
+const whatsappUnavailableMessage = 'Não está ativo o WhatsApp.';
+const canSendWhatsappNotification = computed(() => crmStore.status === 'connected');
+
+watch(canSendWhatsappNotification, (canSend) => {
+  if (!canSend) {
+    sendNotification.value = false;
+  }
+});
 
 function markLinkAsCopied() {
   copied.value = true;
@@ -33,7 +43,13 @@ function markLinkAsCopied() {
 }
 
 onMounted(async () => {
-  await anamnesisStore.fetchTemplates();
+  await Promise.all([
+    anamnesisStore.fetchTemplates(),
+    crmStore.getInitialStatus(),
+  ]);
+  if (!canSendWhatsappNotification.value) {
+    sendNotification.value = false;
+  }
   templates.value = anamnesisStore.templates.map(t => ({ value: t._id, label: t.name }));
 });
 
@@ -49,7 +65,7 @@ async function handleGenerateLink() {
     templateId: selectedTemplateId.value,
     mode: 'Paciente', // Obrigatório para notificação
     tokenTtlDays: 7, // Definido no README
-    sendNotification: sendNotification.value
+    sendNotification: canSendWhatsappNotification.value && sendNotification.value
   }
   // Atualiza a chamada para enviar o payload completo
   const { success, data } = await anamnesisStore.assignAnamnesis(props.patientId, payload);
@@ -123,6 +139,8 @@ function copyLink() {
             type="checkbox"
             v-model="sendNotification"
             label="Enviar notificação via WhatsApp"
+            :disabled="!canSendWhatsappNotification"
+            :disabled-help="!canSendWhatsappNotification ? whatsappUnavailableMessage : ''"
           />
         </div>
         <div v-else class="confirmation-step">

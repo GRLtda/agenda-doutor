@@ -19,6 +19,7 @@ const props = defineProps({
   cepMask: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
+  disabledHelp: { type: String, default: '' },
   hideRequiredAsterisk: { type: Boolean, default: false },
   error: { type: String, default: '' },
 })
@@ -75,7 +76,7 @@ function handleBlur(event) {
     </label>
 
     <div v-if="type === 'checkbox'" class="checkbox-wrapper">
-       <label class="custom-checkbox-label">
+       <label class="custom-checkbox-label" :class="{ 'is-disabled': disabled }">
          <input
           type="checkbox"
           :name="name"
@@ -87,10 +88,21 @@ function handleBlur(event) {
         />
         <div class="custom-checkbox-box">
           <Check :size="14" stroke-width="3" v-if="modelValue" class="check-icon" />
+          <span v-else-if="disabledHelp" class="checkbox-disabled-mark">!</span>
         </div>
         <span v-if="label" class="checkbox-text">
           {{ label }}
           <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
+          <span
+            v-if="disabledHelp"
+            class="checkbox-help"
+            role="tooltip"
+            tabindex="0"
+            @click.stop
+          >
+            ?
+            <span class="checkbox-help-tooltip">{{ disabledHelp }}</span>
+          </span>
         </span>
       </label>
     </div>
@@ -192,6 +204,10 @@ function handleBlur(event) {
   user-select: none;
 }
 
+.custom-checkbox-label.is-disabled {
+  cursor: not-allowed;
+}
+
 /* Oculta o checkbox nativo mas mantém acessibilidade */
 .hidden-native-checkbox {
   position: absolute;
@@ -229,13 +245,20 @@ function handleBlur(event) {
 }
 
 /* Hover Effect */
-.custom-checkbox-label:hover .custom-checkbox-box {
+.custom-checkbox-label:not(.is-disabled):hover .custom-checkbox-box {
   border-color: var(--azul-principal);
 }
 
-.hidden-native-checkbox:checked + .custom-checkbox-box:hover {
+.custom-checkbox-label:not(.is-disabled) .hidden-native-checkbox:checked + .custom-checkbox-box:hover {
   background-color: var(--azul-escuro); /* Leve escurecimento ao hover no checked */
   border-color: var(--azul-escuro);
+}
+
+.checkbox-disabled-mark {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* Icon Animation */
@@ -255,8 +278,72 @@ function handleBlur(event) {
   transition: color 0.2s;
 }
 
-.custom-checkbox-label:hover .checkbox-text {
+.custom-checkbox-label:not(.is-disabled):hover .checkbox-text {
   color: #111827; /* Preto ao hover */
+}
+
+.custom-checkbox-label.is-disabled .checkbox-text {
+  color: #9ca3af;
+}
+
+.checkbox-help {
+  align-items: center;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  color: #9ca3af;
+  cursor: help;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 800;
+  height: 1rem;
+  justify-content: center;
+  line-height: 1;
+  margin-left: 0.35rem;
+  position: relative;
+  vertical-align: text-top;
+  width: 1rem;
+}
+
+.checkbox-help-tooltip {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  bottom: calc(100% + 0.5rem);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+  left: 50%;
+  line-height: 1.35;
+  opacity: 0;
+  padding: 0.45rem 0.6rem;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transform: translateX(-50%) translateY(4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 9999;
+}
+
+.checkbox-help-tooltip::after {
+  border: 5px solid transparent;
+  border-top-color: #ffffff;
+  content: '';
+  left: 50%;
+  position: absolute;
+  top: 100%;
+  transform: translateX(-50%);
+}
+
+.checkbox-help:hover .checkbox-help-tooltip,
+.checkbox-help:focus-visible .checkbox-help-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
 }
 
 /* Animations */

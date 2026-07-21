@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useConsentTermsStore } from '@/stores/consent-terms'
+import { useCrmStore } from '@/stores/crm'
 import { useToast } from 'vue-toastification'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -16,6 +17,7 @@ const props = defineProps({
 defineEmits(['close'])
 
 const consentTermsStore = useConsentTermsStore()
+const crmStore = useCrmStore()
 const toast = useToast()
 
 const templates = ref([])
@@ -24,9 +26,23 @@ const generatedLink = ref(null)
 const copied = ref(false)
 const isLoading = ref(false)
 const sendNotification = ref(true)
+const whatsappUnavailableMessage = 'Não está ativo o WhatsApp.'
+const canSendWhatsappNotification = computed(() => crmStore.status === 'connected')
+
+watch(canSendWhatsappNotification, (canSend) => {
+  if (!canSend) {
+    sendNotification.value = false
+  }
+})
 
 onMounted(async () => {
-  await consentTermsStore.fetchTemplates()
+  await Promise.all([
+    consentTermsStore.fetchTemplates(),
+    crmStore.getInitialStatus(),
+  ])
+  if (!canSendWhatsappNotification.value) {
+    sendNotification.value = false
+  }
   templates.value = consentTermsStore.templates.map(t => ({ value: t._id, label: t.name }))
 })
 
@@ -48,7 +64,7 @@ async function handleGenerateLink() {
   const payload = {
     templateId: selectedTemplateId.value,
     tokenTtlDays: 30,
-    sendNotification: sendNotification.value,
+    sendNotification: canSendWhatsappNotification.value && sendNotification.value,
     ...(props.appointmentId && { appointmentId: props.appointmentId }),
   }
 
@@ -130,6 +146,8 @@ function copyLink() {
             v-model="sendNotification"
             label="Enviar notificacao via WhatsApp"
             class="notification-checkbox"
+            :disabled="!canSendWhatsappNotification"
+            :disabled-help="!canSendWhatsappNotification ? whatsappUnavailableMessage : ''"
           />
         </div>
 

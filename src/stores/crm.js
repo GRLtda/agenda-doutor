@@ -226,7 +226,7 @@ export const useCrmStore = defineStore('crm', () => {
       isLoadingQrImage.value = false
 
       if (error.response?.status !== 404) {
-        toast.error('Erro ao verificar status da conexao.')
+        console.log('Erro ao verificar status da conexao.')
       }
 
       if (status.value !== 'disconnected') {

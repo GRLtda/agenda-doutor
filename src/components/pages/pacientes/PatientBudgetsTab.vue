@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { computed, ref, onMounted, watch, onUnmounted } from 'vue'
 import { Receipt, Plus, Eye, Send, Trash2, FileDown, Package, MoreVertical } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import { useBudgetsStore } from '@/stores/budgets'
+import { useCrmStore } from '@/stores/crm'
 import { useToast } from 'vue-toastification'
 import BudgetModal from '@/components/modals/BudgetModal.vue'
 
@@ -14,17 +15,21 @@ const props = defineProps({
 })
 
 const budgetsStore = useBudgetsStore()
+const crmStore = useCrmStore()
 const toast = useToast()
 
 const showBudgetModal = ref(false)
 const editingBudget = ref(null)
 const sendingBudgetId = ref(null)
 const openMenuId = ref(null)
+const whatsappUnavailableMessage = 'Não pode ser enviado agora. Vá em Marketing > Conexão e confira a conexão do WhatsApp.'
+const canSendWhatsapp = computed(() => crmStore.status === 'connected')
 
 onMounted(() => {
   if (props.patientId) {
     budgetsStore.fetchBudgetsByPatient(props.patientId)
   }
+  crmStore.getInitialStatus()
   document.addEventListener('click', handleClickOutside)
 })
 
@@ -80,6 +85,12 @@ function handleBudgetSaved() {
 }
 
 async function handleSendWhatsApp(budget) {
+  if (!canSendWhatsapp.value) {
+    toast.warning(whatsappUnavailableMessage)
+    openMenuId.value = null
+    return
+  }
+
   sendingBudgetId.value = budget._id
   const result = await budgetsStore.sendBudgetWhatsApp(budget._id)
   sendingBudgetId.value = null
@@ -203,14 +214,19 @@ function handleClickOutside(event) {
           >
             <FileDown :size="16" />
           </button>
-          <button
-            @click="handleSendWhatsApp(budget)"
-            class="action-btn send-btn"
-            title="Enviar via WhatsApp"
-            :disabled="sendingBudgetId === budget._id"
-          >
-            <Send :size="16" />
-          </button>
+          <span class="send-action-tooltip" :class="{ 'is-disabled': !canSendWhatsapp }">
+            <button
+              @click="handleSendWhatsApp(budget)"
+              class="action-btn send-btn"
+              aria-label="Enviar via WhatsApp"
+              :disabled="sendingBudgetId === budget._id || !canSendWhatsapp"
+            >
+              <Send :size="16" />
+            </button>
+            <span v-if="!canSendWhatsapp" class="send-action-tooltip-content">
+              {{ whatsappUnavailableMessage }}
+            </span>
+          </span>
           <button
             @click="handleDeleteBudget(budget)"
             class="action-btn delete-btn"
@@ -243,14 +259,19 @@ function handleClickOutside(event) {
               <FileDown :size="16" />
               <span>Baixar PDF</span>
             </button>
-            <button
-              @click="handleSendWhatsApp(budget)"
-              class="dropdown-item"
-              :disabled="sendingBudgetId === budget._id"
-            >
-              <Send :size="16" />
-              <span>Enviar WhatsApp</span>
-            </button>
+            <span class="dropdown-tooltip-wrapper" :class="{ 'is-disabled': !canSendWhatsapp }">
+              <button
+                @click="handleSendWhatsApp(budget)"
+                class="dropdown-item"
+                :disabled="sendingBudgetId === budget._id || !canSendWhatsapp"
+              >
+                <Send :size="16" />
+                <span>Enviar WhatsApp</span>
+              </button>
+              <span v-if="!canSendWhatsapp" class="send-action-tooltip-content dropdown-tooltip-content">
+                {{ whatsappUnavailableMessage }}
+              </span>
+            </span>
             <button
               @click="handleDeleteBudget(budget)"
               class="dropdown-item delete-item"
@@ -451,6 +472,7 @@ function handleClickOutside(event) {
 
 .budget-actions {
   display: flex;
+  align-items: center;
   gap: 0.25rem;
 }
 
@@ -480,6 +502,54 @@ function handleClickOutside(event) {
 .action-btn.send-btn:hover:not(:disabled) {
   background: #dcfce7;
   color: #16a34a;
+}
+
+.send-action-tooltip,
+.dropdown-tooltip-wrapper {
+  display: inline-flex;
+  position: relative;
+}
+
+.send-action-tooltip-content {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  bottom: calc(100% + 0.5rem);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  max-width: 260px;
+  opacity: 0;
+  padding: 0.45rem 0.6rem;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  visibility: hidden;
+  width: 260px;
+  z-index: 9999;
+}
+
+.send-action-tooltip-content::after {
+  border: 5px solid transparent;
+  border-top-color: #ffffff;
+  content: '';
+  position: absolute;
+  right: 0.75rem;
+  top: 100%;
+}
+
+.send-action-tooltip.is-disabled:hover .send-action-tooltip-content,
+.dropdown-tooltip-wrapper.is-disabled:hover .send-action-tooltip-content {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
 }
 
 .action-btn.delete-btn:hover:not(:disabled) {
@@ -571,6 +641,18 @@ function handleClickOutside(event) {
 .dropdown-item:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.dropdown-tooltip-wrapper {
+  width: 100%;
+}
+
+.dropdown-tooltip-wrapper .dropdown-item {
+  width: 100%;
+}
+
+.dropdown-tooltip-content {
+  bottom: calc(100% + 0.35rem);
 }
 
 .dropdown-item.delete-item:hover:not(:disabled) {
