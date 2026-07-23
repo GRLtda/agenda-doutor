@@ -370,6 +370,7 @@ const missingInfo = computed(() => {
 
 // --- PROCEDIMENTOS ---
 const isAddProcedureModalOpen = ref(false)
+const currentPatientId = computed(() => patient.value?._id || route.params.id)
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -379,7 +380,12 @@ const formatCurrency = (value) => {
 }
 
 async function handleAddProcedure(payload) {
-  const { success } = await patientsStore.addProcedureToPatient(patient.value._id, payload)
+  if (!currentPatientId.value || currentPatientId.value === 'undefined') {
+    toast.error('Paciente não carregado. Reabra o perfil e tente novamente.')
+    return
+  }
+
+  const { success } = await patientsStore.addProcedureToPatient(currentPatientId.value, payload)
   if (success) {
     toast.success('Procedimento adicionado com sucesso!')
     isAddProcedureModalOpen.value = false
@@ -492,7 +498,6 @@ async function deleteAppointment(appointment) {
     />
     <AddProcedureModal
       v-if="isAddProcedureModalOpen"
-      :patient-id="patient?._id"
       @close="isAddProcedureModalOpen = false"
       @save="handleAddProcedure"
     />
@@ -973,6 +978,14 @@ async function deleteAppointment(appointment) {
               <div class="procedures-section">
                 <div class="section-header-row">
                   <h3 class="title-procedures"><Stethoscope class="title-icon" :size="20" /> Procedimentos Realizados</h3>
+                  <AppButton
+                    variant="primary"
+                    class="add-patient-procedure-btn"
+                    @click="isAddProcedureModalOpen = true"
+                  >
+                    <ClipboardPlus :size="16" />
+                    Adicionar Procedimento
+                  </AppButton>
                 </div>
 
                 <ul v-if="patient.procedures && patient.procedures.length > 0" class="procedures-list">
@@ -1241,6 +1254,8 @@ async function deleteAppointment(appointment) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .title-procedures {
@@ -1251,6 +1266,10 @@ async function deleteAppointment(appointment) {
   align-items: center;
   gap: 0.5rem;
   margin: 0;
+}
+
+.add-patient-procedure-btn {
+  margin-left: auto;
 }
 
 .procedures-list {
@@ -2062,6 +2081,16 @@ async function deleteAppointment(appointment) {
   }
 
   /* Estilos específicos para o tooltip em telas pequenas para evitar corte */
+  .section-header-row {
+    align-items: stretch;
+  }
+
+  .add-patient-procedure-btn {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+
   .missing-info-tooltip {
     right: 0;
     left: auto;
