@@ -545,7 +545,7 @@ function formatToVueCalString(dateString) {
 
 const formattedEvents = computed(() => {
   if (!Array.isArray(weekAppointments.value)) return []
-  
+
   // 1. Filtragem
   let filtered = weekAppointments.value
 
@@ -572,14 +572,14 @@ const formattedEvents = computed(() => {
   // 2. Mapeamento
   return filtered.map((appt) => {
     if (!appt.startTime || !appt.endTime) return null
-    
+
     // Tratamento seguro para status
     const rawStatus = appt.status || 'Agendado'
     const status = rawStatus.toLowerCase().replace(/ /g, '-')
 
     const startTime = new Date(appt.startTime)
     const endTime = new Date(appt.endTime)
-    
+
     // Validação de datas
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return null
 
@@ -696,10 +696,10 @@ const sortedCalendarEvents = computed(() => {
 
 const currentAppointmentIndex = computed(() => {
   if (!selectedEventForDetails.value || !sortedCalendarEvents.value.length) return -1
-  
+
   const currentId = selectedEventForDetails.value.originalEvent?._id
   if (!currentId) return -1
-  
+
   return sortedCalendarEvents.value.findIndex(e => e.originalEvent._id === currentId)
 })
 
@@ -835,10 +835,10 @@ function handleEventClick(event, e) {
   if (isDetailsModalOpen.value && currentSelectedId && clickedId && currentSelectedId === clickedId) {
     return
   }
-  
+
   console.log('DEBUG: Event clicked', event)
   selectedEventForDetails.value = event
-  
+
   // Ensure modal opens after state update
   nextTick(() => {
     isDetailsModalOpen.value = true
@@ -1051,7 +1051,7 @@ const getDayNumber = (heading) => {
   <div class="calendar-page-wrapper">
     <!-- Layout Grid: Sidebar + Calendar -->
     <div class="calendar-layout">
-        
+
         <!-- SIDEBAR (Menu Direito/Esquerdo - O usuário pediu "Lado Direito") -->
         <!-- Vou colocar na esquerda pois é padrão UX, mas se ele pediu direito, podemos inverter via CSS -->
         <!-- O prompt diz: "Na aba do calendario do lado direito coloque um menu..." -->
@@ -1060,9 +1060,9 @@ const getDayNumber = (heading) => {
 
         <main class="calendar-main-content">
              <!-- Botão de Filtros Mobile (Superior Direito - Minimalista) -->
-             <button 
-               v-if="isMobile" 
-               @click="isFilterDrawerOpen = true" 
+             <button
+               v-if="isMobile"
+               @click="isFilterDrawerOpen = true"
                class="filter-fab-mobile-minimal"
              >
                <Filter :size="18" />
@@ -1209,7 +1209,7 @@ const getDayNumber = (heading) => {
                     Semana
                 </button>
                 <button @click="goToToday" class="today-btn">Hoje</button>
-                
+
                  <!-- Aqui ficava o DatePicker, removido -->
                  <span class="calendar-header-display">{{ calendarHeader }}</span>
 
@@ -1256,9 +1256,9 @@ const getDayNumber = (heading) => {
         </aside>
 
         <!-- Drawer de Filtros (Mobile) -->
-        <SideDrawer 
-            v-if="isFilterDrawerOpen" 
-            size="lg" 
+        <SideDrawer
+            v-if="isFilterDrawerOpen"
+            size="lg"
             @close="isFilterDrawerOpen = false"
         >
             <template #header>
@@ -1274,7 +1274,7 @@ const getDayNumber = (heading) => {
                     </button>
                 </div>
             </template>
-            
+
             <CalendarFilterPanel
                 v-model:calendarView="calendarView"
                 v-model:datePickerModel="datePickerModel"
@@ -1306,7 +1306,7 @@ const getDayNumber = (heading) => {
 }
 .vuecal__event {
   cursor: pointer;
-  border-radius: 1vh;
+  border-radius: 8px;
   padding: 0;
   box-sizing: border-box;
   font-family: var(--fonte-principal);
@@ -1314,23 +1314,33 @@ const getDayNumber = (heading) => {
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  box-shadow: none;
+  --event-status-color: currentColor;
+  --event-border-color: currentColor;
 }
 .vuecal__event::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background-color: currentColor;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
-  opacity: 0.8;
+  left: 13px;
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  background-color: var(--event-status-color);
+  border-radius: 999px;
+  opacity: 1;
 }
 .vuecal__event:hover {
   transform: scale(0.98);
   z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.256);
+  box-shadow: none;
+}
+.vuecal__event.clinic-event::after {
+  content: '';
+  position: absolute;
+  inset: 2px 3px;
+  border: 1px solid var(--event-border-color);
+  border-radius: 8px;
+  pointer-events: none;
 }
 .vuecal__event.clinic-closed-event {
   background-color: #fef2f2; /* Vermelho bem claro */
@@ -1370,23 +1380,32 @@ const getDayNumber = (heading) => {
   background-color: #eef2ff;
   color: #3b82f6;
   border-color: #dbeafe;
+  clip-path: inset(2px 2px 2px 2px round 8px);
   z-index: 2;
+  --event-status-color: #3b82f6;
+  --event-border-color: #bfdbfe;
 }
 .vuecal__event.status--confirmado {
   background-color: #fefce8;
   color: #a16207;
   border-color: #fde68a;
+  --event-status-color: #eab308;
+  --event-border-color: #fde68a;
 }
 .vuecal__event.status--realizado {
   background-color: #f0fdf4;
   color: #16a34a;
   border-color: #bbf7d0;
+  --event-status-color: #16a34a;
+  --event-border-color: #86efac;
 }
 .vuecal__event.status--iniciado,
 .vuecal__event.status--em-atendimento {
   background-color: #f5f3ff;
   color: #7c3aed;
   border-color: #ddd6fe;
+  --event-status-color: #7c3aed;
+  --event-border-color: #c4b5fd;
 }
 
 .vuecal__event.status--cancelado,
@@ -1396,6 +1415,14 @@ const getDayNumber = (heading) => {
   border-color: #fecaca;
   text-decoration: line-through;
   opacity: 0.8;
+}
+.vuecal__event.status--cancelado {
+  --event-status-color: #dc2626;
+  --event-border-color: #fecaca;
+}
+.vuecal__event[class*="compareceu"] {
+  --event-status-color: #dc2626;
+  --event-border-color: #fecaca;
 }
 .vuecal--week-view .vuecal__bg .vuecal__time-column {
   width: 70px;
@@ -1859,7 +1886,7 @@ const getDayNumber = (heading) => {
   align-items: center;
   justify-content: center;
   z-index: 10;
-  border-radius: 0; 
+  border-radius: 0;
 }
 .loading-animation {
   display: flex;
@@ -1923,13 +1950,13 @@ const getDayNumber = (heading) => {
   flex-direction: column;
   justify-content: flex-start;
   overflow: hidden;
-  padding: 4px 8px 4px 10px;
+  padding: 11px 17px 4px 29px;
   box-sizing: border-box;
 }
 .custom-event-content-short {
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1px;
-  padding: 3px 8px 3px 10px;
+  padding: 9px 17px 3px 29px;
 }
 .event-title-short,
 .event-title-long {
