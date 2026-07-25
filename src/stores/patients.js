@@ -184,11 +184,16 @@ export const usePatientsStore = defineStore('patients', () => {
     error.value = null
     try {
       const response = await apiAddProcedureToPatient(patientId, procedureData)
+      const updatedPatient = response.data?.patient || response.data
       // Atualiza o paciente selecionado com os novos dados retornados
-      selectedPatient.value = response.data
-      return { success: true, data: response.data }
+      selectedPatient.value = updatedPatient
+      return { success: true, data: updatedPatient, financial: response.data?.financialAccount || null }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Erro ao adicionar procedimento.'
+      error.value =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        'Erro ao adicionar procedimento.'
       console.error('Falha em addProcedureToPatient:', err)
       return { success: false, error: error.value }
     } finally {

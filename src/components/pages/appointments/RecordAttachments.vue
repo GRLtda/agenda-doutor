@@ -195,11 +195,31 @@ const selectedImagesForMontage = computed(() => {
   const attachments = props.record?.attachments || []
   return attachments
     .filter(a => selectedAttachmentIds.value.has(a._id))
-    .map(a => ({ src: a.signedUrl }))
+    .map(a => ({ src: getOriginalImageUrl(a) }))
 })
 
 const MAX_ATTACHMENTS = 20
 const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
+
+function getOriginalImageUrl(attachment) {
+  return attachment?.originalUrl || attachment?.url || attachment?.signedUrl || ''
+}
+
+function getThumbnailImageUrl(attachment) {
+  return attachment?.thumbnailUrl || getOriginalImageUrl(attachment)
+}
+
+function handleThumbnailError(event, attachment) {
+  const originalUrl = getOriginalImageUrl(attachment)
+
+  if (originalUrl && event?.target?.dataset?.fallback !== 'original') {
+    event.target.dataset.fallback = 'original'
+    event.target.src = originalUrl
+    return
+  }
+
+  handleImageError(attachment._id)
+}
 
 function handleImageError(attachmentId) {
   imageLoadErrors.add(attachmentId)
@@ -651,12 +671,12 @@ async function handleMontageComplete(file) {
         <!-- Thumbnail com resolução reduzida via CSS -->
         <img
           v-else
-          :src="attachment.signedUrl"
+          :src="getThumbnailImageUrl(attachment)"
           alt="Anexo"
           class="thumbnail-image"
           loading="lazy"
           decoding="async"
-          @error="handleImageError(attachment._id)"
+          @error="handleThumbnailError($event, attachment)"
         />
         <div class="image-overlay">
           <div 
@@ -779,7 +799,7 @@ async function handleMontageComplete(file) {
             </div>
             
             <img 
-              :src="selectedImage?.signedUrl" 
+              :src="getOriginalImageUrl(selectedImage)" 
               alt="Visualização em tela cheia" 
               class="fullscreen-image"
               @load="isImageLoading = false"
@@ -953,9 +973,6 @@ async function handleMontageComplete(file) {
   object-fit: cover;
   cursor: pointer;
   /* Força renderização em baixa qualidade */
-  image-rendering: pixelated;
-  filter: blur(0.5px);
-  transform: scale(1.02); /* Oculta bordas do blur */
 }
 
 /* Loading spinner no viewer */

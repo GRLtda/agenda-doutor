@@ -59,6 +59,9 @@ export const getBirthdayPatients = () => {
 }
 
 export const addProcedureToPatient = (patientId, procedureData) => {
+  if (!patientId || patientId === 'undefined') {
+    return Promise.reject(new Error('ID do paciente não informado.'))
+  }
   return apiClient.post(`/patients/${patientId}/procedures`, procedureData)
 }
 

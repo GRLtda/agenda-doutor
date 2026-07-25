@@ -11,7 +11,7 @@ import { useEstoqueStore } from '@/stores/estoque'
 const props = defineProps({
   appointmentId: {
     type: String,
-    required: true,
+    default: null,
   },
   isLoading: {
     type: Boolean,
@@ -185,7 +185,6 @@ function handleSubmit() {
   }
 
   const payload = {
-    appointmentId: props.appointmentId,
     procedureId: selectedProcedureId.value,
     discountPercentage: discountMode.value === 'percentage' ? discountPercentage.value : 0,
     discountValue: discountMode.value === 'fixed' ? discountValue.value : 0,
@@ -193,6 +192,10 @@ function handleSubmit() {
     // Consumo de estoque — vazio se procedimento não tem kit vinculado
     lotesConsumo: itensConsumo,
     procedimentoId: selectedProcedureId.value,
+  }
+
+  if (props.appointmentId) {
+    payload.appointmentId = props.appointmentId
   }
 
   emit('save', payload)
