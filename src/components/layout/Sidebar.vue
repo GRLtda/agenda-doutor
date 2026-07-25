@@ -182,7 +182,16 @@ const sidebarSections = computed(() => {
   // Seção Gestão
   const gestaoLinks = [
     { icon: 'users', text: 'Pacientes', to: '/pacientes' },
-    { icon: 'clipboard-list', text: 'Anamneses', to: '/anamneses' },
+    {
+      icon: 'clipboard-list',
+      text: 'Prontuário',
+      key: 'prontuario',
+      children: [
+        { text: 'Anamneses', to: '/anamneses', icon: 'clipboard-list' },
+        { text: 'Termos', to: '/termos', icon: 'template' },
+        { text: 'Galeria', to: '/galeria', icon: 'image' },
+      ],
+    },
     { icon: 'stethoscope', text: 'Procedimentos', to: '/procedimentos' },
   ]
 

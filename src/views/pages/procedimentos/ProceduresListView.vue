@@ -50,6 +50,62 @@ const pricingOptions = [
   { value: 'ML', label: 'Por mL' },
 ]
 
+const costTypeOptions = [
+  { value: 'FIXED', label: 'Custo fixo' },
+  { value: 'UNIT', label: 'Por unidade' },
+  { value: 'ML', label: 'Por mL' },
+]
+
+const commissionOptions = [
+  { value: 'NONE', label: 'Sem comissao' },
+  { value: 'FIXED', label: 'Valor fixo' },
+  { value: 'PERCENT', label: 'Percentual' },
+]
+
+const previewRevenueCents = computed(() => Math.round(Number(selectedProcedure.value?.baseValue || 0) * 100))
+
+const previewProcedureCostCents = computed(() => {
+  const procedure = selectedProcedure.value || {}
+  if (procedure.costType === 'UNIT' || procedure.costType === 'ML') {
+    return Math.round(Number(procedure.costPerUnitValue || 0) * 100)
+  }
+  return Math.round(Number(procedure.defaultCostValue || 0) * 100)
+})
+
+const previewProfessionalCostCents = computed(() => {
+  const procedure = selectedProcedure.value || {}
+  if (procedure.professionalCommissionType === 'FIXED') {
+    return Math.round(Number(procedure.professionalCommissionFixedValue || 0) * 100)
+  }
+  if (procedure.professionalCommissionType === 'PERCENT') {
+    return Math.round(previewRevenueCents.value * (Number(procedure.professionalCommissionValue || 0) / 100))
+  }
+  return 0
+})
+
+const previewTotalCostCents = computed(() => previewProcedureCostCents.value + previewProfessionalCostCents.value)
+const previewProfitCents = computed(() => previewRevenueCents.value - previewTotalCostCents.value)
+const previewMarginPercent = computed(() => (
+  previewRevenueCents.value > 0
+    ? ((previewProfitCents.value / previewRevenueCents.value) * 100).toFixed(2)
+    : '0.00'
+))
+
+function hydrateProcedureForm(procedure) {
+  const commissionType = procedure.professionalCommissionType || 'NONE'
+  return {
+    ...procedure,
+    costType: procedure.costType || procedure.pricingType || 'FIXED',
+    defaultCostCents: Number(procedure.defaultCostCents || 0),
+    costPerUnitCents: Number(procedure.costPerUnitCents || 0),
+    defaultCostValue: Number(procedure.defaultCostCents || 0) / 100,
+    costPerUnitValue: Number(procedure.costPerUnitCents || 0) / 100,
+    professionalCommissionType: commissionType,
+    professionalCommissionValue: commissionType === 'PERCENT' ? Number(procedure.professionalCommissionValue || 0) : 0,
+    professionalCommissionFixedValue: commissionType === 'FIXED' ? Number(procedure.professionalCommissionValue || 0) / 100 : 0,
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     proceduresStore.fetchProcedures(),
@@ -71,7 +127,7 @@ function goToKits() {
 }
 
 function handleEdit(procedure) {
-  selectedProcedure.value = { ...procedure }
+  selectedProcedure.value = hydrateProcedureForm(procedure)
   currentStep.value = 1
   showFormModal.value = true
   actionsMenuOpenFor.value = null
@@ -83,6 +139,14 @@ function handleNew() {
     description: '',
     baseValue: 0,
     pricingType: 'FIXED',
+    costType: 'FIXED',
+    defaultCostCents: 0,
+    costPerUnitCents: 0,
+    defaultCostValue: 0,
+    costPerUnitValue: 0,
+    professionalCommissionType: 'NONE',
+    professionalCommissionValue: 0,
+    professionalCommissionFixedValue: 0,
   }
   currentStep.value = 1
   showFormModal.value = true
@@ -146,6 +210,14 @@ async function handleSave() {
 
   try {
     const procedureData = { ...selectedProcedure.value }
+    procedureData.defaultCostCents = Math.round(Number(procedureData.defaultCostValue || 0) * 100)
+    procedureData.costPerUnitCents = Math.round(Number(procedureData.costPerUnitValue || 0) * 100)
+    procedureData.professionalCommissionValue = procedureData.professionalCommissionType === 'FIXED'
+      ? Math.round(Number(procedureData.professionalCommissionFixedValue || 0) * 100)
+      : Number(procedureData.professionalCommissionValue || 0)
+    delete procedureData.defaultCostValue
+    delete procedureData.costPerUnitValue
+    delete procedureData.professionalCommissionFixedValue
     
     let result
     if (procedureData._id) {
@@ -379,6 +451,7 @@ const getPricingTypeInfo = (type) => {
                 </div>
               </Transition>
             </div>
+
           </div>
         </template>
 
@@ -480,12 +553,85 @@ const getPricingTypeInfo = (type) => {
                 <CurrencyInput v-model="selectedProcedure.baseValue" placeholder="R$ 0,00" />
               </div>
             </div>
+
+            <div class="procedure-create-card-header">
+              <div>
+                <h3>Custos e comissao</h3>
+                <p>Defina o custo padrao usado na lucratividade dos atendimentos.</p>
+              </div>
+            </div>
+
+            <div class="procedure-create-price-grid">
+              <div class="procedure-create-field">
+                <label>Tipo de custo</label>
+                <StyledSelect v-model="selectedProcedure.costType" :options="costTypeOptions" />
+              </div>
+
+              <div class="procedure-create-field">
+                <label>{{ selectedProcedure.costType === 'FIXED' ? 'Custo padrao' : 'Custo por unidade/ml' }}</label>
+                <CurrencyInput
+                  v-if="selectedProcedure.costType === 'FIXED'"
+                  v-model="selectedProcedure.defaultCostValue"
+                  placeholder="R$ 0,00"
+                />
+                <CurrencyInput
+                  v-else
+                  v-model="selectedProcedure.costPerUnitValue"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+            </div>
+
+            <div class="procedure-create-price-grid">
+              <div class="procedure-create-field">
+                <label>Comissao profissional</label>
+                <StyledSelect v-model="selectedProcedure.professionalCommissionType" :options="commissionOptions" />
+              </div>
+
+              <div class="procedure-create-field" v-if="selectedProcedure.professionalCommissionType !== 'NONE'">
+                <label>{{ selectedProcedure.professionalCommissionType === 'PERCENT' ? 'Percentual' : 'Valor fixo' }}</label>
+                <div v-if="selectedProcedure.professionalCommissionType === 'PERCENT'" class="percent-input-wrapper">
+                  <input
+                    v-model.number="selectedProcedure.professionalCommissionValue"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    class="procedure-create-input"
+                  />
+                  <span>%</span>
+                </div>
+                <CurrencyInput
+                  v-else
+                  v-model="selectedProcedure.professionalCommissionFixedValue"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+            </div>
           </div>
 
           <div class="procedure-create-summary">
             <span>Prévia</span>
             <strong>{{ selectedProcedure.name || 'Novo procedimento' }}</strong>
             <p>{{ getPricingTypeInfo(selectedProcedure.pricingType).label }} · {{ formatCurrency(selectedProcedure.baseValue || 0) }}</p>
+            <div class="margin-preview-grid">
+              <div>
+                <span>Receita</span>
+                <strong>{{ formatCurrency(previewRevenueCents / 100) }}</strong>
+              </div>
+              <div>
+                <span>Custo</span>
+                <strong>{{ formatCurrency(previewTotalCostCents / 100) }}</strong>
+              </div>
+              <div>
+                <span>Lucro</span>
+                <strong :class="{ 'is-negative': previewProfitCents < 0 }">{{ formatCurrency(previewProfitCents / 100) }}</strong>
+              </div>
+              <div>
+                <span>Margem</span>
+                <strong :class="{ 'is-negative': previewProfitCents < 0 }">{{ previewMarginPercent }}%</strong>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1141,6 +1287,58 @@ th.actions-header .th-content {
   line-height: 1.4;
 }
 
+.percent-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.percent-input-wrapper .procedure-create-input {
+  padding-right: 2.5rem;
+}
+
+.percent-input-wrapper span {
+  position: absolute;
+  right: 1rem;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.margin-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.margin-preview-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  background: #f9fafb;
+}
+
+.margin-preview-grid span {
+  color: #6b7280;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.margin-preview-grid strong {
+  color: #111827;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.margin-preview-grid strong.is-negative {
+  color: #dc2626;
+}
+
 .procedure-create-review {
   display: flex;
   flex-direction: column;
@@ -1356,7 +1554,8 @@ th.actions-header .th-content {
   }
 
   .procedure-create-price-grid,
-  .procedure-create-review-grid {
+  .procedure-create-review-grid,
+  .margin-preview-grid {
     grid-template-columns: 1fr;
   }
 

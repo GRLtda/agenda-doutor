@@ -320,19 +320,21 @@ function applyDefaultTimeSelection() {
 }
 
 function handlePatientSearch(query) {
-  patientSearchQuery.value = query || ''
+  const term = String(query || '').trim()
+  patientSearchQuery.value = term
+  clearTimeout(debounceTimeout)
 
-  if (!query) {
+  if (!term) {
+    patientsStore.searchPatients('')
     if (patientsStore.allPatients.length === 0 && !patientsStore.isLoading) {
       patientsStore.fetchAllPatients(1, 100)
     }
     return
   }
 
-  clearTimeout(debounceTimeout)
   debounceTimeout = setTimeout(() => {
-    patientsStore.searchPatients(query)
-  }, 300)
+    patientsStore.searchPatients(term)
+  }, 250)
 }
 
 function goToCreatePatient() {

@@ -20,6 +20,7 @@ import {
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import AppButton from '@/components/global/AppButton.vue'
+import CurrencyInput from '@/components/global/CurrencyInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import Switch from '@/components/global/Switch.vue'
@@ -42,6 +43,7 @@ const dueDate = ref(toDateInput(new Date()))
 const useInstallments = ref(false)
 const installmentCount = ref(2)
 const confirmedPayments = ref([])
+const costAdjustments = ref({})
 const displayAmount = ref('0,00')
 const activeStep = ref(1)
 const currentPayment = ref({
@@ -68,17 +70,36 @@ const totalOriginalAmount = computed(() =>
 
 const totalDiscount = computed(() => Math.max(totalOriginalAmount.value - totalAmount.value, 0))
 
-const totalCost = computed(() =>
-  props.procedures.reduce((sum, proc) => {
-    const costInCents = proc.totalCostCents ?? proc.procedureCostCents ?? proc.costCents
-    if (costInCents !== undefined && costInCents !== null) {
-      return sum + Number(costInCents || 0) / 100
+const proceduresWithCosts = computed(() =>
+  props.procedures.map((proc, index) => {
+    const key = procedureAdjustmentKey(proc, index)
+    const adjustment = costAdjustments.value[key] || buildCostAdjustment(proc)
+    const procedureCostCents = Math.round(Number(adjustment.procedureCostValue || 0) * 100)
+    const inventoryCostCents = Math.round(Number(adjustment.inventoryCostValue || 0) * 100)
+    const professionalCostCents = Math.round(Number(adjustment.professionalCostValue || 0) * 100)
+    const totalCostCents = procedureCostCents + inventoryCostCents + professionalCostCents
+    const revenueCents = Math.round(Number(proc.finalValue || proc.value || 0) * 100)
+    const grossProfitCents = revenueCents - totalCostCents
+
+    return {
+      ...proc,
+      procedureCostCents,
+      inventoryCostCents,
+      professionalCostCents,
+      totalCostCents,
+      grossProfitCents,
+      marginPercent: revenueCents > 0 ? Number(((grossProfitCents / revenueCents) * 100).toFixed(2)) : 0,
+      costSource: adjustment.costSource || proc.costSource || 'PROCEDURE_CATALOG',
+      costOverrideReason: adjustment.costOverrideReason || '',
     }
-    return sum + Number(proc.totalCost || proc.cost || 0)
-  }, 0)
+  })
 )
 
-const grossProfit = computed(() => Math.max(totalAmount.value - totalCost.value, 0))
+const totalCost = computed(() =>
+  proceduresWithCosts.value.reduce((sum, proc) => sum + Number(proc.totalCostCents || 0) / 100, 0)
+)
+
+const grossProfit = computed(() => totalAmount.value - totalCost.value)
 
 const totalPaid = computed(() => {
   if (!paidNow.value) return 0
@@ -97,6 +118,51 @@ const dueDatePickerModel = computed({
     dueDate.value = formatDateForApi(value)
   },
 })
+
+function procedureAdjustmentKey(proc, index) {
+  return proc._id || proc.procedureRecordId || `${proc.procedureId || 'procedure'}-${index}`
+}
+
+function buildCostAdjustment(proc) {
+  const totalCostCents = proc.totalCostCents ?? proc.procedureCostCents ?? proc.costCents
+  const fallbackCost = totalCostCents !== undefined && totalCostCents !== null
+    ? Number(totalCostCents || 0) / 100
+    : Number(proc.totalCost || proc.cost || 0)
+
+  const hasDetailedCost = proc.procedureCostCents !== undefined ||
+    proc.inventoryCostCents !== undefined ||
+    proc.professionalCostCents !== undefined
+
+  return {
+    procedureCostValue: hasDetailedCost ? Number(proc.procedureCostCents || 0) / 100 : fallbackCost,
+    inventoryCostValue: Number(proc.inventoryCostCents || 0) / 100,
+    professionalCostValue: Number(proc.professionalCostCents || 0) / 100,
+    costSource: proc.costSource || 'PROCEDURE_CATALOG',
+    costOverrideReason: proc.costOverrideReason || '',
+  }
+}
+
+function hydrateCostAdjustments() {
+  const next = {}
+  props.procedures.forEach((proc, index) => {
+    next[procedureAdjustmentKey(proc, index)] = buildCostAdjustment(proc)
+  })
+  costAdjustments.value = next
+}
+
+function updateCostAdjustment(proc, index, field, value) {
+  const adjustment = getCostAdjustment(proc, index)
+  adjustment[field] = field === 'costOverrideReason' ? value : Number(value || 0)
+  adjustment.costSource = 'MANUAL'
+}
+
+function getCostAdjustment(proc, index) {
+  const key = procedureAdjustmentKey(proc, index)
+  if (!costAdjustments.value[key]) {
+    costAdjustments.value[key] = buildCostAdjustment(proc)
+  }
+  return costAdjustments.value[key]
+}
 
 const checkoutSteps = computed(() => [
   {
@@ -236,6 +302,18 @@ function handleSubmit() {
   emit('confirm', {
     patientId: props.patientId,
     appointmentId: props.appointmentId,
+    procedureCostAdjustments: proceduresWithCosts.value
+      .map((proc, index) => ({
+        _id: props.procedures[index]?._id,
+        procedureId: proc.procedureId,
+        procedureCostCents: proc.procedureCostCents,
+        inventoryCostCents: proc.inventoryCostCents,
+        professionalCostCents: proc.professionalCostCents,
+        totalCostCents: proc.totalCostCents,
+        costSource: proc.costSource,
+        costOverrideReason: proc.costOverrideReason,
+      }))
+      .filter((proc) => proc.costSource === 'MANUAL'),
     paymentMethods: paymentsNow,
     paymentPlan: {
       mode,
@@ -337,6 +415,12 @@ watch(paidNow, (value) => {
 watch(hasPendingBalance, (value) => {
   if (!value) useInstallments.value = false
 })
+
+watch(
+  () => props.procedures,
+  hydrateCostAdjustments,
+  { immediate: true, deep: true }
+)
 </script>
 
 <template>
@@ -389,8 +473,8 @@ watch(hasPendingBalance, (value) => {
             </div>
           </div>
 
-          <div v-if="procedures.length > 0" class="item-list">
-            <div v-for="(proc, index) in procedures" :key="index" class="line-item">
+          <div v-if="proceduresWithCosts.length > 0" class="item-list">
+            <div v-for="(proc, index) in proceduresWithCosts" :key="proc._id || index" class="line-item">
               <div class="item-info">
                 <span class="item-title">{{ proc.name }}</span>
                 <span class="item-meta">
@@ -421,9 +505,60 @@ watch(hasPendingBalance, (value) => {
             </div>
             <div v-if="totalCost > 0" class="metric-card">
               <span>Lucro estimado</span>
-              <strong class="text-green">{{ formatCurrency(grossProfit) }}</strong>
+              <strong :class="grossProfit < 0 ? 'text-red' : 'text-green'">{{ formatCurrency(grossProfit) }}</strong>
             </div>
           </div>
+
+          <details v-if="proceduresWithCosts.length > 0" class="cost-adjust-card">
+            <summary>
+              <span>Ajustar custos deste atendimento</span>
+              <strong>{{ formatCurrency(totalCost) }}</strong>
+            </summary>
+
+            <div class="cost-adjust-list">
+              <div v-for="(proc, index) in proceduresWithCosts" :key="`cost-${proc._id || index}`" class="cost-adjust-item">
+                <div class="cost-adjust-header">
+                  <div>
+                    <span>{{ proc.name }}</span>
+                    <strong>{{ formatCurrency(proc.totalCostCents / 100) }}</strong>
+                  </div>
+                  <small :class="{ 'text-red': proc.grossProfitCents < 0 }">
+                    Lucro {{ formatCurrency(proc.grossProfitCents / 100) }} · {{ proc.marginPercent }}%
+                  </small>
+                </div>
+
+                <div class="cost-adjust-grid">
+                  <div class="form-group">
+                    <label class="form-label">Custo procedimento</label>
+                    <CurrencyInput
+                      :model-value="getCostAdjustment(proc, index).procedureCostValue"
+                      placeholder="R$ 0,00"
+                      @update:modelValue="(value) => updateCostAdjustment(proc, index, 'procedureCostValue', value)"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Comissao</label>
+                    <CurrencyInput
+                      :model-value="getCostAdjustment(proc, index).professionalCostValue"
+                      placeholder="R$ 0,00"
+                      @update:modelValue="(value) => updateCostAdjustment(proc, index, 'professionalCostValue', value)"
+                    />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Motivo do ajuste</label>
+                  <input
+                    :value="getCostAdjustment(proc, index).costOverrideReason"
+                    type="text"
+                    class="form-input"
+                    maxlength="300"
+                    @input="(event) => updateCostAdjustment(proc, index, 'costOverrideReason', event.target.value)"
+                  />
+                </div>
+              </div>
+            </div>
+          </details>
         </section>
 
         <section v-if="activeStep === 2" class="step-panel">
@@ -1251,6 +1386,92 @@ input[type='number'] {
   color: var(--azul-principal, #3b82f6);
 }
 
+.cost-adjust-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  background: #fff;
+}
+
+.cost-adjust-card summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 48px;
+  padding: 0.875rem 1rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cost-adjust-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.cost-adjust-card summary strong {
+  color: #111827;
+  white-space: nowrap;
+}
+
+.cost-adjust-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.cost-adjust-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+}
+
+.cost-adjust-header,
+.cost-adjust-header div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cost-adjust-header div {
+  flex: 1;
+}
+
+.cost-adjust-header span {
+  min-width: 0;
+  overflow: hidden;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-adjust-header strong,
+.cost-adjust-header small {
+  white-space: nowrap;
+}
+
+.cost-adjust-header small {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.cost-adjust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
 .payment-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr);
@@ -1576,8 +1797,14 @@ input[type='number'] {
   .payment-status,
   .settlement-summary,
   .form-grid,
-  .credit-installments {
+  .credit-installments,
+  .cost-adjust-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cost-adjust-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .checkout-stepper {

@@ -17,6 +17,17 @@ export const useGalleryStore = defineStore('gallery', {
         },
         // Breadcrumbs simples: { id: 'root', name: 'Início' } -> { id: 'appointmentId', name: 'Consulta' }
         breadcrumbs: [{ id: null, name: 'Início' }],
+        clinicGallery: {
+            files: [],
+            tags: [],
+            pagination: {
+                total: 0,
+                page: 1,
+                limit: 30,
+                totalPages: 1
+            },
+            filters: {}
+        },
         loading: false,
         error: null,
     }),
@@ -85,6 +96,73 @@ export const useGalleryStore = defineStore('gallery', {
                 console.error(err);
             } finally {
                 this.loading = false;
+            }
+        },
+
+        async fetchClinicGallery(params = {}) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const { data } = await api.get('/gallery/clinic', {
+                    params: {
+                        page: params.page || 1,
+                        limit: params.limit || 30,
+                        search: params.search || '',
+                        tags: Array.isArray(params.tags) ? params.tags.join(',') : (params.tags || ''),
+                        tagMode: params.tagMode || 'or',
+                        category: params.category || 'imagens',
+                        fileType: params.fileType || 'image',
+                        patientId: params.patientId || '',
+                        from: params.from || '',
+                        to: params.to || '',
+                    }
+                });
+
+                this.clinicGallery.files = data.data || [];
+                this.clinicGallery.pagination = data.pagination || {
+                    total: 0,
+                    page: params.page || 1,
+                    limit: params.limit || 30,
+                    totalPages: 1
+                };
+                this.clinicGallery.filters = data.filters || {};
+                return { success: true, data };
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Erro ao carregar galeria geral';
+                this.clinicGallery.files = [];
+                console.error(err);
+                return { success: false, error: this.error };
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async fetchClinicTags(params = {}) {
+            try {
+                const { data } = await api.get('/gallery/clinic/tags', {
+                    params: {
+                        category: params.category || 'imagens',
+                        fileType: params.fileType || 'image',
+                    }
+                });
+                this.clinicGallery.tags = data.tags || [];
+                return { success: true, data };
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Erro ao carregar tags da galeria';
+                this.clinicGallery.tags = [];
+                console.error(err);
+                return { success: false, error: this.error };
+            }
+        },
+
+        async fetchGalleryItem(uploadId) {
+            try {
+                const { data } = await api.get(`/gallery/item/${uploadId}`);
+                return { success: true, data };
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Erro ao carregar arquivo';
+                console.error(err);
+                return { success: false, error: this.error };
             }
         },
 

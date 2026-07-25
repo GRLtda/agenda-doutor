@@ -18,6 +18,22 @@
               </div>
             </div>
 
+            <div v-if="file.patient?.name" class="metadata-group">
+              <label class="meta-label">Paciente</label>
+              <div class="meta-value date-value">
+                <User :size="14" />
+                <span>{{ file.patient.name }}</span>
+              </div>
+            </div>
+
+            <div v-if="file.appointment" class="metadata-group">
+              <label class="meta-label">Atendimento</label>
+              <div class="meta-value date-value">
+                <Stethoscope :size="14" />
+                <span>{{ formatAppointment(file.appointment) }}</span>
+              </div>
+            </div>
+
             <!-- Descrição -->
             <div class="metadata-group">
               <label class="meta-label">Descrição</label>
@@ -89,7 +105,9 @@ import {
   X, 
   Calendar, 
   FileText, 
-  Loader2 
+  Loader2,
+  Stethoscope,
+  User,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -131,6 +149,13 @@ function formatDate(dateString) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+function formatAppointment(appointment) {
+  if (!appointment) return '';
+  const date = appointment.startTime
+    ? new Date(appointment.startTime).toLocaleDateString('pt-BR')
+    : null;
+  return [appointment.type || 'Atendimento', date].filter(Boolean).join(' - ');
 }
 </script>
 

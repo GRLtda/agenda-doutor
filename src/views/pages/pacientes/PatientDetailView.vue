@@ -140,6 +140,14 @@ const genderOptions = [
   { value: 'Outro', label: 'Outro' },
 ]
 
+const referralSourceOptions = [
+  { value: 'Facebook', label: 'Facebook' },
+  { value: 'Instagram', label: 'Instagram' },
+  { value: 'Indicação de amigo', label: 'Indicação de amigo' },
+  { value: 'Google', label: 'Google' },
+  { value: 'Outros', label: 'Outros' },
+]
+
 const lastAppointment = computed(() => {
   if (patientHistory.value && patientHistory.value.length > 0) {
     return [...patientHistory.value].sort(
@@ -587,6 +595,11 @@ async function deleteAppointment(appointment) {
                         placeholder="Nome do paciente"
                         required
                       />
+                      <FormInput
+                        v-model="editablePatient.nickname"
+                        label="Apelido"
+                        placeholder="Como o paciente prefere ser chamado"
+                      />
                       <!-- Campo de Data com VueDatePicker -->
                       <div class="form-group">
                         <label class="form-label">Data de Nascimento</label>
@@ -636,6 +649,12 @@ async function deleteAppointment(appointment) {
                         label="Gênero"
                         :options="genderOptions"
                       />
+                      <StyledSelect
+                        v-model="editablePatient.referralSource"
+                        label="Origem do paciente"
+                        :options="referralSourceOptions"
+                        placeholder="Selecione a origem"
+                      />
                     </div>
                   </section>
 
@@ -677,8 +696,16 @@ async function deleteAppointment(appointment) {
                       <strong class="value">{{ formattedBirthDate || 'Não informado' }}</strong>
                     </div>
                     <div class="detail-item">
+                      <span class="label">Apelido</span>
+                      <strong class="value">{{ displayValue(patient.nickname) }}</strong>
+                    </div>
+                    <div class="detail-item">
                       <span class="label">Gênero</span>
                       <strong class="value">{{ patient.gender || 'Não informado' }}</strong>
+                    </div>
+                    <div class="detail-item">
+                      <span class="label">Origem</span>
+                      <strong class="value">{{ displayValue(patient.referralSource) }}</strong>
                     </div>
                     <div class="detail-item">
                       <span class="label">CPF</span>

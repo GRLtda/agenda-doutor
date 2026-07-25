@@ -18,6 +18,7 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
   const templates = ref([])
   const availableVariables = ref([ // Fallback caso a API falhe ou não seja usada
     { variable: '{paciente}', description: 'Nome completo do paciente.' },
+    { variable: '{apelido}', description: 'Apelido do paciente; usa o primeiro nome se estiver vazio.' },
     { variable: '{nome_medico}', description: 'Nome do médico logado.' },
     { variable: '{clinica}', description: 'Nome da clínica.' },
     { variable: '{data_consulta}', description: 'Data do próximo agendamento.' },

@@ -12,6 +12,9 @@ import {
     getConsentTermsForAppointment as apiGetForAppointment,
     getConsentTermById as apiGetTermById,
     getPendingConsentTerms as apiGetPending,
+    getAllConsentTerms as apiGetAll,
+    downloadConsentTermPdf as apiDownloadPdf,
+    sendConsentTermPdf as apiSendPdf,
     getPublicConsentTerm as apiGetPublic,
     submitConsentTermSignature as apiSubmitSignature,
 } from '@/api/consent-terms'
@@ -36,6 +39,13 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
     const pendingTotal = ref(0)
     const pendingPage = ref(1)
     const pendingPages = ref(1)
+
+    // Estado para TODOS os termos da clÃ­nica
+    const allTermsList = ref([])
+    const allTotal = ref(0)
+    const allPage = ref(1)
+    const allPages = ref(1)
+    const allLimit = ref(20)
 
     // Estado para termos do atendimento
     const appointmentTerms = ref([])
@@ -213,6 +223,68 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
 
     // --- Ações para Termos do Atendimento ---
 
+    async function fetchAllTerms(page = 1, limit = 20, status = 'Todos', search = '') {
+        isLoading.value = true
+        try {
+            const response = await apiGetAll(page, limit, status, search)
+            allTermsList.value = response.data.data || []
+            allTotal.value = response.data.total || 0
+            allPage.value = response.data.page || 1
+            allPages.value = response.data.pages || 1
+            allLimit.value = response.data.limit || 20
+            return { success: true }
+        } catch (error) {
+            console.error('Erro ao buscar todos os termos:', error)
+            const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido'
+            toast.error(`Erro ao buscar termos: ${errorMessage}`)
+            allTermsList.value = []
+            return { success: false, error }
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    async function downloadPdf(patientId, termId, templateName = 'termo') {
+        isLoading.value = true
+        try {
+            const response = await apiDownloadPdf(patientId, termId)
+            const blob = new Blob([response.data], { type: 'application/pdf' })
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `${templateName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+            toast.success('PDF baixado com sucesso!')
+            return { success: true }
+        } catch (error) {
+            console.error('Erro ao baixar PDF do termo:', error)
+            const errorMessage = error.response?.data?.message || error.message || 'Erro ao baixar PDF.'
+            toast.error(errorMessage)
+            return { success: false, error }
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    async function sendPdfToPatient(patientId, termId) {
+        isLoading.value = true
+        try {
+            await apiSendPdf(patientId, termId)
+            toast.success('PDF enviado para o paciente via WhatsApp!')
+            return { success: true }
+        } catch (error) {
+            console.error('Erro ao enviar PDF do termo:', error)
+            const errorMessage = error.response?.data?.message || error.message || 'Erro ao enviar PDF.'
+            toast.error(errorMessage)
+            return { success: false, error }
+        } finally {
+            isLoading.value = false
+        }
+    }
+
     async function fetchTermsForAppointment(appointmentId) {
         isLoading.value = true
         appointmentTerms.value = []
@@ -280,6 +352,11 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         pendingTotal,
         pendingPage,
         pendingPages,
+        allTermsList,
+        allTotal,
+        allPage,
+        allPages,
+        allLimit,
         appointmentTerms,
 
         // Computed
@@ -299,6 +376,9 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         fetchTermsForPatient,
         fetchTermById,
         fetchPendingTerms,
+        fetchAllTerms,
+        downloadPdf,
+        sendPdfToPatient,
         fetchTermsForAppointment,
 
         // Ações Públicas
