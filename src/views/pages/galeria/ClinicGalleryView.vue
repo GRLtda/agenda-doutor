@@ -116,8 +116,8 @@
         >
           <div class="thumb-frame">
             <img
-              v-if="file.fileType === 'image' && (file.previewUrl || file.signedUrl)"
-              :src="file.previewUrl || file.signedUrl"
+              v-if="file.fileType === 'image' && getThumbnailUrl(file)"
+              :src="getThumbnailUrl(file)"
               :alt="file.metadata?.description || file.metadata?.originalName || 'Imagem da galeria'"
               class="thumb-image"
               loading="lazy"
@@ -370,6 +370,10 @@ function fileTypeLabel(type) {
     image: 'Imagem',
   }
   return labels[type] || 'Arquivo'
+}
+
+function getThumbnailUrl(file) {
+  return file?.thumbnailUrl || file?.previewUrl || file?.signedUrl || ''
 }
 </script>
 

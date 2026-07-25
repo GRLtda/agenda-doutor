@@ -86,7 +86,7 @@
           </div>
           
           <img 
-            :src="file.signedUrl" 
+            :src="imageUrl"
             alt="Visualização em tela cheia" 
             class="fullscreen-image"
             :class="{ 'loaded': !isLoading }"
@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { 
   X, 
   Calendar, 
@@ -123,6 +123,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 const isLoading = ref(true);
+const imageUrl = computed(() => props.file?.originalUrl || props.file?.signedUrl || '');
 
 // Reset loading when file changes or modal opens
 watch(() => props.file, () => {

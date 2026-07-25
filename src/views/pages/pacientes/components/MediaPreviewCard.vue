@@ -27,7 +27,7 @@
     <!-- Thumbnail -->
     <img
       v-else
-      :src="file.signedUrl"
+      :src="thumbnailUrl"
       alt="Anexo"
       class="thumbnail-image"
       loading="lazy"
@@ -104,6 +104,10 @@ const formattedDate = computed(() => {
     year: 'numeric'
   });
 });
+
+const thumbnailUrl = computed(() => (
+  props.file.thumbnailUrl || props.file.previewUrl || props.file.signedUrl
+));
 
 function handleImageError() {
   hasError.value = true;
