@@ -202,6 +202,18 @@ const dashboardRoutes = [
         meta: { title: 'Anamneses', layout: { noPadding: true } },
       },
       {
+        path: 'termos',
+        name: 'termos-list',
+        component: () => import('../views/pages/termos/ConsentTermsListView.vue'),
+        meta: { title: 'Termos', layout: { noPadding: true } },
+      },
+      {
+        path: 'galeria',
+        name: 'galeria-clinica',
+        component: () => import('../views/pages/galeria/ClinicGalleryView.vue'),
+        meta: { title: 'Galeria', layout: { noPadding: true } },
+      },
+      {
         path: 'aniversariantes',
         name: 'aniversariantes',
         component: BirthdayPatientsView,

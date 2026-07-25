@@ -49,6 +49,7 @@ export const searchPatients = (query) => {
   return apiClient.get('/patients', {
     params: {
       search: query,
+      limit: 20,
     },
   })
 }

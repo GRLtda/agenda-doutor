@@ -47,6 +47,14 @@ const genderOptions = [
   { value: 'Feminino', label: 'Feminino' },
   { value: 'Outro', label: 'Outro' },
 ]
+
+const referralSourceOptions = [
+  { value: 'Facebook', label: 'Facebook' },
+  { value: 'Instagram', label: 'Instagram' },
+  { value: 'Indicação de amigo', label: 'Indicação de amigo' },
+  { value: 'Google', label: 'Google' },
+  { value: 'Outros', label: 'Outros' },
+]
 </script>
 
 <template>
@@ -56,6 +64,11 @@ const genderOptions = [
       label="Nome Completo"
       placeholder="Nome do paciente"
       required
+    />
+    <FormInput
+      v-model="patientData.nickname"
+      label="Apelido"
+      placeholder="Como o paciente prefere ser chamado"
     />
     <FormInput
       v-model="patientData.email"
@@ -122,6 +135,12 @@ const genderOptions = [
     </div>
 
     <StyledSelect v-model="patientData.gender" label="Gênero" :options="genderOptions" required />
+    <StyledSelect
+      v-model="patientData.referralSource"
+      label="Origem do paciente"
+      :options="referralSourceOptions"
+      placeholder="Selecione a origem"
+    />
   </div>
 </template>
 

@@ -86,3 +86,9 @@ export const submitConsentTermSignature = (token, payload) => {
     // payload: { signatureData, acceptedTerms, identityConfirmation }
     return apiClient.put(`/consent-terms/public/${token}`, payload)
 }
+
+export const getAllConsentTerms = (page = 1, limit = 20, status = 'Todos', search = '') => {
+    return apiClient.get('/consent-terms/all', {
+        params: { page, limit, status, search }
+    })
+}

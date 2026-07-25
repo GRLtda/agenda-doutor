@@ -27,6 +27,7 @@ export const usePatientsStore = defineStore('patients', () => {
     pages: 1,
     limit: 10,
   })
+  let searchRequestSeq = 0
 
   // Estado para aniversariantes do mês
   const birthdayPatients = ref([])
@@ -65,21 +66,32 @@ export const usePatientsStore = defineStore('patients', () => {
   }
 
   async function searchPatients(query) {
-    if (!query) {
+    const term = String(query || '').trim()
+    const requestSeq = ++searchRequestSeq
+
+    if (!term) {
       searchResults.value = []
+      isLoading.value = false
+      error.value = null
       return
     }
     isLoading.value = true
     error.value = null
     try {
-      const response = await apiSearchPatients(query)
-      searchResults.value = response.data.data
+      const response = await apiSearchPatients(term)
+      if (requestSeq === searchRequestSeq) {
+        searchResults.value = response.data.data || []
+      }
     } catch (err) {
-      error.value = 'Erro ao buscar pacientes.'
-      searchResults.value = []
+      if (requestSeq === searchRequestSeq) {
+        error.value = 'Erro ao buscar pacientes.'
+        searchResults.value = []
+      }
       console.error('Falha em searchPatients:', err)
     } finally {
-      isLoading.value = false
+      if (requestSeq === searchRequestSeq) {
+        isLoading.value = false
+      }
     }
   }
 

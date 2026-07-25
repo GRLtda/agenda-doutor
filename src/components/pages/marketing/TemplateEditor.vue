@@ -63,6 +63,7 @@ const visibleInteractiveButtons = computed(() =>
 const previewValues = computed(() => ({
   '{paciente}': 'Marina Souza',
   '{primeiro_nome}': 'Marina',
+  '{apelido}': 'Mari',
   '{nome_medico}': 'Dra. Ana Martins',
   '{clinica}': clinicName.value,
   '{data_consulta}': '20/07/2026',

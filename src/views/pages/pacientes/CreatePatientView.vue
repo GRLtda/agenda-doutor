@@ -25,11 +25,13 @@ const steps = [
 
 const patientData = ref({
   name: '',
+  nickname: '',
   birthDate: '',
   cpf: '',
   phone: '',
   countryCode: '55',
   gender: 'Feminino',
+  referralSource: '',
   email: '',
   address: {
     cep: '',
