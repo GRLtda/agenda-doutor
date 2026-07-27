@@ -80,6 +80,8 @@ function getApiErrorMessage(error, fallback) {
   )
 }
 
+const QR_CODE_TTL_MS = 60_000
+
 export const useCrmStore = defineStore('crm', () => {
   const toast = useToast()
 
@@ -94,6 +96,70 @@ export const useCrmStore = defineStore('crm', () => {
   let currentPollingIntervalDuration = 0
   let initializingDisconnectRetryCount = 0
   let isFetchingQrCodeApi = false
+  let qrExpiryTimeout = null
+  let qrAttemptTimeout = null
+
+  function clearQrExpiryTimer() {
+    if (qrExpiryTimeout) {
+      clearTimeout(qrExpiryTimeout)
+      qrExpiryTimeout = null
+    }
+  }
+
+  function clearQrAttemptTimer() {
+    if (qrAttemptTimeout) {
+      clearTimeout(qrAttemptTimeout)
+      qrAttemptTimeout = null
+    }
+  }
+
+  function clearQrCode() {
+    qrCode.value = null
+    clearQrExpiryTimer()
+    clearQrAttemptTimer()
+  }
+
+  function scheduleQrAttemptTimeout() {
+    if (qrAttemptTimeout) return
+
+    qrAttemptTimeout = setTimeout(() => {
+      if (qrCode.value || status.value !== 'qrcode_pending') return
+
+      isLoadingQrImage.value = false
+      status.value = 'disconnected'
+      stopPolling()
+      toast.info('Nao foi possivel gerar o QR Code agora. Clique para tentar novamente.')
+    }, QR_CODE_TTL_MS)
+  }
+
+  function scheduleQrExpiry(qrValue) {
+    clearQrExpiryTimer()
+    clearQrAttemptTimer()
+
+    qrExpiryTimeout = setTimeout(() => {
+      if (qrCode.value !== qrValue || status.value !== 'qrcode_pending') return
+
+      qrCode.value = null
+      isLoadingQrImage.value = false
+      status.value = 'disconnected'
+      stopPolling()
+      toast.info('QR Code expirou. Clique em Gerar QR Code para tentar novamente.')
+    }, QR_CODE_TTL_MS)
+  }
+
+  function applyQrCode(nextQrCode) {
+    if (!nextQrCode) {
+      clearQrCode()
+      return
+    }
+
+    if (qrCode.value === nextQrCode && qrExpiryTimeout) {
+      return
+    }
+
+    qrCode.value = nextQrCode
+    scheduleQrExpiry(nextQrCode)
+  }
 
   function stopPolling() {
     if (statusPollingInterval) {
@@ -117,7 +183,7 @@ export const useCrmStore = defineStore('crm', () => {
 
   function applyConnectedState(state, previousStatus, showToast = true) {
     status.value = 'connected'
-    qrCode.value = null
+    clearQrCode()
     isLoadingQrImage.value = false
     connections.value = [state.connection]
     initializingDisconnectRetryCount = 0
@@ -130,7 +196,7 @@ export const useCrmStore = defineStore('crm', () => {
 
   function applyDisconnectedState(state, previousStatus, showToast = true) {
     status.value = 'disconnected'
-    qrCode.value = null
+    clearQrCode()
     isLoadingQrImage.value = false
     connections.value = []
     stopPolling()
@@ -150,8 +216,10 @@ export const useCrmStore = defineStore('crm', () => {
       const state = normalizeResponse(response.data)
 
       if (state.qrCode) {
-        qrCode.value = state.qrCode
+        applyQrCode(state.qrCode)
         isLoadingQrImage.value = false
+      } else if (status.value === 'qrcode_pending') {
+        scheduleQrAttemptTimeout()
       }
 
       return state
@@ -180,7 +248,7 @@ export const useCrmStore = defineStore('crm', () => {
       }
 
       if (state.qrCode) {
-        qrCode.value = state.qrCode
+        applyQrCode(state.qrCode)
         isLoadingQrImage.value = false
       }
 
@@ -202,7 +270,7 @@ export const useCrmStore = defineStore('crm', () => {
         case 'creating_qr':
         case 'initializing':
           status.value = state.status
-          qrCode.value = null
+          clearQrCode()
           isLoadingQrImage.value = false
           initializingDisconnectRetryCount = 0
           if (currentPollingIntervalDuration !== 2000) startPolling(2000)
@@ -213,6 +281,7 @@ export const useCrmStore = defineStore('crm', () => {
           initializingDisconnectRetryCount = 0
           isLoadingQrImage.value = !qrCode.value
           if (!qrCode.value) await fetchQrCode()
+          if (!qrCode.value) scheduleQrAttemptTimeout()
           if (currentPollingIntervalDuration !== 4000) startPolling(4000)
           break
 
@@ -231,7 +300,7 @@ export const useCrmStore = defineStore('crm', () => {
 
       if (status.value !== 'disconnected') {
         status.value = 'disconnected'
-        qrCode.value = null
+        clearQrCode()
         connections.value = []
       }
 
@@ -243,7 +312,7 @@ export const useCrmStore = defineStore('crm', () => {
     if (isLoading.value) return
 
     isLoading.value = true
-    qrCode.value = null
+    clearQrCode()
     isLoadingQrImage.value = false
     status.value = 'initializing'
     stopPolling()
@@ -262,7 +331,7 @@ export const useCrmStore = defineStore('crm', () => {
       if (currentState.status === 'qrcode_pending') {
         status.value = 'qrcode_pending'
         if (currentState.qrCode) {
-          qrCode.value = currentState.qrCode
+          applyQrCode(currentState.qrCode)
           isLoadingQrImage.value = false
         } else {
           isLoadingQrImage.value = true
@@ -283,7 +352,7 @@ export const useCrmStore = defineStore('crm', () => {
       status.value = initiatedState.status
 
       if (initiatedState.qrCode) {
-        qrCode.value = initiatedState.qrCode
+        applyQrCode(initiatedState.qrCode)
         isLoadingQrImage.value = false
       }
 
@@ -303,6 +372,7 @@ export const useCrmStore = defineStore('crm', () => {
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Falha ao iniciar conexao com WhatsApp.'))
       status.value = 'disconnected'
+      clearQrCode()
       isLoadingQrImage.value = false
       stopPolling()
     } finally {
@@ -325,7 +395,7 @@ export const useCrmStore = defineStore('crm', () => {
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Falha ao desconectar do WhatsApp.'))
       status.value = 'disconnected'
-      qrCode.value = null
+      clearQrCode()
       isLoadingQrImage.value = false
       connections.value = []
     } finally {
@@ -344,7 +414,7 @@ export const useCrmStore = defineStore('crm', () => {
     } catch (e) {
       if (status.value !== 'disconnected') {
         status.value = 'disconnected'
-        qrCode.value = null
+        clearQrCode()
         isLoadingQrImage.value = false
         connections.value = []
       }
