@@ -5,6 +5,7 @@ import { getAuditLogs } from '@/api/audit'
 export const useAuditStore = defineStore('audit', () => {
   const logs = ref([])
   const pagination = ref({ page: 1, pages: 1, total: 0, limit: 20 })
+  const displayOptions = ref({ entities: [] })
   const isLoading = ref(false)
   const error = ref(null)
 
@@ -14,6 +15,7 @@ export const useAuditStore = defineStore('audit', () => {
     try {
       const response = await getAuditLogs(params)
       logs.value = response.data.data
+      displayOptions.value = response.data.displayOptions || { entities: [] }
       pagination.value = {
         total: response.data.total,
         page: response.data.page,
@@ -33,6 +35,7 @@ export const useAuditStore = defineStore('audit', () => {
   return {
     logs,
     pagination,
+    displayOptions,
     isLoading,
     error,
     fetchLogs,

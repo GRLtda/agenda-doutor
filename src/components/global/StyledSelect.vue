@@ -7,7 +7,7 @@ const props = defineProps({
   label: String,
   options: { type: Array, required: true },
   required: { type: Boolean, default: false },
-  error: { type: Boolean, default: false },
+  error: { type: [Boolean, String], default: false },
   placeholder: { type: String, default: 'Selecione' },
   dropdownDirection: {
     type: String,
@@ -131,6 +131,11 @@ function selectOption(option) {
   emit('update:modelValue', option.value)
   isOpen.value = false
 }
+
+defineExpose({
+  focus: () => selectButtonRef.value?.focus(),
+  selectButtonRef,
+})
 </script>
 
 <template>
@@ -145,7 +150,7 @@ function selectOption(option) {
         ref="selectButtonRef"
         type="button"
         class="select-button"
-        :class="{ 'has-error': error }"
+        :class="{ 'has-error': !!error }"
         @click="isOpen = !isOpen"
       >
         <div class="flex items-center overflow-hidden w-full gap-2">
@@ -202,6 +207,9 @@ function selectOption(option) {
         </Transition>
       </Teleport>
     </div>
+    <Transition name="fade-error">
+      <span v-if="typeof error === 'string' && error" class="error-message">{{ error }}</span>
+    </Transition>
   </div>
 </template>
 
@@ -305,6 +313,22 @@ function selectOption(option) {
   padding-top: 0.5rem;
   border-top: 1px solid #e5e7eb;
   list-style: none;
+}
+.error-message {
+  color: #ef4444;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.375rem;
+}
+.fade-error-enter-active,
+.fade-error-leave-active {
+  transition: all 0.2s ease;
+}
+.fade-error-enter-from,
+.fade-error-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 .fade-enter-active,
 .fade-leave-active {

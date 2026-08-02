@@ -1,60 +1,56 @@
-﻿<script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+<script setup>
+import { computed, onMounted, ref, watch } from 'vue'
 import { useAuditStore } from '@/stores/audit'
-import { usePatientsStore } from '@/stores/patients'
 import { useEmployeesStore } from '@/stores/employees'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { User, Calendar, FileText, Clock, ChevronDown, AlertCircle, Package, Box, ClipboardList, Activity, CalendarMinus } from 'lucide-vue-next'
+import {
+  Activity,
+  AlertCircle,
+  Box,
+  Calendar,
+  CalendarMinus,
+  ChevronDown,
+  ClipboardList,
+  Clock,
+  FileText,
+  Package,
+  User,
+} from 'lucide-vue-next'
 import AppTableList from '@/components/global/AppTableList.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
 const auditStore = useAuditStore()
-const patientsStore = usePatientsStore()
 const employeesStore = useEmployeesStore()
 
-// --- Estados para filtros ---
 const selectedUserId = ref(null)
 const selectedEntity = ref(null)
-// ---
-
 const currentPage = ref(1)
-const patientNameMap = ref({})
 const expandedLogId = ref(null)
 
 const logs = computed(() => auditStore.logs)
 const pagination = computed(() => auditStore.pagination)
 
-// --- Opções para os filtros ---
 const userOptions = computed(() => {
-  const users = employeesStore.activeEmployees.map((emp) => ({
-    value: emp._id,
-    label: emp.name,
+  const users = employeesStore.activeEmployees.map((employee) => ({
+    value: employee._id,
+    label: employee.name,
   }))
-  return [{ value: null, label: 'Todos os Usuários' }, ...users]
+  return [{ value: null, label: 'Todos os usuários' }, ...users]
 })
 
-const entityOptions = ref([
-  { value: null, label: 'Todas as Ações' },
-  { value: 'Appointment', label: 'Agendamentos' },
-  { value: 'ScheduleBlock', label: 'Bloqueios de agenda' },
-  { value: 'Patient', label: 'Pacientes' },
-  { value: 'Clinic', label: 'Clínica' },
-  { value: 'ProdutoCatalogo', label: 'Produtos (Estoque)' },
-  { value: 'Lote', label: 'Lotes (Estoque)' },
-  { value: 'KitProcedimento', label: 'Kits de Procedimento' },
-  { value: 'Movimentacao', label: 'Movimentações' },
+const entityOptions = computed(() => [
+  { value: null, label: 'Todas as ações' },
+  ...(auditStore.displayOptions.entities || []),
 ])
-// ---
 
 async function fetchData() {
-  const params = {
+  await auditStore.fetchLogs({
     page: currentPage.value,
     limit: 20,
     userId: selectedUserId.value || undefined,
     entity: selectedEntity.value || undefined,
-  }
-  await auditStore.fetchLogs(params)
+  })
 }
 
 onMounted(() => {
@@ -75,40 +71,6 @@ function applyFilters() {
 watch(selectedUserId, applyFilters)
 watch(selectedEntity, applyFilters)
 
-watch(logs, async (newLogs) => {
-  if (!newLogs || newLogs.length === 0) return
-
-  const patientIdsToFetch = new Set()
-  for (const log of newLogs) {
-    if (log.action === 'APPOINTMENT_CREATE' && log.details?.patientId) {
-      if (!patientNameMap.value[log.details.patientId]) {
-        patientIdsToFetch.add(log.details.patientId)
-      }
-    }
-    if (log.details?.changes) {
-      for (const change of log.details.changes) {
-        if (change.field === 'patient' && change.new) {
-          if (!patientNameMap.value[change.new]) {
-            patientIdsToFetch.add(change.new)
-          }
-        }
-      }
-    }
-    if (log.entity === 'Patient' && log.entityId) {
-      if (!patientNameMap.value[log.entityId]) {
-        patientIdsToFetch.add(log.entityId)
-      }
-    }
-  }
-
-  for (const patientId of patientIdsToFetch) {
-    if (!patientNameMap.value[patientId]) {
-      const { data } = await patientsStore.fetchPatientById(patientId)
-      patientNameMap.value[patientId] = data ? data.name : `ID ${patientId.slice(-6)}`
-    }
-  }
-})
-
 function formatDateTime(dateString) {
   if (!dateString) return ''
   return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
@@ -125,112 +87,6 @@ function formatRelativeTime(dateString) {
   return distance
 }
 
-function formatAction(action) {
-  const labels = {
-    APPOINTMENT_CREATE: 'criou um agendamento',
-    APPOINTMENT_UPDATE: 'atualizou um agendamento',
-    APPOINTMENT_STATUS_CHANGE: 'alterou o status de um agendamento',
-    APPOINTMENT_DELETE: 'excluiu um agendamento',
-    PATIENT_CREATE: 'criou um paciente',
-    PATIENT_UPDATE: 'atualizou um paciente',
-    PATIENT_DELETE: 'excluiu um paciente',
-    CLINIC_UPDATE: 'atualizou os dados da clínica',
-    STOCK_PRODUCT_CREATE: 'cadastrou um produto',
-    STOCK_PRODUCT_UPDATE: 'atualizou um produto',
-    STOCK_PRODUCT_DELETE: 'excluiu um produto',
-    STOCK_LOTE_CREATE: 'registrou entrada de lote',
-    STOCK_LOTE_UPDATE_STATUS: 'alterou status de um lote',
-    STOCK_KIT_CREATE: 'criou um kit de procedimento',
-    STOCK_KIT_UPDATE: 'atualizou um kit de procedimento',
-    STOCK_KIT_DELETE: 'excluiu um kit de procedimento',
-    STOCK_MOVE_BAIXA_ATENDIMENTO: 'realizou baixa de estoque (atendimento)',
-    STOCK_MOVE_BAIXA_ADMIN: 'realizou baixa administrativa (ajuste)',
-    SCHEDULE_BLOCK_CREATE: 'adicionou um bloqueio na agenda',
-    SCHEDULE_BLOCK_UPDATE: 'atualizou um bloqueio na agenda',
-    SCHEDULE_BLOCK_DELETE: 'excluiu um bloqueio da agenda',
-  }
-  return labels[action] || action.replace(/_/g, ' ').toLowerCase()
-}
-
-const scheduleBlockTypeLabels = {
-  folga: 'Folga',
-  compromisso: 'Compromisso',
-  ferias: 'Férias',
-  indisponivel: 'Indisponível',
-  outro: 'Outro',
-}
-
-function formatScheduleBlockType(value) {
-  if (value === null || value === undefined) return null
-  const normalized = String(value).trim().toLowerCase()
-  return scheduleBlockTypeLabels[normalized] || value
-}
-
-function translateEntity(entity) {
-  const labels = {
-    Appointment: 'Agendamento',
-    ScheduleBlock: 'Bloqueio de agenda',
-    Patient: 'Paciente',
-    Clinic: 'Clínica',
-    User: 'Usuário',
-    ProdutoCatalogo: 'Produto',
-    Lote: 'Lote',
-    KitProcedimento: 'Kit',
-    Movimentacao: 'Movimentação'
-  }
-  return labels[entity] || entity
-}
-
-function formatLogSummary(log) {
-  const userName = `<strong class="user-name-summary">${log.user?.name || 'Usuário'}</strong>`
-  const actionText = formatAction(log.action)
-  let target = ''
-
-  try {
-    if (log.action === 'APPOINTMENT_CREATE') {
-      const patientId = log.details?.changes?.find((c) => c.field === 'patient')?.new
-      target = `para <strong>${patientNameMap.value[patientId] || '...'}</strong>`
-    } else if (log.action === 'APPOINTMENT_STATUS_CHANGE') {
-      const newStatus = log.details?.changes?.find((c) => c.field === 'status')?.new
-      target = `para <strong>${newStatus}</strong>`
-    } else if (log.action === 'APPOINTMENT_DELETE') {
-      const patientId = log.details?.changes?.find((c) => c.field === 'patient')?.old
-      if (patientId) {
-        target = `de <strong>${patientNameMap.value[patientId] || '...'}</strong>`
-      }
-    } else if (log.action === 'PATIENT_CREATE') {
-      const patientName = log.details?.changes?.find((c) => c.field === 'name')?.new
-      target = `<strong>${patientName || '...'}</strong>`
-    } else if (log.action === 'PATIENT_UPDATE') {
-      const patientName = patientNameMap.value[log.entityId]
-      target = `<strong>${patientName || '...'}</strong>`
-    } else if (log.action === 'CLINIC_UPDATE') {
-      target = ''
-    } else if (log.action.startsWith('SCHEDULE_BLOCK_')) {
-      const titleFromChange =
-        log.details?.changes?.find((c) => c.field === 'title')?.new ||
-        log.details?.changes?.find((c) => c.field === 'title')?.old
-
-      if (titleFromChange) {
-        target = `<strong>${titleFromChange}</strong>`
-      }
-    } else if (log.action.startsWith('STOCK_')) {
-      if (log.details?.summary) {
-        const parts = log.details.summary.split(': ')
-        if (parts.length > 1) {
-          target = `<strong>${parts[1]}</strong>`
-        } else {
-          target = `<strong>${log.details.summary}</strong>`
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Erro ao formatar resumo do log:', e, log)
-  }
-
-  return `${userName} ${actionText} ${target}`
-}
-
 function getEntityIcon(entity) {
   if (entity === 'Appointment') return Calendar
   if (entity === 'ScheduleBlock') return CalendarMinus
@@ -243,90 +99,13 @@ function getEntityIcon(entity) {
   return Clock
 }
 
+function hasChanges(log) {
+  return Array.isArray(log.displayChanges) && log.displayChanges.length > 0
+}
+
 function toggleExpand(log) {
-  if (!log.details?.changes?.length) {
-    return
-  }
+  if (!hasChanges(log)) return
   expandedLogId.value = expandedLogId.value === log._id ? null : log._id
-}
-
-function formatValue(value, field) {
-  if (value === null || value === undefined) return null
-
-  if (field === 'patient') {
-    return patientNameMap.value[value] || `ID ...${String(value).slice(-6)}`
-  }
-  if (field === 'type') {
-    return formatScheduleBlockType(value)
-  }
-  if (field === 'startTime' || field === 'endTime' || field === 'dataValidade' || field === 'startAt' || field === 'endAt') {
-    return formatDateTime(value)
-  }
-  if (field === 'doctor' || field === 'doctorId' || field === 'tenant' || field === 'tenantId') {
-    return `ID ...${String(value).slice(-6)}`
-  }
-  return value
-}
-
-function formatChange(change) {
-  const fieldLabels = {
-    status: 'Status',
-    patient: 'Paciente',
-    doctor: 'Médico',
-    doctorId: 'Médico',
-    tenant: 'Clínica',
-    tenantId: 'Clínica',
-    startTime: 'Início',
-    endTime: 'Término',
-    startAt: 'Data/hora início',
-    endAt: 'Data/hora fim',
-    name: 'Nome',
-    title: 'Título',
-    cpf: 'CPF',
-    phone: 'Telefone',
-    type: 'Tipo',
-    notes: 'Observações',
-    isAllDay: 'Dia inteiro',
-    isReturn: 'É Retorno?',
-    originAppointment: 'Agendamento Origem',
-    categoria: 'Categoria',
-    fabricante: 'Fabricante',
-    unidadeMedida: 'Unidade',
-    aceitaFracao: 'Aceita Fração',
-    estoqueMinimo: 'Estoque Mínimo',
-    ativo: 'Ativo',
-    numeroLote: 'Número do Lote',
-    dataValidade: 'Validade',
-    saldoInicial: 'Saldo Inicial',
-    saldoAtual: 'Saldo Atual',
-    observacao: 'Observação'
-  }
-
-  const field = fieldLabels[change.field] || change.field
-  const from = formatValue(change.old, change.field)
-  const to = formatValue(change.new, change.field)
-
-  const formatDisplay = (val) => {
-    if (val === true) return 'Sim'
-    if (val === false) return 'Não'
-    if (val === '') return 'Vazio'
-    return val
-  }
-
-  if (from === null && to === null) {
-    return `alterou ${field}`
-  }
-
-  if (from === null) {
-    return `definiu ${field} como <span class="change-new">"${formatDisplay(to)}"</span>`
-  }
-  if (to === null) {
-    if (change.field === 'patient' || change.field === 'status') {
-      return `${field} era <span class="change-old">"${formatDisplay(from)}"</span>`
-    }
-    return `removeu ${field} (era <span class="change-old">"${formatDisplay(from)}"</span>)`
-  }
-  return `alterou ${field} de <span class="change-old">"${formatDisplay(from)}"</span> para <span class="change-new">"${formatDisplay(to)}"</span>`
 }
 </script>
 
@@ -340,19 +119,19 @@ function formatChange(change) {
     >
       <template #filters>
         <div class="filter-group">
-            <StyledSelect
-              v-model="selectedUserId"
-              :options="userOptions"
-              :loading="employeesStore.isLoading"
-            />
-            <StyledSelect v-model="selectedEntity" :options="entityOptions" />
+          <StyledSelect
+            v-model="selectedUserId"
+            :options="userOptions"
+            :loading="employeesStore.isLoading"
+          />
+          <StyledSelect v-model="selectedEntity" :options="entityOptions" />
         </div>
       </template>
 
       <template #header-info>
         <div class="retention-info" title="O sistema mantém registros dos últimos 30 dias">
-            <AlertCircle :size="14" />
-            <span>Histórico de 30 dias</span>
+          <AlertCircle :size="14" />
+          <span>Histórico de 30 dias</span>
         </div>
       </template>
 
@@ -360,42 +139,40 @@ function formatChange(change) {
         <li v-for="log in logs" :key="log._id" class="audit-item-wrapper">
           <div
             class="audit-item"
-            @click="toggleExpand(log)"
             :class="{
-              'is-expandable': log.details?.changes?.length > 0,
+              'is-expandable': hasChanges(log),
               'is-expanded': expandedLogId === log._id,
             }"
+            @click="toggleExpand(log)"
           >
             <div class="log-icon-wrapper">
               <component :is="getEntityIcon(log.entity)" :size="18" />
             </div>
 
             <div class="user-avatar-mobile">
-              {{ log.user?.name.charAt(0) || '?' }}
+              {{ log.user?.name?.charAt(0) || '?' }}
             </div>
 
             <div class="log-content">
-              <div class="log-summary" v-html="formatLogSummary(log)"></div>
+              <div class="log-summary">{{ log.description }}</div>
               <div class="log-timestamp-mobile">
                 {{ formatRelativeTime(log.createdAt) }}
               </div>
 
               <div class="log-header-desktop">
-                <span class="user-name">{{ log.user?.name || 'Usuário Desconhecido' }}</span>
-                <span class="log-action">{{ formatAction(log.action) }}</span>
+                <span class="user-name">{{ log.title }}</span>
               </div>
               <div class="log-details-desktop">
-                <span class="entity-info"
-                  >{{ translateEntity(log.entity) }}
-                  <template v-if="log.entityId"> (ID: ...{{ String(log.entityId).slice(-6) }}) </template></span
-                >
+                <span class="entity-info">
+                  {{ log.description }}
+                </span>
               </div>
             </div>
 
             <div class="log-timestamp-desktop">
               <span class="timestamp-text">{{ formatDateTime(log.createdAt) }}</span>
               <ChevronDown
-                v-if="log.details?.changes?.length > 0"
+                v-if="hasChanges(log)"
                 :size="16"
                 class="expand-icon"
               />
@@ -406,9 +183,29 @@ function formatChange(change) {
             <div v-if="expandedLogId === log._id" class="changes-details-wrapper">
               <h4 class="changes-title">Alterações:</h4>
               <ul class="changes-list">
-                <li v-for="(change, index) in log.details.changes" :key="index" class="change-item">
+                <li v-for="(change, index) in log.displayChanges" :key="index" class="change-item">
                   <span class="change-number">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <span class="change-description" v-html="formatChange(change)"></span>
+                  <span class="change-content" :class="{ 'is-long-text': change.isLongText }">
+                    <span class="change-field">{{ change.field }}</span>
+                    <span v-if="change.oldValue !== null && change.oldValue !== undefined" class="change-old">
+                      {{ change.oldValue }}
+                    </span>
+                    <span
+                      v-if="
+                        change.oldValue !== null &&
+                        change.oldValue !== undefined &&
+                        change.newValue !== null &&
+                        change.newValue !== undefined
+                      "
+                      class="change-arrow"
+                    >
+                      →
+                    </span>
+                    <span v-if="change.newValue !== null && change.newValue !== undefined" class="change-new">
+                      {{ change.newValue }}
+                    </span>
+                    <span class="change-description">{{ change.description }}</span>
+                  </span>
                 </li>
               </ul>
             </div>
@@ -420,8 +217,6 @@ function formatChange(change) {
 </template>
 
 <style scoped>
-/* Estilos específicos que NÃO DEVEM ir para o componente genérico */
-
 .filter-group {
   display: flex;
   flex-wrap: wrap;
@@ -432,31 +227,27 @@ function formatChange(change) {
 }
 .filter-group :deep(.select-button) {
   background-color: var(--branco);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   min-width: 180px;
   padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border-radius: 0.5rem;
-}
-.filter-group :deep(.arrow-icon) {
-  width: 16px;
-  height: 16px;
 }
 
 .audit-list {
-  list-style: none;
-  padding: 0.5rem;
-  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem;
 }
 
 .audit-item-wrapper {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
-  transition: box-shadow 0.2s ease;
   flex-shrink: 0;
+  transition: box-shadow 0.2s ease;
 }
 .audit-item-wrapper:has(.is-expanded) {
   border-color: #d1d5db;
@@ -464,8 +255,8 @@ function formatChange(change) {
 }
 
 .audit-item {
-  display: flex;
   align-items: flex-start;
+  display: flex;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
 }
@@ -476,15 +267,15 @@ function formatChange(change) {
   border-bottom: 1px solid #f3f4f6;
 }
 .log-icon-wrapper {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
   background-color: #eef2ff;
+  border-radius: 50%;
   color: var(--azul-principal);
+  display: flex;
+  flex-shrink: 0;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
 }
 .user-avatar-mobile {
   display: none;
@@ -493,44 +284,38 @@ function formatChange(change) {
   flex-grow: 1;
   min-width: 0;
 }
-
 .log-summary,
 .log-timestamp-mobile {
   display: none;
 }
-
 .log-header-desktop {
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  display: flex;
   flex-wrap: wrap;
+  gap: 0.5rem;
 }
 .user-name {
-  font-weight: 600;
   color: var(--preto);
   font-size: 1rem;
-}
-.log-action {
-  font-size: 0.8rem;
-  color: var(--cinza-texto);
+  font-weight: 600;
 }
 .log-details-desktop {
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
   color: var(--cinza-texto);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.5rem;
   margin-top: 0.25rem;
-  word-break: break-all;
 }
 .log-timestamp-desktop {
-  font-size: 0.8rem;
-  color: var(--cinza-texto);
-  flex-shrink: 0;
-  padding-top: 2px;
-  display: flex;
   align-items: center;
+  color: var(--cinza-texto);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 0.8rem;
   gap: 0.5rem;
+  padding-top: 2px;
   white-space: nowrap;
 }
 .expand-icon {
@@ -542,53 +327,80 @@ function formatChange(change) {
 }
 
 .changes-details-wrapper {
-  padding: 0.75rem 1rem 1rem 1rem;
   overflow: hidden;
+  padding: 0.75rem 1rem 1rem 1rem;
 }
 .changes-title {
+  color: var(--cinza-texto);
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--cinza-texto);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
+  text-transform: uppercase;
 }
 .changes-list {
-  list-style: none;
-  padding-left: 1rem;
+  border-left: 2px solid #0d924d;
   display: flex;
   flex-direction: column;
-  border-left: 2px solid #0d924d;
   gap: 0.5rem;
+  list-style: none;
+  padding-left: 1rem;
 }
 .change-item {
-  display: flex;
   align-items: baseline;
+  display: flex;
   gap: 0.5rem;
 }
 .change-number {
+  color: var(--cinza-texto);
   font-family: monospace;
   font-size: 0.8rem;
-  color: var(--cinza-texto);
 }
-.change-description {
-  font-size: 0.8rem;
+.change-content {
+  align-items: center;
   color: #374151;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
   line-height: 1.5;
 }
-
-:deep(.change-old) {
-  color: #c81e1e;
-  text-decoration: line-through;
-  background-color: #fef2f2;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
+.change-content.is-long-text {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
 }
-:deep(.change-new) {
-  color: #0d924d;
-  background-color: #f0fdf4;
-  padding: 0.1rem 0.3rem;
+.change-field {
+  font-weight: 700;
+}
+.change-old {
+  background-color: #fef2f2;
   border-radius: 0.25rem;
+  color: #c81e1e;
+  padding: 0.1rem 0.3rem;
+  text-decoration: line-through;
+}
+.change-new {
+  background-color: #f0fdf4;
+  border-radius: 0.25rem;
+  color: #0d924d;
+  padding: 0.1rem 0.3rem;
+}
+.change-content.is-long-text .change-old,
+.change-content.is-long-text .change-new {
+  display: block;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.65rem 0.75rem;
+  text-decoration: none;
+  white-space: pre-wrap;
+  width: 100%;
+}
+.change-description {
+  color: #6b7280;
+  flex-basis: 100%;
 }
 
 .expand-enter-active {
@@ -601,44 +413,33 @@ function formatChange(change) {
 }
 @keyframes expand-in {
   from {
-    opacity: 0;
     max-height: 0;
+    opacity: 0;
   }
   to {
-    opacity: 1;
     max-height: 500px;
+    opacity: 1;
   }
 }
 
 .retention-info {
-  margin-left: auto;
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #9ca3af;
   background-color: #f3f4f6;
-  padding: 0.35rem 0.75rem;
   border-radius: 99px;
+  color: #9ca3af;
   cursor: help;
+  display: flex;
+  font-size: 0.75rem;
+  gap: 0.5rem;
+  margin-left: auto;
+  padding: 0.35rem 0.75rem;
 }
 .retention-info:hover {
-  color: #4b5563;
   background-color: #e5e7eb;
+  color: #4b5563;
 }
 
 @media (max-width: 768px) {
-  .log-icon-wrapper {
-    display: none;
-  }
-  .changes-list {
-    padding-left: 10px !important;
-  }
-  .change-item {
-    gap: 5px !important;
-  }
-
-  /* Ajustes para o filtro dentro do card */
   .filter-group {
     flex-direction: column;
     flex-grow: 1;
@@ -646,110 +447,69 @@ function formatChange(change) {
   }
   .filter-group :deep(.select-button) {
     min-width: 100%;
-    width: 100%;
     white-space: nowrap;
+    width: 100%;
   }
-
   .audit-item-wrapper {
-    border-radius: 0;
     border-left: none;
+    border-radius: 0;
     border-right: none;
     border-top: none;
   }
   .audit-item-wrapper:first-child {
     border-top: 1px solid #e5e7eb;
   }
-
   .audit-item {
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
     flex-wrap: nowrap;
+    gap: 0.75rem;
+    padding: 1rem 0.5rem 1rem 1rem;
   }
-
+  .log-icon-wrapper,
   .log-header-desktop,
   .log-details-desktop,
   .log-timestamp-desktop {
     display: none;
   }
-
   .log-summary,
   .log-timestamp-mobile {
     display: block;
   }
-
   .user-avatar-mobile {
-    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
     background-color: #eef2ff;
+    border-radius: 50%;
     color: var(--azul-principal);
+    display: flex;
+    flex-shrink: 0;
     font-size: 0.875rem;
     font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .log-icon-wrapper {
-    width: 28px;
     height: 28px;
-    background-color: transparent;
-    color: var(--cinza-texto);
+    justify-content: center;
+    width: 28px;
   }
-  .log-icon-wrapper :deep(svg) {
-    width: 18px;
-    height: 18px;
-  }
-
   .log-content {
-    flex-grow: 1;
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
     gap: 0.1rem;
   }
-
   .log-summary {
-    font-size: 0.9rem;
     color: var(--preto);
+    font-size: 0.9rem;
     line-height: 1.4;
     word-break: break-word;
   }
-  .log-summary :deep(strong) {
-    font-weight: 700;
-  }
-  .log-summary :deep(.user-name-summary) {
-    font-weight: 700;
-  }
-
   .log-timestamp-mobile {
-    font-size: 0.8rem;
     color: var(--cinza-texto);
+    font-size: 0.8rem;
   }
-
-  .expand-icon {
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-
-  .audit-item {
-    padding-right: 0.5rem;
-  }
-
   .changes-details-wrapper {
     padding: 0.5rem 1rem 1rem 1rem;
   }
   .changes-list {
-    padding-left: calc(28px + 28px + 0.75rem + 0.75rem);
+    padding-left: 10px;
   }
-  .change-item {
-    gap: 0.5rem;
-  }
-  .change-number {
-    flex-shrink: 0;
-  }
-  
   .retention-info {
     margin-left: 0;
     width: fit-content;

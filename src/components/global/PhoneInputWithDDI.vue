@@ -22,6 +22,7 @@ const selectedCountry = ref(null)
 const phoneNumber = ref('') // Apenas o número
 const containerRef = ref(null)
 const ddiInputRef = ref(null)
+const phoneInputRef = ref(null)
 
 const dropdownStyle = ref({})
 const dropdownListRef = ref(null)
@@ -168,6 +169,12 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateDropdownPosition)
   document.removeEventListener('click', handleClickOutside)
 })
+
+defineExpose({
+  focus: () => phoneInputRef.value?.focus(),
+  phoneInputRef,
+  ddiInputRef,
+})
 </script>
 
 <template>
@@ -214,6 +221,7 @@ onBeforeUnmount(() => {
 
       <!-- Phone Input -->
       <input
+        ref="phoneInputRef"
         type="text"
         inputmode="numeric"
         :value="phoneNumber"

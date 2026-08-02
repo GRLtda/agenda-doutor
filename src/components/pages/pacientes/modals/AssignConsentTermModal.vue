@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useConsentTermsStore } from '@/stores/consent-terms'
 import { useCrmStore } from '@/stores/crm'
 import { useToast } from 'vue-toastification'
@@ -14,8 +15,10 @@ const props = defineProps({
   patientId: { type: String, required: true },
   appointmentId: { type: String, default: null },
 })
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
+const route = useRoute()
+const router = useRouter()
 const consentTermsStore = useConsentTermsStore()
 const crmStore = useCrmStore()
 const toast = useToast()
@@ -28,6 +31,7 @@ const isLoading = ref(false)
 const sendNotification = ref(true)
 const whatsappUnavailableMessage = 'Não está ativo o WhatsApp.'
 const canSendWhatsappNotification = computed(() => crmStore.status === 'connected')
+const hasTemplates = computed(() => templates.value.length > 0)
 
 watch(canSendWhatsappNotification, (canSend) => {
   if (!canSend) {
@@ -43,7 +47,10 @@ onMounted(async () => {
   if (!canSendWhatsappNotification.value) {
     sendNotification.value = false
   }
-  templates.value = consentTermsStore.templates.map(t => ({ value: t._id, label: t.name }))
+  templates.value = consentTermsStore.templates.map((template) => ({
+    value: template._id,
+    label: template.name,
+  }))
 })
 
 function markLinkAsCopied() {
@@ -53,7 +60,25 @@ function markLinkAsCopied() {
   }, 1800)
 }
 
+function goToConsentTermSettings() {
+  emit('close')
+  router.push({
+    path: route.path,
+    query: {
+      ...route.query,
+      settings: '1',
+      tab: 'termos',
+      returnTo: route.fullPath,
+    },
+  })
+}
+
 async function handleGenerateLink() {
+  if (!hasTemplates.value) {
+    toast.info('Crie um modelo de termo antes de atribuir ao paciente.')
+    return
+  }
+
   if (!selectedTemplateId.value) {
     toast.error('Por favor, selecione um modelo.')
     return
@@ -71,10 +96,9 @@ async function handleGenerateLink() {
   const { success, data } = await consentTermsStore.assignTermToPatient(props.patientId, payload)
 
   if (success) {
-    const token = data.patientAccessToken
-    generatedLink.value = `${window.location.origin}/termo/${token}`
+    generatedLink.value = `${window.location.origin}/termo/${data.patientAccessToken}`
   } else {
-    toast.error('Nao foi possivel gerar o link.')
+    toast.error('Não foi possível gerar o link.')
   }
 
   isLoading.value = false
@@ -87,7 +111,7 @@ function copyLink() {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(() => {
       markLinkAsCopied()
-      toast.info('Link copiado para a area de transferencia!')
+      toast.info('Link copiado para a área de transferência!')
     })
     return
   }
@@ -103,9 +127,9 @@ function copyLink() {
   try {
     document.execCommand('copy')
     markLinkAsCopied()
-    toast.info('Link copiado para a area de transferencia!')
+    toast.info('Link copiado para a área de transferência!')
   } catch (err) {
-    toast.error('Nao foi possivel copiar o link.')
+    toast.error('Não foi possível copiar o link.')
   }
 
   document.body.removeChild(textArea)
@@ -121,7 +145,7 @@ function copyLink() {
           <p class="subtitle">
             {{
               generatedLink
-                ? 'O link de assinatura foi criado e ja esta vinculado ao paciente.'
+                ? 'O link de assinatura foi criado e já está vinculado ao paciente.'
                 : 'Selecione um modelo para gerar um link de assinatura.'
             }}
           </p>
@@ -132,19 +156,24 @@ function copyLink() {
     <div class="drawer-body-content">
       <Transition name="confirm-fade" mode="out-in">
         <div v-if="!generatedLink" class="assign-step">
-          <StyledSelect v-model="selectedTemplateId" :options="templates" label="Selecione o Modelo">
+          <StyledSelect
+            v-model="selectedTemplateId"
+            :options="templates"
+            label="Selecione o Modelo"
+          >
             <template #empty>
-              <div class="empty-state-custom">
-                <FilePlus :size="32" class="empty-icon" />
-                <p>Nenhum modelo encontrado</p>
-              </div>
+              <button type="button" class="create-term-option" @mousedown.prevent="goToConsentTermSettings">
+                <FilePlus :size="16" />
+                Criar um termo de consentimento
+              </button>
             </template>
           </StyledSelect>
 
           <FormInput
+            v-if="hasTemplates"
             type="checkbox"
             v-model="sendNotification"
-            label="Enviar notificacao via WhatsApp"
+            label="Enviar notificação via WhatsApp"
             class="notification-checkbox"
             :disabled="!canSendWhatsappNotification"
             :disabled-help="!canSendWhatsappNotification ? whatsappUnavailableMessage : ''"
@@ -163,11 +192,11 @@ function copyLink() {
           <div class="confirmation-copy">
             <span class="eyebrow">Tudo pronto</span>
             <h3>Link gerado com sucesso</h3>
-            <p>Voce pode copiar o link agora ou concluir e acessa-lo depois nos termos do paciente.</p>
+            <p>Você pode copiar o link agora ou concluir e acessá-lo depois nos termos do paciente.</p>
           </div>
 
           <div class="consent-link-card">
-            <label class="form-label">Link publico</label>
+            <label class="form-label">Link público</label>
             <div class="link-wrapper">
               <input type="text" :value="generatedLink" readonly class="link-input" />
               <button @click="copyLink" class="copy-button" :title="copied ? 'Copiado' : 'Copiar link'">
@@ -176,7 +205,7 @@ function copyLink() {
               </button>
             </div>
             <p class="info">
-              {{ copied ? 'Link copiado para a area de transferencia.' : 'Envie este link para o paciente. Ele e valido por 30 dias.' }}
+              {{ copied ? 'Link copiado para a área de transferência.' : 'Envie este link para o paciente. Ele é válido por 30 dias.' }}
             </p>
           </div>
         </div>
@@ -193,7 +222,7 @@ function copyLink() {
           @click="handleGenerateLink"
           variant="primary"
           :loading="isLoading"
-          :disabled="isLoading"
+          :disabled="isLoading || !hasTemplates"
         >
           Enviar Termo
         </AppButton>
@@ -207,19 +236,12 @@ function copyLink() {
 
 <style scoped>
 .consent-drawer-header {
-  background:
-    radial-gradient(120% 120% at 20% 0%, rgba(187, 247, 208, 0) 0%, rgba(240, 253, 244, 0) 38%, transparent 70%),
-    linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  background: #ffffff;
   border-bottom: 1px solid #f3f4f6;
   overflow: hidden;
   padding: 1.5rem;
   position: relative;
   transition: background 0.35s ease, border-color 0.35s ease;
-}
-
-.consent-drawer-header > div {
-  position: relative;
-  z-index: 1;
 }
 
 .drawer-footer {
@@ -260,38 +282,6 @@ h2 {
   border-bottom-color: #bbf7d0;
 }
 
-.consent-drawer-header.is-success::before {
-  animation: success-wave 1.75s cubic-bezier(0.16, 1, 0.3, 1) both;
-  background:
-    linear-gradient(
-      105deg,
-      transparent 0%,
-      rgba(134, 239, 172, 0.08) 22%,
-      rgba(34, 197, 94, 0.24) 42%,
-      rgba(220, 252, 231, 0.72) 53%,
-      rgba(34, 197, 94, 0.18) 64%,
-      transparent 84%
-    );
-  content: '';
-  inset: -45% -70%;
-  position: absolute;
-  transform: translateX(-55%) rotate(-8deg);
-  z-index: 0;
-}
-
-.consent-drawer-header.is-success::after {
-  animation: success-ripple 1.85s ease-out both;
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.24) 0%, rgba(187, 247, 208, 0.18) 34%, transparent 68%);
-  border-radius: 999px;
-  content: '';
-  height: 180px;
-  left: -24px;
-  position: absolute;
-  top: -84px;
-  width: 180px;
-  z-index: 0;
-}
-
 .success-visual {
   align-items: center;
   display: flex;
@@ -302,10 +292,6 @@ h2 {
 .success-lottie {
   height: 154px;
   width: 154px;
-}
-
-.confirmation-step {
-  align-items: stretch;
 }
 
 .confirmation-copy {
@@ -386,25 +372,25 @@ h2 {
   margin-top: 0.5rem;
 }
 
-.empty-state-custom {
+.create-term-option {
   align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.5rem;
+  color: var(--azul-principal);
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  justify-content: center;
-  padding: 1rem;
-  text-align: center;
-}
-
-.empty-icon {
-  color: var(--cinza-texto);
-  opacity: 0.7;
-}
-
-.empty-state-custom p {
-  color: var(--cinza-texto);
   font-size: 0.875rem;
-  margin: 0;
+  font-weight: 700;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  padding: 0.75rem 0.875rem;
+  text-align: left;
+  width: 100%;
+}
+
+.create-term-option:hover {
+  background: #eff6ff;
 }
 
 .confirm-fade-enter-active,
@@ -436,34 +422,6 @@ h2 {
   100% {
     filter: saturate(1);
     opacity: 1;
-  }
-}
-
-@keyframes success-wave {
-  0% {
-    opacity: 0;
-    transform: translateX(-65%) rotate(-8deg);
-  }
-  18% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(62%) rotate(-8deg);
-  }
-}
-
-@keyframes success-ripple {
-  0% {
-    opacity: 0;
-    transform: scale(0.45);
-  }
-  35% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.25;
-    transform: scale(1.42);
   }
 }
 
