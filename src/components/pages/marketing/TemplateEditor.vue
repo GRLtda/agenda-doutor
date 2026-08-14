@@ -68,9 +68,16 @@ const previewValues = computed(() => ({
   '{clinica}': clinicName.value,
   '{data_consulta}': '20/07/2026',
   '{hora_consulta}': '14:30',
+  '{endereco_clinica}': 'Rua das Flores, 123 - Centro',
   '{link_anamnese}': 'clinica.app/anamnese',
   '{link_termos}': 'clinica.app/termos',
   '{link_termo}': 'clinica.app/termos',
+  '{orcamento_nome}': 'Plano facial completo',
+  '{orcamento_codigo}': 'A1B2C3D4',
+  '{orcamento_total}': 'R$ 1.850,00',
+  '{orcamento_procedimentos}': '- Limpeza de pele - R$ 250,00\n- Botox facial - R$ 1.600,00',
+  '{orcamento_validade}': '31/08/2026',
+  '{orcamento_observacoes}': 'Valores sujeitos à avaliação presencial.',
 }))
 
 watch(clinicLogo, () => {

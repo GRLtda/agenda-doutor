@@ -57,6 +57,9 @@ const selectedProcedures = ref([])
 const paymentMethods = ref([])
 const observations = ref('')
 const validUntil = ref('')
+const globalDiscountMode = ref('fixed')
+const globalDiscountPercentage = ref(0)
+const globalDiscountValue = ref(0)
 
 // New Procedure Form
 const showAddProcedure = ref(false)
@@ -88,6 +91,9 @@ onMounted(async () => {
     paymentMethods.value = (props.budget.paymentMethods || []).map(pm => ({ ...pm }))
     observations.value = props.budget.observations || ''
     validUntil.value = props.budget.validUntil ? props.budget.validUntil.split('T')[0] : ''
+    globalDiscountPercentage.value = props.budget.globalDiscountPercentage || 0
+    globalDiscountValue.value = props.budget.globalDiscountValue || 0
+    globalDiscountMode.value = globalDiscountPercentage.value > 0 ? 'percentage' : 'fixed'
   } else {
     // Default valid until: 1 month from now
     const date = new Date()
@@ -134,12 +140,23 @@ const totalOriginal = computed(() => {
   return selectedProcedures.value.reduce((sum, p) => sum + (p.originalValue || 0), 0)
 })
 
-const totalFinal = computed(() => {
+const proceduresTotal = computed(() => {
   return selectedProcedures.value.reduce((sum, p) => sum + (p.finalValue || 0), 0)
 })
 
+const procedureDiscount = computed(() => Math.max(totalOriginal.value - proceduresTotal.value, 0))
+
+const globalDiscount = computed(() => {
+  if (globalDiscountMode.value === 'percentage') {
+    return Math.min(proceduresTotal.value, proceduresTotal.value * (globalDiscountPercentage.value || 0) / 100)
+  }
+  return Math.min(proceduresTotal.value, globalDiscountValue.value || 0)
+})
+
+const totalFinal = computed(() => Math.max(0, proceduresTotal.value - globalDiscount.value))
+
 const totalDiscount = computed(() => {
-  return totalOriginal.value - totalFinal.value
+  return procedureDiscount.value + globalDiscount.value
 })
 
 // Helpers
@@ -176,6 +193,12 @@ function handleAddProcedure() {
 
 function removeProcedure(index) {
   selectedProcedures.value.splice(index, 1)
+}
+
+function toggleGlobalDiscountMode() {
+  globalDiscountMode.value = globalDiscountMode.value === 'percentage' ? 'fixed' : 'percentage'
+  globalDiscountPercentage.value = 0
+  globalDiscountValue.value = 0
 }
 
 // Payment Methods
@@ -236,6 +259,8 @@ async function handleSubmit() {
     paymentMethods: paymentMethods.value.filter(pm => pm.method),
     observations: observations.value,
     validUntil: validUntil.value || null,
+    globalDiscountPercentage: globalDiscountMode.value === 'percentage' ? globalDiscountPercentage.value : 0,
+    globalDiscountValue: globalDiscountMode.value === 'fixed' ? globalDiscountValue.value : 0,
   }
 
   let result
@@ -266,6 +291,12 @@ watch(newProcedureDiscountMode, () => {
   newProcedureDiscountPercentage.value = 0
   newProcedureDiscountValue.value = 0
 })
+
+watch(globalDiscountPercentage, (val) => {
+  if (val > 100) globalDiscountPercentage.value = 100
+  if (val < 0) globalDiscountPercentage.value = 0
+})
+
 </script>
 
 <template>
@@ -498,6 +529,43 @@ watch(newProcedureDiscountMode, () => {
 
       <!-- Step 3: Pagamento -->
       <div v-show="currentStep === 3" class="step-content">
+        <div class="form-section global-discount-section">
+          <div class="section-header">
+            <h3 class="section-title">Desconto no total</h3>
+            <button
+              type="button"
+              class="toggle-mode-btn"
+              @click="toggleGlobalDiscountMode"
+            >
+              {{ globalDiscountMode === 'percentage' ? 'Usar R$' : 'Usar %' }}
+            </button>
+          </div>
+          <div class="global-discount-input">
+            <span v-if="globalDiscountMode === 'fixed'" class="prefix">R$</span>
+            <input
+              v-if="globalDiscountMode === 'percentage'"
+              v-model.number="globalDiscountPercentage"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              class="form-input"
+              placeholder="0"
+            />
+            <input
+              v-else
+              v-model.number="globalDiscountValue"
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-input"
+              placeholder="0,00"
+            />
+            <span v-if="globalDiscountMode === 'percentage'" class="suffix">%</span>
+          </div>
+          <p class="form-hint">Aplicado ao final, depois dos descontos em cada procedimento.</p>
+        </div>
+
         <div class="form-section">
           <div class="section-header">
             <h3 class="section-title">
@@ -549,6 +617,10 @@ watch(newProcedureDiscountMode, () => {
           <div v-if="totalDiscount > 0" class="total-row discount">
             <span>Desconto:</span>
             <span>-{{ formatCurrency(totalDiscount) }}</span>
+          </div>
+          <div v-if="globalDiscount > 0" class="total-row discount-detail">
+            <span>Desconto no total:</span>
+            <span>-{{ formatCurrency(globalDiscount) }}</span>
           </div>
           <div class="total-row final">
             <span>Total do Orçamento:</span>
@@ -734,6 +806,42 @@ input[type=number] {
 
 .toggle-mode-btn:hover {
   text-decoration: underline;
+}
+
+.global-discount-section {
+  padding: 1rem;
+  border: 1px solid #dbe7ff;
+  border-radius: 0.75rem;
+  background: #f8fbff;
+}
+
+.global-discount-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.global-discount-input .form-input {
+  width: 100%;
+}
+
+.global-discount-input .prefix + .form-input {
+  padding-left: 2.5rem;
+}
+
+.global-discount-input .form-input:has(+ .suffix) {
+  padding-right: 2.5rem;
+}
+
+.form-hint {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.discount-detail {
+  color: #b91c1c;
+  font-size: 0.8125rem;
 }
 
 .form-input,

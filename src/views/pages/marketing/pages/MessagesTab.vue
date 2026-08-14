@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Clock,
   LoaderCircle,
+  ReceiptText,
   Save
 } from 'lucide-vue-next'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -25,6 +26,7 @@ const triggerIcons = {
   PATIENT_BIRTHDAY: Cake,
   ANAMNESIS_ASSIGNMENT: FileText,
   CONSENT_TERM_ASSIGNMENT: ClipboardCheck,
+  BUDGET_WHATSAPP: ReceiptText,
 }
 
 // Descrições amigáveis
@@ -37,6 +39,8 @@ const triggerDescriptions = {
   CONSENT_TERM_ASSIGNMENT: 'Enviada quando um termo de consentimento é atribuído',
 }
 
+triggerDescriptions.BUDGET_WHATSAPP = 'Usada ao enviar um orçamento para o paciente pelo WhatsApp'
+
 const availableTriggers = computed(() => {
   const triggers = settingsStore.availableTriggers || []
   return triggers.filter(t => 
@@ -47,6 +51,14 @@ const availableTriggers = computed(() => {
 const currentSettings = computed(() => settingsStore.currentSettings)
 const templateOptions = computed(() => settingsStore.templateOptions)
 const isLoading = computed(() => settingsStore.isLoading)
+
+function getTemplateOptions(type) {
+  if (type === 'BUDGET_WHATSAPP') {
+    return templateOptions.value.filter(option => option.value)
+  }
+
+  return templateOptions.value
+}
 
 // Estado local para gerenciar os valores selecionados na interface
 const uiSettings = ref({})
@@ -183,7 +195,7 @@ function getDescription(type) {
           <StyledSelect
             v-if="uiSettings[trigger.type]"
             v-model="uiSettings[trigger.type].templateId"
-            :options="templateOptions"
+            :options="getTemplateOptions(trigger.type)"
             class="template-select"
           />
         </div>

@@ -19,12 +19,20 @@ export const useCrmTemplatesStore = defineStore('crmTemplates', () => {
   const availableVariables = ref([ // Fallback caso a API falhe ou não seja usada
     { variable: '{paciente}', description: 'Nome completo do paciente.' },
     { variable: '{apelido}', description: 'Apelido do paciente; usa o primeiro nome se estiver vazio.' },
+    { variable: '{primeiro_nome}', description: 'Primeiro nome do paciente.' },
     { variable: '{nome_medico}', description: 'Nome do médico logado.' },
     { variable: '{clinica}', description: 'Nome da clínica.' },
     { variable: '{data_consulta}', description: 'Data do próximo agendamento.' },
     { variable: '{hora_consulta}', description: 'Hora do próximo agendamento.' },
+    { variable: '{endereco_clinica}', description: 'Endereço completo da clínica.' },
     { variable: '{link_anamnese}', description: 'Link para preenchimento da anamnese.' },
     { variable: '{link_termos}', description: 'Link para assinatura do termo de consentimento.' },
+    { variable: '{orcamento_nome}', description: 'Nome do orçamento enviado.' },
+    { variable: '{orcamento_codigo}', description: 'Código curto do orçamento.' },
+    { variable: '{orcamento_total}', description: 'Valor total do orçamento.' },
+    { variable: '{orcamento_procedimentos}', description: 'Lista de procedimentos do orçamento.' },
+    { variable: '{orcamento_validade}', description: 'Data de validade do orçamento.' },
+    { variable: '{orcamento_observacoes}', description: 'Observações do orçamento.' },
   ])
   const isLoading = ref(false)
   const error = ref(null)
