@@ -515,15 +515,18 @@ onMounted(loadPlannings)
         </div>
       </header>
 
-      <div class="map-stage">
+      <div
+        class="map-stage"
+        :class="{ pannable: faceZoom > 100 }"
+        @pointerdown="startMapPan"
+        @pointermove="moveMapPan"
+        @pointerup="stopMapPan"
+        @pointercancel="stopMapPan"
+      >
         <div
           class="face-map"
           :class="{ readonly: !canEdit, male: draft.faceVariant === 'MALE', pannable: faceZoom > 100 }"
           @click="addPoint"
-          @pointerdown="startMapPan"
-          @pointermove="moveMapPan"
-          @pointerup="stopMapPan"
-          @pointercancel="stopMapPan"
         >
           <div class="face-canvas" :style="{ '--face-zoom': faceZoom / 100, '--pan-x': `${facePan.x}px`, '--pan-y': `${facePan.y}px` }">
             <img
@@ -1331,6 +1334,14 @@ textarea:disabled {
   padding: 52px 20px 58px;
   overflow: hidden;
   background: #fdfdfe;
+}
+
+.map-stage.pannable {
+  cursor: grab;
+}
+
+.map-stage.pannable:active {
+  cursor: grabbing;
 }
 
 .face-map {
