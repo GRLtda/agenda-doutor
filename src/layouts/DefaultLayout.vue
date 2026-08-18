@@ -8,9 +8,11 @@ import SubscriptionModal from '@/components/global/SubscriptionModal.vue'
 import SettingsView from '@/views/pages/configuracoes/SettingsView.vue'
 import ProfileModal from '@/views/pages/profile/ProfileModal.vue'
 import PaymentErrorBanner from '@/components/layout/PaymentErrorBanner.vue'
+import LiaChatDrawer from '@/components/lia/LiaChatDrawer.vue'
 import { useLayoutStore } from '@/stores/layout'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
+import { useLiaStore } from '@/stores/lia'
 import { useToast } from 'vue-toastification'
 
 const route = useRoute()
@@ -18,6 +20,7 @@ const router = useRouter()
 const layoutStore = useLayoutStore()
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
+const liaStore = useLiaStore()
 const toast = useToast()
 
 const isMobileSidebarOpen = ref(false)
@@ -99,6 +102,7 @@ const openPaymentPortal = async () => {
 
 onMounted(async () => {
   loadDismissal()
+  await liaStore.initialize()
   if (isOwner.value) {
     await clinicStore.getSubscriptionStatus()
   }
@@ -182,6 +186,11 @@ watch(
     <SubscriptionModal />
     <SettingsView v-if="isSettingsModalOpen" @close="closeSettingsModal" />
     <ProfileModal v-if="isProfileModalOpen" @close="closeProfileModal" />
+    <LiaChatDrawer :open="liaStore.isOpen" @close="liaStore.isOpen = false" />
+    <button class="lia-launcher" type="button" aria-label="Abrir a Lia" @click="liaStore.isOpen = true">
+      <span>✦</span>
+      <span class="lia-launcher-label">Lia</span>
+    </button>
 
     <Transition name="sidebar-overlay-fade">
       <div
@@ -231,6 +240,30 @@ watch(
 .mobile-header {
   display: none;
 }
+
+.lia-launcher {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.72rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--azul-principal, #2563eb);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.lia-launcher:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37, 99, 235, 0.34); }
+.lia-launcher span:first-child { font-size: 1rem; }
 
 .sidebar-overlay {
   position: fixed;
@@ -291,6 +324,8 @@ watch(
     transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
+
+  .lia-launcher { right: 1rem; bottom: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
