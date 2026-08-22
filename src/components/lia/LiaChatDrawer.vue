@@ -5,6 +5,7 @@ import { marked } from 'marked'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import LiaActionConfirmationCard from '@/components/lia/LiaActionConfirmationCard.vue'
+import LiaAnalyticsCard from '@/components/lia/LiaAnalyticsCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
 import { useLiaPageContext } from '@/composables/useLiaPageContext'
@@ -91,6 +92,7 @@ watch(() => liaStore.messages.length, scrollToLatest)
         <div class="message-icon"><img v-if="message.role === 'user' && authStore.user?.profilePhotoUrl" class="message-avatar" :src="authStore.user.profilePhotoUrl" alt="" /><UserRound v-else-if="message.role === 'user'" :size="14" /><Bot v-else :size="15" /></div>
         <div class="message-stack"><div class="message-content"><div class="markdown" v-html="renderMarkdown(message.content)"></div><p v-if="message.status === 'failed'" class="message-state failed-state">{{ message.error }} <button type="button" @click="retryMessage(message)">Tentar novamente</button></p>
           <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />
+          <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" />
           <div v-if="message.role === 'assistant' && message.metadata?.patientOptions?.length > 1" class="patient-picker" :class="{ 'is-selected': liaStore.isSending || !!message.selectedPatientId }"><StyledSelect :model-value="message.selectedPatientId || ''" :options="patientOptions(message)" label="Quem é o paciente?" required placeholder="Selecione" @update:model-value="choosePatient(message, $event)" /></div></div>
           <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><div><Clock3 :size="15" /><strong>Horários disponíveis</strong></div><div class="time-options"><button v-for="time in message.metadata.availabilityAlternatives.times" :key="time" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ time }}</button></div></section>
         </div>
