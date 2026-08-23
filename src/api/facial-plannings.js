@@ -4,6 +4,10 @@ export const listFacialPlanningsByPatient = (patientId) => {
   return apiClient.get(`/facial-plannings/patient/${patientId}`)
 }
 
+export const listImportableFacialPlannings = (patientId) => {
+  return apiClient.get(`/facial-plannings/patient/${patientId}/importable`)
+}
+
 export const listFacialPlanningsByAppointment = (appointmentId) => {
   return apiClient.get(`/facial-plannings/appointment/${appointmentId}`)
 }
@@ -18,6 +22,10 @@ export const createFacialPlanning = (payload) => {
 
 export const updateFacialPlanning = (id, payload) => {
   return apiClient.put(`/facial-plannings/${id}`, payload)
+}
+
+export const importFacialPlanningToAppointment = (id, payload) => {
+  return apiClient.post(`/facial-plannings/${id}/import-to-appointment`, payload)
 }
 
 export const finalizeFacialPlanning = (id, payload) => {

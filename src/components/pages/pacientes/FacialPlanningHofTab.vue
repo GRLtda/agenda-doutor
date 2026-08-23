@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ExternalLink,
+  FileDown,
   LockKeyhole,
   LockKeyholeOpen,
   LoaderCircle,
@@ -18,6 +19,8 @@ import {
   X,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import ImportFacialPlanningDrawer from '@/components/pages/appointments/ImportFacialPlanningDrawer.vue'
+import FacialPlanningNameDrawer from '@/components/pages/pacientes/FacialPlanningNameDrawer.vue'
 import { useFacialPlanningsStore } from '@/stores/facialPlannings'
 import { useClinicStore } from '@/stores/clinic'
 import faceFemaleImage from '../../../../assets/imgs/facial-planning/face-female.png'
@@ -93,18 +96,28 @@ const procedureList = ref(null)
 const historyList = ref(null)
 const procedureHasScrollBelow = ref(false)
 const historyHasScrollBelow = ref(false)
+const saveFeedback = ref('idle')
+const showImportPlanningDrawer = ref(false)
+const showPlanningNameDrawer = ref(false)
 const draft = ref(createEmptyDraft())
+let saveFeedbackTimeout = null
+let autosaveTimeout = null
+let skipNextAutosave = false
 
-const selectedProcedure = computed(() =>
-  procedureTypes.find((item) => item.type === activeType.value) || procedureTypes[0]
+const selectedProcedure = computed(
+  () => procedureTypes.find((item) => item.type === activeType.value) || procedureTypes[0],
 )
 
 const selectedPoint = computed(() =>
-  draft.value.points.find((point) => point.localId === selectedPointId.value || point._id === selectedPointId.value)
+  draft.value.points.find(
+    (point) => point.localId === selectedPointId.value || point._id === selectedPointId.value,
+  ),
 )
 
-const selectedPointProcedure = computed(() =>
-  procedureTypes.find((item) => item.type === selectedPoint.value?.procedureType) || procedureTypes[0]
+const selectedPointProcedure = computed(
+  () =>
+    procedureTypes.find((item) => item.type === selectedPoint.value?.procedureType) ||
+    procedureTypes[0],
 )
 
 const isFinalized = computed(() => draft.value.status === 'FINALIZED')
@@ -112,7 +125,10 @@ const isAppointmentPlanning = computed(() => Boolean(props.appointmentId))
 const activePlanningAppointmentId = computed(() => planningAppointmentId(draft.value))
 const isPlanningLinkedToAppointment = computed(() => Boolean(activePlanningAppointmentId.value))
 const canEdit = computed(() => !props.disabled && !isFinalized.value)
-const canFinalizeManually = computed(() => canEdit.value && !isPlanningLinkedToAppointment.value)
+const canFinalizeManually = computed(
+  () => canEdit.value && (!isPlanningLinkedToAppointment.value || isAppointmentPlanning.value),
+)
+const canImportPlanning = computed(() => isAppointmentPlanning.value && !props.disabled)
 const faceImageSrc = computed(() => {
   if (faceImageLoadFailed.value) return null
   return draft.value.faceVariant === 'MALE' ? faceMaleImage : faceFemaleImage
@@ -137,7 +153,10 @@ const quickQuantities = computed(() => {
 const historyItems = computed(() => planningStore.plannings || [])
 
 function createLocalId() {
-  return globalThis.crypto?.randomUUID?.() || `point_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `point_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  )
 }
 
 function defaultFaceVariantFromGender() {
@@ -152,7 +171,7 @@ function defaultFaceVariantFromGender() {
 
 function createEmptyDraft() {
   return {
-    title: 'Planejamento Facial HOF',
+    title: 'Planejamento Facial',
     mode: 'PLANNING',
     status: 'DRAFT',
     faceVariant: defaultFaceVariantFromGender(),
@@ -207,16 +226,34 @@ function openPlanningAppointment(planning) {
   router.push(`/atendimentos/${appointmentId}/patient/${props.patientId}`)
 }
 
+function handlePlanningImported(planning) {
+  showImportPlanningDrawer.value = false
+  selectPlanning(planning)
+}
+
 function selectPlanning(planning) {
+  skipNextAutosave = true
   activePlanningId.value = planning?._id || null
   draft.value = normalizePlanning(planning)
   selectedPointId.value = draft.value.points[0]?.localId || draft.value.points[0]?._id || null
 }
 
-function newPlanning() {
+function newPlanning(title = 'Planejamento Facial') {
+  skipNextAutosave = true
   activePlanningId.value = null
   draft.value = createEmptyDraft()
+  draft.value.title = title
   selectedPointId.value = null
+}
+
+function requestNewPlanning() {
+  showPlanningNameDrawer.value = true
+}
+
+async function createNamedPlanning(title) {
+  newPlanning(title)
+  showPlanningNameDrawer.value = false
+  await saveDraft({ allowEmpty: true })
 }
 
 async function openPlanningFullscreen() {
@@ -257,13 +294,20 @@ function inferRegion(x, y) {
 }
 
 function addPoint(event) {
-  if (!canEdit.value) return
+  if (!canEdit.value) {
+    closeQuickEditor()
+    return
+  }
   if (ignoreNextMapClick.value) {
     ignoreNextMapClick.value = false
     return
   }
   if (selectedPointId.value) {
     closeQuickEditor()
+    return
+  }
+  if (!activePlanningId.value && !draft.value.points.length) {
+    requestNewPlanning()
     return
   }
   const { x, y } = getMapCoordinates(event, event.currentTarget)
@@ -305,7 +349,8 @@ function updateProcedureScrollFade() {
   const element = procedureList.value
   const lastItem = element?.lastElementChild
   procedureHasScrollBelow.value = Boolean(
-    lastItem && lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1
+    lastItem &&
+      lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1,
   )
 }
 
@@ -313,7 +358,8 @@ function updateHistoryScrollFade() {
   const element = historyList.value
   const lastItem = element?.lastElementChild
   historyHasScrollBelow.value = Boolean(
-    lastItem && lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1
+    lastItem &&
+      lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1,
   )
 }
 
@@ -325,23 +371,59 @@ function updateScrollFades() {
 function removeSelectedPoint() {
   if (!selectedPoint.value || !canEdit.value) return
   const pointId = selectedPoint.value.localId || selectedPoint.value._id
-  draft.value.points = draft.value.points.filter((point) => (point.localId || point._id) !== pointId)
+  draft.value.points = draft.value.points.filter(
+    (point) => (point.localId || point._id) !== pointId,
+  )
   closeQuickEditor()
 }
 
-async function saveDraft() {
-  if (!draft.value.points.length) {
-    toast.warning('Adicione pelo menos um ponto no mapa antes de salvar.')
-    return
+function scheduleAutosave() {
+  clearTimeout(autosaveTimeout)
+
+  if (!canEdit.value || !draft.value.points.length) return
+
+  autosaveTimeout = setTimeout(async () => {
+    if (planningStore.isLoading) {
+      scheduleAutosave()
+      return
+    }
+
+    await saveDraft({ autosave: true })
+  }, 900)
+}
+
+async function saveDraft(options = {}) {
+  const autosave = options?.autosave === true
+  const allowEmpty = options?.allowEmpty === true
+  clearTimeout(autosaveTimeout)
+
+  if (!draft.value.points.length && !allowEmpty) {
+    if (!autosave) toast.warning('Adicione pelo menos um ponto no mapa antes de salvar.')
+    return { success: false }
   }
+
+  if (planningStore.isLoading) {
+    if (autosave) scheduleAutosave()
+    return { success: false }
+  }
+
+  clearTimeout(saveFeedbackTimeout)
+  saveFeedback.value = 'syncing'
 
   const result = await planningStore.save(payloadFromDraft(), activePlanningId.value)
   if (result.success) {
-    selectPlanning(result.data)
-    toast.success('Planejamento facial salvo.')
+    if (autosave) activePlanningId.value = result.data._id
+    else selectPlanning(result.data)
+    saveFeedback.value = 'synced'
+    saveFeedbackTimeout = setTimeout(() => {
+      saveFeedback.value = 'idle'
+    }, 2200)
   } else {
+    saveFeedback.value = 'idle'
     toast.error(result.error)
   }
+
+  return result
 }
 
 async function finalizePlanning() {
@@ -424,10 +506,16 @@ function startPointDrag(point, event) {
 function movePoint(event) {
   const interaction = mapInteraction.value
   if (!interaction || interaction.type !== 'point') return
-  const point = draft.value.points.find((item) => (item.localId || item._id) === interaction.pointId)
+  const point = draft.value.points.find(
+    (item) => (item.localId || item._id) === interaction.pointId,
+  )
   if (!point) return
   const { x, y } = getMapCoordinates(event, event.currentTarget.parentElement)
-  if (Math.abs(event.clientX - interaction.startX) > 3 || Math.abs(event.clientY - interaction.startY) > 3) interaction.moved = true
+  if (
+    Math.abs(event.clientX - interaction.startX) > 3 ||
+    Math.abs(event.clientY - interaction.startY) > 3
+  )
+    interaction.moved = true
   point.x = Number(x.toFixed(2))
   point.y = Number(y.toFixed(2))
 }
@@ -490,12 +578,19 @@ function formatQuantity(value) {
 }
 
 function planningProcedures(planning) {
-  const labels = [...new Set((planning.points || []).map((point) => point.procedureLabel).filter(Boolean))]
+  const labels = [
+    ...new Set((planning.points || []).map((point) => point.procedureLabel).filter(Boolean)),
+  ]
   return labels.length ? labels.join(', ') : 'Sem pontos registrados'
 }
 
 function planningProfessional(planning) {
-  return planning.author?.name || planning.author?.fullName || planning.points?.find((point) => point.professionalName)?.professionalName || 'Profissional não informado'
+  return (
+    planning.author?.name ||
+    planning.author?.fullName ||
+    planning.points?.find((point) => point.professionalName)?.professionalName ||
+    'Profissional não informado'
+  )
 }
 
 function planningProfessionalImage(planning) {
@@ -503,7 +598,7 @@ function planningProfessionalImage(planning) {
   if (!authorId) return null
 
   const staffMember = (clinicStore.currentClinic?.staff || []).find(
-    (staff) => String(staff._id || staff.id) === String(authorId)
+    (staff) => String(staff._id || staff.id) === String(authorId),
   )
 
   return staffMember?.profilePhotoUrl || null
@@ -525,14 +620,26 @@ watch(
   () => draft.value.faceVariant,
   () => {
     faceImageLoadFailed.value = false
-  }
+  },
 )
 
 watch(
   () => props.patientGender,
   () => {
     draft.value.faceVariant = defaultFaceVariantFromGender()
-  }
+  },
+)
+
+watch(
+  draft,
+  () => {
+    if (skipNextAutosave) {
+      skipNextAutosave = false
+      return
+    }
+    scheduleAutosave()
+  },
+  { deep: true },
 )
 
 watch(isFullscreen, (active) => {
@@ -542,7 +649,7 @@ watch(isFullscreen, (active) => {
 
 watch(
   () => [draft.value.points.length, historyItems.value.length],
-  () => nextTick(updateScrollFades)
+  () => nextTick(updateScrollFades),
 )
 
 onMounted(() => {
@@ -554,6 +661,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearTimeout(saveFeedbackTimeout)
+  clearTimeout(autosaveTimeout)
   document.body.style.overflow = ''
   document.removeEventListener('keydown', handleFullscreenKeydown)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -566,17 +675,10 @@ onBeforeUnmount(() => {
     <aside class="planning-sidebar">
       <section class="planning-header">
         <div class="planning-title">
-          <h3>Planejamento Facial HOF</h3>
-          <p>{{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}</p>
-        </div>
-
-        <div class="segmented-control planning-mode-control">
-          <button type="button" :class="{ active: draft.mode === 'PLANNING' }" :disabled="!canEdit" @click="draft.mode = 'PLANNING'">
-            Planejamento
-          </button>
-          <button type="button" :class="{ active: draft.mode === 'REALIZED' }" :disabled="!canEdit" @click="draft.mode = 'REALIZED'">
-            Realizado
-          </button>
+          <h3>Planejamento Facial</h3>
+          <p>
+            {{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}
+          </p>
         </div>
 
       </section>
@@ -585,7 +687,12 @@ onBeforeUnmount(() => {
         <span>Procedimentos</span>
       </div>
 
-      <div ref="procedureList" class="scroll-list procedure-list" :class="{ 'has-scroll-below': procedureHasScrollBelow }" @scroll="updateProcedureScrollFade">
+      <div
+        ref="procedureList"
+        class="scroll-list procedure-list"
+        :class="{ 'has-scroll-below': procedureHasScrollBelow }"
+        @scroll="updateProcedureScrollFade"
+      >
         <button
           v-for="item in totals"
           :key="item.type"
@@ -605,10 +712,20 @@ onBeforeUnmount(() => {
 
       <div class="notes-block sidebar-notes-block">
         <span class="panel-label">Observações clínicas</span>
-        <textarea v-model="draft.notes" rows="5" placeholder="Observações gerais do planejamento..." :disabled="!canEdit"></textarea>
+        <textarea
+          v-model="draft.notes"
+          rows="5"
+          placeholder="Observações gerais do planejamento..."
+          :disabled="!canEdit"
+        ></textarea>
         <div v-if="isPlanningLinkedToAppointment" class="appointment-planning-notice">
-          <p>Este planejamento será finalizado ao concluir o atendimento.</p>
-          <AppButton v-if="!isAppointmentPlanning" variant="outline" size="sm" @click="openPlanningAppointment(draft)">
+          <p>Este procedimento está vinculado a este atendimento.</p>
+          <AppButton
+            v-if="!isAppointmentPlanning"
+            variant="outline"
+            size="sm"
+            @click="openPlanningAppointment(draft)"
+          >
             <ExternalLink :size="14" />
             Ir para atendimento
           </AppButton>
@@ -626,17 +743,45 @@ onBeforeUnmount(() => {
         @pointercancel="stopMapPan"
         @click="closeQuickEditor"
       >
+        <Transition name="save-feedback">
+          <div
+            v-if="saveFeedback !== 'idle'"
+            class="save-feedback-toast"
+            role="status"
+            aria-live="polite"
+          >
+            <LoaderCircle v-if="saveFeedback === 'syncing'" :size="16" class="spin" />
+            <CheckCircle2 v-else :size="16" />
+            <span>{{ saveFeedback === 'syncing' ? 'Sincronizando...' : 'Sincronizado' }}</span>
+          </div>
+        </Transition>
         <div v-if="isFullscreen" class="fullscreen-map-header">
-          <button type="button" title="Sair da tela cheia" aria-label="Sair da tela cheia" @click="closePlanningFullscreen">
+          <button
+            type="button"
+            title="Sair da tela cheia"
+            aria-label="Sair da tela cheia"
+            @click="closePlanningFullscreen"
+          >
             <X :size="19" />
           </button>
         </div>
         <div
           class="face-map"
-          :class="{ readonly: !canEdit, male: draft.faceVariant === 'MALE', pannable: faceZoom > 100 }"
+          :class="{
+            readonly: !canEdit,
+            male: draft.faceVariant === 'MALE',
+            pannable: faceZoom > 100,
+          }"
           @click.stop="addPoint"
         >
-          <div class="face-canvas" :style="{ '--face-zoom': faceZoom / 100, '--pan-x': `${facePan.x}px`, '--pan-y': `${facePan.y}px` }">
+          <div
+            class="face-canvas"
+            :style="{
+              '--face-zoom': faceZoom / 100,
+              '--pan-x': `${facePan.x}px`,
+              '--pan-y': `${facePan.y}px`,
+            }"
+          >
             <img
               v-if="faceImageSrc"
               class="face-image"
@@ -647,19 +792,33 @@ onBeforeUnmount(() => {
             />
 
             <svg v-else viewBox="0 0 420 560" aria-hidden="true" class="face-svg">
-            <path class="neck" d="M158 390 C160 455 136 495 92 540 H328 C284 495 260 455 262 390" />
-            <path class="face-fill" d="M210 54 C118 54 78 132 82 236 C86 355 154 435 210 435 C266 435 334 355 338 236 C342 132 302 54 210 54 Z" />
-            <path class="hair" v-if="draft.faceVariant === 'FEMALE'" d="M82 218 C58 118 112 30 210 24 C308 30 362 118 338 218 C320 84 100 84 82 218 Z" />
-            <path class="hair" v-else d="M78 146 C95 52 158 20 214 28 C280 38 328 54 346 146 C298 96 129 90 78 146 Z" />
-            <path class="brow" d="M118 178 C145 160 174 160 194 175" />
-            <path class="brow" d="M226 175 C249 160 279 160 302 178" />
-            <ellipse class="eye" cx="158" cy="208" rx="31" ry="13" />
-            <ellipse class="eye" cx="262" cy="208" rx="31" ry="13" />
-            <circle class="iris" cx="158" cy="208" r="7" />
-            <circle class="iris" cx="262" cy="208" r="7" />
-            <path class="nose" d="M210 214 C199 252 190 285 210 298 C230 285 221 252 210 214" />
-            <path class="lip" d="M162 340 C190 325 229 325 258 340 C232 360 188 360 162 340 Z" />
-            <path class="jaw" d="M102 310 C128 394 173 430 210 430 C247 430 292 394 318 310" />
+              <path
+                class="neck"
+                d="M158 390 C160 455 136 495 92 540 H328 C284 495 260 455 262 390"
+              />
+              <path
+                class="face-fill"
+                d="M210 54 C118 54 78 132 82 236 C86 355 154 435 210 435 C266 435 334 355 338 236 C342 132 302 54 210 54 Z"
+              />
+              <path
+                class="hair"
+                v-if="draft.faceVariant === 'FEMALE'"
+                d="M82 218 C58 118 112 30 210 24 C308 30 362 118 338 218 C320 84 100 84 82 218 Z"
+              />
+              <path
+                class="hair"
+                v-else
+                d="M78 146 C95 52 158 20 214 28 C280 38 328 54 346 146 C298 96 129 90 78 146 Z"
+              />
+              <path class="brow" d="M118 178 C145 160 174 160 194 175" />
+              <path class="brow" d="M226 175 C249 160 279 160 302 178" />
+              <ellipse class="eye" cx="158" cy="208" rx="31" ry="13" />
+              <ellipse class="eye" cx="262" cy="208" rx="31" ry="13" />
+              <circle class="iris" cx="158" cy="208" r="7" />
+              <circle class="iris" cx="262" cy="208" r="7" />
+              <path class="nose" d="M210 214 C199 252 190 285 210 298 C230 285 221 252 210 214" />
+              <path class="lip" d="M162 340 C190 325 229 325 258 340 C232 360 188 360 162 340 Z" />
+              <path class="jaw" d="M102 310 C128 394 173 430 210 430 C247 430 292 394 318 310" />
             </svg>
           </div>
 
@@ -698,17 +857,37 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <div class="quick-editor-actions">
-                <button v-if="canEdit" type="button" class="delete" title="Excluir ponto" aria-label="Excluir ponto" @click="removeSelectedPoint">
+                <button
+                  v-if="canEdit"
+                  type="button"
+                  class="delete"
+                  title="Excluir ponto"
+                  aria-label="Excluir ponto"
+                  @click="removeSelectedPoint"
+                >
                   <Trash2 :size="13" />
                 </button>
-                <button v-else type="button" class="locked" title="Planejamento finalizado" aria-label="Planejamento finalizado" disabled>
+                <button
+                  v-else
+                  type="button"
+                  class="locked"
+                  title="Planejamento finalizado"
+                  aria-label="Planejamento finalizado"
+                  disabled
+                >
                   <LockKeyhole :size="13" />
                 </button>
               </div>
             </div>
             <div class="quick-row">
               <div class="quick-quantity-field">
-                <input v-model.number="selectedPoint.quantity" type="number" min="0" step="0.1" :disabled="!canEdit" />
+                <input
+                  v-model.number="selectedPoint.quantity"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  :disabled="!canEdit"
+                />
                 <span>{{ selectedPoint.unit }}</span>
               </div>
             </div>
@@ -725,13 +904,35 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
-        <div class="zoom-controls" aria-label="Zoom do mapa facial" @click.stop @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop>
+        <div
+          class="zoom-controls"
+          aria-label="Zoom do mapa facial"
+          @click.stop
+          @pointerdown.stop
+          @pointermove.stop
+          @pointerup.stop
+          @pointercancel.stop
+        >
           <div class="zoom-group">
-            <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" :disabled="faceZoom <= 60" @click="changeFaceZoom(-10)">
+            <button
+              type="button"
+              title="Diminuir zoom"
+              aria-label="Diminuir zoom"
+              :disabled="faceZoom <= 60"
+              @click="changeFaceZoom(-10)"
+            >
               <Minus :size="16" />
             </button>
-            <button type="button" class="zoom-level" title="Redefinir zoom" @click="resetFaceZoom">{{ faceZoom }}%</button>
-            <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" :disabled="faceZoom >= 300" @click="changeFaceZoom(10)">
+            <button type="button" class="zoom-level" title="Redefinir zoom" @click="resetFaceZoom">
+              {{ faceZoom }}%
+            </button>
+            <button
+              type="button"
+              title="Aumentar zoom"
+              aria-label="Aumentar zoom"
+              :disabled="faceZoom >= 300"
+              @click="changeFaceZoom(10)"
+            >
               <Plus :size="16" />
             </button>
           </div>
@@ -753,19 +954,46 @@ onBeforeUnmount(() => {
       <section class="details-header">
         <h3>Ações do planejamento</h3>
         <div class="planning-actions">
-          <AppButton v-if="!isAppointmentPlanning && isFinalized" variant="primary" size="sm" @click="newPlanning">
+          <AppButton
+            v-if="canImportPlanning"
+            variant="outline"
+            size="sm"
+            @click="showImportPlanningDrawer = true"
+          >
+            <FileDown :size="15" />
+            Importar planejamento
+          </AppButton>
+          <AppButton v-if="isFinalized" variant="primary" size="sm" @click="requestNewPlanning">
             <Plus :size="15" />
             Novo
           </AppButton>
-          <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
+          <AppButton
+            v-if="canEdit"
+            variant="secondary"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="saveDraft"
+          >
             <Save :size="15" />
             Salvar
           </AppButton>
-          <AppButton v-if="!isAppointmentPlanning && canFinalizeManually" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
+          <AppButton
+            v-if="canFinalizeManually"
+            variant="primary"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="finalizePlanning"
+          >
             <CheckCircle2 :size="15" />
             Finalizar
           </AppButton>
-          <AppButton v-if="!isAppointmentPlanning && isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
+          <AppButton
+            v-if="isFinalized && (!isPlanningLinkedToAppointment || isAppointmentPlanning)"
+            variant="outline"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="reopenPlanning"
+          >
             <LockKeyholeOpen :size="15" />
             Reabrir
           </AppButton>
@@ -784,17 +1012,22 @@ onBeforeUnmount(() => {
         <p v-if="!draft.points.length" class="muted">Clique no rosto para adicionar pontos.</p>
       </div>
 
-      <div v-if="!isAppointmentPlanning" class="history-panel details-history-panel">
+      <div class="history-panel details-history-panel">
         <div class="sidebar-heading compact">
           <span>Histórico</span>
           <div class="history-actions">
-            <button type="button" class="new-link" @click="newPlanning">
+            <button type="button" class="new-link" @click="requestNewPlanning">
               <Plus :size="14" />
               Novo
             </button>
           </div>
         </div>
-        <div ref="historyList" class="scroll-list history-list" :class="{ 'has-scroll-below': historyHasScrollBelow }" @scroll="updateHistoryScrollFade">
+        <div
+          ref="historyList"
+          class="scroll-list history-list"
+          :class="{ 'has-scroll-below': historyHasScrollBelow }"
+          @scroll="updateHistoryScrollFade"
+        >
           <div
             v-for="item in historyItems"
             :key="item._id"
@@ -817,8 +1050,11 @@ onBeforeUnmount(() => {
               </span>
               <span class="history-copy">
                 <span class="history-title-row">
-                  <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
-                  <small class="history-status" :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'">
+                  <strong>{{ item.title || 'Planejamento Facial' }}</strong>
+                  <small
+                    class="history-status"
+                    :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'"
+                  >
                     {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}
                   </small>
                 </span>
@@ -829,7 +1065,7 @@ onBeforeUnmount(() => {
                 <small class="history-procedures">{{ planningProcedures(item) }}</small>
                 <small class="history-professional">{{ planningProfessional(item) }}</small>
                 <button
-                  v-if="planningAppointmentId(item)"
+                  v-if="planningAppointmentId(item) && !isAppointmentPlanning"
                   type="button"
                   class="history-appointment-link"
                   @click.stop="openPlanningAppointment(item)"
@@ -843,12 +1079,21 @@ onBeforeUnmount(() => {
           <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
         </div>
       </div>
-
-      <div v-if="planningStore.isLoading" class="loading-inline">
-        <LoaderCircle :size="16" class="spin" />
-        Sincronizando...
-      </div>
     </aside>
+
+    <ImportFacialPlanningDrawer
+      v-if="showImportPlanningDrawer"
+      :patient-id="patientId"
+      :appointment-id="appointmentId"
+      :record-id="recordId"
+      @close="showImportPlanningDrawer = false"
+      @imported="handlePlanningImported"
+    />
+    <FacialPlanningNameDrawer
+      v-if="showPlanningNameDrawer"
+      @close="showPlanningNameDrawer = false"
+      @confirm="createNamedPlanning"
+    />
   </div>
 </template>
 
@@ -1047,6 +1292,42 @@ onBeforeUnmount(() => {
   padding: 28px;
 }
 
+.save-feedback-toast {
+  position: absolute;
+  z-index: 25;
+  top: 18px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid #d8e5ff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  font-size: 0.8rem;
+  font-weight: 700;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.save-feedback-toast svg:not(.spin) {
+  color: #0f9f6e;
+}
+
+.save-feedback-enter-active,
+.save-feedback-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.save-feedback-enter-from,
+.save-feedback-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+
 .face-switch {
   position: absolute;
   top: 18px;
@@ -1138,7 +1419,9 @@ onBeforeUnmount(() => {
   font-weight: 900;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
   cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .map-point:hover,
@@ -1222,14 +1505,6 @@ textarea:disabled {
   padding-bottom: 8px;
   border-bottom: 1px solid #eef2f7;
   font-size: 0.88rem;
-}
-
-.loading-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 0.82rem;
 }
 
 .spin {
@@ -1327,14 +1602,6 @@ textarea:disabled {
   margin: 3px 0 0;
   color: #2860df;
   font-size: 0.74rem;
-}
-
-.planning-mode-control {
-  width: 100%;
-}
-
-.planning-mode-control button {
-  flex: 1;
 }
 
 .planning-actions {
@@ -2159,10 +2426,6 @@ textarea:disabled {
   justify-content: center;
 }
 
-.loading-inline {
-  padding: 0 3px;
-}
-
 @media (max-width: 1180px) {
   .facial-planning {
     grid-template-columns: minmax(205px, 0.85fr) minmax(430px, 1.8fr);
@@ -2176,7 +2439,6 @@ textarea:disabled {
     display: flex;
     flex-direction: column;
   }
-
 }
 
 @media (max-width: 760px) {
