@@ -18,6 +18,7 @@ const triggerTypeDescriptions = {
   PATIENT_BIRTHDAY: 'Mensagem de Aniversário',
   ANAMNESIS_ASSIGNMENT: 'Envio de Anamnese',
   CONSENT_TERM_ASSIGNMENT: 'Envio de Termo de Consentimento',
+  BUDGET_WHATSAPP: 'Envio de Orçamento',
   APPOINTMENT_CONFIRMATION: 'Confirmação de Agendamento'
 }
 

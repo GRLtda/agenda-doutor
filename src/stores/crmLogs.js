@@ -7,9 +7,12 @@ import { useToast } from 'vue-toastification'
 // Mapeamento para nomes amigáveis de status
 const logStatusDescriptions = {
   PENDING: 'Pendente',
-  SENT_ATTEMPT: 'Tentativa Envio',
+  PENDING_CONNECTION: 'Aguardando conexão',
+  SENT_ATTEMPT: 'Tentativa de envio',
+  SENT: 'Enviado',
   DELIVERED: 'Entregue',
   READ: 'Lida',
+  CANCELLED: 'Cancelado',
   ERROR_WHATSAPP: 'Erro WhatsApp',
   ERROR_SYSTEM: 'Erro Sistema',
   ERROR_INVALID_NUMBER: 'Erro Número'
@@ -81,7 +84,8 @@ export const useCrmLogsStore = defineStore('crmLogs', () => {
   }
 
   function getStatusDescription(status) {
-      return logStatusDescriptions[status] || status;
+      const normalizedStatus = String(status || '').toUpperCase()
+      return logStatusDescriptions[normalizedStatus] || status;
   }
 
   function getActionTypeDescription(actionType) {

@@ -59,6 +59,7 @@ import AddProcedureModal from '@/components/modals/AddProcedureModal.vue'
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue'
 import PatientBudgetsTab from '@/components/pages/pacientes/PatientBudgetsTab.vue'
 import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
+import FacialPlanningHofTab from '@/components/pages/pacientes/FacialPlanningHofTab.vue'
 import PatientMediaGallery from '@/views/pages/pacientes/components/PatientMediaGallery.vue'
 
 const route = useRoute()
@@ -80,7 +81,7 @@ const activeTab = computed({
       'procedimentos': 'procedures',
       'anotacoes': 'notes',
       'orcamentos': 'budgets',
-      'orcamentos': 'budgets',
+      'planejamento-facial': 'facial-planning',
       'termos': 'termos',
       'galeria': 'media'
     }
@@ -93,7 +94,7 @@ const activeTab = computed({
       'procedures': 'procedimentos',
       'notes': 'anotacoes',
       'budgets': 'orcamentos',
-      'budgets': 'orcamentos',
+      'facial-planning': 'planejamento-facial',
       'termos': 'termos',
       'media': 'galeria',
       'details': undefined // Remove param for details
@@ -146,6 +147,7 @@ const patientTabs = [
   { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
   { value: 'notes', label: 'Anotações', icon: MessageSquare },
   { value: 'budgets', label: 'Orçamentos', icon: Receipt },
+  { value: 'facial-planning', label: 'Planejamento Facial', icon: Syringe },
   { value: 'termos', label: 'Termos', icon: FileSignature },
   { value: 'media', label: 'Galeria', icon: Folder },
 ]
@@ -1062,6 +1064,9 @@ async function deleteAppointment(appointment) {
             </div>
             <div v-if="activeTab === 'budgets'" class="card-section">
               <PatientBudgetsTab :patient-id="patient._id" />
+            </div>
+            <div v-if="activeTab === 'facial-planning'" class="card-section full-width-section">
+              <FacialPlanningHofTab :patient-id="patient._id" :patient-gender="patient.gender" />
             </div>
             <div v-if="activeTab === 'termos'" class="card-section">
               <PatientConsentTermsTab :patient-id="patient._id" />

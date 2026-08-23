@@ -61,6 +61,7 @@ import AssignAnamnesisModal from '@/components/pages/pacientes/modals/AssignAnam
 import AttendanceProceduresTab from '@/components/pages/atendimentos/AttendanceProceduresTab.vue' // ✨ Import Procedures Tab
 import PatientNotesTab from '@/components/pages/pacientes/PatientNotesTab.vue' // ✨ Import Patient Notes Tab
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
+import FacialPlanningHofTab from '@/components/pages/pacientes/FacialPlanningHofTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -558,6 +559,7 @@ async function handleCheckoutConfirm(checkoutData) {
 const menuItems = [
   { id: 'patient-info', label: 'Informações', icon: User },
   { id: 'record', label: 'Prontuario', icon: FileText },
+  { id: 'facial-planning', label: 'Planejamento Facial', icon: Syringe },
   { id: 'procedures', label: 'Procedimentos', icon: Syringe },
   { id: 'consent-terms', label: 'Termos', icon: FileSignature },
   { id: 'images', label: 'Imagens e Anexos', icon: Image },
@@ -1040,6 +1042,16 @@ function openPatientProfile() {
         </div>
 
         <!-- ✨ Procedures Tab -->
+        <div v-else-if="activeTab === 'facial-planning'" class="tab-content tab-content-padded">
+          <FacialPlanningHofTab
+            :patient-id="patientId"
+            :patient-gender="patient?.gender"
+            :appointment-id="appointmentId"
+            :record-id="currentRecord?._id"
+            :disabled="isViewMode"
+          />
+        </div>
+
         <div v-else-if="activeTab === 'procedures'" class="tab-content tab-content-padded">
           <AttendanceProceduresTab
             :patient-id="patientId"
