@@ -1473,6 +1473,10 @@ async function deleteAppointment(appointment) {
 .card-section {
   padding: 1.5rem 2rem;
 }
+.full-width-section {
+  height: 100%;
+  box-sizing: border-box;
+}
 .section-title {
   display: flex;
   align-items: center;

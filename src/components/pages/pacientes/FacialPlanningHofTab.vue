@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   CheckCircle2,
-  Check,
   LockKeyholeOpen,
   LoaderCircle,
   Maximize2,
@@ -12,7 +11,6 @@ import {
   Plus,
   Save,
   Trash2,
-  X,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import { useFacialPlanningsStore } from '@/stores/facialPlannings'
@@ -89,6 +87,10 @@ const selectedProcedure = computed(() =>
 
 const selectedPoint = computed(() =>
   draft.value.points.find((point) => point.localId === selectedPointId.value || point._id === selectedPointId.value)
+)
+
+const selectedPointProcedure = computed(() =>
+  procedureTypes.find((item) => item.type === selectedPoint.value?.procedureType) || procedureTypes[0]
 )
 
 const isFinalized = computed(() => draft.value.status === 'FINALIZED')
@@ -210,6 +212,10 @@ function addPoint(event) {
     ignoreNextMapClick.value = false
     return
   }
+  if (selectedPointId.value) {
+    closeQuickEditor()
+    return
+  }
   const { x, y } = getMapCoordinates(event, event.currentTarget)
   const type = selectedProcedure.value
   const point = {
@@ -235,7 +241,9 @@ function closeQuickEditor() {
 }
 
 function changeFaceZoom(amount) {
-  faceZoom.value = Math.max(60, Math.min(180, faceZoom.value + amount))
+  const nextZoom = Math.max(60, Math.min(180, faceZoom.value + amount))
+  faceZoom.value = nextZoom
+  if (nextZoom <= 100) facePan.value = { x: 0, y: 0 }
 }
 
 function resetFaceZoom() {
@@ -438,6 +446,23 @@ onMounted(loadPlannings)
 <template>
   <div class="facial-planning">
     <aside class="planning-sidebar">
+      <section class="planning-header">
+        <div class="planning-title">
+          <h3>Planejamento Facial HOF</h3>
+          <p>{{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}</p>
+        </div>
+
+        <div class="segmented-control planning-mode-control">
+          <button type="button" :class="{ active: draft.mode === 'PLANNING' }" :disabled="!canEdit" @click="draft.mode = 'PLANNING'">
+            Planejamento
+          </button>
+          <button type="button" :class="{ active: draft.mode === 'REALIZED' }" :disabled="!canEdit" @click="draft.mode = 'REALIZED'">
+            Realizado
+          </button>
+        </div>
+
+      </section>
+
       <div class="sidebar-heading">
         <span>Procedimentos</span>
         <button type="button" class="new-link" @click="newPlanning">
@@ -446,75 +471,48 @@ onMounted(loadPlannings)
         </button>
       </div>
 
-      <button
-        v-for="item in totals"
-        :key="item.type"
-        type="button"
-        class="procedure-option"
-        :class="{ active: activeType === item.type }"
-        @click="activeType = item.type"
-      >
-        <span class="procedure-color" :style="{ backgroundColor: item.color }"></span>
-        <span class="procedure-copy">
-          <strong>{{ item.label }}</strong>
-          <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
-        </span>
-        <span class="procedure-count">{{ item.points }}</span>
-      </button>
+      <div class="scroll-list procedure-list">
+        <button
+          v-for="item in totals"
+          :key="item.type"
+          type="button"
+          class="procedure-option"
+          :class="{ active: activeType === item.type }"
+          @click="activeType = item.type"
+        >
+          <span class="procedure-color" :style="{ backgroundColor: item.color }"></span>
+          <span class="procedure-copy">
+            <strong>{{ item.label }}</strong>
+            <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
+          </span>
+          <span class="procedure-count">{{ item.points }}</span>
+        </button>
+      </div>
 
       <div class="history-panel">
         <div class="sidebar-heading compact">
           <span>Histórico</span>
         </div>
-        <button
-          v-for="item in historyItems"
-          :key="item._id"
-          type="button"
-          class="history-item"
-          :class="{ active: activePlanningId === item._id }"
-          @click="selectPlanning(item)"
-        >
-          <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
-          <small>{{ formatDate(item.finalizedAt || item.updatedAt) }} · {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}</small>
-          <small class="history-procedures">{{ planningProcedures(item) }}</small>
-          <small>{{ planningProfessional(item) }}</small>
-        </button>
-        <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
+        <div class="scroll-list history-list">
+          <button
+            v-for="item in historyItems"
+            :key="item._id"
+            type="button"
+            class="history-item"
+            :class="{ active: activePlanningId === item._id }"
+            @click="selectPlanning(item)"
+          >
+            <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
+            <small>{{ formatDate(item.finalizedAt || item.updatedAt) }} · {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}</small>
+            <small class="history-procedures">{{ planningProcedures(item) }}</small>
+            <small>{{ planningProfessional(item) }}</small>
+          </button>
+          <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
+        </div>
       </div>
     </aside>
 
     <section class="planning-workspace">
-      <header class="workspace-toolbar">
-        <div>
-          <h3>Planejamento Facial HOF</h3>
-          <p>{{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}</p>
-        </div>
-
-        <div class="toolbar-actions">
-          <div class="segmented-control">
-            <button type="button" :class="{ active: draft.mode === 'PLANNING' }" :disabled="!canEdit" @click="draft.mode = 'PLANNING'">
-              Planejamento
-            </button>
-            <button type="button" :class="{ active: draft.mode === 'REALIZED' }" :disabled="!canEdit" @click="draft.mode = 'REALIZED'">
-              Realizado
-            </button>
-          </div>
-
-          <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
-            <Save :size="15" />
-            Salvar
-          </AppButton>
-          <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
-            <CheckCircle2 :size="15" />
-            Finalizar
-          </AppButton>
-          <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
-            <LockKeyholeOpen :size="15" />
-            Reabrir
-          </AppButton>
-        </div>
-      </header>
-
       <div
         class="map-stage"
         :class="{ pannable: faceZoom > 100 }"
@@ -522,11 +520,12 @@ onMounted(loadPlannings)
         @pointermove="moveMapPan"
         @pointerup="stopMapPan"
         @pointercancel="stopMapPan"
+        @click="closeQuickEditor"
       >
         <div
           class="face-map"
           :class="{ readonly: !canEdit, male: draft.faceVariant === 'MALE', pannable: faceZoom > 100 }"
-          @click="addPoint"
+          @click.stop="addPoint"
         >
           <div class="face-canvas" :style="{ '--face-zoom': faceZoom / 100, '--pan-x': `${facePan.x}px`, '--pan-y': `${facePan.y}px` }">
             <img
@@ -587,22 +586,24 @@ onMounted(loadPlannings)
             </button>
             <template v-else>
             <div class="quick-editor-header">
-              <label>Quantidade</label>
+              <div class="quick-editor-title">
+                <i :style="{ backgroundColor: selectedPointProcedure.color }"></i>
+                <div>
+                  <label>Quantidade</label>
+                  <small>{{ selectedPointProcedure.label }}</small>
+                </div>
+              </div>
               <div class="quick-editor-actions">
                 <button v-if="canEdit" type="button" class="delete" title="Excluir ponto" aria-label="Excluir ponto" @click="removeSelectedPoint">
                   <Trash2 :size="13" />
                 </button>
-                <button type="button" title="Fechar" aria-label="Fechar" @click="closeQuickEditor">
-                  <X :size="13" />
-                </button>
-                <button type="button" class="confirm" title="Confirmar" aria-label="Confirmar" @click="closeQuickEditor">
-                  <Check :size="13" />
-                </button>
               </div>
             </div>
             <div class="quick-row">
-              <input v-model.number="selectedPoint.quantity" type="number" min="0" step="0.1" :disabled="!canEdit" />
-              <span>{{ selectedPoint.unit }}</span>
+              <div class="quick-quantity-field">
+                <input v-model.number="selectedPoint.quantity" type="number" min="0" step="0.1" :disabled="!canEdit" />
+                <span>{{ selectedPoint.unit }}</span>
+              </div>
             </div>
             <div v-if="canEdit" class="quantity-presets">
               <button
@@ -640,6 +641,21 @@ onMounted(loadPlannings)
     </section>
 
     <aside class="details-panel">
+      <div class="planning-actions">
+        <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
+          <Save :size="15" />
+          Salvar
+        </AppButton>
+        <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
+          <CheckCircle2 :size="15" />
+          Finalizar
+        </AppButton>
+        <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
+          <LockKeyholeOpen :size="15" />
+          Reabrir
+        </AppButton>
+      </div>
+
       <div class="summary-block">
         <span class="panel-label">Totais do mapa</span>
         <div v-for="item in totals" :key="item.type" class="total-row">
@@ -693,8 +709,7 @@ onMounted(loadPlannings)
   gap: 18px;
 }
 
-.sidebar-heading,
-.workspace-toolbar {
+.sidebar-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -816,32 +831,6 @@ onMounted(loadPlannings)
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.workspace-toolbar {
-  padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.workspace-toolbar h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #0f172a;
-}
-
-.workspace-toolbar p {
-  margin: 3px 0 0;
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .segmented-control,
@@ -1111,15 +1100,6 @@ textarea:disabled {
     display: flex;
   }
 
-  .workspace-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .toolbar-actions {
-    justify-content: flex-start;
-  }
-
   .map-stage {
     padding: 64px 12px 18px;
   }
@@ -1127,9 +1107,10 @@ textarea:disabled {
 
 /* Clinical planning workspace: dense, quiet panels around the map. */
 .facial-planning {
-  grid-template-columns: minmax(220px, 0.95fr) minmax(520px, 2.25fr) minmax(270px, 1.05fr);
-  min-height: min(720px, calc(100vh - 250px));
-  gap: 12px;
+  grid-template-columns: minmax(235px, 0.9fr) minmax(440px, 1.9fr) minmax(250px, 0.95fr);
+  height: 100%;
+  min-height: 0;
+  gap: 10px;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1146,8 +1127,73 @@ textarea:disabled {
 }
 
 .planning-sidebar {
-  padding: 16px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
   border-right: 1px solid #e5eaf2;
+  overflow: hidden;
+}
+
+.planning-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -14px -14px 14px;
+  padding: 14px;
+  border-bottom: 1px solid #e9edf4;
+  background: #fbfcff;
+  border-radius: 12px 12px 0 0;
+}
+
+.planning-title h3 {
+  margin: 0;
+  color: #17213b;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.planning-title p {
+  margin: 3px 0 0;
+  color: #2860df;
+  font-size: 0.74rem;
+}
+
+.planning-mode-control {
+  width: 100%;
+}
+
+.planning-mode-control button {
+  flex: 1;
+}
+
+.planning-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.planning-actions :deep(.app-button) {
+  width: 100%;
+  height: 32px;
+  justify-content: center;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 0.76rem;
+}
+
+.planning-actions :deep(.app-button:only-child) {
+  grid-column: 1 / -1;
+}
+
+.planning-actions :deep(.variant-primary) {
+  background: #2563eb;
+}
+
+.planning-actions :deep(.variant-secondary) {
+  border: 1px solid #36b47e;
+  background: #ffffff;
+  color: #149765;
 }
 
 .details-panel {
@@ -1183,12 +1229,49 @@ textarea:disabled {
 
 .procedure-option {
   grid-template-columns: 36px minmax(0, 1fr) 30px;
-  min-height: 59px;
-  gap: 10px;
-  margin-bottom: 8px;
-  padding: 8px;
+  min-height: 52px;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 7px;
   border-color: #edf0f5;
   border-radius: 8px;
+}
+
+.scroll-list {
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c5d2e7 transparent;
+}
+
+.scroll-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c5d2e7;
+}
+
+.scroll-list::after {
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 28px;
+  margin-top: -28px;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 88%);
+}
+
+.procedure-list {
+  max-height: 286px;
+  padding-right: 4px;
+}
+
+.procedure-list .procedure-option:last-of-type {
+  margin-bottom: 0;
 }
 
 .procedure-option:hover,
@@ -1227,8 +1310,14 @@ textarea:disabled {
 }
 
 .history-panel {
+  min-height: 0;
   margin-top: 17px;
   border-top-color: #e9edf4;
+}
+
+.history-list {
+  max-height: 156px;
+  padding-right: 4px;
 }
 
 .history-item {
@@ -1250,40 +1339,8 @@ textarea:disabled {
 
 .planning-workspace {
   min-height: 0;
+  height: 100%;
   overflow: hidden;
-}
-
-.workspace-toolbar {
-  min-height: 64px;
-  padding: 10px 16px;
-  border-bottom-color: #edf0f5;
-  background: #ffffff;
-}
-
-.workspace-toolbar h3 {
-  color: #17213b;
-  font-size: 0.9rem;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-.workspace-toolbar > div:first-child {
-  flex: 0 0 auto;
-}
-
-.workspace-toolbar p {
-  margin-top: 3px;
-  color: #2860df;
-  font-size: 0.76rem;
-}
-
-.toolbar-actions {
-  display: grid;
-  grid-template-columns: repeat(3, max-content);
-  grid-template-rows: auto auto;
-  align-items: center;
-  justify-content: end;
-  gap: 7px;
 }
 
 .segmented-control,
@@ -1291,12 +1348,6 @@ textarea:disabled {
   padding: 3px;
   border-radius: 7px;
   background: #f2f4f8;
-}
-
-.toolbar-actions .segmented-control {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  justify-self: end;
 }
 
 .segmented-control button,
@@ -1313,25 +1364,8 @@ textarea:disabled {
   box-shadow: 0 1px 3px rgba(37, 54, 96, 0.1);
 }
 
-.toolbar-actions :deep(.app-button) {
-  height: 32px;
-  border-radius: 6px;
-  box-shadow: none;
-  font-size: 0.78rem;
-}
-
-.toolbar-actions :deep(.variant-primary) {
-  background: #2563eb;
-}
-
-.toolbar-actions :deep(.variant-secondary) {
-  border: 1px solid #36b47e;
-  background: #ffffff;
-  color: #149765;
-}
-
 .map-stage {
-  padding: 52px 20px 58px;
+  padding: 28px 18px 50px;
   overflow: hidden;
   background: #fdfdfe;
 }
@@ -1345,7 +1379,7 @@ textarea:disabled {
 }
 
 .face-map {
-  width: min(100%, 520px);
+  width: min(100%, 360px);
   max-height: 100%;
   filter: none;
   touch-action: none;
@@ -1356,7 +1390,6 @@ textarea:disabled {
   inset: 0;
   transform: translate(var(--pan-x), var(--pan-y)) scale(var(--face-zoom));
   transform-origin: center;
-  transition: transform 0.16s ease;
   pointer-events: none;
 }
 
@@ -1392,11 +1425,11 @@ textarea:disabled {
 }
 
 .quick-editor {
-  width: 208px;
-  padding: 11px 12px 12px;
+  width: 224px;
+  padding: 12px;
   border-radius: 10px;
-  border-color: #dfe6f1;
-  box-shadow: 0 12px 28px rgba(28, 47, 84, 0.16);
+  border-color: #dbe4f2;
+  box-shadow: 0 14px 30px rgba(28, 47, 84, 0.18);
   transform: translate(var(--quick-offset-x), var(--quick-offset-y));
 }
 
@@ -1425,6 +1458,41 @@ textarea:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.quick-editor-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-editor-title > i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.quick-editor .quick-editor-title label {
+  display: block;
+  color: #273651;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.quick-editor-title small {
+  display: block;
+  max-width: 118px;
+  overflow: hidden;
+  color: #77849a;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-editor-actions {
@@ -1433,13 +1501,13 @@ textarea:disabled {
 }
 
 .quick-editor-actions button {
-  width: 28px;
-  height: 28px;
+  width: 27px;
+  height: 27px;
   display: grid;
   place-items: center;
-  border: 0;
-  border-radius: 5px;
-  background: #f1f3f7;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f5f7fa;
   color: #65728b;
   cursor: pointer;
 }
@@ -1447,16 +1515,6 @@ textarea:disabled {
 .quick-editor-actions button:hover {
   background: #e3e8f1;
   color: #33415b;
-}
-
-.quick-editor-actions button.confirm {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.quick-editor-actions button.confirm:hover {
-  background: #1d4ed8;
-  color: #ffffff;
 }
 
 .quick-editor-actions button.delete {
@@ -1477,21 +1535,54 @@ textarea:disabled {
 }
 
 .quick-row {
-  grid-template-columns: 104px auto;
-  gap: 10px;
+  display: block;
+  margin-top: 10px;
+}
+
+.quick-quantity-field {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.quick-quantity-field:focus-within {
+  border-color: #8fb0ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .quick-row input {
-  height: 46px;
-  padding: 7px 11px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
+  height: 40px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.quick-row span {
-  color: #6d7890;
-  font-size: 0.82rem;
+.quick-row input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.quick-quantity-field span {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border-left: 1px solid #e6ebf2;
+  background: #f8faff;
+  color: #49617f;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.quick-row input {
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -1499,14 +1590,14 @@ textarea:disabled {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .quantity-presets button {
   min-width: 0;
-  height: 29px;
+  height: 28px;
   border: 1px solid #e1e6ee;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #ffffff;
   color: #68748b;
   cursor: pointer;
@@ -1523,14 +1614,14 @@ textarea:disabled {
 
 .map-hint {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 12px;
+  left: 12px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   margin: 0;
-  padding: 9px 14px;
+  padding: 7px 10px;
   border: 1px solid #e7ebf2;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
@@ -1546,8 +1637,8 @@ textarea:disabled {
 
 .zoom-controls {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: 12px;
+  bottom: 12px;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -1603,8 +1694,8 @@ textarea:disabled {
 
 .summary-block,
 .notes-block {
-  padding: 16px;
-  gap: 10px;
+  padding: 14px;
+  gap: 8px;
 }
 
 .panel-label {
@@ -1615,7 +1706,7 @@ textarea:disabled {
 }
 
 .total-row {
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
   padding: 0;
   border-bottom-color: #edf0f5;
@@ -1648,8 +1739,13 @@ textarea:disabled {
 }
 
 .notes-block textarea {
-  min-height: 150px;
-  resize: vertical;
+  min-height: 112px;
+  resize: none;
+  font-weight: 400;
+}
+
+.notes-block textarea::placeholder {
+  font-weight: 400;
 }
 
 .loading-inline {
@@ -1659,6 +1755,8 @@ textarea:disabled {
 @media (max-width: 1180px) {
   .facial-planning {
     grid-template-columns: minmax(205px, 0.85fr) minmax(430px, 1.8fr);
+    height: auto;
+    min-height: 610px;
   }
 
   .details-panel {
@@ -1673,6 +1771,7 @@ textarea:disabled {
 @media (max-width: 760px) {
   .facial-planning {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: 0;
   }
 
@@ -1680,23 +1779,6 @@ textarea:disabled {
     grid-column: auto;
     grid-row: auto;
     display: flex;
-  }
-
-  .workspace-toolbar {
-    align-items: flex-start;
-  }
-
-  .workspace-toolbar h3 {
-    white-space: normal;
-  }
-
-  .toolbar-actions {
-    grid-template-columns: repeat(3, max-content);
-    justify-content: start;
-  }
-
-  .toolbar-actions .segmented-control {
-    justify-self: start;
   }
 
   .map-stage {
