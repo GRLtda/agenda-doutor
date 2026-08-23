@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   CalendarDays,
@@ -8,11 +8,12 @@ import {
   LockKeyholeOpen,
   LoaderCircle,
   Maximize2,
+  Minimize2,
   Minus,
-  MousePointerClick,
   Plus,
   Save,
   Trash2,
+  X,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import { useFacialPlanningsStore } from '@/stores/facialPlannings'
@@ -83,6 +84,12 @@ const faceZoom = ref(100)
 const facePan = ref({ x: 0, y: 0 })
 const mapInteraction = ref(null)
 const ignoreNextMapClick = ref(false)
+const isFullscreen = ref(false)
+const planningContainer = ref(null)
+const procedureList = ref(null)
+const historyList = ref(null)
+const procedureHasScrollBelow = ref(false)
+const historyHasScrollBelow = ref(false)
 const draft = ref(createEmptyDraft())
 
 const selectedProcedure = computed(() =>
@@ -198,6 +205,31 @@ function newPlanning() {
   selectedPointId.value = null
 }
 
+async function openPlanningFullscreen() {
+  if (!planningContainer.value?.requestFullscreen) return
+
+  try {
+    await planningContainer.value.requestFullscreen()
+  } catch {
+    toast.error('Não foi possível abrir o planejamento em tela cheia.')
+  }
+}
+
+async function closePlanningFullscreen() {
+  if (document.fullscreenElement) await document.exitFullscreen()
+}
+
+function handleFullscreenChange() {
+  const enteredFullscreen = document.fullscreenElement === planningContainer.value
+  isFullscreen.value = enteredFullscreen
+  faceZoom.value = enteredFullscreen ? 160 : 100
+  facePan.value = { x: 0, y: 0 }
+}
+
+function handleFullscreenKeydown(event) {
+  if (event.key === 'Escape' && isFullscreen.value) closePlanningFullscreen()
+}
+
 function inferRegion(x, y) {
   if (y < 24) return 'Frontal'
   if (y < 37 && x < 42) return 'Região periocular esquerda'
@@ -245,14 +277,29 @@ function closeQuickEditor() {
 }
 
 function changeFaceZoom(amount) {
-  const nextZoom = Math.max(60, Math.min(180, faceZoom.value + amount))
+  const nextZoom = Math.max(60, Math.min(300, faceZoom.value + amount))
   faceZoom.value = nextZoom
   if (nextZoom <= 100) facePan.value = { x: 0, y: 0 }
 }
 
 function resetFaceZoom() {
-  faceZoom.value = 100
+  faceZoom.value = isFullscreen.value ? 160 : 100
   facePan.value = { x: 0, y: 0 }
+}
+
+function updateProcedureScrollFade() {
+  const element = procedureList.value
+  procedureHasScrollBelow.value = Boolean(element && element.scrollTop + element.clientHeight < element.scrollHeight - 1)
+}
+
+function updateHistoryScrollFade() {
+  const element = historyList.value
+  historyHasScrollBelow.value = Boolean(element && element.scrollTop + element.clientHeight < element.scrollHeight - 1)
+}
+
+function updateScrollFades() {
+  updateProcedureScrollFade()
+  updateHistoryScrollFade()
 }
 
 function removeSelectedPoint() {
@@ -316,7 +363,6 @@ function startMapPan(event) {
     originY: facePan.value.y,
     moved: false,
   }
-  event.currentTarget.setPointerCapture?.(event.pointerId)
 }
 
 function moveMapPan(event) {
@@ -324,7 +370,11 @@ function moveMapPan(event) {
   if (!interaction || interaction.type !== 'pan') return
   const dx = event.clientX - interaction.startX
   const dy = event.clientY - interaction.startY
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) interaction.moved = true
+  if (!interaction.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    interaction.moved = true
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  if (!interaction.moved) return
   facePan.value = {
     x: Math.max(-180, Math.min(180, interaction.originX + dx)),
     y: Math.max(-180, Math.min(180, interaction.originY + dy)),
@@ -465,11 +515,34 @@ watch(
   }
 )
 
-onMounted(loadPlannings)
+watch(isFullscreen, (active) => {
+  document.body.style.overflow = active ? 'hidden' : ''
+  nextTick(updateScrollFades)
+})
+
+watch(
+  () => [draft.value.points.length, historyItems.value.length],
+  () => nextTick(updateScrollFades)
+)
+
+onMounted(() => {
+  document.addEventListener('keydown', handleFullscreenKeydown)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  window.addEventListener('resize', updateScrollFades)
+  loadPlannings()
+  nextTick(updateScrollFades)
+})
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+  document.removeEventListener('keydown', handleFullscreenKeydown)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  window.removeEventListener('resize', updateScrollFades)
+})
 </script>
 
 <template>
-  <div class="facial-planning">
+  <div ref="planningContainer" class="facial-planning" :class="{ 'is-fullscreen': isFullscreen }">
     <aside class="planning-sidebar">
       <section class="planning-header">
         <div class="planning-title">
@@ -492,7 +565,7 @@ onMounted(loadPlannings)
         <span>Procedimentos</span>
       </div>
 
-      <div class="scroll-list procedure-list">
+      <div ref="procedureList" class="scroll-list procedure-list" :class="{ 'has-scroll-below': procedureHasScrollBelow }" @scroll="updateProcedureScrollFade">
         <button
           v-for="item in totals"
           :key="item.type"
@@ -526,6 +599,11 @@ onMounted(loadPlannings)
         @pointercancel="stopMapPan"
         @click="closeQuickEditor"
       >
+        <div v-if="isFullscreen" class="fullscreen-map-header">
+          <button type="button" title="Sair da tela cheia" aria-label="Sair da tela cheia" @click="closePlanningFullscreen">
+            <X :size="19" />
+          </button>
+        </div>
         <div
           class="face-map"
           :class="{ readonly: !canEdit, male: draft.faceVariant === 'MALE', pannable: faceZoom > 100 }"
@@ -620,22 +698,25 @@ onMounted(loadPlannings)
             </div>
           </div>
         </div>
-        <p v-if="canEdit" class="map-hint" @click.stop @pointerdown.stop @pointerup.stop>
-          <MousePointerClick :size="15" />
-          Clique no rosto para <strong>adicionar pontos</strong>
-        </p>
         <div class="zoom-controls" aria-label="Zoom do mapa facial" @click.stop @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop>
           <div class="zoom-group">
             <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" :disabled="faceZoom <= 60" @click="changeFaceZoom(-10)">
               <Minus :size="16" />
             </button>
             <button type="button" class="zoom-level" title="Redefinir zoom" @click="resetFaceZoom">{{ faceZoom }}%</button>
-            <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" :disabled="faceZoom >= 180" @click="changeFaceZoom(10)">
+            <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" :disabled="faceZoom >= 300" @click="changeFaceZoom(10)">
               <Plus :size="16" />
             </button>
           </div>
-          <button type="button" class="fit-map" title="Ajustar ao mapa" aria-label="Ajustar ao mapa" @click="resetFaceZoom">
-            <Maximize2 :size="16" />
+          <button
+            type="button"
+            class="fit-map"
+            :title="isFullscreen ? 'Sair da tela cheia' : 'Abrir planejamento em tela cheia'"
+            :aria-label="isFullscreen ? 'Sair da tela cheia' : 'Abrir planejamento em tela cheia'"
+            @click="isFullscreen ? closePlanningFullscreen() : openPlanningFullscreen()"
+          >
+            <Minimize2 v-if="isFullscreen" :size="16" />
+            <Maximize2 v-else :size="16" />
           </button>
         </div>
       </div>
@@ -686,7 +767,7 @@ onMounted(loadPlannings)
             </button>
           </div>
         </div>
-        <div class="scroll-list history-list">
+        <div ref="historyList" class="scroll-list history-list" :class="{ 'has-scroll-below': historyHasScrollBelow }" @scroll="updateHistoryScrollFade">
           <button
             v-for="item in historyItems"
             :key="item._id"
@@ -1355,6 +1436,7 @@ textarea:disabled {
 }
 
 .scroll-list::after {
+  display: none;
   position: sticky;
   bottom: 0;
   display: block;
@@ -1363,6 +1445,10 @@ textarea:disabled {
   content: '';
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 88%);
+}
+
+.scroll-list.has-scroll-below::after {
+  display: block;
 }
 
 .procedure-list {
@@ -2044,6 +2130,108 @@ textarea:disabled {
 
   .quick-editor {
     width: min(208px, calc(100vw - 48px));
+  }
+}
+
+.facial-planning.is-fullscreen {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.is-fullscreen .planning-sidebar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 7;
+  width: min(310px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  box-shadow: 0 16px 36px rgba(34, 52, 86, 0.16);
+}
+
+.is-fullscreen .planning-header,
+.is-fullscreen .sidebar-notes-block,
+.is-fullscreen .details-panel {
+  display: none;
+}
+
+.is-fullscreen .planning-sidebar > .sidebar-heading {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 18px;
+  border-bottom: 1px solid #e7ecf3;
+  background: #fbfcff;
+}
+
+.is-fullscreen .procedure-list {
+  flex: 1;
+  max-height: none;
+  padding: 12px;
+}
+
+.is-fullscreen .planning-workspace {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.is-fullscreen .map-stage {
+  min-height: 0;
+  padding: 16px 16px 50px;
+}
+
+.fullscreen-map-header {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 7;
+}
+
+.fullscreen-map-header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce4ef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #44516a;
+  cursor: pointer;
+}
+
+.fullscreen-map-header button:hover {
+  border-color: #b9caf0;
+  color: #1d5eff;
+}
+
+@media (max-width: 760px) {
+  .facial-planning.is-fullscreen {
+    padding: 0;
+  }
+
+  .is-fullscreen .map-stage {
+    min-height: 0;
+    padding: 8px 8px 50px;
+  }
+
+  .is-fullscreen .planning-sidebar > .sidebar-heading {
+    padding: 14px 12px;
+    font-size: 0.74rem;
+  }
+
+  .is-fullscreen .procedure-list {
+    padding: 8px;
   }
 }
 </style>
