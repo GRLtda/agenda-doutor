@@ -2,7 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
+  CalendarDays,
   CheckCircle2,
+  LockKeyhole,
   LockKeyholeOpen,
   LoaderCircle,
   Maximize2,
@@ -14,6 +16,7 @@ import {
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import { useFacialPlanningsStore } from '@/stores/facialPlannings'
+import { useClinicStore } from '@/stores/clinic'
 import faceFemaleImage from '../../../../assets/imgs/facial-planning/face-female.png'
 import faceMaleImage from '../../../../assets/imgs/facial-planning/face-male.png'
 
@@ -27,6 +30,7 @@ const props = defineProps({
 
 const toast = useToast()
 const planningStore = useFacialPlanningsStore()
+const clinicStore = useClinicStore()
 
 const procedureTypes = [
   {
@@ -424,6 +428,27 @@ function planningProfessional(planning) {
   return planning.author?.name || planning.author?.fullName || planning.points?.find((point) => point.professionalName)?.professionalName || 'Profissional não informado'
 }
 
+function planningProfessionalImage(planning) {
+  const authorId = planning.author?._id || planning.author?.id || planning.author
+  if (!authorId) return null
+
+  const staffMember = (clinicStore.currentClinic?.staff || []).find(
+    (staff) => String(staff._id || staff.id) === String(authorId)
+  )
+
+  return staffMember?.profilePhotoUrl || null
+}
+
+function planningProfessionalInitials(planning) {
+  return planningProfessional(planning)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
 watch(() => props.patientId, loadPlannings)
 
 watch(
@@ -465,10 +490,6 @@ onMounted(loadPlannings)
 
       <div class="sidebar-heading">
         <span>Procedimentos</span>
-        <button type="button" class="new-link" @click="newPlanning">
-          <Plus :size="14" />
-          Novo
-        </button>
       </div>
 
       <div class="scroll-list procedure-list">
@@ -489,26 +510,9 @@ onMounted(loadPlannings)
         </button>
       </div>
 
-      <div class="history-panel">
-        <div class="sidebar-heading compact">
-          <span>Histórico</span>
-        </div>
-        <div class="scroll-list history-list">
-          <button
-            v-for="item in historyItems"
-            :key="item._id"
-            type="button"
-            class="history-item"
-            :class="{ active: activePlanningId === item._id }"
-            @click="selectPlanning(item)"
-          >
-            <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
-            <small>{{ formatDate(item.finalizedAt || item.updatedAt) }} · {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}</small>
-            <small class="history-procedures">{{ planningProcedures(item) }}</small>
-            <small>{{ planningProfessional(item) }}</small>
-          </button>
-          <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
-        </div>
+      <div class="notes-block sidebar-notes-block">
+        <span class="panel-label">Observações clínicas</span>
+        <textarea v-model="draft.notes" rows="5" placeholder="Observações gerais do planejamento..." :disabled="!canEdit"></textarea>
       </div>
     </aside>
 
@@ -580,11 +584,6 @@ onMounted(loadPlannings)
             @pointerup.stop
             @pointercancel.stop
           >
-            <button v-if="isFinalized" type="button" class="reopen-point-button" @click="reopenPlanning">
-              <LockKeyholeOpen :size="15" />
-              Reabrir planejamento
-            </button>
-            <template v-else>
             <div class="quick-editor-header">
               <div class="quick-editor-title">
                 <i :style="{ backgroundColor: selectedPointProcedure.color }"></i>
@@ -596,6 +595,9 @@ onMounted(loadPlannings)
               <div class="quick-editor-actions">
                 <button v-if="canEdit" type="button" class="delete" title="Excluir ponto" aria-label="Excluir ponto" @click="removeSelectedPoint">
                   <Trash2 :size="13" />
+                </button>
+                <button v-else type="button" class="locked" title="Planejamento finalizado" aria-label="Planejamento finalizado" disabled>
+                  <LockKeyhole :size="13" />
                 </button>
               </div>
             </div>
@@ -616,10 +618,9 @@ onMounted(loadPlannings)
                 {{ formatQuantity(quantity) }}
               </button>
             </div>
-            </template>
           </div>
         </div>
-        <p class="map-hint" @click.stop @pointerdown.stop @pointerup.stop>
+        <p v-if="canEdit" class="map-hint" @click.stop @pointerdown.stop @pointerup.stop>
           <MousePointerClick :size="15" />
           Clique no rosto para <strong>adicionar pontos</strong>
         </p>
@@ -644,6 +645,10 @@ onMounted(loadPlannings)
       <section class="details-header">
         <h3>Ações do planejamento</h3>
         <div class="planning-actions">
+          <AppButton v-if="isFinalized" variant="primary" size="sm" @click="newPlanning">
+            <Plus :size="15" />
+            Novo
+          </AppButton>
           <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
             <Save :size="15" />
             Salvar
@@ -671,9 +676,53 @@ onMounted(loadPlannings)
         <p v-if="!draft.points.length" class="muted">Clique no rosto para adicionar pontos.</p>
       </div>
 
-      <div class="notes-block">
-        <span class="panel-label">Observações clínicas</span>
-        <textarea v-model="draft.notes" rows="5" placeholder="Observações gerais do planejamento..." :disabled="!canEdit"></textarea>
+      <div class="history-panel details-history-panel">
+        <div class="sidebar-heading compact">
+          <span>Histórico</span>
+          <div class="history-actions">
+            <button type="button" class="new-link" @click="newPlanning">
+              <Plus :size="14" />
+              Novo
+            </button>
+          </div>
+        </div>
+        <div class="scroll-list history-list">
+          <button
+            v-for="item in historyItems"
+            :key="item._id"
+            type="button"
+            class="history-item"
+            :class="{ active: activePlanningId === item._id }"
+            @click="selectPlanning(item)"
+          >
+            <div class="history-item-main">
+              <span class="professional-avatar">
+                <span>{{ planningProfessionalInitials(item) }}</span>
+                <img
+                  v-if="planningProfessionalImage(item)"
+                  :src="planningProfessionalImage(item)"
+                  :alt="`Foto de ${planningProfessional(item)}`"
+                  @error="$event.target.remove()"
+                />
+              </span>
+              <span class="history-copy">
+                <span class="history-title-row">
+                  <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
+                  <small class="history-status" :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'">
+                    {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}
+                  </small>
+                </span>
+                <small class="history-date">
+                  <CalendarDays :size="12" />
+                  {{ formatDate(item.finalizedAt || item.updatedAt) }}
+                </small>
+                <small class="history-procedures">{{ planningProcedures(item) }}</small>
+                <small class="history-professional">{{ planningProfessional(item) }}</small>
+              </span>
+            </div>
+          </button>
+          <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
+        </div>
       </div>
 
       <div v-if="planningStore.isLoading" class="loading-inline">
@@ -1204,6 +1253,10 @@ textarea:disabled {
   grid-column: 1 / -1;
 }
 
+.planning-actions :deep(.app-button:nth-child(3):last-child) {
+  grid-column: 1 / -1;
+}
+
 .planning-actions :deep(.variant-primary) {
   background: #2563eb;
 }
@@ -1239,6 +1292,15 @@ textarea:disabled {
 
 .notes-block {
   border-top: 1px solid #e9edf4;
+}
+
+.sidebar-notes-block {
+  margin-top: 14px;
+  padding: 14px 0 0;
+}
+
+.sidebar-notes-block textarea {
+  min-height: 92px;
 }
 
 .sidebar-heading {
@@ -1358,6 +1420,32 @@ textarea:disabled {
   padding-right: 4px;
 }
 
+.details-history-panel {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid #e9edf4;
+}
+
+.details-history-panel .sidebar-heading.compact {
+  margin: 0 0 10px;
+}
+
+.history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.details-history-panel .history-list {
+  min-height: 0;
+  flex: 1;
+  max-height: none;
+}
+
 .history-item {
   gap: 3px;
   padding: 9px 8px;
@@ -1373,6 +1461,117 @@ textarea:disabled {
 .history-item.active {
   border-color: #d8e3fb;
   background: #f7f9fd;
+}
+
+.details-history-panel .history-item {
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid transparent;
+  background: #ffffff;
+}
+
+.details-history-panel .history-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.details-history-panel .history-item:hover {
+  border-color: #d8e3fb;
+  background: #f8faff;
+}
+
+.details-history-panel .history-item.active {
+  border-color: #c6d8ff;
+  background: #f3f7ff;
+}
+
+.history-item-main {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+
+.professional-avatar {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #dce6f7;
+  border-radius: 50%;
+  background: #eaf1ff;
+  color: #2860df;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.professional-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.history-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.history-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #253452;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-status {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.63rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.history-status.finalized {
+  background: #eaf8f1;
+  color: #16835a;
+}
+
+.history-status.draft {
+  background: #eef3ff;
+  color: #3865c5;
+}
+
+.history-date,
+.history-professional {
+  color: #74819a;
+  font-size: 0.7rem;
+}
+
+.history-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-procedures {
+  color: #3e5680;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .planning-workspace {
@@ -1565,6 +1764,14 @@ textarea:disabled {
   color: #b91c1c;
 }
 
+.quick-editor-actions button.locked,
+.quick-editor-actions button.locked:disabled {
+  cursor: default;
+  opacity: 1;
+  background: #f1f3f7;
+  color: #77849a;
+}
+
 .quick-editor label,
 .notes-block {
   color: #62708a;
@@ -1732,7 +1939,6 @@ textarea:disabled {
 
 .summary-block,
 .notes-block {
-  padding: 14px;
   gap: 8px;
 }
 
