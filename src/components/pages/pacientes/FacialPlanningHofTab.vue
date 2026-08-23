@@ -289,12 +289,18 @@ function resetFaceZoom() {
 
 function updateProcedureScrollFade() {
   const element = procedureList.value
-  procedureHasScrollBelow.value = Boolean(element && element.scrollTop + element.clientHeight < element.scrollHeight - 1)
+  const lastItem = element?.lastElementChild
+  procedureHasScrollBelow.value = Boolean(
+    lastItem && lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1
+  )
 }
 
 function updateHistoryScrollFade() {
   const element = historyList.value
-  historyHasScrollBelow.value = Boolean(element && element.scrollTop + element.clientHeight < element.scrollHeight - 1)
+  const lastItem = element?.lastElementChild
+  historyHasScrollBelow.value = Boolean(
+    lastItem && lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1
+  )
 }
 
 function updateScrollFades() {
@@ -1439,7 +1445,6 @@ textarea:disabled {
   display: none;
   position: sticky;
   bottom: 0;
-  display: block;
   height: 28px;
   margin-top: -28px;
   content: '';

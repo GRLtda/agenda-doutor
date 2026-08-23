@@ -96,6 +96,7 @@ function getEntityIcon(entity) {
   if (entity === 'Lote') return Box
   if (entity === 'KitProcedimento') return ClipboardList
   if (entity === 'Movimentacao') return Activity
+  if (entity === 'FacialPlanning') return ClipboardList
   return Clock
 }
 

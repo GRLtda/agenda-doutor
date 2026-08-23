@@ -537,26 +537,30 @@ async function deleteAppointment(appointment) {
 
     <div v-else-if="patient">
       <header class="patient-header">
-        <div class="patient-info">
-          <div class="patient-avatar">
-            {{ patient.name.charAt(0) }}
-          </div>
-          <div class="patient-title-wrapper">
-            <div class="name-and-status">
-              <h1 class="patient-name">{{ patient.name }}</h1>
-              <div v-if="missingInfo.length > 0" class="missing-info-badge" :title="`Faltam: ${missingInfo.join(', ')}`">
-                  <AlertTriangle :size="20" />
-                  <div class="missing-info-tooltip">
-                      <span class="tooltip-title">Faltam informações:</span>
-                      <ul class="tooltip-list">
-                          <li v-for="item in missingInfo" :key="item">{{ item }}</li>
-                      </ul>
-                  </div>
-              </div>
+        <div class="patient-info-card">
+          <div class="patient-info">
+            <div class="patient-avatar">
+              {{ patient.name.charAt(0) }}
             </div>
-            <div class="patient-meta">
-              <span>ID: #{{ patient._id.slice(-6).toUpperCase() }}</span>
-              <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+            <div class="patient-title-wrapper">
+              <div class="name-and-status">
+                <h1 class="patient-name">
+                  {{ patient.name }}<template v-if="patient.nickname"> ({{ patient.nickname }})</template>
+                </h1>
+                <div v-if="missingInfo.length > 0" class="missing-info-badge" :title="`Faltam: ${missingInfo.join(', ')}`">
+                    <AlertTriangle :size="20" />
+                    <div class="missing-info-tooltip">
+                        <span class="tooltip-title">Faltam informações:</span>
+                        <ul class="tooltip-list">
+                            <li v-for="item in missingInfo" :key="item">{{ item }}</li>
+                        </ul>
+                    </div>
+                </div>
+              </div>
+              <div class="patient-meta">
+                <span>ID: #{{ patient._id.slice(-6).toUpperCase() }}</span>
+                <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+              </div>
             </div>
           </div>
         </div>
@@ -1216,7 +1220,12 @@ async function deleteAppointment(appointment) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e3e9f2;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(25, 45, 84, 0.04);
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -1224,8 +1233,10 @@ async function deleteAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-grow: 1;
   min-width: 200px;
+}
+.patient-info-card {
+  min-width: 0;
 }
 .patient-avatar {
   width: 64px;
@@ -1409,7 +1420,7 @@ async function deleteAppointment(appointment) {
 .patient-tab-layout {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: start;
 }
 
@@ -2178,6 +2189,9 @@ async function deleteAppointment(appointment) {
     align-items: center;
   }
   .patient-info {
+    width: 100%;
+  }
+  .patient-info-card {
     width: 100%;
   }
   .patient-name {
