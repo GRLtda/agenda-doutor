@@ -1471,7 +1471,7 @@ async function deleteAppointment(appointment) {
   height: 100%;
 }
 .card-section {
-  padding: 1.5rem 2rem;
+  padding: 1.3rem 1.3rem;
 }
 .full-width-section {
   height: 100%;

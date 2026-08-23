@@ -641,20 +641,23 @@ onMounted(loadPlannings)
     </section>
 
     <aside class="details-panel">
-      <div class="planning-actions">
-        <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
-          <Save :size="15" />
-          Salvar
-        </AppButton>
-        <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
-          <CheckCircle2 :size="15" />
-          Finalizar
-        </AppButton>
-        <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
-          <LockKeyholeOpen :size="15" />
-          Reabrir
-        </AppButton>
-      </div>
+      <section class="details-header">
+        <h3>Ações do planejamento</h3>
+        <div class="planning-actions">
+          <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
+            <Save :size="15" />
+            Salvar
+          </AppButton>
+          <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
+            <CheckCircle2 :size="15" />
+            Finalizar
+          </AppButton>
+          <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
+            <LockKeyholeOpen :size="15" />
+            Reabrir
+          </AppButton>
+        </div>
+      </section>
 
       <div class="summary-block">
         <span class="panel-label">Totais do mapa</span>
@@ -1119,8 +1122,7 @@ textarea:disabled {
 
 .planning-sidebar,
 .planning-workspace,
-.summary-block,
-.notes-block {
+.details-panel {
   border: 1px solid #e5eaf2;
   border-radius: 12px;
   background: #ffffff;
@@ -1173,6 +1175,22 @@ textarea:disabled {
   gap: 7px;
 }
 
+.details-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid #e9edf4;
+  background: #fbfcff;
+}
+
+.details-header h3 {
+  margin: 0;
+  color: #17213b;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
 .planning-actions :deep(.app-button) {
   width: 100%;
   height: 32px;
@@ -1196,11 +1214,31 @@ textarea:disabled {
   color: #149765;
 }
 
+.planning-actions :deep(.variant-secondary:hover:not(.is-disabled)) {
+  border-color: #149765;
+  background: #149765;
+  color: #ffffff;
+}
+
 .details-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 0;
-  gap: 12px;
-  border-left: 0;
-  background: transparent;
+  gap: 0;
+  overflow: hidden;
+}
+
+.summary-block,
+.notes-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.notes-block {
+  border-top: 1px solid #e9edf4;
 }
 
 .sidebar-heading {
@@ -1762,8 +1800,8 @@ textarea:disabled {
   .details-panel {
     grid-column: 1 / -1;
     grid-row: auto;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
   }
 
 }
