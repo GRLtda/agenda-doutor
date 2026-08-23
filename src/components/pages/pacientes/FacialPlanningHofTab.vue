@@ -586,6 +586,16 @@ function pointStyle(point) {
 
 function quickEditorStyle(point) {
   const { x, y } = getProjectedCoordinates(point)
+
+  if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches) {
+    return {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+    }
+  }
+
   return {
     left: `calc(${x}% + ${facePan.value.x}px)`,
     top: `calc(${y}% + ${facePan.value.y}px)`,
@@ -3144,7 +3154,10 @@ textarea:disabled {
 
   .facial-planning:not(.mobile-history) .quick-editor {
     z-index: 20;
-    width: min(224px, calc(100vw - 32px));
+    width: min(360px, calc(100dvw - 24px));
+    max-height: min(360px, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   @keyframes mobile-planning-open {
