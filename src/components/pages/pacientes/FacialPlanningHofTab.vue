@@ -1,9 +1,11 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
   CalendarDays,
   CheckCircle2,
+  ExternalLink,
   LockKeyhole,
   LockKeyholeOpen,
   LoaderCircle,
@@ -30,6 +32,7 @@ const props = defineProps({
 })
 
 const toast = useToast()
+const router = useRouter()
 const planningStore = useFacialPlanningsStore()
 const clinicStore = useClinicStore()
 
@@ -105,6 +108,7 @@ const selectedPointProcedure = computed(() =>
 )
 
 const isFinalized = computed(() => draft.value.status === 'FINALIZED')
+const isAppointmentPlanning = computed(() => Boolean(props.appointmentId))
 const canEdit = computed(() => !props.disabled && !isFinalized.value)
 const faceImageSrc = computed(() => {
   if (faceImageLoadFailed.value) return null
@@ -182,15 +186,22 @@ function payloadFromDraft() {
 }
 
 async function loadPlannings() {
-  await planningStore.fetchByPatient(props.patientId)
+  if (props.appointmentId) await planningStore.fetchByAppointment(props.appointmentId)
+  else await planningStore.fetchByPatient(props.patientId)
 
-  const appointmentDraft = props.appointmentId
-    ? historyItems.value.find((item) => item.appointment?._id === props.appointmentId || item.appointment === props.appointmentId)
-    : null
-
-  const first = appointmentDraft || historyItems.value[0]
+  const first = historyItems.value[0]
   if (first) selectPlanning(first)
   else newPlanning()
+}
+
+function planningAppointmentId(planning) {
+  return planning?.appointment?._id || planning?.appointment || null
+}
+
+function openPlanningAppointment(planning) {
+  const appointmentId = planningAppointmentId(planning)
+  if (!appointmentId) return
+  router.push(`/atendimentos/${appointmentId}/patient/${props.patientId}`)
 }
 
 function selectPlanning(planning) {
@@ -732,7 +743,7 @@ onBeforeUnmount(() => {
       <section class="details-header">
         <h3>Ações do planejamento</h3>
         <div class="planning-actions">
-          <AppButton v-if="isFinalized" variant="primary" size="sm" @click="newPlanning">
+          <AppButton v-if="!isAppointmentPlanning && isFinalized" variant="primary" size="sm" @click="newPlanning">
             <Plus :size="15" />
             Novo
           </AppButton>
@@ -740,11 +751,11 @@ onBeforeUnmount(() => {
             <Save :size="15" />
             Salvar
           </AppButton>
-          <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
+          <AppButton v-if="!isAppointmentPlanning && canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
             <CheckCircle2 :size="15" />
             Finalizar
           </AppButton>
-          <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
+          <AppButton v-if="!isAppointmentPlanning && isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
             <LockKeyholeOpen :size="15" />
             Reabrir
           </AppButton>
@@ -763,7 +774,7 @@ onBeforeUnmount(() => {
         <p v-if="!draft.points.length" class="muted">Clique no rosto para adicionar pontos.</p>
       </div>
 
-      <div class="history-panel details-history-panel">
+      <div v-if="!isAppointmentPlanning" class="history-panel details-history-panel">
         <div class="sidebar-heading compact">
           <span>Histórico</span>
           <div class="history-actions">
@@ -774,13 +785,15 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div ref="historyList" class="scroll-list history-list" :class="{ 'has-scroll-below': historyHasScrollBelow }" @scroll="updateHistoryScrollFade">
-          <button
+          <div
             v-for="item in historyItems"
             :key="item._id"
-            type="button"
+            role="button"
+            tabindex="0"
             class="history-item"
             :class="{ active: activePlanningId === item._id }"
             @click="selectPlanning(item)"
+            @keydown.enter="selectPlanning(item)"
           >
             <div class="history-item-main">
               <span class="professional-avatar">
@@ -805,9 +818,18 @@ onBeforeUnmount(() => {
                 </small>
                 <small class="history-procedures">{{ planningProcedures(item) }}</small>
                 <small class="history-professional">{{ planningProfessional(item) }}</small>
+                <button
+                  v-if="planningAppointmentId(item)"
+                  type="button"
+                  class="history-appointment-link"
+                  @click.stop="openPlanningAppointment(item)"
+                >
+                  <ExternalLink :size="12" />
+                  Atendimento
+                </button>
               </span>
             </div>
-          </button>
+          </div>
           <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
         </div>
       </div>
@@ -1663,6 +1685,26 @@ textarea:disabled {
   color: #3e5680;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.history-appointment-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-appointment-link:hover {
+  background: #eaf1ff;
 }
 
 .planning-workspace {
