@@ -3,8 +3,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
+  ArrowLeft,
   CalendarDays,
   CheckCircle2,
+  CircleDot,
   ExternalLink,
   FileDown,
   LockKeyhole,
@@ -99,9 +101,14 @@ const historyHasScrollBelow = ref(false)
 const saveFeedback = ref('idle')
 const showImportPlanningDrawer = ref(false)
 const showPlanningNameDrawer = ref(false)
+const mobileView = ref('history')
+const mobileMapOpening = ref(false)
+const mobileMapClosing = ref(false)
 const draft = ref(createEmptyDraft())
 let saveFeedbackTimeout = null
 let autosaveTimeout = null
+let mobileMapAnimationTimeout = null
+let mobileMapCloseTimeout = null
 let skipNextAutosave = false
 
 const selectedProcedure = computed(
@@ -253,7 +260,39 @@ function requestNewPlanning() {
 async function createNamedPlanning(title) {
   newPlanning(title)
   showPlanningNameDrawer.value = false
-  await saveDraft({ allowEmpty: true })
+  const result = await saveDraft({ allowEmpty: true })
+  if (result?.success && window.matchMedia?.('(max-width: 760px)').matches) {
+    openMobileMap()
+  }
+}
+
+function openMobileMap() {
+  clearTimeout(mobileMapAnimationTimeout)
+  clearTimeout(mobileMapCloseTimeout)
+  mobileMapClosing.value = false
+  mobileMapOpening.value = true
+  mobileView.value = 'map'
+  mobileMapAnimationTimeout = setTimeout(() => {
+    mobileMapOpening.value = false
+  }, 420)
+}
+
+function openMobilePlanning(planning) {
+  selectPlanning(planning)
+  openMobileMap()
+}
+
+function returnToMobileHistory() {
+  if (mobileMapClosing.value) return
+
+  closeQuickEditor()
+  clearTimeout(mobileMapAnimationTimeout)
+  mobileMapOpening.value = false
+  mobileMapClosing.value = true
+  mobileMapCloseTimeout = setTimeout(() => {
+    mobileView.value = 'history'
+    mobileMapClosing.value = false
+  }, 340)
 }
 
 async function openPlanningFullscreen() {
@@ -407,26 +446,34 @@ async function saveDraft(options = {}) {
     return { success: false }
   }
 
-  clearTimeout(saveFeedbackTimeout)
-  saveFeedback.value = 'syncing'
+  if (!autosave) {
+    clearTimeout(saveFeedbackTimeout)
+    saveFeedback.value = 'syncing'
+  }
 
   const result = await planningStore.save(payloadFromDraft(), activePlanningId.value)
   if (result.success) {
     if (autosave) activePlanningId.value = result.data._id
     else selectPlanning(result.data)
-    saveFeedback.value = 'synced'
-    saveFeedbackTimeout = setTimeout(() => {
-      saveFeedback.value = 'idle'
-    }, 2200)
+    if (!autosave) {
+      saveFeedback.value = 'synced'
+      saveFeedbackTimeout = setTimeout(() => {
+        saveFeedback.value = 'idle'
+      }, 2200)
+    }
   } else {
-    saveFeedback.value = 'idle'
-    toast.error(result.error)
+    if (!autosave) {
+      saveFeedback.value = 'idle'
+      toast.error(result.error)
+    }
   }
 
   return result
 }
 
 async function finalizePlanning() {
+  if (planningStore.isLoading || isFinalized.value) return
+
   if (!activePlanningId.value) {
     await saveDraft()
   }
@@ -663,6 +710,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearTimeout(saveFeedbackTimeout)
   clearTimeout(autosaveTimeout)
+  clearTimeout(mobileMapAnimationTimeout)
+  clearTimeout(mobileMapCloseTimeout)
   document.body.style.overflow = ''
   document.removeEventListener('keydown', handleFullscreenKeydown)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -671,7 +720,108 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="planningContainer" class="facial-planning" :class="{ 'is-fullscreen': isFullscreen }">
+  <div
+    ref="planningContainer"
+    class="facial-planning"
+    :class="{
+      'is-fullscreen': isFullscreen,
+      'mobile-history': mobileView === 'history',
+      'mobile-map-opening': mobileMapOpening,
+      'mobile-map-closing': mobileMapClosing,
+    }"
+  >
+    <section class="mobile-history-screen" aria-label="Histórico de planejamentos faciais">
+      <header class="mobile-history-header">
+        <div>
+          <p>Planejamento facial</p>
+          <h2>Histórico</h2>
+        </div>
+        <AppButton variant="primary" size="sm" @click="requestNewPlanning">
+          <Plus :size="16" />
+          Novo
+        </AppButton>
+      </header>
+
+      <div class="mobile-history-list">
+        <button
+          v-for="item in historyItems"
+          :key="item._id"
+          type="button"
+          class="mobile-history-item"
+          @click="openMobilePlanning(item)"
+        >
+          <span class="professional-avatar">
+            <span>{{ planningProfessionalInitials(item) }}</span>
+            <img
+              v-if="planningProfessionalImage(item)"
+              :src="planningProfessionalImage(item)"
+              :alt="`Foto de ${planningProfessional(item)}`"
+              @error="$event.target.remove()"
+            />
+          </span>
+          <span class="mobile-history-copy">
+            <span class="history-title-row">
+              <strong>{{ item.title || 'Planejamento Facial' }}</strong>
+              <small class="history-status" :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'">
+                {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}
+              </small>
+            </span>
+            <small class="history-date"><CalendarDays :size="13" /> {{ formatDate(item.finalizedAt || item.updatedAt) }}</small>
+            <small class="history-procedures">{{ planningProcedures(item) }}</small>
+            <small class="history-professional">{{ planningProfessional(item) }}</small>
+          </span>
+        </button>
+        <div v-if="!historyItems.length" class="mobile-empty-history">
+          <strong>Nenhum planejamento criado</strong>
+          <span>Crie um planejamento para começar a marcar os pontos no rosto.</span>
+        </div>
+      </div>
+    </section>
+
+    <header class="mobile-map-header">
+      <button type="button" aria-label="Voltar para o histórico" @click="returnToMobileHistory">
+        <ArrowLeft :size="20" />
+      </button>
+      <div>
+        <strong>{{ draft.title || 'Planejamento Facial' }}</strong>
+        <small>{{ isFinalized ? 'Procedimento realizado' : 'Em planejamento' }}</small>
+      </div>
+      <div class="mobile-map-actions">
+        <button
+          v-if="canEdit"
+          type="button"
+          class="mobile-planning-action"
+          :disabled="planningStore.isLoading"
+          @click="saveDraft"
+        >
+          <LoaderCircle v-if="planningStore.isLoading" :size="16" class="spin" />
+          <Save v-else :size="16" />
+          <span>Salvar</span>
+        </button>
+        <button
+          v-if="canFinalizeManually"
+          type="button"
+          class="mobile-planning-action primary"
+          :disabled="planningStore.isLoading"
+          @click="finalizePlanning"
+        >
+          <LoaderCircle v-if="planningStore.isLoading" :size="16" class="spin" />
+          <CheckCircle2 v-else :size="16" />
+          <span>Finalizar</span>
+        </button>
+        <button
+          v-if="isFinalized"
+          type="button"
+          class="mobile-planning-action"
+          :disabled="planningStore.isLoading"
+          @click="reopenPlanning"
+        >
+          <LockKeyholeOpen :size="18" />
+          <span>Reabrir</span>
+        </button>
+      </div>
+    </header>
+
     <aside class="planning-sidebar">
       <section class="planning-header">
         <div class="planning-title">
@@ -1080,6 +1230,28 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </aside>
+
+    <section class="mobile-procedure-carousel" aria-label="Procedimentos">
+      <div class="mobile-procedure-track">
+        <button
+          v-for="item in totals"
+          :key="item.type"
+          type="button"
+          class="mobile-procedure-card"
+          :class="{ active: activeType === item.type }"
+          @click="activeType = item.type"
+        >
+          <span class="mobile-procedure-icon" :style="{ color: item.color, backgroundColor: `${item.color}16` }">
+            <CircleDot :size="19" />
+          </span>
+          <span class="mobile-procedure-copy">
+            <strong>{{ item.label }}</strong>
+            <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
+          </span>
+          <span class="mobile-procedure-count">{{ item.points }} {{ item.points === 1 ? 'ponto' : 'pontos' }}</span>
+        </button>
+      </div>
+    </section>
 
     <ImportFacialPlanningDrawer
       v-if="showImportPlanningDrawer"
@@ -1885,6 +2057,7 @@ textarea:disabled {
   position: relative;
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1916,9 +2089,11 @@ textarea:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  min-width: 0;
 }
 
 .history-title-row strong {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   color: #253452;
@@ -2575,6 +2750,438 @@ textarea:disabled {
 
   .is-fullscreen .procedure-list {
     padding: 8px;
+  }
+}
+
+.mobile-history-screen,
+.mobile-map-header,
+.mobile-procedure-carousel {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .facial-planning {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: block;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #ffffff;
+  }
+
+  .facial-planning.mobile-history {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .facial-planning.mobile-history .planning-sidebar,
+  .facial-planning.mobile-history .planning-workspace,
+  .facial-planning.mobile-history .details-panel,
+  .facial-planning.mobile-history .mobile-map-header,
+  .facial-planning.mobile-history .mobile-procedure-carousel {
+    display: none;
+  }
+
+  .facial-planning.mobile-history .mobile-history-screen {
+    display: flex;
+  }
+
+  .mobile-history-screen {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    min-height: 360px;
+    flex-direction: column;
+    background: #f8fafc;
+    border: 1px solid #e5eaf2;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .mobile-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: calc(env(safe-area-inset-top) + 18px) 18px 18px;
+    border-bottom: 1px solid #e5eaf2;
+    background: #ffffff;
+  }
+
+  .mobile-history-header p,
+  .mobile-history-header h2 {
+    margin: 0;
+  }
+
+  .mobile-history-header p {
+    color: #52709f;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .mobile-history-header h2 {
+    margin-top: 2px;
+    color: #17213b;
+    font-size: 1.2rem;
+  }
+
+  .mobile-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px 16px calc(env(safe-area-inset-bottom) + 16px);
+    box-sizing: border-box;
+  }
+
+  .mobile-history-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid #e0e7f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  .mobile-history-item:active {
+    border-color: #b9d0ff;
+    background: #f5f8ff;
+  }
+
+  .mobile-history-item .professional-avatar {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+  }
+
+  .mobile-history-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    color: #6c7a94;
+    font-size: 0.73rem;
+  }
+
+  .mobile-history-item .history-title-row {
+    min-width: 0;
+  }
+
+  .mobile-history-item .history-title-row strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-history-item .history-procedures,
+  .mobile-history-item .history-professional {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-empty-history {
+    display: grid;
+    min-height: 200px;
+    place-content: center;
+    gap: 7px;
+    padding: 24px;
+    color: #72819a;
+    text-align: center;
+  }
+
+  .mobile-empty-history strong {
+    color: #31415e;
+  }
+
+  .mobile-empty-history span {
+    max-width: 240px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .facial-planning:not(.mobile-history) .planning-sidebar,
+  .facial-planning:not(.mobile-history) .details-panel {
+    display: none;
+  }
+
+  .facial-planning:not(.mobile-history) .planning-workspace {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .facial-planning.mobile-map-opening {
+    transform-origin: 50% 24%;
+    animation: mobile-planning-open 0.42s cubic-bezier(0.22, 0.9, 0.2, 1) both;
+  }
+
+  .facial-planning.mobile-map-closing {
+    transform-origin: 50% 24%;
+    pointer-events: none;
+    animation: mobile-planning-close 0.34s cubic-bezier(0.4, 0, 0.8, 0.2) both;
+  }
+
+  .mobile-map-opening .mobile-map-header,
+  .mobile-map-opening .mobile-procedure-carousel {
+    animation: mobile-planning-content-in 0.36s 0.08s ease-out both;
+  }
+
+  .facial-planning:not(.mobile-history) .mobile-map-header,
+  .facial-planning:not(.mobile-history) .mobile-procedure-carousel {
+    display: flex;
+  }
+
+  .mobile-map-header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 12;
+    align-items: center;
+    min-height: 58px;
+    padding: env(safe-area-inset-top) 12px 0;
+    border-bottom: 1px solid #e5eaf2;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .mobile-map-header > button,
+  .mobile-map-actions button {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid #dce5f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #405270;
+  }
+
+  .mobile-map-header > div:not(.mobile-map-actions) {
+    flex: 1;
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .mobile-map-header strong,
+  .mobile-map-header small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-map-header strong {
+    color: #21314d;
+    font-size: 0.82rem;
+  }
+
+  .mobile-map-header small {
+    margin-top: 2px;
+    color: #5c78b3;
+    font-size: 0.68rem;
+  }
+
+  .mobile-map-actions {
+    display: flex;
+    gap: 5px;
+  }
+
+  .mobile-map-actions .mobile-planning-action {
+    width: auto;
+    min-width: 0;
+    height: 34px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #1d5eff;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .mobile-map-actions .mobile-planning-action.primary {
+    border-color: #b7ccff;
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  .mobile-map-actions .mobile-planning-action:disabled {
+    cursor: wait;
+    opacity: 0.72;
+  }
+
+  .facial-planning:not(.mobile-history) .map-stage {
+    height: 100%;
+    min-height: 0;
+    padding: calc(env(safe-area-inset-top) + 70px) 8px calc(env(safe-area-inset-bottom) + 124px);
+  }
+
+  .facial-planning:not(.mobile-history) .face-map {
+    width: min(100%, 430px);
+  }
+
+  .facial-planning:not(.mobile-history) .zoom-controls {
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom) + 132px);
+  }
+
+  .facial-planning:not(.mobile-history) .zoom-controls .fit-map {
+    display: none;
+  }
+
+  .mobile-procedure-carousel {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 12;
+    flex-direction: column;
+    padding: 9px 0 calc(env(safe-area-inset-bottom) + 10px);
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 -10px 24px rgba(31, 50, 86, 0.07);
+  }
+
+  .mobile-procedure-track {
+    display: flex;
+    gap: 9px;
+    padding: 0 12px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .mobile-procedure-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-procedure-card {
+    display: grid;
+    grid-template-columns: auto minmax(108px, 1fr);
+    gap: 3px 8px;
+    width: 194px;
+    min-width: 194px;
+    padding: 10px;
+    border: 1px solid #e0e7f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    scroll-snap-align: start;
+  }
+
+  .mobile-procedure-card.active {
+    border-color: #acc7ff;
+    background: #f5f8ff;
+  }
+
+  .mobile-procedure-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    grid-row: span 2;
+    place-items: center;
+    border-radius: 50%;
+  }
+
+  .mobile-procedure-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .mobile-procedure-copy strong {
+    overflow: hidden;
+    color: #273752;
+    font-size: 0.74rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-procedure-copy small,
+  .mobile-procedure-count {
+    color: #71809a;
+    font-size: 0.67rem;
+  }
+
+  .mobile-procedure-count {
+    grid-column: 2;
+    color: #3565c6;
+    font-weight: 700;
+  }
+
+  .facial-planning:not(.mobile-history) .quick-editor {
+    z-index: 20;
+    width: min(224px, calc(100vw - 32px));
+  }
+
+  @keyframes mobile-planning-open {
+    from {
+      opacity: 0;
+      transform: translateY(22px) scale(0.96);
+      border-radius: 28px;
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      border-radius: 0;
+    }
+  }
+
+  @keyframes mobile-planning-content-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes mobile-planning-close {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      border-radius: 0;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(20px) scale(0.96);
+      border-radius: 28px;
+    }
   }
 }
 </style>

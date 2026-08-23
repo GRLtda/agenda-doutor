@@ -1341,6 +1341,7 @@ async function deleteAppointment(appointment) {
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   transition: box-shadow 0.2s;
+  min-width: 0;
 }
 
 .procedure-item:hover {
@@ -1351,17 +1352,24 @@ async function deleteAppointment(appointment) {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .proc-main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .proc-name {
   font-weight: 600;
   color: #111827;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proc-alias-badge {
@@ -1382,6 +1390,7 @@ async function deleteAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 0 0 auto;
 }
 
 .discount-tag {
@@ -2174,7 +2183,7 @@ async function deleteAppointment(appointment) {
     padding: 0.5rem 0.75rem;
   }
   .card-section {
-    padding: 0.5rem;
+    padding: 0rem;
   }
   .unified-card {
     background-color: transparent;
@@ -2182,8 +2191,19 @@ async function deleteAppointment(appointment) {
     box-shadow: none;
     border-radius: 0;
     height: auto;
+    width: 100%;
     min-height: 0;
     overflow: visible;
+  }
+  .history-section,
+  .history-grid,
+  .history-card {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .history-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .patient-header {
     align-items: center;
