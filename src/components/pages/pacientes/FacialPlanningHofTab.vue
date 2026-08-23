@@ -109,7 +109,10 @@ const selectedPointProcedure = computed(() =>
 
 const isFinalized = computed(() => draft.value.status === 'FINALIZED')
 const isAppointmentPlanning = computed(() => Boolean(props.appointmentId))
+const activePlanningAppointmentId = computed(() => planningAppointmentId(draft.value))
+const isPlanningLinkedToAppointment = computed(() => Boolean(activePlanningAppointmentId.value))
 const canEdit = computed(() => !props.disabled && !isFinalized.value)
+const canFinalizeManually = computed(() => canEdit.value && !isPlanningLinkedToAppointment.value)
 const faceImageSrc = computed(() => {
   if (faceImageLoadFailed.value) return null
   return draft.value.faceVariant === 'MALE' ? faceMaleImage : faceFemaleImage
@@ -603,6 +606,13 @@ onBeforeUnmount(() => {
       <div class="notes-block sidebar-notes-block">
         <span class="panel-label">Observações clínicas</span>
         <textarea v-model="draft.notes" rows="5" placeholder="Observações gerais do planejamento..." :disabled="!canEdit"></textarea>
+        <div v-if="isPlanningLinkedToAppointment" class="appointment-planning-notice">
+          <p>Este planejamento será finalizado ao concluir o atendimento.</p>
+          <AppButton v-if="!isAppointmentPlanning" variant="outline" size="sm" @click="openPlanningAppointment(draft)">
+            <ExternalLink :size="14" />
+            Ir para atendimento
+          </AppButton>
+        </div>
       </div>
     </aside>
 
@@ -751,7 +761,7 @@ onBeforeUnmount(() => {
             <Save :size="15" />
             Salvar
           </AppButton>
-          <AppButton v-if="!isAppointmentPlanning && canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
+          <AppButton v-if="!isAppointmentPlanning && canFinalizeManually" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
             <CheckCircle2 :size="15" />
             Finalizar
           </AppButton>
@@ -2123,6 +2133,30 @@ textarea:disabled {
 
 .notes-block textarea::placeholder {
   font-weight: 400;
+}
+
+.appointment-planning-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 10px;
+  border: 1px solid #dbe7ff;
+  border-radius: 7px;
+  background: #f6f9ff;
+}
+
+.appointment-planning-notice p {
+  margin: 0;
+  color: #536887;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.appointment-planning-notice :deep(button) {
+  width: 100%;
+  justify-content: center;
 }
 
 .loading-inline {
