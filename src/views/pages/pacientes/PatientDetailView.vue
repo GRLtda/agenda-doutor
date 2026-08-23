@@ -47,7 +47,6 @@ import {
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
-import AppTabs from '@/components/global/AppTabs.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { fetchAddressByCEP } from '@/api/external'
@@ -100,13 +99,13 @@ const activeTab = computed({
       'details': undefined // Remove param for details
     }
     const tabParam = reverseMap[newValue]
-    
+
     // Maintain current query params when switching tabs
-    router.push({ 
-      name: 'detalhes-paciente', 
-      params: { 
-        id: patient.value?._id || route.params.id, 
-        tab: tabParam 
+    router.push({
+      name: 'detalhes-paciente',
+      params: {
+        id: patient.value?._id || route.params.id,
+        tab: tabParam
       },
       query: route.query
     })
@@ -130,7 +129,7 @@ const answeredAnamneses = computed(() => anamnesisStore.answeredAnamneses || [])
 const pendingAnamneses = computed(() => anamnesisStore.pendingAnamneses || [])
 const expiredAnamneses = computed(() => anamnesisStore.expiredAnamneses || [])
 const showExpiredAnamneses = ref(false)
-const patientHistory = computed(() => 
+const patientHistory = computed(() =>
   (appointmentsStore.patientAppointments || []).filter(app => app.status !== 'Agendado')
 )
 
@@ -138,6 +137,17 @@ const genderOptions = [
   { value: 'Masculino', label: 'Masculino' },
   { value: 'Feminino', label: 'Feminino' },
   { value: 'Outro', label: 'Outro' },
+]
+
+const patientTabs = [
+  { value: 'details', label: 'Detalhes', icon: ClipboardList },
+  { value: 'anamneses', label: 'Anamneses', icon: FileText },
+  { value: 'history', label: 'Histórico', icon: History },
+  { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
+  { value: 'notes', label: 'Anotações', icon: MessageSquare },
+  { value: 'budgets', label: 'Orçamentos', icon: Receipt },
+  { value: 'termos', label: 'Termos', icon: FileSignature },
+  { value: 'media', label: 'Galeria', icon: Folder },
 ]
 
 const referralSourceOptions = [
@@ -259,7 +269,7 @@ const formattedBirthDate = computed(() => {
 
 function formatSimpleDate(dateString) {
   if (!dateString) return ''
-  
+
   // If it's a date string (YYYY-MM-DD)
   if (dateString.length === 10 && dateString.includes('-')) {
     const [year, month, day] = dateString.split('-').map(Number)
@@ -293,7 +303,7 @@ function handleCopyLink(token) {
     return;
   }
   const link = `${window.location.origin}/anamnese/${token}`
-  
+
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(() => {
       toast.info('Link de resposta copiado!')
@@ -322,18 +332,18 @@ function handleCopyLink(token) {
 async function handleGeneratePdf(anamnesis) {
   // Bloqueia se já estiver gerando um PDF
   if (generatingPdfId.value) return
-  
+
   if (!patient.value) {
     toast.error('Dados do paciente não carregados.')
     return
   }
-  
+
   generatingPdfId.value = anamnesis._id
 
   try {
     const templateName = anamnesis.template?.name || anamnesis.templateName || 'anamnese'
     const result = await anamnesisStore.downloadPdf(patient.value._id, anamnesis._id, templateName)
-    
+
     if (!result.success) {
       toast.error(result.error || 'Erro ao baixar PDF.')
     }
@@ -424,7 +434,7 @@ function openAppointmentModal(appointment) {
     ...appointment,
     patient: patient.value
   }
-  
+
   selectedAppointment.value = {
     originalEvent: appointmentWithPatient,
     start: appointment.startTime,
@@ -560,26 +570,24 @@ async function deleteAppointment(appointment) {
         </div>
       </header>
 
-      <div class="tabs-container-wrapper">
-        <AppTabs 
-          :model-value="activeTab" 
-          @update:model-value="activeTab = $event"
-          :items="[
-            { value: 'details', label: 'Detalhes', icon: ClipboardList },
-            { value: 'anamneses', label: 'Anamneses', icon: FileText },
-            { value: 'history', label: 'Histórico', icon: History },
-            { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
-            { value: 'notes', label: 'Anotações', icon: MessageSquare },
-            { value: 'budgets', label: 'Orçamentos', icon: Receipt },
-            { value: 'termos', label: 'Termos', icon: FileSignature },
-            { value: 'media', label: 'Galeria', icon: Folder },
-          ]"
-        />
-      </div>
+      <div class="patient-tab-layout">
+        <aside class="patient-tab-sidebar" aria-label="Navegação do paciente">
+          <button
+            v-for="tab in patientTabs"
+            :key="tab.value"
+            type="button"
+            class="patient-tab-button"
+            :class="{ active: activeTab === tab.value }"
+            @click="activeTab = tab.value"
+          >
+            <component :is="tab.icon" :size="18" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </aside>
 
-      <div class="tab-content unified-card">
-        <Transition name="fade" mode="out-in">
-          <div :key="activeTab" class="unified-card-content">
+        <div class="tab-content unified-card">
+          <Transition name="fade" mode="out-in">
+            <div :key="activeTab" class="unified-card-content">
             <div v-if="activeTab === 'media'">
                 <PatientMediaGallery :patient-id="patient._id" />
             </div>
@@ -869,7 +877,7 @@ async function deleteAppointment(appointment) {
                     {{ showExpiredAnamneses ? 'Ocultar' : 'Mostrar' }} expiradas
                   </button>
                 </div>
-                
+
                 <ul v-if="showExpiredAnamneses" class="anamnesis-list">
                   <li v-for="item in expiredAnamneses" :key="item._id" class="anamnesis-item opacity-60">
                     <div class="anamnesis-info">
@@ -888,9 +896,9 @@ async function deleteAppointment(appointment) {
                   Carregando histórico...
                 </div>
                 <div v-else-if="patientHistory.length > 0" class="history-grid">
-                  <div 
-                    v-for="item in patientHistory" 
-                    :key="item._id" 
+                  <div
+                    v-for="item in patientHistory"
+                    :key="item._id"
                     class="history-card"
                     @click="openAppointmentModal(item)"
                   >
@@ -903,9 +911,9 @@ async function deleteAppointment(appointment) {
                         </div>
                         <div class="card-header-stats">
                           <span :class="['card-revenue-inline', { 'zero': !item.procedures || item.procedures.length === 0 || item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0) === 0 }]">
-                            {{ item.procedures && item.procedures.length > 0 
-                              ? formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0)) 
-                              : 'R$ 0,00' 
+                            {{ item.procedures && item.procedures.length > 0
+                              ? formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0))
+                              : 'R$ 0,00'
                             }}
                           </span>
                           <span class="card-divider">•</span>
@@ -1058,8 +1066,9 @@ async function deleteAppointment(appointment) {
             <div v-if="activeTab === 'termos'" class="card-section">
               <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
-          </div>
-        </Transition>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
   </div>
@@ -1067,10 +1076,9 @@ async function deleteAppointment(appointment) {
 
 <style scoped>
 .patient-detail-view {
-  max-width: 1280px;
+  max-width: min(1680px, calc(100vw - 48px));
   width: 100%;
   margin: 0 auto;
-  padding: 0 1.5rem;
   overflow-y: overlay;
 }
 
@@ -1393,11 +1401,64 @@ async function deleteAppointment(appointment) {
 }
 
 
+.patient-tab-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.patient-tab-sidebar {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+}
+
+.patient-tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 42px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.patient-tab-button svg {
+  flex-shrink: 0;
+}
+
+.patient-tab-button:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.patient-tab-button.active {
+  background-color: #eef4ff;
+  border-color: #dbeafe;
+  color: var(--azul-principal);
+}
+
 .unified-card {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
-  height: calc(100vh - 300px);
+  height: calc(100vh - 220px);
+  min-height: 620px;
   overflow-y: auto;
   position: relative;
 }
@@ -1526,12 +1587,6 @@ async function deleteAppointment(appointment) {
   border-color: #d1d5db;
 }
 
-
-.tabs-container-wrapper {
-  display: flex;
-  width: 100%;
-  margin-bottom: 1rem;
-}
 
 /* Card Header */
 .card-header {
@@ -2076,6 +2131,27 @@ async function deleteAppointment(appointment) {
 @media (max-width: 768px) {
   .patient-detail-view {
     padding: 0rem;
+    max-width: 100%;
+  }
+  .patient-tab-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .patient-tab-sidebar {
+    position: static;
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    padding: 0.375rem;
+  }
+  .patient-tab-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 38px;
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
   }
   .card-section {
     padding: 0.5rem;
@@ -2085,6 +2161,9 @@ async function deleteAppointment(appointment) {
     border: none;
     box-shadow: none;
     border-radius: 0;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
   .patient-header {
     align-items: center;
