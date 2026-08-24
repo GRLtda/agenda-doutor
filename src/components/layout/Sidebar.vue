@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { version } from '../../../package.json'
 import { useAuthStore } from '@/stores/auth'
+import { useCrmStore } from '@/stores/crm'
 import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import UserDropdown from '@/components/global/UserDropdown.vue'
@@ -23,6 +24,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'toggle-collapse'])
 
 const authStore = useAuthStore()
+const crmStore = useCrmStore()
 const route = useRoute()
 const router = useRouter()
 const { hasAccess } = usePlanAccess()
@@ -37,6 +39,16 @@ const showTrialAlert = computed(() => {
     trial?.isActive &&
     Number(trial.daysRemaining || 0) > 0 &&
     !['active', 'lifetime'].includes(subscriptionStatus)
+  )
+})
+
+const hasWhatsappConnectionError = computed(() => {
+  if (crmStore.status === 'connected') return false
+
+  return (
+    crmStore.status === 'api_error' ||
+    Boolean(crmStore.connectionError) ||
+    Boolean(authStore.user?.telemetry?.whatsapp?.requiresAttention)
   )
 })
 
@@ -230,6 +242,7 @@ const sidebarSections = computed(() => {
       icon: 'megaphone',
       text: 'Marketing',
       key: 'marketing',
+      hasAlert: hasWhatsappConnectionError.value,
       children: filteredMarketingChildren
     }
   ]
@@ -334,6 +347,7 @@ const sidebarSections = computed(() => {
               >
                 <AppIcon :name="link.icon" :size="20" />
                 <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
+                <span v-if="link.hasAlert" class="nav-alert-dot" aria-label="Erro no WhatsApp"></span>
                 <ChevronDown
                   v-show="!isCollapsed"
                   :size="16"
@@ -373,6 +387,7 @@ const sidebarSections = computed(() => {
               @click="openSettingsModal()"
             >
               <AppIcon :name="link.icon" :size="20" />
+              <span v-if="link.hasAlert" class="nav-alert-dot" aria-label="Erro no WhatsApp"></span>
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
             </button>
 
@@ -388,6 +403,7 @@ const sidebarSections = computed(() => {
               @click="closeSidebarOnMobile"
             >
               <AppIcon :name="link.icon" :size="20" />
+              <span v-if="link.hasAlert" class="nav-alert-dot" aria-label="Erro no WhatsApp"></span>
               <span v-show="!isCollapsed" class="nav-text">{{ link.text }}</span>
             </RouterLink>
           </li>
@@ -640,6 +656,21 @@ const sidebarSections = computed(() => {
   transition: opacity 0.25s ease;
   white-space: nowrap;
   flex-grow: 1;
+}
+
+.nav-alert-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+  flex-shrink: 0;
+}
+
+.sidebar.is-collapsed .nav-alert-dot {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
 }
 .sidebar.is-collapsed .nav-text {
   opacity: 0;

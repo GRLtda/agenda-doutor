@@ -80,6 +80,10 @@ function getApiErrorMessage(error, fallback) {
   )
 }
 
+function isWhatsAppConnectionProcessingError(error) {
+  return error.response?.data?.error?.code === 'WHATSAPP_CONNECTION_PROCESSING_FAILED'
+}
+
 const QR_CODE_TTL_MS = 60_000
 
 export const useCrmStore = defineStore('crm', () => {
@@ -91,6 +95,7 @@ export const useCrmStore = defineStore('crm', () => {
   const isPolling = ref(false)
   const connections = ref([])
   const isLoadingQrImage = ref(false)
+  const connectionError = ref(null)
 
   let statusPollingInterval = null
   let currentPollingIntervalDuration = 0
@@ -117,6 +122,25 @@ export const useCrmStore = defineStore('crm', () => {
     qrCode.value = null
     clearQrExpiryTimer()
     clearQrAttemptTimer()
+  }
+
+  function clearConnectionError() {
+    connectionError.value = null
+    if (status.value === 'api_error') {
+      status.value = 'disconnected'
+    }
+  }
+
+  function applyConnectionProcessingError(error) {
+    connectionError.value = getApiErrorMessage(
+      error,
+      'Tivemos um problema interno ao preparar sua conexão com o WhatsApp. Nenhuma informação será perdida.'
+    )
+    status.value = 'api_error'
+    clearQrCode()
+    isLoadingQrImage.value = false
+    connections.value = []
+    stopPolling()
   }
 
   function scheduleQrAttemptTimeout() {
@@ -183,6 +207,7 @@ export const useCrmStore = defineStore('crm', () => {
 
   function applyConnectedState(state, previousStatus, showToast = true) {
     status.value = 'connected'
+    connectionError.value = null
     clearQrCode()
     isLoadingQrImage.value = false
     connections.value = [state.connection]
@@ -196,6 +221,7 @@ export const useCrmStore = defineStore('crm', () => {
 
   function applyDisconnectedState(state, previousStatus, showToast = true) {
     status.value = 'disconnected'
+    connectionError.value = null
     clearQrCode()
     isLoadingQrImage.value = false
     connections.value = []
@@ -233,6 +259,7 @@ export const useCrmStore = defineStore('crm', () => {
       const response = await checkWhatsAppStatus()
       const state = normalizeResponse(response.data)
       const previousStatus = status.value
+      connectionError.value = null
 
       if (
         previousStatus === 'initializing' &&
@@ -294,6 +321,11 @@ export const useCrmStore = defineStore('crm', () => {
       initializingDisconnectRetryCount = 0
       isLoadingQrImage.value = false
 
+      if (isWhatsAppConnectionProcessingError(error)) {
+        applyConnectionProcessingError(error)
+        return
+      }
+
       if (error.response?.status !== 404) {
         console.log('Erro ao verificar status da conexao.')
       }
@@ -312,6 +344,7 @@ export const useCrmStore = defineStore('crm', () => {
     if (isLoading.value) return
 
     isLoading.value = true
+    connectionError.value = null
     clearQrCode()
     isLoadingQrImage.value = false
     status.value = 'initializing'
@@ -370,11 +403,16 @@ export const useCrmStore = defineStore('crm', () => {
       if (!qrCode.value) await fetchQrCode()
       startPolling(4000)
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Falha ao iniciar conexao com WhatsApp.'))
-      status.value = 'disconnected'
-      clearQrCode()
-      isLoadingQrImage.value = false
-      stopPolling()
+      if (isWhatsAppConnectionProcessingError(error)) {
+        applyConnectionProcessingError(error)
+        toast.warning('Tivemos um problema por aqui. Nenhuma informacao sera perdida.')
+      } else {
+        toast.error(getApiErrorMessage(error, 'Falha ao iniciar conexao com WhatsApp.'))
+        status.value = 'disconnected'
+        clearQrCode()
+        isLoadingQrImage.value = false
+        stopPolling()
+      }
     } finally {
       isLoading.value = false
     }
@@ -384,6 +422,7 @@ export const useCrmStore = defineStore('crm', () => {
     if (isLoading.value) return
 
     isLoading.value = true
+    connectionError.value = null
     stopPolling()
     initializingDisconnectRetryCount = 0
 
@@ -458,6 +497,8 @@ export const useCrmStore = defineStore('crm', () => {
     isPolling,
     connections,
     isLoadingQrImage,
+    connectionError,
+    clearConnectionError,
     initiateOrResetConnection,
     logoutConnection,
     getInitialStatus,
