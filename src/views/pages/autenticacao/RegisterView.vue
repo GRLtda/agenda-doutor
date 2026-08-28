@@ -25,6 +25,9 @@ const plan = ref('')
 const phone = ref('')
 const password = ref('')
 const errorMessage = ref(null)
+const emailError = ref('')
+const termsError = ref('')
+const invitationError = ref('')
 const registrationSuccess = ref(false)
 const termsAccepted = ref(false)
 
@@ -129,6 +132,9 @@ watch(registrationSuccess, (newValue) => {
 
 async function handleRegister() {
   errorMessage.value = null
+  emailError.value = ''
+  termsError.value = ''
+  invitationError.value = ''
   isLoading.value = true
 
   const payload = {
@@ -141,7 +147,7 @@ async function handleRegister() {
   }
 
   if (!termsAccepted.value) {
-    errorMessage.value = 'Você deve aceitar os termos e condições para criar a conta.'
+    termsError.value = 'Você deve aceitar os termos e condições para criar a conta.'
     isLoading.value = false
     return
   }
@@ -157,8 +163,39 @@ async function handleRegister() {
   if (success) {
     registrationSuccess.value = true
   } else {
-    errorMessage.value =
-      error?.response?.data?.message || error || 'Nao foi possivel criar a conta. Verifique os dados.'
+    const registrationError =
+      typeof error === 'string'
+        ? { message: error }
+        : error || { message: 'Não foi possível concluir o cadastro.' }
+    const message = registrationError.message || 'Não foi possível concluir o cadastro.'
+
+    switch (registrationError.code) {
+      case 'AUTH_TERMS_REQUIRED':
+        termsError.value = message
+        break
+      case 'AUTH_USER_EXISTS':
+        emailError.value = message
+        break
+      case 'AUTH_INVALID_INVITATION':
+        invitationError.value = message
+        break
+      case 'AUTH_RATE_LIMITED': {
+        const retryAfter = registrationError.details?.retry_after
+        errorMessage.value = retryAfter
+          ? `${message} Tente novamente em ${retryAfter} segundos.`
+          : message
+        break
+      }
+      case 'AUTH_VALIDATION_ERROR':
+        errorMessage.value = message
+        break
+      default:
+        errorMessage.value = message
+        console.error('[Cadastro] Erro não mapeado retornado pela API:', {
+          errorId: registrationError.details?.error_id,
+          requestId: registrationError.requestId,
+        })
+    }
   }
 }
 
@@ -237,6 +274,7 @@ function handleRegistrationComplete() {
           autocomplete="email"
           :required="true"
           :disabled="emailIsDisabled"
+          :error="emailError"
         />
         <FormInput
           v-model="phone"
@@ -263,7 +301,12 @@ function handleRegistrationComplete() {
           </span>
         </div>
 
-        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+        <div v-if="termsError" class="field-error" role="alert">{{ termsError }}</div>
+
+        <div v-if="invitationError" class="error-message" role="alert">
+          {{ invitationError }} Solicite um novo convite para continuar.
+        </div>
+        <div v-if="errorMessage" class="error-message" role="alert">{{ errorMessage }}</div>
         <AppButton
           type="submit"
           variant="primary"
@@ -350,6 +393,15 @@ function handleRegistrationComplete() {
 .error-message {
   color: #ef4444;
   font-size: 0.875rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: -0.75rem;
   margin-bottom: 1rem;
   text-align: left;
 }
