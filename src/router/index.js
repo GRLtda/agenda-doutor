@@ -6,6 +6,7 @@ import LoginView from '../views/pages/autenticacao/LoginView.vue'
 import RegisterView from '../views/pages/autenticacao/RegisterView.vue'
 import ClinicWizardView from '../views/pages/onboarding/ClinicWizardView.vue'
 import AnswerAnamnesisView from '../views/public/AnswerAnamnesisView.vue'
+import PublicFormView from '../views/public/PublicFormView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
 const routes = [
@@ -19,9 +20,9 @@ const routes = [
   },
   {
     path: '/r/:token',
-    name: 'register-admin',
-    component: RegisterView,
-    meta: { public: true, title: 'Cadastro' },
+    name: 'public-referral',
+    component: PublicFormView,
+    meta: { public: true, title: 'Indicação' },
   },
   {
     path: '/e/:token',
@@ -40,6 +41,12 @@ const routes = [
     name: 'answer-anamnesis',
     component: AnswerAnamnesisView,
     meta: { public: true, title: 'Responder Anamnese' },
+  },
+  {
+    path: '/f/:token',
+    name: 'public-form',
+    component: PublicFormView,
+    meta: { public: true, title: 'Formulário' },
   },
   {
     path: '/componentes',

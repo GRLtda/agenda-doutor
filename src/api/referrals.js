@@ -1,0 +1,11 @@
+import api from './index'
+export const getReferralProgram = () => api.get('/referrals/program')
+export const updateReferralProgram = (payload) => api.put('/referrals/program', payload)
+export const getReferralProcedures = () => api.get('/referrals/procedures')
+export const getPatientReferrals = (patientId, params = {}) => api.get(`/referrals/patients/${patientId}`, { params })
+export const getReferralLeads = (params = {}) => api.get('/referrals/leads', { params })
+export const getReferralLead = (id) => api.get(`/referrals/leads/${id}`)
+export const updateReferralLeadStatus = (id, status) => api.patch(`/referrals/leads/${id}/status`, { status })
+export const getReferralAnalytics = () => api.get('/referrals/analytics')
+export const getPublicReferral = (token) => api.get(`/public/referrals/${token}`)
+export const submitPublicReferral = (token, payload, idempotencyKey) => api.post(`/public/referrals/${token}/submissions`, payload, { headers: { 'Idempotency-Key': idempotencyKey } })

@@ -42,7 +42,8 @@ import {
   Briefcase,
   Play,
   Folder,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -61,6 +62,7 @@ import PatientBudgetsTab from '@/components/pages/pacientes/PatientBudgetsTab.vu
 import PatientConsentTermsTab from '@/components/pages/pacientes/PatientConsentTermsTab.vue'
 import FacialPlanningHofTab from '@/components/pages/pacientes/FacialPlanningHofTab.vue'
 import PatientMediaGallery from '@/views/pages/pacientes/components/PatientMediaGallery.vue'
+import PatientReferralsTab from '@/components/pages/pacientes/PatientReferralsTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,7 +85,8 @@ const activeTab = computed({
       'orcamentos': 'budgets',
       'planejamento-facial': 'facial-planning',
       'termos': 'termos',
-      'galeria': 'media'
+      'galeria': 'media',
+      'indicacoes': 'referrals'
     }
     return tabMap[route.params.tab] || 'details'
   },
@@ -97,6 +100,7 @@ const activeTab = computed({
       'facial-planning': 'planejamento-facial',
       'termos': 'termos',
       'media': 'galeria',
+      'referrals': 'indicacoes',
       'details': undefined // Remove param for details
     }
     const tabParam = reverseMap[newValue]
@@ -150,6 +154,7 @@ const patientTabs = [
   { value: 'facial-planning', label: 'Planejamento Facial', icon: Syringe },
   { value: 'termos', label: 'Termos', icon: FileSignature },
   { value: 'media', label: 'Galeria', icon: Folder },
+  { value: 'referrals', label: 'Indicações', icon: Users },
 ]
 
 const referralSourceOptions = [
@@ -596,6 +601,9 @@ async function deleteAppointment(appointment) {
             <div :key="activeTab" class="unified-card-content">
             <div v-if="activeTab === 'media'">
                 <PatientMediaGallery :patient-id="patient._id" />
+            </div>
+            <div v-if="activeTab === 'referrals'" class="card-section">
+              <PatientReferralsTab :patient-id="patient._id" :clinic-name="clinic?.marketingName || clinic?.name" />
             </div>
             <div v-if="activeTab === 'details'">
               <div v-if="isEditing && editablePatient">

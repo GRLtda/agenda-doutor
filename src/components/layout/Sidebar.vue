@@ -233,6 +233,7 @@ const sidebarSections = computed(() => {
     { text: 'Modelos', to: '/marketing/modelos', icon: 'template', feature: 'marketing_templates' },
     { text: 'Conexão', to: '/marketing/conexao', icon: 'link', feature: 'marketing_connection' },
     { text: 'Histórico', to: '/marketing/logs', icon: 'history', feature: 'marketing_logs' },
+    { text: 'Indicações', to: '/marketing/indicacoes', icon: 'users', feature: 'referrals' },
   ]
 
   const filteredMarketingChildren = allMarketingChildren.filter(child => hasAccess(child.feature))

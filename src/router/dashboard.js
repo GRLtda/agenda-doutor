@@ -202,6 +202,12 @@ const dashboardRoutes = [
         meta: { title: 'Anamneses', layout: { noPadding: true } },
       },
       {
+        path: 'marketing/indicacoes',
+        name: 'referrals',
+        component: () => import('../views/pages/marketing/ReferralsView.vue'),
+        meta: { title: 'Indicações' },
+      },
+      {
         path: 'termos',
         name: 'termos-list',
         component: () => import('../views/pages/termos/ConsentTermsListView.vue'),
