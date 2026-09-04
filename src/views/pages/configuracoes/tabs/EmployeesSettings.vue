@@ -31,6 +31,7 @@ const editingRoleFor = ref(null)
 const selectedRole = ref('')
 
 const currentUser = computed(() => authStore.user)
+const canManageTeam = computed(() => ['owner', 'gerente'].includes(currentUser.value?.role))
 
 onMounted(() => {
   employeesStore.fetchEmployees()
@@ -143,7 +144,7 @@ function copyInviteLink(token) {
 
     <Teleport to="#tab-actions">
       <AppButton
-        v-if="currentUser?.role === 'owner' || currentUser?.role === 'gerente'"
+        v-if="canManageTeam"
         @click="isModalOpen = true"
         variant="primary"
       >
@@ -199,7 +200,7 @@ function copyInviteLink(token) {
             <div
               v-if="
                 !isOwner(employee) &&
-                (currentUser?.role === 'owner' || currentUser?.role === 'gerente')
+                canManageTeam
               "
               class="actions-wrapper"
               v-click-outside="() => (actionsMenuOpenFor = null)"
@@ -228,7 +229,7 @@ function copyInviteLink(token) {
         <p class="empty-description">
           Você ainda não possui funcionários cadastrados. Comece convidando o primeiro membro.
         </p>
-        <AppButton @click="isModalOpen = true" variant="primary">
+        <AppButton v-if="canManageTeam" @click="isModalOpen = true" variant="primary">
           <UserPlus :size="16" />
           Convidar Funcionário
         </AppButton>
@@ -276,6 +277,7 @@ function copyInviteLink(token) {
           <div class="item-actions pending-actions">
             <span class="pending-text">Aguardando aceite</span>
             <AppButton
+              v-if="canManageTeam"
               @click="copyInviteLink(invite.token)"
               variant="default"
               size="sm"
@@ -284,6 +286,7 @@ function copyInviteLink(token) {
               <Copy :size="18" />
             </AppButton>
             <AppButton
+              v-if="canManageTeam"
               @click="handleCancelInvite(invite._id)"
               variant="dangerous"
               size="sm"
