@@ -25,6 +25,7 @@ import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { useFinanceStore } from '@/stores/finance'
+import { formatFinancialDate } from '@/utils/financialDate'
 
 ChartJS.register(
   ArcElement,
@@ -85,6 +86,15 @@ const appointmentsSparkline = computed(() =>
 
 const financeSummaryCards = computed(() => [
   {
+    key: 'revenue',
+    theme: 'green',
+    label: 'Faturamento por competência',
+    value: money(profit.value.grossRevenueCents),
+    subtext: 'Receita dos atendimentos no período',
+    sparkline: buildSparkline(profit.value.grossRevenueCents, [0.64, 0.72, 0.7, 0.82, 0.78, 0.91, 1]),
+    sparklineTone: 'green',
+  },
+  {
     key: 'receivable',
     theme: 'blue',
     label: 'Entradas em aberto',
@@ -124,8 +134,8 @@ const financeSummaryCards = computed(() => [
 
 const analyticsSummaryCards = computed(() => [
   {
-    key: 'revenue',
-    label: 'Faturamento',
+    key: 'production',
+    label: 'Produção registrada',
     value: moneyValue(analyticsStore.revenueSummary.totalRevenue),
     sparkline: revenueSparkline.value,
     sparklineTone: 'green',
@@ -577,9 +587,7 @@ function buildSparkline(value, multipliers) {
 }
 
 function formatDateDisplay(dateInput) {
-  if (!dateInput) return ''
-  const date = new Date(dateInput)
-  return date.toLocaleDateString('pt-BR')
+  return formatFinancialDate(dateInput)
 }
 
 function typeLabel(type) {
@@ -844,8 +852,8 @@ onMounted(load)
 
     <div class="analytics-header">
       <div>
-        <h2>Visão de desempenho</h2>
-        <p>Indicadores de receita, pacientes e procedimentos para decisão.</p>
+        <h2>Visão de produção</h2>
+        <p>Indicadores de procedimentos registrados, pacientes e atendimentos.</p>
       </div>
     </div>
 
@@ -890,7 +898,7 @@ onMounted(load)
       <section class="table-wrapper chart-card">
         <div class="section-header">
           <div>
-            <h2>Evolução da receita</h2>
+            <h2>Evolução da produção</h2>
             <p>Comparação do período atual com o anterior.</p>
           </div>
           <div class="section-icon"><TrendingUp :size="18" /></div>
@@ -903,8 +911,8 @@ onMounted(load)
       <section class="table-wrapper chart-card">
         <div class="section-header">
           <div>
-            <h2>Receita por procedimento</h2>
-            <p>Distribuição dos principais serviços.</p>
+            <h2>Produção por procedimento</h2>
+            <p>Distribuição dos principais serviços registrados.</p>
           </div>
           <div class="section-icon"><Activity :size="18" /></div>
         </div>
@@ -934,8 +942,8 @@ onMounted(load)
       <section class="table-wrapper">
         <div class="section-header">
           <div>
-            <h2>Pacientes mais lucrativos</h2>
-            <p>Ranking por volume financeiro no período.</p>
+            <h2>Pacientes com maior produção</h2>
+            <p>Ranking por procedimentos registrados no período.</p>
           </div>
           <div class="section-icon"><Users :size="18" /></div>
         </div>
@@ -976,8 +984,8 @@ onMounted(load)
       <section class="table-wrapper">
         <div class="section-header">
           <div>
-            <h2>Procedimentos mais fortes</h2>
-            <p>Receita combinada com lucro do controle financeiro.</p>
+            <h2>Procedimentos mais registrados</h2>
+            <p>Produção combinada com lucro do controle financeiro.</p>
           </div>
           <div class="section-icon"><Activity :size="18" /></div>
         </div>

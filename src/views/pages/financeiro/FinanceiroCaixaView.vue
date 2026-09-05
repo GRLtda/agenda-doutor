@@ -9,6 +9,7 @@ import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
+import { formatFinancialDate, localDateForApi } from '@/utils/financialDate'
 
 const financeiroStore = useFinanceiroStore()
 const route = useRoute()
@@ -77,14 +78,7 @@ function money(cents) {
 }
 
 function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
+  return formatFinancialDate(value) || '-'
 }
 
 function typeLabel(type) {
@@ -125,20 +119,11 @@ function endOfMonthDate() {
 }
 
 function formatDateDisplay(dateInput) {
-  if (!dateInput) return ''
-  const date = new Date(dateInput)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('pt-BR')
+  return formatFinancialDate(dateInput)
 }
 
 function formatDateForApi(dateInput) {
-  if (!dateInput) return ''
-  const date = new Date(dateInput)
-  if (Number.isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return localDateForApi(dateInput)
 }
 
 function parseApiDate(value) {

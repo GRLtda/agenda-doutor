@@ -4,6 +4,7 @@ import { Banknote, CalendarDays, CheckCircle2, CreditCard, StickyNote, X } from 
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import { localDateForApi } from '@/utils/financialDate'
 
 const props = defineProps({
   conta: {
@@ -21,7 +22,7 @@ const emit = defineEmits(['close', 'save'])
 const form = reactive({
   amount: '',
   method: 'PIX',
-  settledAt: new Date().toISOString().slice(0, 10),
+  settledAt: localDateForApi(),
   notes: '',
 })
 const attemptedSubmit = ref(false)
@@ -119,7 +120,7 @@ function resetForm() {
   attemptedSubmit.value = false
   form.amount = centsToReais(remainingCents.value)
   form.method = props.conta.expectedPaymentMethod || 'PIX'
-  form.settledAt = new Date().toISOString().slice(0, 10)
+  form.settledAt = localDateForApi()
   form.notes = ''
 }
 

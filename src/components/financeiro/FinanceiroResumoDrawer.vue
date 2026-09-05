@@ -24,6 +24,7 @@ import AppButton from '@/components/global/AppButton.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import FinanceiroStatusBadge from '@/components/financeiro/FinanceiroStatusBadge.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
+import { formatFinancialDate as formatFinancialDateDisplay, localDateForApi } from '@/utils/financialDate'
 
 const props = defineProps({
   contaId: {
@@ -103,22 +104,11 @@ function calculateRemainingCents(contaItem) {
 }
 
 function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
+  return formatFinancialDateDisplay(value) || '-'
 }
 
 function formatFinancialDate(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(date)
+  return formatFinancialDateDisplay(value) || '-'
 }
 
 function formatDateTime(value) {
@@ -126,6 +116,7 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -144,8 +135,8 @@ function isOverdue(contaItem) {
   const due = contaItem.dueDate ? new Date(contaItem.dueDate) : null
   if (!due) return false
   const today = new Date()
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  return due.toISOString().slice(0, 10) < todayKey
+  const todayKey = localDateForApi(today)
+  return localDateForApi(due) < todayKey
 }
 
 function historyTimestamp(baixa) {
