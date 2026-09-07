@@ -5,13 +5,11 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useToast } from 'vue-toastification'
 import {
   ArrowLeft,
   ClipboardList,
   Calendar,
   Phone,
-  Link as LinkIcon,
   CheckCircle,
   XCircle,
   Clock,
@@ -37,8 +35,6 @@ onMounted(() => {
   anamnesisStore.fetchPendingAnamneses(1, 20)
 })
 
-const toast = useToast()
-
 function goBack() {
   router.back()
 }
@@ -63,19 +59,6 @@ function formatPhone(phone) {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`
   }
   return phone
-}
-
-function copyLink(link) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(link)
-      .then(() => {
-        // You could add a toast notification here
-        toast.success(`Link copiado!`)
-      })
-      .catch(err => {
-        console.error('Erro ao copiar link:', err)
-      })
-  }
 }
 
 function goToPatient(patientId) {
@@ -194,9 +177,8 @@ const showPagination = computed(() => pendingPages.value > 1)
 
         <!-- Link -->
         <div class="card-footer">
-          <button class="btn-copy-link" @click="copyLink(anamnesis.anamnesisLink)" title="Copiar link">
-            <LinkIcon :size="16" />
-            <span class="link-text">{{ anamnesis.anamnesisLink }}</span>
+          <button class="btn-copy-link" @click="goToPatient(anamnesis.patientId)" title="Abrir paciente">
+            <span class="link-text">Abrir paciente para gerar um novo link</span>
           </button>
         </div>
       </div>

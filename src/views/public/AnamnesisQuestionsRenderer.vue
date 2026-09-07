@@ -32,6 +32,14 @@ function getSubQuestionLetter(index) {
   return String.fromCharCode(65 + index)
 }
 
+function normalizeConditionValue(value) {
+  if (typeof value !== 'string') return value
+  const normalized = value.trim().toLocaleLowerCase('pt-BR')
+  if (normalized === 'sim' || normalized === 'true') return true
+  if (normalized === 'não' || normalized === 'nao' || normalized === 'false') return false
+  return normalized
+}
+
 function getVisibleSubQuestions(question) {
   if (!question.conditionalQuestions || question.conditionalQuestions.length === 0) {
     return []
@@ -39,25 +47,17 @@ function getVisibleSubQuestions(question) {
 
   const answerObj = props.answers[question.qId]
   
-  // Normal Condition: Logic based on parent's answer
-  const currentAnswer = answerObj ? String(answerObj.answer) : ''
+  const currentAnswer = answerObj ? normalizeConditionValue(answerObj.answer) : null
 
   return question.conditionalQuestions
     .filter((group) => {
-      // Normaliza showWhenAnswerIs para string
-      // Trata boolean: true->"Sim", false->"Não"
-      let triggerValue = group.showWhenAnswerIs
-      if (typeof triggerValue === 'boolean') {
-        triggerValue = triggerValue ? 'Sim' : 'Não'
-      } else {
-        triggerValue = String(triggerValue)
-      }
+      const triggerValue = normalizeConditionValue(group.showWhenAnswerIs)
       
       if (answerObj && triggerValue === currentAnswer) {
         return true
       }
 
-      const hasAnsweredChild = group.questions.some(childQ => {
+      const hasAnsweredChild = props.readonly && group.questions.some(childQ => {
           const childVal = props.answers[childQ.qId]?.answer
           // Consider "answered" if not null/undefined and not empty string/array
           if (Array.isArray(childVal)) return childVal.length > 0
@@ -101,11 +101,12 @@ function getVisibleSubQuestions(question) {
           :qId="question.qId"
           v-model="answers[question.qId].answer"
           :disabled="readonly"
+          :invalid="!!validationErrors[question.qId]"
         />
       </div>
 
       <span v-if="validationErrors[question.qId]" class="error-text">
-        Este campo é obrigatório.
+        {{ typeof validationErrors[question.qId] === 'string' ? validationErrors[question.qId] : 'Este campo é obrigatório.' }}
       </span>
 
       <!-- Renderização Recursiva de Perguntas Condicionais -->

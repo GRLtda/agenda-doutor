@@ -116,6 +116,7 @@ const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
 const generatingPdfId = ref(null) // ID da anamnese que está gerando PDF
+const rotatingLinkId = ref(null)
 
 // Estado para o modal de detalhes do atendimento
 const isAppointmentModalOpen = ref(false)
@@ -299,36 +300,36 @@ function getAnamnesisTemplateName(anamnesis) {
   )
 }
 
-function handleCopyLink(token) {
-  if (!token) {
-    toast.error('Token inválido ou não encontrado.');
-    return;
+async function copyPublicUrl(url) {
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.info('Link de resposta copiado!')
+  } catch {
+    toast.error('O novo link foi gerado, mas não pôde ser copiado. Copie-o no campo exibido.')
   }
-  const link = `${window.location.origin}/anamnese/${token}`
+}
 
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(link).then(() => {
-      toast.info('Link de resposta copiado!')
-    }).catch(err => {
-      console.error('Falha ao copiar: ', err)
-      toast.error('Erro ao copiar link.')
-    })
-  } else {
-     // Fallback
-      const textArea = document.createElement("textarea");
-      textArea.value = link;
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        toast.info('Link de resposta copiado!')
-      } catch (err) {
-        console.error('Fallback: Oops, unable to copy', err);
-        toast.error('Erro ao copiar link.')
-      }
-      document.body.removeChild(textArea);
+async function handleRotateLink(anamnesis) {
+  if (rotatingLinkId.value || !patient.value?._id) return
+  rotatingLinkId.value = anamnesis._id
+  const result = await anamnesisStore.rotatePublicAccess(patient.value._id, anamnesis._id)
+  rotatingLinkId.value = null
+
+  if (!result.success) {
+    toast.error(result.error.message)
+    return
   }
+
+  anamnesis.publicAccessUrl = result.data.url
+  anamnesis.patientAccessTokenExpires = result.data.expiresAt
+  await copyPublicUrl(result.data.url)
+}
+
+async function handleViewAnamnesis(anamnesis) {
+  if (!patient.value?._id) return
+  const result = await anamnesisStore.fetchAnamnesisResponse(patient.value._id, anamnesis._id)
+  if (result.success) viewingAnamnesis.value = result.data
 }
 
 async function handleGeneratePdf(anamnesis) {
@@ -346,9 +347,7 @@ async function handleGeneratePdf(anamnesis) {
     const templateName = anamnesis.template?.name || anamnesis.templateName || 'anamnese'
     const result = await anamnesisStore.downloadPdf(patient.value._id, anamnesis._id, templateName)
 
-    if (!result.success) {
-      toast.error(result.error || 'Erro ao baixar PDF.')
-    }
+    if (!result.success) return
   } finally {
     generatingPdfId.value = null
   }
@@ -812,7 +811,7 @@ async function deleteAppointment(appointment) {
                 <h3 class="section-title"><CheckSquare class="title-icon" :size="18" /> Respondidas</h3>
                 <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
-                    <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
+                    <div class="anamnesis-info clickable" @click="handleViewAnamnesis(item)">
                       <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
                       <span class="anamnesis-date"
                         >Respondida em {{ formatSimpleDate(item.updatedAt) }}</span
@@ -851,11 +850,19 @@ async function deleteAppointment(appointment) {
                       <span class="anamnesis-date"
                         >Vence em {{ formatSimpleDate(item.patientAccessTokenExpires) }}</span
                       >
+                      <input
+                        v-if="item.publicAccessUrl"
+                        class="generated-link-input"
+                        :value="item.publicAccessUrl"
+                        readonly
+                        aria-label="Novo link da anamnese"
+                      />
                     </div>
                     <button
-                      @click.stop="handleCopyLink(item.patientAccessToken)"
+                      @click.stop="item.publicAccessUrl ? copyPublicUrl(item.publicAccessUrl) : handleRotateLink(item)"
                       class="btn-icon"
-                      title="Copiar link de resposta"
+                      :disabled="rotatingLinkId === item._id"
+                      :title="item.publicAccessUrl ? 'Copiar o novo link' : 'Gerar novo link (invalida o anterior)'"
                     >
                       <Copy :size="16" />
                     </button>
@@ -2046,6 +2053,16 @@ async function deleteAppointment(appointment) {
 .anamnesis-date {
   font-size: 0.875rem;
   color: var(--cinza-texto);
+}
+.generated-link-input {
+  border: 1px solid #bfdbfe;
+  border-radius: 0.375rem;
+  color: #334155;
+  font-size: 0.75rem;
+  margin-top: 0.35rem;
+  max-width: 360px;
+  padding: 0.35rem 0.5rem;
+  width: 100%;
 }
 .btn-icon {
   display: flex;

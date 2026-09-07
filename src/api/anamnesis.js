@@ -1,74 +1,125 @@
 import apiClient from './index'
 
-// Busca a lista de todos os modelos
-export const getAnamnesisTemplates = () => {
-  return apiClient.get('/anamnesis-templates')
+const BASE_URL = '/v2/anamnesis'
+const JSON_TIMEOUT = 15_000
+const PDF_TIMEOUT = 30_000
+const RETRYABLE_STATUS = new Set([500, 502, 503])
+
+const wait = (milliseconds) => new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds))
+
+export function createIdempotencyKey() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+
+  const random = globalThis.crypto?.getRandomValues
+    ? globalThis.crypto.getRandomValues(new Uint32Array(4)).join('-')
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  return `anamnesis-${random}`
 }
 
-// Cria um novo modelo
-export const createAnamnesisTemplate = (templateData) => {
-  return apiClient.post('/anamnesis-templates', templateData)
+async function submitWithRetry(url, payload, idempotencyKey) {
+  let lastError
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await apiClient.put(url, payload, {
+        timeout: JSON_TIMEOUT,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
+    } catch (error) {
+      lastError = error
+      const status = error.response?.status
+      const isNetworkFailure = !error.response || error.code === 'ECONNABORTED'
+
+      if (attempt === 2 || (!isNetworkFailure && !RETRYABLE_STATUS.has(status))) {
+        throw error
+      }
+
+      const baseDelay = 1_000 * 2 ** attempt
+      await wait(baseDelay + Math.floor(Math.random() * 250))
+    }
+  }
+
+  throw lastError
 }
 
-// Deleta um modelo pelo ID
-export const deleteAnamnesisTemplate = (templateId) => {
-  return apiClient.delete(`/anamnesis-templates/${templateId}`)
-}
+export const getAnamnesisTemplates = (page = 1, limit = 100) =>
+  apiClient.get(`${BASE_URL}/templates`, { params: { page, limit }, timeout: JSON_TIMEOUT })
 
-// Busca um modelo completo pelo ID
-export const getAnamnesisTemplateById = (templateId) => {
-  return apiClient.get(`/anamnesis-templates/${templateId}`)
-}
+export const createAnamnesisTemplate = (templateData) =>
+  apiClient.post(`${BASE_URL}/templates`, templateData, { timeout: JSON_TIMEOUT })
 
-// Atualiza um modelo pelo ID
-export const updateAnamnesisTemplate = (templateId, templateData) => {
-  return apiClient.put(`/anamnesis-templates/${templateId}`, templateData)
-}
+export const deleteAnamnesisTemplate = (templateId) =>
+  apiClient.delete(`${BASE_URL}/templates/${templateId}`, { timeout: JSON_TIMEOUT })
 
-// Atribui uma anamnese (cria uma resposta pendente)
-export const assignAnamnesis = (patientId, payload) => {
-  // O backend espera { templateId, mode, tokenTtlDays, sendNotification }
-  return apiClient.post(`/patients/${patientId}/anamnesis`, payload)
-}
+export const getAnamnesisTemplateById = (templateId) =>
+  apiClient.get(`${BASE_URL}/templates/${templateId}`, { timeout: JSON_TIMEOUT })
 
-// Busca o formulário público usando o token do paciente
-export const getPublicAnamnesis = (token) => {
-  return apiClient.get(`/anamnesis/public/${token}`)
-}
+export const updateAnamnesisTemplate = (templateId, templateData) =>
+  apiClient.patch(`${BASE_URL}/templates/${templateId}`, templateData, { timeout: JSON_TIMEOUT })
 
-export const submitPublicAnamnesis = (token, payload) => {
-  return apiClient.put(`/anamnesis/public/${token}`, payload)
-}
+export const assignAnamnesis = (patientId, payload) =>
+  apiClient.post(`${BASE_URL}/patients/${patientId}/responses`, payload, { timeout: JSON_TIMEOUT })
 
-// Busca todas as respostas de anamnese de um paciente
-export const getAnamnesisForPatient = (patientId) => {
-  return apiClient.get(`/patients/${patientId}/anamnesis`)
-}
+export const getPublicAnamnesis = (token) =>
+  apiClient.get(`${BASE_URL}/public/${encodeURIComponent(token)}`, { timeout: JSON_TIMEOUT })
 
-// ✨ FUNÇÃO ADICIONADA ✨
-// Médico atualiza as respostas de uma anamnese
-export const updateAnamnesisResponse = (patientId, responseId, payload) => {
-  // 'payload' é o objeto { answers: [...] }
-  return apiClient.put(`/patients/${patientId}/anamnesis/${responseId}`, payload)
-}
+export const submitPublicAnamnesis = (token, payload, idempotencyKey) =>
+  submitWithRetry(
+    `${BASE_URL}/public/${encodeURIComponent(token)}`,
+    payload,
+    idempotencyKey,
+  )
 
-// Busca todas as anamneses pendentes da clínica com paginação
-export const getPendingAnamneses = (page = 1, limit = 20) => {
-  return apiClient.get('/anamnesis/pending', {
-    params: { page, limit }
+export const getAnamnesisForPatient = (patientId, page = 1, limit = 100, status = 'ALL') =>
+  apiClient.get(`${BASE_URL}/patients/${patientId}/responses`, {
+    params: { page, limit, status },
+    timeout: JSON_TIMEOUT,
   })
-}
 
-// Busca TODAS as anamneses da clínica com paginação, filtro de status e busca
-export const getAllAnamneses = (page = 1, limit = 20, status = 'Todos', search = '') => {
-  return apiClient.get('/anamnesis/all', {
-    params: { page, limit, status, search }
+export const getAnamnesisResponse = (patientId, responseId) =>
+  apiClient.get(`${BASE_URL}/patients/${patientId}/responses/${responseId}`, {
+    timeout: JSON_TIMEOUT,
   })
-}
 
-// Download do PDF de uma anamnese respondida
-export const downloadAnamnesisPdf = (patientId, anamnesisId) => {
-  return apiClient.get(`/patients/${patientId}/anamnesis/${anamnesisId}/pdf`, {
-    responseType: 'blob'
+export const updateAnamnesisResponse = (
+  patientId,
+  responseId,
+  payload,
+  idempotencyKey,
+) =>
+  submitWithRetry(
+    `${BASE_URL}/patients/${patientId}/responses/${responseId}`,
+    payload,
+    idempotencyKey,
+  )
+
+export const getAnamnesisResponses = (
+  page = 1,
+  limit = 20,
+  status = 'ACTIVE',
+  search = '',
+) =>
+  apiClient.get(`${BASE_URL}/responses`, {
+    params: { page, limit, status, ...(search ? { search } : {}) },
+    timeout: JSON_TIMEOUT,
   })
-}
+
+export const downloadAnamnesisPdf = (patientId, responseId) =>
+  apiClient.get(`${BASE_URL}/patients/${patientId}/responses/${responseId}/pdf`, {
+    responseType: 'blob',
+    timeout: PDF_TIMEOUT,
+  })
+
+export const rotateAnamnesisPublicAccess = (patientId, responseId, payload) =>
+  apiClient.post(
+    `${BASE_URL}/patients/${patientId}/responses/${responseId}/public-access`,
+    payload,
+    { timeout: JSON_TIMEOUT },
+  )
+
+export const revokeAnamnesisPublicAccess = (patientId, responseId) =>
+  apiClient.delete(
+    `${BASE_URL}/patients/${patientId}/responses/${responseId}/public-access`,
+    { timeout: JSON_TIMEOUT },
+  )

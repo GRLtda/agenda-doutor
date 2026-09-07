@@ -6,6 +6,7 @@ const props = defineProps({
   modelValue: { type: [String, Number, Boolean, Array, null], default: null },
   qId: { type: String, required: true },
   disabled: { type: Boolean, default: false },
+  invalid: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -40,8 +41,11 @@ function handleCheckboxChange(e, option) {
       type="text"
       v-model="localValue"
       class="form-input"
+      :class="{ 'has-error': invalid }"
       :id="'q-' + qId"
       :disabled="disabled"
+      maxlength="500"
+      :aria-invalid="invalid"
     />
   </div>
 
@@ -49,11 +53,18 @@ function handleCheckboxChange(e, option) {
     v-if="question.questionType === 'long_text'"
     v-model="localValue"
     class="form-textarea"
+    :class="{ 'has-error': invalid }"
     :id="'q-' + qId"
     :disabled="disabled"
+    maxlength="5000"
+    :aria-invalid="invalid"
   ></textarea>
 
-  <div v-if="question.questionType === 'yes_no'" class="choice-group">
+  <div
+    v-if="question.questionType === 'yes_no' || question.questionType === 'yes_no_dontknow'"
+    class="choice-group"
+    :class="{ 'has-error': invalid }"
+  >
     <div class="choice-item">
       <input
         type="radio"
@@ -74,9 +85,19 @@ function handleCheckboxChange(e, option) {
       />
       <label :for="'q-' + qId + '-nao'">Não</label>
     </div>
+    <div v-if="question.questionType === 'yes_no_dontknow'" class="choice-item">
+      <input
+        type="radio"
+        :id="'q-' + qId + '-nao-sei'"
+        value="Não sei"
+        v-model="localValue"
+        :disabled="disabled"
+      />
+      <label :for="'q-' + qId + '-nao-sei'">Não sei</label>
+    </div>
   </div>
 
-  <div v-if="question.questionType === 'single_choice'" class="choice-group">
+  <div v-if="question.questionType === 'single_choice'" class="choice-group" :class="{ 'has-error': invalid }">
     <div v-for="option in question.options" :key="option" class="choice-item">
       <input
         type="radio"
@@ -89,7 +110,7 @@ function handleCheckboxChange(e, option) {
     </div>
   </div>
 
-  <div v-if="question.questionType === 'multiple_choice'" class="choice-group">
+  <div v-if="question.questionType === 'multiple_choice'" class="choice-group" :class="{ 'has-error': invalid }">
     <div v-for="option in question.options" :key="option" class="choice-item">
       <input
         type="checkbox"
@@ -121,6 +142,17 @@ function handleCheckboxChange(e, option) {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+.form-input.has-error,
+.form-textarea.has-error,
+.choice-group.has-error .choice-item label {
+  border-color: #ef4444;
+  background-color: #fff7f7;
+}
+.form-input.has-error:focus,
+.form-textarea.has-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
 }
 .form-textarea {
   min-height: 120px;

@@ -52,9 +52,7 @@ async function openDuplicateModal(templateId) {
 async function handleDelete(templateId) {
   const { success } = await anamnesisStore.deleteTemplate(templateId)
   if (success) {
-    toast.success('Modelo excluído com sucesso!')
-  } else {
-    toast.error('Não foi possível excluir o modelo.')
+    toast.success('Modelo arquivado com sucesso!')
   }
   templateIdToDelete.value = null
 }
@@ -124,14 +122,14 @@ async function handleDelete(templateId) {
 
           <Transition name="fade">
             <div v-if="templateIdToDelete === template._id" class="delete-confirmation">
-              <h3>Excluir Modelo?</h3>
+              <h3>Arquivar modelo?</h3>
               <p class="confirmation-description">
-                Esta ação é permanente e não poderá ser restaurada.
+                O modelo deixará de aparecer para novas anamneses.
               </p>
               <div class="confirmation-buttons">
                 <AppButton @click="templateIdToDelete = null" variant="secondary" size="sm">Cancelar</AppButton>
                 <AppButton @click="handleDelete(template._id)" variant="dangerous" size="sm">
-                  Excluir
+                  Arquivar
                 </AppButton>
               </div>
             </div>

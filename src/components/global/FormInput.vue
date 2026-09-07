@@ -22,6 +22,7 @@ const props = defineProps({
   disabledHelp: { type: String, default: '' },
   hideRequiredAsterisk: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  maxLength: { type: [String, Number], default: undefined },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -124,6 +125,7 @@ function handleBlur(event) {
       class="form-input"
       :class="{ 'has-error': !!error }"
       :disabled="disabled"
+      :maxlength="maxLength"
     />
     <Transition name="fade-error">
       <span v-if="error" class="error-message">{{ error }}</span>

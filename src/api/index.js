@@ -91,12 +91,13 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config
+    const isAnamnesisRequest = originalRequest?.url?.includes('/v2/anamnesis')
 
     // Trata erros de rede
     if (error.code === 'ERR_NETWORK' || !error.response) {
       console.error('⚠️ Conexão perdida com a API.')
       isGlobalOffline.value = true
-      Sentry.captureException(error)
+      if (!isAnamnesisRequest) Sentry.captureException(error)
       return Promise.reject(error)
     } else {
       isGlobalOffline.value = false
@@ -155,12 +156,15 @@ apiClient.interceptors.response.use(
     }
 
     // Trata erro de assinatura
-    if (error.response?.data?.code === 'SUBSCRIPTION_REQUIRED') {
+    if (
+      error.response?.data?.code === 'SUBSCRIPTION_REQUIRED' ||
+      error.response?.data?.error?.code === 'SUBSCRIPTION_REQUIRED'
+    ) {
       const layoutStore = useLayoutStore()
       layoutStore.openSubscriptionModal()
     }
 
-    Sentry.captureException(error)
+    if (!isAnamnesisRequest) Sentry.captureException(error)
     return Promise.reject(error)
   }
 )

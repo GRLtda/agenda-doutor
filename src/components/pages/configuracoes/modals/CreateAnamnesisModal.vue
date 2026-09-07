@@ -30,6 +30,9 @@ const templateName = ref('')
 const questions = ref([])
 const openConditionalGroups = ref({})
 const validationErrors = ref(new Set())
+const fieldMessages = ref({})
+const templateVersion = ref(null)
+const formError = ref('')
 
 const isEditMode = computed(() => !!props.templateIdToEdit && !props.templateToDuplicate)
 
@@ -37,6 +40,7 @@ const questionTypes = [
   { value: 'text', label: 'Texto Curto' },
   { value: 'long_text', label: 'Texto Longo' },
   { value: 'yes_no', label: 'Sim / Não' },
+  { value: 'yes_no_dontknow', label: 'Sim / Não / Não sei' },
   { value: 'single_choice', label: 'Múltipla Escolha (1 resposta)' },
   { value: 'multiple_choice', label: 'Múltipla Escolha (várias respostas)' },
 ]
@@ -52,7 +56,38 @@ function validateQuestions(questionArray) {
   for (const q of questionArray) {
     if (!q.title || !q.title.trim()) {
       validationErrors.value.add(q._tempId)
+      fieldMessages.value[q._tempId] = 'Informe o texto da pergunta.'
       isValid = false
+    } else if (q.title.trim().length > 500) {
+      validationErrors.value.add(q._tempId)
+      fieldMessages.value[q._tempId] = 'A pergunta deve ter no máximo 500 caracteres.'
+      isValid = false
+    }
+
+    if (['single_choice', 'multiple_choice'].includes(q.questionType)) {
+      if (!q.options?.length) {
+        validationErrors.value.add(`options:${q._tempId}`)
+        fieldMessages.value[`options:${q._tempId}`] = 'Adicione pelo menos uma opção.'
+        isValid = false
+      }
+
+      const normalizedOptions = (q.options || []).map((option) => option.trim().toLocaleLowerCase('pt-BR'))
+      q.options?.forEach((option, optionIndex) => {
+        const key = `option:${q._tempId}:${optionIndex}`
+        if (!option.trim()) {
+          validationErrors.value.add(key)
+          fieldMessages.value[key] = 'Informe o texto da opção.'
+          isValid = false
+        } else if (option.trim().length > 200) {
+          validationErrors.value.add(key)
+          fieldMessages.value[key] = 'A opção deve ter no máximo 200 caracteres.'
+          isValid = false
+        } else if (normalizedOptions.indexOf(normalizedOptions[optionIndex]) !== optionIndex) {
+          validationErrors.value.add(key)
+          fieldMessages.value[key] = 'Esta opção está duplicada.'
+          isValid = false
+        }
+      })
     }
 
     if (q.conditionalQuestions && q.conditionalQuestions.length > 0) {
@@ -120,6 +155,7 @@ onMounted(async () => {
       )
       if (templateData) {
         templateName.value = templateData.name
+        templateVersion.value = templateData.version
         questions.value = processLoadedQuestions(templateData.questions)
       } else {
         toast.error('Não foi possível carregar o modelo para edição.')
@@ -173,7 +209,7 @@ function addConditionalQuestionGroup(questionIndex) {
   }
 
   let defaultCondition = ''
-  if (question.questionType === 'yes_no') {
+  if (question.questionType === 'yes_no' || question.questionType === 'yes_no_dontknow') {
     defaultCondition = 'true'
   } else if (question.questionType === 'single_choice' && question.options.length > 0) {
     defaultCondition = question.options[0]
@@ -249,6 +285,9 @@ function getConditionOptions(question) {
     return [
       { label: 'Sim', value: 'true' },
       { label: 'Não', value: 'false' },
+      ...(question.questionType === 'yes_no_dontknow'
+        ? [{ label: 'Não sei', value: 'Não sei' }]
+        : []),
     ]
   }
   if (question.questionType === 'single_choice') {
@@ -257,35 +296,81 @@ function getConditionOptions(question) {
   return []
 }
 
-function cleanPayload(questionArray) {
+function cleanPayload(questionArray, isSubQuestion = false) {
   if (!questionArray) return []
   return questionArray.map((q) => {
-    const { _tempId, ...questionData } = q
+    const choice = q.questionType === 'single_choice' || q.questionType === 'multiple_choice'
+    const baseQuestion = {
+      qId: q.qId,
+      title: q.title.trim(),
+      questionType: q.questionType,
+      options: choice ? (q.options || []).map((option) => option.trim()) : [],
+    }
 
-    const cleanedConditionalQuestions = (
-      questionData.conditionalQuestions || []
-    ).map((group) => {
-      const { _tempId: groupTempId, ...groupData } = group
-      return {
-        ...groupData,
-        questions: cleanPayload(groupData.questions || []),
-      }
-    })
+    if (isSubQuestion) return baseQuestion
 
     return {
-      ...questionData,
-      conditionalQuestions: cleanedConditionalQuestions,
+      ...baseQuestion,
+      conditionalQuestions: (q.conditionalQuestions || []).map((group) => ({
+        showWhenAnswerIs:
+          group.showWhenAnswerIs === 'true'
+            ? true
+            : group.showWhenAnswerIs === 'false'
+              ? false
+              : group.showWhenAnswerIs,
+        questions: cleanPayload(group.questions || [], true),
+      })),
     }
   })
 }
 
+function serverFieldKey(field) {
+  if (field === 'name') return 'templateName'
+  const parts = field.split('.')
+  if (parts[0] !== 'questions') return null
+
+  const question = questions.value[Number(parts[1])]
+  if (!question) return null
+  if (parts[2] === 'title') return question._tempId
+  if (parts[2] === 'options') {
+    return parts[3] === undefined
+      ? `options:${question._tempId}`
+      : `option:${question._tempId}:${parts[3]}`
+  }
+
+  if (parts[2] === 'conditionalQuestions') {
+    const group = question.conditionalQuestions?.[Number(parts[3])]
+    const subQuestion = group?.questions?.[Number(parts[5])]
+    if (!subQuestion) return question._tempId
+    if (parts[6] === 'options') {
+      return parts[7] === undefined
+        ? `options:${subQuestion._tempId}`
+        : `option:${subQuestion._tempId}:${parts[7]}`
+    }
+    return subQuestion._tempId
+  }
+
+  return question._tempId
+}
+
 async function handleSubmit() {
   validationErrors.value.clear()
+  fieldMessages.value = {}
+  formError.value = ''
   let isFormValid = true
 
-  if (!templateName.value) {
-    toast.error('Por favor, dê um nome ao modelo.')
+  if (!templateName.value.trim()) {
     validationErrors.value.add('templateName')
+    fieldMessages.value.templateName = 'Informe o nome do modelo.'
+    isFormValid = false
+  } else if (templateName.value.trim().length > 120) {
+    validationErrors.value.add('templateName')
+    fieldMessages.value.templateName = 'O nome deve ter no máximo 120 caracteres.'
+    isFormValid = false
+  }
+
+  if (questions.value.length === 0) {
+    formError.value = 'Adicione pelo menos uma pergunta ao modelo.'
     isFormValid = false
   }
 
@@ -294,16 +379,13 @@ async function handleSubmit() {
   }
 
   if (!isFormValid) {
-    toast.error(
-      'Existem campos obrigatórios não preenchidos. Verifique os campos em vermelho.'
-    )
     return
   }
 
   const preparedQuestions = cleanPayload(questions.value)
 
   const payload = {
-    name: templateName.value,
+    name: templateName.value.trim(),
     questions: preparedQuestions,
   }
 
@@ -312,7 +394,7 @@ async function handleSubmit() {
     if (isEditMode.value) {
       response = await anamnesisStore.updateTemplate(
         props.templateIdToEdit,
-        payload
+        { ...payload, version: templateVersion.value }
       )
       toast.success(response.message || 'Modelo atualizado com sucesso!')
     } else {
@@ -321,10 +403,24 @@ async function handleSubmit() {
     }
     emit('close')
   } catch (error) {
-    console.error('Erro ao salvar o modelo:', error)
-    toast.error(
-      error.response?.data?.message || 'Não foi possível salvar o modelo.'
-    )
+    const normalized = error.anamnesis
+    for (const field of normalized?.fields || []) {
+      const key = serverFieldKey(field.field)
+      if (!key) continue
+      validationErrors.value.add(key)
+      fieldMessages.value[key] = field.message
+    }
+
+    if (normalized?.code === 'ANAMNESIS_TEMPLATE_NAME_CONFLICT') {
+      validationErrors.value.add('templateName')
+      fieldMessages.value.templateName = normalized.message
+    } else if (normalized?.code === 'ANAMNESIS_TEMPLATE_VERSION_CONFLICT') {
+      const latestTemplate = await anamnesisStore.fetchTemplateById(props.templateIdToEdit)
+      if (latestTemplate) templateVersion.value = latestTemplate.version
+      formError.value = `${normalized.message} Suas edições foram mantidas; revise-as e clique em salvar para reaplicá-las sobre a versão atual.`
+    } else {
+      formError.value = normalized?.message || 'Não foi possível salvar o modelo.'
+    }
   }
 }
 </script>
@@ -384,12 +480,14 @@ async function handleSubmit() {
         </div>
 
         <div v-else>
+        <div v-if="formError" class="form-error" role="alert">{{ formError }}</div>
         <FormInput
           label="Nome do Modelo"
           v-model="templateName"
           placeholder="Ex: Anamnese Adulto Completa"
           required
-          :class="{ 'has-error': validationErrors.has('templateName') }"
+          :error="fieldMessages.templateName"
+          maxlength="120"
         />
 
         <hr class="separator" />
@@ -408,7 +506,8 @@ async function handleSubmit() {
                   v-model="question.title"
                   placeholder="Ex: Você tem alguma alergia?"
                   class="question-title-input"
-                  :class="{ 'has-error': validationErrors.has(question._tempId) }"
+                  :error="fieldMessages[question._tempId]"
+                  maxlength="500"
                 />
                 <StyledSelect
                   label="Tipo de Resposta"
@@ -436,6 +535,9 @@ async function handleSubmit() {
               class="options-wrapper"
             >
               <label class="options-label">Opções de Resposta</label>
+              <span v-if="fieldMessages[`options:${question._tempId}`]" class="field-error">
+                {{ fieldMessages[`options:${question._tempId}`] }}
+              </span>
               <div
                 v-for="(option, oIndex) in question.options"
                 :key="oIndex"
@@ -446,6 +548,8 @@ async function handleSubmit() {
                   :hideLabel="true"
                   v-model="question.options[oIndex]"
                   placeholder="Digite o texto da opção"
+                  :error="fieldMessages[`option:${question._tempId}:${oIndex}`]"
+                  maxlength="200"
                 />
                 <AppButton
                   variant="dangerous"
@@ -464,7 +568,9 @@ async function handleSubmit() {
             <div
               class="conditional-section"
               v-if="
-                question.questionType === 'yes_no'"
+                question.questionType === 'yes_no' ||
+                question.questionType === 'yes_no_dontknow' ||
+                question.questionType === 'single_choice'"
             >
               <button
                 class="btn-toggle-conditional"
@@ -536,9 +642,8 @@ async function handleSubmit() {
                             v-model="subQuestion.title"
                             placeholder="Ex: Quais alergias?"
                             class="question-title-input"
-                            :class="{
-                              'has-error': validationErrors.has(subQuestion._tempId),
-                            }"
+                            :error="fieldMessages[subQuestion._tempId]"
+                            maxlength="500"
                           />
                           <StyledSelect
                             label="Tipo da Sub-Pergunta"
@@ -556,6 +661,9 @@ async function handleSubmit() {
                           "
                           class="options-wrapper sub-options-wrapper"
                         >
+                          <span v-if="fieldMessages[`options:${subQuestion._tempId}`]" class="field-error">
+                            {{ fieldMessages[`options:${subQuestion._tempId}`] }}
+                          </span>
                           <div
                             v-for="(option, oIndex) in subQuestion.options"
                             :key="oIndex"
@@ -566,6 +674,8 @@ async function handleSubmit() {
                               :hideLabel="true"
                               v-model="subQuestion.options[oIndex]"
                               placeholder="Digite o texto da opção"
+                              :error="fieldMessages[`option:${subQuestion._tempId}:${oIndex}`]"
+                              maxlength="200"
                             />
                             <button
                               class="btn-icon btn-delete-option"
@@ -638,7 +748,7 @@ async function handleSubmit() {
         <AppButton variant="default" @click="emit('close')">
           Cancelar
         </AppButton>
-        <AppButton variant="primary" @click="handleSubmit">
+        <AppButton variant="primary" @click="handleSubmit" :loading="anamnesisStore.isLoading" :disabled="anamnesisStore.isLoading">
           <span v-if="isEditMode">Salvar Alterações</span>
           <span v-else>Criar Modelo</span>
         </AppButton>
@@ -701,6 +811,21 @@ async function handleSubmit() {
   border: 0;
   border-top: 1px solid #e5e7eb;
   margin: 1.5rem 0;
+}
+.form-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+}
+.field-error {
+  color: #dc2626;
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .questions-list {

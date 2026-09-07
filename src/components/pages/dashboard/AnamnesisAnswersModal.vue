@@ -20,16 +20,9 @@ const toast = useToast()
 const localAnswers = ref({})
 const isSaving = ref(false)
 const resolvedTemplate = ref(null)
-
-function getTemplateId(anamnesis) {
-  return (
-    anamnesis?.template?._id ||
-    anamnesis?.templateId ||
-    anamnesis?.template?.id ||
-    anamnesis?.template?.templateId ||
-    null
-  )
-}
+const resolvedAnamnesis = ref(null)
+const validationErrors = ref({})
+const saveError = ref('')
 
 // Initialize localAnswers when anamnesis changes
 watch(
@@ -37,26 +30,34 @@ watch(
   async (newVal) => {
     localAnswers.value = {}
     resolvedTemplate.value = null
+    resolvedAnamnesis.value = null
+    validationErrors.value = {}
+    saveError.value = ''
 
     if (!newVal) return
 
-    let template = newVal.template || null
-    const templateId = getTemplateId(newVal)
+    let anamnesis = newVal
+    const patientId = newVal.patient?.id || newVal.patient?._id || newVal.patientId || newVal.patient
 
-    if ((!template || !template.questions) && templateId) {
-      template =
-        anamnesisStore.templates.find((t) => t._id === templateId) ||
-        (await anamnesisStore.fetchTemplateById(templateId))
+    if ((!newVal.template?.questions || !Array.isArray(newVal.answers)) && patientId && newVal._id) {
+      const result = await anamnesisStore.fetchAnamnesisResponse(patientId, newVal._id)
+      if (!result.success) {
+        saveError.value = result.error.message
+        return
+      }
+      anamnesis = result.data
     }
 
+    const template = anamnesis.template || null
     if (template) {
+      resolvedAnamnesis.value = anamnesis
       resolvedTemplate.value = template
 
       const map = {}
       
       // 1. Populate with existing answers
-      if (newVal.answers) {
-        newVal.answers.forEach(ans => {
+      if (anamnesis.answers) {
+        anamnesis.answers.forEach(ans => {
           map[ans.qId] = { ...ans } // Clone
         })
       }
@@ -68,8 +69,7 @@ watch(
             // Initialize empty answer
             map[q.qId] = { 
               qId: q.qId, 
-              questionTitle: q.title, 
-              answer: q.questionType === 'checkbox' ? [] : '' 
+              answer: q.questionType === 'multiple_choice' ? [] : null
             }
           }
           // Recursively init conditional questions
@@ -98,8 +98,9 @@ const template = computed(
 )
 const patientName = computed(() => props.anamnesis.patient?.name || 'Paciente')
 const date = computed(() => {
-    if(!props.anamnesis.updatedAt) return 'N/A'
-    return new Date(props.anamnesis.updatedAt).toLocaleDateString('pt-BR')
+    const dateValue = resolvedAnamnesis.value?.answeredAt || props.anamnesis.updatedAt
+    if(!dateValue) return 'N/A'
+    return new Date(dateValue).toLocaleDateString('pt-BR')
 })
 
 // Computed to choose which answers to display (local for editing, prop for viewing)
@@ -111,33 +112,68 @@ const displayAnswers = computed(() => {
   return localAnswers.value
 })
 
+function normalizedValue(value) {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLocaleLowerCase('pt-BR')
+    if (normalized === 'sim' || normalized === 'true') return true
+    if (normalized === 'não' || normalized === 'nao' || normalized === 'false') return false
+    return normalized
+  }
+  return value
+}
+
+function validateQuestions(questions) {
+  for (const question of questions || []) {
+    const value = localAnswers.value[question.qId]?.answer
+    const empty = Array.isArray(value) ? value.length === 0 : value === null || value === ''
+    if (empty) validationErrors.value[question.qId] = 'Este campo é obrigatório.'
+
+    for (const group of question.conditionalQuestions || []) {
+      if (normalizedValue(value) === normalizedValue(group.showWhenAnswerIs)) {
+        validateQuestions(group.questions)
+      }
+    }
+  }
+}
+
+function buildAnswers(questions, result = []) {
+  for (const question of questions || []) {
+    const answer = localAnswers.value[question.qId]
+    if (!answer) continue
+    result.push({ qId: question.qId, answer: answer.answer })
+
+    for (const group of question.conditionalQuestions || []) {
+      if (normalizedValue(answer.answer) === normalizedValue(group.showWhenAnswerIs)) {
+        buildAnswers(group.questions, result)
+      }
+    }
+  }
+  return result
+}
+
 async function handleSave() {
-  if (!props.anamnesis.patient || !props.anamnesis._id) {
-    toast.error('Erro: Dados da anamnese incompletos.')
+  if (isSaving.value) return
+  saveError.value = ''
+  validationErrors.value = {}
+
+  const patientId = props.anamnesis.patient?.id || props.anamnesis.patient?._id || props.anamnesis.patientId || props.anamnesis.patient
+  if (!patientId || !props.anamnesis._id) {
+    saveError.value = 'Não foi possível identificar o paciente ou a anamnese.'
+    return
+  }
+
+  validateQuestions(template.value.questions)
+  if (Object.keys(validationErrors.value).length > 0) {
+    const firstErrorId = Object.keys(validationErrors.value)[0]
+    document.getElementById(`q-${firstErrorId}`)?.focus()
     return
   }
 
   isSaving.value = true
-  
-  // Convert map back to array
-  const answersArray = Object.values(localAnswers.value).filter(a => {
-      // Filter out empty answers if desired, or keep them. 
-      // Usually we send everything or just what's filled.
-      // Let's send what's filled to avoid clutter, but for editing it might be better to send all?
-      // The backend likely replaces the answers array.
-      return a.answer !== '' && a.answer !== null && (Array.isArray(a.answer) ? a.answer.length > 0 : true)
-  })
-
-  // Ensure questionTitle is up to date (in case template changed? unlikely but good practice)
-  // Actually localAnswers already has titles from init.
-
-  const payload = {
-    answers: answersArray,
-    status: 'Preenchido' // Auto-complete when doctor saves? Or keep pending? User said "ao preencher ele mostra as perguntas respondidas", implies completion.
-  }
+  const payload = { answers: buildAnswers(template.value.questions) }
 
   const result = await anamnesisStore.updateAnamnesisResponse(
-    props.anamnesis.patient._id || props.anamnesis.patient, // Handle populated or ID
+    patientId,
     props.anamnesis._id,
     payload
   )
@@ -145,7 +181,13 @@ async function handleSave() {
   isSaving.value = false
 
   if (result.success) {
+    toast.success('Anamnese respondida com sucesso!')
     emit('saved', result.data)
+  } else {
+    for (const field of result.error?.fields || []) {
+      if (localAnswers.value[field.field]) validationErrors.value[field.field] = field.message
+    }
+    saveError.value = result.error?.message || 'Não foi possível salvar as respostas.'
   }
 }
 </script>
@@ -166,6 +208,9 @@ async function handleSave() {
 
     <template #default>
       <div class="drawer-body">
+        <p v-if="saveError && !isEditing" class="save-error body-error" role="alert">
+          {{ saveError }}
+        </p>
         <section class="section">
              <div class="info-card">
                  <div class="info-row">
@@ -185,6 +230,7 @@ async function handleSave() {
             :questions="template.questions"
             :answers="displayAnswers"
             :readonly="!isEditing"
+            :validation-errors="validationErrors"
           />
           <div v-else class="empty-state">
               Nenhuma pergunta encontrada neste modelo.
@@ -196,6 +242,7 @@ async function handleSave() {
     <template #footer>
       <!-- Footer for Actions -->
       <footer v-if="isEditing" class="drawer-footer">
+        <p v-if="saveError" class="save-error" role="alert">{{ saveError }}</p>
         <AppButton variant="default" @click="$emit('close')" :disabled="isSaving">
           Cancelar
         </AppButton>
@@ -276,6 +323,16 @@ async function handleSave() {
   justify-content: flex-end;
   gap: 1rem;
   background-color: #fff;
+}
+.save-error {
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin: 0 auto 0 0;
+  max-width: 50%;
+}
+.body-error {
+  margin: 1rem 0 0;
+  max-width: none;
 }
 
 

@@ -4,13 +4,11 @@ import { storeToRefs } from 'pinia'
 import { useAnamnesisStore } from '@/stores/anamnesis'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useToast } from 'vue-toastification'
 import { useDebounceFn } from '@vueuse/core'
 import {
   Search,
   ClipboardList,
   Phone,
-  Link as LinkIcon,
   CheckCircle,
   XCircle,
   ChevronLeft,
@@ -27,7 +25,6 @@ import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
-const toast = useToast()
 
 const anamnesisStore = useAnamnesisStore()
 const {
@@ -81,14 +78,6 @@ function formatDate(dateString) {
     return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
   } catch (e) {
     return dateString
-  }
-}
-
-function copyLink(link) {
-  if (navigator.clipboard && link) {
-    navigator.clipboard.writeText(link)
-      .then(() => toast.success('Link copiado!'))
-      .catch(err => console.error('Erro ao copiar link:', err))
   }
 }
 
@@ -149,6 +138,7 @@ const showPagination = computed(() => allPages.value > 1)
             type="text"
             placeholder="Buscar por paciente..."
             class="search-input"
+            maxlength="64"
             @input="handleSearchInput"
           />
           <button v-if="searchFilter" class="clear-search" @click="() => { searchFilter = ''; handleSearchInput(); }">
@@ -201,7 +191,7 @@ const showPagination = computed(() => allPages.value > 1)
             <span class="status-badge" :class="{
               'filled': anamnesis.status === 'Preenchido',
               'pending': anamnesis.status === 'Pendente',
-              'expired': anamnesis.status === 'Expirado'
+              'expired': anamnesis.status === 'Expirado' || anamnesis.status === 'Revogado'
             }">
               {{ anamnesis.status }}
             </span>
@@ -232,21 +222,11 @@ const showPagination = computed(() => allPages.value > 1)
 
           <div class="card-action">
             <button
-              v-if="anamnesis.status === 'Pendente' && anamnesis.anamnesisLink"
+              v-if="anamnesis.status === 'Pendente'"
               class="action-btn copy-btn"
-              @click="copyLink(anamnesis.anamnesisLink)"
+              @click="goToPatient(anamnesis.patientId)"
             >
-              <LinkIcon :size="16" /> Copiar Link
-            </button>
-            <button
-              v-else-if="anamnesis.status === 'Expirado' && anamnesis.anamnesisLink"
-              class="action-btn copy-btn"
-              @click="copyLink(anamnesis.anamnesisLink)"
-              disabled
-              title="O link expirou."
-              style="opacity: 0.5; cursor: not-allowed;"
-            >
-              <XCircle :size="16" /> Link Expirado
+              Gerar novo link no paciente
             </button>
             <button
               v-else-if="anamnesis.status === 'Preenchido'"

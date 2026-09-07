@@ -34,15 +34,13 @@ const answersMap = computed(() => {
 
 function formatAnswer(answerObj) {
   if (!answerObj || answerObj.answer === null || answerObj.answer === undefined) {
-    return '<span class="no-answer">Não respondido</span>' // ✨ Adiciona classe
+    return 'Não respondido'
   }
 
   const answer = answerObj.answer
 
   if (Array.isArray(answer)) {
-    if (answer.length === 0)
-      return '<span class="no-answer">Nenhuma opção selecionada</span>'
-    return `<ul>${answer.map((item) => `<li>${item}</li>`).join('')}</ul>`
+    return answer.length > 0 ? answer : 'Nenhuma opção selecionada'
   }
 
   if (typeof answer === 'boolean') {
@@ -51,12 +49,23 @@ function formatAnswer(answerObj) {
 
   if (typeof answer === 'string') {
     if (answer.trim() === '') {
-      return '<span class="no-answer">Não respondido</span>'
+      return 'Não respondido'
     }
-    return answer.replace(/\n/g, '<br>')
+    return answer
   }
 
-  return answer
+  return String(answer)
+}
+
+function answersMatch(answer, trigger) {
+  const normalize = (value) => {
+    if (typeof value !== 'string') return value
+    const normalized = value.trim().toLocaleLowerCase('pt-BR')
+    if (normalized === 'sim' || normalized === 'true') return true
+    if (normalized === 'não' || normalized === 'nao' || normalized === 'false') return false
+    return normalized
+  }
+  return normalize(answer) === normalize(trigger)
 }
 </script>
 
@@ -85,10 +94,12 @@ function formatAnswer(answerObj) {
             <label class="question-title">
               <span>{{ index + 1 }}.</span> {{ question.title }}
             </label>
-            <div
-              class="answer-field"
-              v-html="formatAnswer(answersMap[question.qId])"
-            ></div>
+            <div class="answer-field">
+              <ul v-if="Array.isArray(formatAnswer(answersMap[question.qId]))">
+                <li v-for="item in formatAnswer(answersMap[question.qId])" :key="item">{{ item }}</li>
+              </ul>
+              <span v-else>{{ formatAnswer(answersMap[question.qId]) }}</span>
+            </div>
           </div>
 
           <div
@@ -101,7 +112,7 @@ function formatAnswer(answerObj) {
                 class="sub-question-wrapper"
                 v-if="
                   answersMap[question.qId] &&
-                  answersMap[question.qId].answer === group.showWhenAnswerIs
+                  answersMatch(answersMap[question.qId].answer, group.showWhenAnswerIs)
                 "
               >
                 <div
@@ -118,10 +129,12 @@ function formatAnswer(answerObj) {
                     >
                     {{ subQuestion.title }}
                   </label>
-                  <div
-                    class="answer-field"
-                    v-html="formatAnswer(answersMap[subQuestion.qId])"
-                  ></div>
+                  <div class="answer-field">
+                    <ul v-if="Array.isArray(formatAnswer(answersMap[subQuestion.qId]))">
+                      <li v-for="item in formatAnswer(answersMap[subQuestion.qId])" :key="item">{{ item }}</li>
+                    </ul>
+                    <span v-else>{{ formatAnswer(answersMap[subQuestion.qId]) }}</span>
+                  </div>
                 </div>
               </div>
             </Transition>
@@ -224,6 +237,7 @@ function formatAnswer(answerObj) {
   display: flex;
   align-items: center;
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .answer-field :deep(ul) {

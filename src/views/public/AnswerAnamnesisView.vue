@@ -2,28 +2,26 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnamnesisStore } from '@/stores/anamnesis'
-import { useToast } from 'vue-toastification'
 import confetti from 'canvas-confetti'
-import Cookies from 'js-cookie'
 import {
   CheckCircle2,
   AlertTriangle,
   Building,
-  CornerDownRight,
 } from 'lucide-vue-next'
 import AnamnesisQuestionsRenderer from '../public/AnamnesisQuestionsRenderer.vue'
 
 const route = useRoute()
 const anamnesisStore = useAnamnesisStore()
-const toast = useToast()
 
 const responseData = ref(null)
 const answers = ref({})
 const submissionStatus = ref('pending')
 const validationErrors = ref({})
 const token = route.params.token
-const storageKey = `anamnesis-answers-${token}`
 const logoError = ref(false)
+const loadErrorTitle = ref('Link indisponível')
+const loadErrorMessage = ref('Não foi possível carregar o formulário.')
+const submissionError = ref('')
 
 // --- FUNÇÕES DE LÓGICA (Sem alteração) ---
 
@@ -40,7 +38,6 @@ function initializeAnswers(questionsArray) {
 
     answers.value[q.qId] = {
       qId: q.qId,
-      questionTitle: q.title,
       answer: getDefaultAnswer(q.questionType),
     }
 
@@ -50,10 +47,6 @@ function initializeAnswers(questionsArray) {
       }
     }
   }
-}
-
-function getSubQuestionLetter(index) {
-  return String.fromCharCode(65 + index)
 }
 
 // Normaliza valores de resposta para comparação consistente
@@ -74,39 +67,24 @@ function normalizeAnswerValue(value) {
 }
 
 onMounted(async () => {
-  const { success } = await anamnesisStore.fetchPublicAnamnesis(token)
+  const { success, error } = await anamnesisStore.fetchPublicAnamnesis(token)
 
   if (success && anamnesisStore.publicTemplate) {
     responseData.value = anamnesisStore.publicTemplate
-    const questions = responseData.value.template?.questions
+    const questions = responseData.value.form?.questions
 
     if (Array.isArray(questions)) {
       initializeAnswers(questions)
-
-      const savedAnswersRaw = Cookies.get(storageKey)
-
-      if (savedAnswersRaw) {
-        try {
-          const savedAnswers = JSON.parse(savedAnswersRaw)
-          if (savedAnswers && typeof savedAnswers === 'object') {
-            Object.keys(answers.value).forEach((qId) => {
-              if (savedAnswers[qId]) {
-                answers.value[qId] = savedAnswers[qId]
-              }
-            })
-            toast.info('Seu progresso anterior foi restaurado!')
-          }
-        } catch (e) {
-          console.error('Falha ao carregar respostas do cookie:', e)
-          // ✨ ALTERADO: Remove o cookie em caso de erro
-          Cookies.remove(storageKey, { path: '/' })
-        }
-      }
     } else {
-      console.warn('Nenhuma pergunta encontrada no template:', responseData.value)
+      loadErrorTitle.value = 'Formulário indisponível'
+      loadErrorMessage.value = 'Este formulário não possui perguntas disponíveis.'
       submissionStatus.value = 'error'
     }
   } else {
+    loadErrorMessage.value = error?.message || loadErrorMessage.value
+    if (error?.code === 'ANAMNESIS_ALREADY_ANSWERED') {
+      loadErrorTitle.value = 'Anamnese já respondida'
+    }
     submissionStatus.value = 'error'
   }
 })
@@ -116,13 +94,6 @@ watch(
   answers,
   (newAnswers) => {
     if (responseData.value && submissionStatus.value === 'pending') {
-      // ✨ ALTERADO: Salva no cookie com expiração de 7 dias
-      Cookies.set(storageKey, JSON.stringify(newAnswers), {
-        expires: 7,
-        path: '/',
-        sameSite: 'Lax',
-      })
-
       Object.keys(newAnswers).forEach((qId) => {
         const answer = newAnswers[qId].answer
         const isAnswerFilled = Array.isArray(answer)
@@ -132,6 +103,7 @@ watch(
           delete validationErrors.value[qId]
         }
       })
+      submissionError.value = ''
     }
   },
   { deep: true },
@@ -161,7 +133,7 @@ function validateRecursive(questionsArray) {
       : answer === null || answer === ''
 
     if (isAnswerEmpty) {
-      validationErrors.value[q.qId] = true
+      validationErrors.value[q.qId] = 'Este campo é obrigatório.'
     } else {
       delete validationErrors.value[q.qId]
     }
@@ -185,7 +157,7 @@ function validateRecursive(questionsArray) {
 
 function validateForm() {
   validationErrors.value = {}
-  validateRecursive(responseData.value.template.questions)
+  validateRecursive(responseData.value.form.questions)
   return Object.keys(validationErrors.value).length === 0
 }
 
@@ -195,7 +167,7 @@ function buildPayloadRecursive(questionsArray, payload) {
   for (const q of questionsArray) {
     const answerObj = answers.value[q.qId]
     if (answerObj) {
-      payload.push(answerObj)
+      payload.push({ qId: answerObj.qId, answer: answerObj.answer })
 
       if (q.conditionalQuestions && q.conditionalQuestions.length > 0) {
         for (const group of q.conditionalQuestions) {
@@ -211,10 +183,10 @@ function buildPayloadRecursive(questionsArray, payload) {
 }
 
 async function handleSubmit() {
+  if (anamnesisStore.isLoading) return
+  submissionError.value = ''
+
   if (!validateForm()) {
-    toast.error(
-      'Por favor, responda todas as perguntas obrigatórias antes de enviar.',
-    )
     const firstErrorId = Object.keys(validationErrors.value)[0]
     if (firstErrorId) {
       const errorElement = document.getElementById(`q-${firstErrorId}`)
@@ -224,15 +196,23 @@ async function handleSubmit() {
   }
 
   const payloadArray = []
-  buildPayloadRecursive(responseData.value.template.questions, payloadArray)
+  buildPayloadRecursive(responseData.value.form.questions, payloadArray)
 
   const payload = { answers: payloadArray }
-  const { success } = await anamnesisStore.submitPublicAnamnesis(token, payload)
+  const { success, error } = await anamnesisStore.submitPublicAnamnesis(token, payload)
 
   if (success) {
-    Cookies.remove(storageKey, { path: '/' })
     submissionStatus.value = 'success'
+    return
   }
+
+  for (const field of error?.fields || []) {
+    if (answers.value[field.field]) validationErrors.value[field.field] = field.message
+  }
+
+  submissionError.value = error?.message || 'Não foi possível enviar as respostas.'
+  const firstErrorId = Object.keys(validationErrors.value)[0]
+  if (firstErrorId) document.getElementById(`q-${firstErrorId}`)?.focus()
 }
 </script>
 
@@ -294,8 +274,8 @@ async function handleSubmit() {
 
         <!-- Conteúdo principal -->
         <div class="status-content">
-          <h2 class="status-title error-title">Link Inválido ou Expirado</h2>
-          <p class="status-subtitle">Não foi possível carregar o formulário</p>
+          <h2 class="status-title error-title">{{ loadErrorTitle }}</h2>
+          <p class="status-subtitle">{{ loadErrorMessage }}</p>
         </div>
 
         <!-- Box de instrução -->
@@ -334,8 +314,8 @@ async function handleSubmit() {
       <header class="page-header">
         <div class="clinic-branding">
           <img
-            v-if="responseData.clinicInfo?.logoUrl && !logoError"
-            :src="responseData.clinicInfo.logoUrl"
+            v-if="responseData.clinic?.logoUrl && !logoError"
+            :src="responseData.clinic.logoUrl"
             alt="Logo da clínica"
             class="clinic-logo"
             @error="logoError = true"
@@ -343,32 +323,23 @@ async function handleSubmit() {
           <div v-else class="clinic-logo-placeholder">
             <Building :size="24" />
           </div>
-          <span class="clinic-name">{{ responseData.clinicInfo.name }}</span>
+          <span class="clinic-name">{{ responseData.clinic.name }}</span>
         </div>
       </header>
 
       <main class="main-content">
         <div class="card">
-          <div v-if="responseData.patientInfo" class="patient-info-header">
+          <div v-if="responseData.patient" class="patient-info-header">
             <div class="patient-avatar">
-              {{ responseData.patientInfo.name.charAt(0) }}
+              {{ responseData.patient.firstName.charAt(0) }}
             </div>
             <div class="patient-details">
-              <h2 class="patient-name">{{ responseData.patientInfo.name }}</h2>
-              <div class="patient-meta">
-                <span>{{ responseData.patientInfo.gender }}</span>
-                <span v-if="responseData.patientInfo.cpf"
-                  >CPF:
-                  {{
-                    responseData.patientInfo.cpf.substring(0, 3)
-                  }}.***.***-**</span
-                >
-              </div>
+              <h2 class="patient-name">{{ responseData.patient.firstName }}</h2>
             </div>
           </div>
 
           <header class="form-header">
-            <h1>{{ responseData.template.name }}</h1>
+            <h1>{{ responseData.form.name }}</h1>
             <p>
               Preencha o formulário abaixo com atenção. Suas respostas são
               confidenciais e importantes para o seu atendimento.
@@ -377,11 +348,16 @@ async function handleSubmit() {
 
           <form @submit.prevent="handleSubmit">
             <AnamnesisQuestionsRenderer
-              :questions="responseData.template.questions"
+              :questions="responseData.form.questions"
               :answers="answers"
               :validationErrors="validationErrors"
             />
-            <button type="submit" class="submit-button">Enviar Respostas</button>
+            <div v-if="submissionError" class="submission-error" role="alert">
+              {{ submissionError }}
+            </div>
+            <button type="submit" class="submit-button" :disabled="anamnesisStore.isLoading">
+              {{ anamnesisStore.isLoading ? 'Enviando...' : 'Enviar Respostas' }}
+            </button>
             <p class="lpgd">Ao clicar em 'Enviar Respostas', declaro, sob minha responsabilidade, que todas as informações prestadas neste formulário são verdadeiras e completas, e autorizo seu uso exclusivamente para fins de atendimento clínico, conforme a Lei nº 13.709/2018 (LGPD).</p>
           </form>
         </div>
@@ -548,6 +524,19 @@ p {
 }
 .submit-button:hover {
   background-color: var(--azul-escuro);
+}
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.submission-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.75rem;
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-top: 1.5rem;
+  padding: 0.875rem 1rem;
 }
 
 /* --- ESTILOS DE ERRO (Sem alteração) --- */

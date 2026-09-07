@@ -25,6 +25,8 @@ const generatedLink = ref(null);
 const notificationSent = ref(null);
 const copied = ref(false);
 const isLoading = ref(false);
+const selectionError = ref('');
+const requestError = ref('');
 const sendNotification = ref(true); // <-- NOVO ESTADO
 const whatsappUnavailableMessage = 'Não está ativo o WhatsApp.';
 const canSendWhatsappNotification = computed(() => crmStore.status === 'connected');
@@ -54,8 +56,10 @@ onMounted(async () => {
 });
 
 async function handleGenerateLink() {
+  selectionError.value = '';
+  requestError.value = '';
   if (!selectedTemplateId.value) {
-    toast.error('Por favor, selecione um modelo.');
+    selectionError.value = 'Selecione um modelo de anamnese.';
     return;
   }
   isLoading.value = true;
@@ -63,22 +67,22 @@ async function handleGenerateLink() {
   // <-- INÍCIO DA MUDANÇA
   const payload = {
     templateId: selectedTemplateId.value,
-    mode: 'Paciente', // Obrigatório para notificação
+    mode: 'PATIENT',
     tokenTtlDays: 7, // Definido no README
     sendNotification: canSendWhatsappNotification.value && sendNotification.value
   }
   // Atualiza a chamada para enviar o payload completo
-  const { success, data } = await anamnesisStore.assignAnamnesis(props.patientId, payload);
+  const result = await anamnesisStore.assignAnamnesis(props.patientId, payload);
   // <-- FIM DA MUDANÇA
 
-  if (success) {
-    const token = data.patientAccessToken;
-    generatedLink.value = `${window.location.origin}/anamnese/${token}`;
-    notificationSent.value = data.notificationSent;
+  if (result.success) {
+    const data = result.data;
+    generatedLink.value = data.publicAccess?.url || null;
+    notificationSent.value = data.response?.notificationSent ?? false;
     emit('saved', data)
 
   } else {
-    toast.error('Não foi possível gerar o link.');
+    requestError.value = result.error?.message || 'Não foi possível gerar o link.';
   }
   isLoading.value = false;
 }
@@ -133,7 +137,15 @@ function copyLink() {
     <div class="drawer-body-content">
       <Transition name="confirm-fade" mode="out-in">
         <div v-if="!generatedLink" class="assign-step">
-          <StyledSelect v-model="selectedTemplateId" :options="templates" label="Modelo de anamnese" />
+          <StyledSelect
+            v-model="selectedTemplateId"
+            :options="templates"
+            label="Modelo de anamnese"
+            :error="selectionError"
+            @update:modelValue="selectionError = ''"
+          />
+
+          <p v-if="requestError" class="request-error" role="alert">{{ requestError }}</p>
 
           <FormInput
             type="checkbox"
@@ -155,7 +167,7 @@ function copyLink() {
           <div class="confirmation-copy">
             <span class="eyebrow">Tudo pronto</span>
             <h3>Link gerado com sucesso</h3>
-            <p>Você pode copiar o link agora ou concluir e acessá-lo depois na aba de anamneses.</p>
+            <p>Copie o link agora: por segurança, ele não poderá ser exibido novamente depois que esta tela for fechada.</p>
           </div>
 
           <div class="link-card">
@@ -223,6 +235,7 @@ h2 { font-size: 1.25rem; font-weight: 600; color: #111827; margin: 0; }
 .link-input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db; background-color: #f9fafb; font-size: 0.875rem; }
 .copy-button { position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%); padding: 0.5rem; background: none; border: none; cursor: pointer; color: var(--cinza-texto); }
 .info { font-size: 0.875rem; color: var(--cinza-texto); margin-top: 0.5rem; }
+.request-error { color: #b91c1c; font-size: 0.875rem; margin: 0; }
 
 .drawer-body-content,
 .assign-step,
