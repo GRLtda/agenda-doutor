@@ -26,6 +26,7 @@ import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { usePatientsStore } from '@/stores/patients'
+import { localDateForApi } from '@/utils/financialDate'
 
 const props = defineProps({
   tipo: {
@@ -179,10 +180,7 @@ const recurrenceWindowOptions = [
 ]
 
 function dateForInput(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString().slice(0, 10)
+  return localDateForApi(value)
 }
 
 function parseLocalDate(value) {

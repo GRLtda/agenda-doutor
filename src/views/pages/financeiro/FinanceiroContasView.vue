@@ -33,6 +33,7 @@ import FinanceiroResumoDrawer from '@/components/financeiro/FinanceiroResumoDraw
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { usePatientsStore } from '@/stores/patients'
+import { formatFinancialDate, localDateForApi } from '@/utils/financialDate'
 
 const props = defineProps({
   tipo: {
@@ -112,7 +113,7 @@ const summary = computed(() => {
   const overdue = financeiroStore.contas
     .filter((item) => item.status === 'OVERDUE')
     .reduce((sum, item) => sum + Number(item.remainingAmountCents || 0), 0)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateForApi()
   const dueToday = financeiroStore.contas
     .filter((item) => dateOnly(item.dueDate) === today && Number(item.remainingAmountCents || 0) > 0)
     .reduce((sum, item) => sum + Number(item.remainingAmountCents || 0), 0)
@@ -181,24 +182,15 @@ function money(cents) {
 }
 
 function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(date)
+  return formatFinancialDate(value) || '-'
 }
 
 function dateOnly(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString().slice(0, 10)
+  return localDateForApi(value)
 }
 
 function formatDateDisplay(dateInput) {
-  if (!dateInput) return ''
-  const date = new Date(dateInput)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('pt-BR')
+  return formatFinancialDate(dateInput)
 }
 
 function formatDateForApi(dateInput) {

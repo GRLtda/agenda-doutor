@@ -78,7 +78,7 @@ async function handleInvite() {
     generatedLink.value = `${origin}/e/${token}`
   } else {
     console.error('Erro ao criar convite: ', { success, data, error })
-    toast.error(error || 'Não foi possível gerar o convite.')
+    validationError.value = error || 'Não foi possível gerar o convite.'
   }
 }
 
@@ -164,9 +164,9 @@ async function shareLink() {
           label="E-mail do Convidado"
           type="email"
           placeholder="email@exemplo.com"
-          :error="!!validationError"
+          :error="validationError || ''"
+          @update:model-value="validationError = null"
         />
-        <p v-if="validationError" class="error-message">{{ validationError }}</p>
         <div style="margin-top: 1.5rem">
           <StyledSelect v-model="role" :options="roleOptions" label="Cargo do Funcionário" />
         </div>
@@ -457,12 +457,6 @@ async function shareLink() {
 .btn-full {
   flex: 1; /* Divide o espaço igualmente */
   justify-content: center;
-}
-
-.error-message {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
 }
 
 /* Responsive adjustments */

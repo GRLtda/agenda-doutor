@@ -2260,7 +2260,7 @@ function openPatientProfile() {
 }
 
 .tab-content-padded {
-  padding: 1.5rem 2rem;
+  padding: 1.3rem 1rem;
 }
 
 .empty-state-container {

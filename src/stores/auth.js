@@ -404,8 +404,18 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true, user: newUser }
     } catch (error) {
       console.error('[Auth V2] Erro no registro:', error)
-      const message = error.response?.data?.message || 'Erro ao realizar cadastro.'
-      return { success: false, error: message }
+      const responseData = error.response?.data
+      const apiError = responseData?.error
+
+      return {
+        success: false,
+        error: {
+          code: apiError?.code,
+          message: apiError?.message ?? responseData?.message ?? 'Não foi possível concluir o cadastro.',
+          details: apiError?.details,
+          requestId: responseData?.meta?.request_id,
+        },
+      }
     }
   }
 

@@ -25,6 +25,7 @@ import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
 import { useFinanceStore } from '@/stores/finance'
+import { formatFinancialDate } from '@/utils/financialDate'
 
 ChartJS.register(
   ArcElement,
@@ -577,9 +578,7 @@ function buildSparkline(value, multipliers) {
 }
 
 function formatDateDisplay(dateInput) {
-  if (!dateInput) return ''
-  const date = new Date(dateInput)
-  return date.toLocaleDateString('pt-BR')
+  return formatFinancialDate(dateInput)
 }
 
 function typeLabel(type) {

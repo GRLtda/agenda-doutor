@@ -18,7 +18,8 @@ import {
   Mail,
   Globe,
   Briefcase,
-  User
+  User,
+  AlertTriangle
 } from 'lucide-vue-next'
 import { useCrmStore } from '@/stores/crm'
 
@@ -29,6 +30,7 @@ const qrCode = computed(() => crmStore.qrCode)
 const isLoading = computed(() => crmStore.isLoading) // Loading geral da store
 const connections = computed(() => crmStore.connections)
 const isLoadingQrImage = computed(() => crmStore.isLoadingQrImage) // Pega o novo estado
+const connectionError = computed(() => crmStore.connectionError)
 
 const isTransitioning = ref(false)
 const lastQrCode = ref('')
@@ -238,6 +240,18 @@ onUnmounted(() => {
         <!-- Conteúdo DESCONECTADO / CONECTANDO -->
         <div v-else class="connection-content">
           <!-- Botão Iniciar -->
+          <div v-if="status === 'api_error'" class="api-error-state">
+            <div class="api-error-icon">
+              <AlertTriangle :size="44" />
+            </div>
+            <h3>Tivemos um problema por aqui</h3>
+            <p>{{ connectionError || 'Nossa equipe ja foi avisada. Nenhuma informacao sera perdida; tente novamente em instantes.' }}</p>
+            <button @click="initiateConnection" :disabled="isLoading" class="btn-primary-large retry-button">
+              <RefreshCw :size="18" :class="{ 'animate-spin': isLoading }" />
+              <span>{{ isLoading ? 'Tentando novamente...' : 'Tentar novamente' }}</span>
+            </button>
+          </div>
+
           <div v-if="status === 'disconnected'" class="action-area">
             <div class="connect-icon-area">
               <div class="connect-icon-bg">
@@ -1186,5 +1200,50 @@ onUnmounted(() => {
 
 .connection-content .btn-primary-large {
     width: 100%;
+}
+
+.api-error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 380px;
+    padding: 1rem 0;
+}
+
+.api-error-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: #fffbeb;
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.api-error-state h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #92400e;
+    margin: 0 0 0.5rem;
+}
+
+.api-error-state p {
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 1.5rem;
+}
+
+.retry-button {
+    max-width: 280px;
+    background-color: #d97706;
+    box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.25);
+}
+
+.retry-button:hover:not(:disabled) {
+    background: #b45309;
 }
 </style>

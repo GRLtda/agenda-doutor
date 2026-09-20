@@ -248,6 +248,7 @@ h3 {
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   transition: box-shadow 0.2s;
+  min-width: 0;
 }
 
 .procedure-item:hover {
@@ -258,17 +259,24 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .proc-main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .proc-name {
   font-weight: 600;
   color: #111827;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proc-date {
@@ -280,6 +288,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 0 0 auto;
 }
 
 .discount-tag {
@@ -394,6 +403,11 @@ h3 {
 
   .procedure-info {
     width: 100%;
+  }
+
+  .proc-name {
+    display: block;
+    max-width: 100%;
   }
 
   .procedure-values {

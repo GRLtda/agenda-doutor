@@ -1,21 +1,30 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
+  ArrowLeft,
+  CalendarDays,
   CheckCircle2,
-  Check,
+  CircleDot,
+  ExternalLink,
+  FileDown,
+  LockKeyhole,
   LockKeyholeOpen,
   LoaderCircle,
   Maximize2,
+  Minimize2,
   Minus,
-  MousePointerClick,
   Plus,
   Save,
   Trash2,
   X,
 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import ImportFacialPlanningDrawer from '@/components/pages/appointments/ImportFacialPlanningDrawer.vue'
+import FacialPlanningNameDrawer from '@/components/pages/pacientes/FacialPlanningNameDrawer.vue'
 import { useFacialPlanningsStore } from '@/stores/facialPlannings'
+import { useClinicStore } from '@/stores/clinic'
 import faceFemaleImage from '../../../../assets/imgs/facial-planning/face-female.png'
 import faceMaleImage from '../../../../assets/imgs/facial-planning/face-male.png'
 
@@ -28,7 +37,9 @@ const props = defineProps({
 })
 
 const toast = useToast()
+const router = useRouter()
 const planningStore = useFacialPlanningsStore()
+const clinicStore = useClinicStore()
 
 const procedureTypes = [
   {
@@ -81,18 +92,50 @@ const faceZoom = ref(100)
 const facePan = ref({ x: 0, y: 0 })
 const mapInteraction = ref(null)
 const ignoreNextMapClick = ref(false)
+const isFullscreen = ref(false)
+const planningContainer = ref(null)
+const procedureList = ref(null)
+const historyList = ref(null)
+const procedureHasScrollBelow = ref(false)
+const historyHasScrollBelow = ref(false)
+const saveFeedback = ref('idle')
+const showImportPlanningDrawer = ref(false)
+const showPlanningNameDrawer = ref(false)
+const mobileView = ref('history')
+const mobileMapOpening = ref(false)
+const mobileMapClosing = ref(false)
 const draft = ref(createEmptyDraft())
+let saveFeedbackTimeout = null
+let autosaveTimeout = null
+let mobileMapAnimationTimeout = null
+let mobileMapCloseTimeout = null
+let skipNextAutosave = false
 
-const selectedProcedure = computed(() =>
-  procedureTypes.find((item) => item.type === activeType.value) || procedureTypes[0]
+const selectedProcedure = computed(
+  () => procedureTypes.find((item) => item.type === activeType.value) || procedureTypes[0],
 )
 
 const selectedPoint = computed(() =>
-  draft.value.points.find((point) => point.localId === selectedPointId.value || point._id === selectedPointId.value)
+  draft.value.points.find(
+    (point) => point.localId === selectedPointId.value || point._id === selectedPointId.value,
+  ),
+)
+
+const selectedPointProcedure = computed(
+  () =>
+    procedureTypes.find((item) => item.type === selectedPoint.value?.procedureType) ||
+    procedureTypes[0],
 )
 
 const isFinalized = computed(() => draft.value.status === 'FINALIZED')
+const isAppointmentPlanning = computed(() => Boolean(props.appointmentId))
+const activePlanningAppointmentId = computed(() => planningAppointmentId(draft.value))
+const isPlanningLinkedToAppointment = computed(() => Boolean(activePlanningAppointmentId.value))
 const canEdit = computed(() => !props.disabled && !isFinalized.value)
+const canFinalizeManually = computed(
+  () => canEdit.value && (!isPlanningLinkedToAppointment.value || isAppointmentPlanning.value),
+)
+const canImportPlanning = computed(() => isAppointmentPlanning.value && !props.disabled)
 const faceImageSrc = computed(() => {
   if (faceImageLoadFailed.value) return null
   return draft.value.faceVariant === 'MALE' ? faceMaleImage : faceFemaleImage
@@ -117,7 +160,10 @@ const quickQuantities = computed(() => {
 const historyItems = computed(() => planningStore.plannings || [])
 
 function createLocalId() {
-  return globalThis.crypto?.randomUUID?.() || `point_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `point_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  )
 }
 
 function defaultFaceVariantFromGender() {
@@ -132,7 +178,7 @@ function defaultFaceVariantFromGender() {
 
 function createEmptyDraft() {
   return {
-    title: 'Planejamento Facial HOF',
+    title: 'Planejamento Facial',
     mode: 'PLANNING',
     status: 'DRAFT',
     faceVariant: defaultFaceVariantFromGender(),
@@ -169,27 +215,109 @@ function payloadFromDraft() {
 }
 
 async function loadPlannings() {
-  await planningStore.fetchByPatient(props.patientId)
+  if (props.appointmentId) await planningStore.fetchByAppointment(props.appointmentId)
+  else await planningStore.fetchByPatient(props.patientId)
 
-  const appointmentDraft = props.appointmentId
-    ? historyItems.value.find((item) => item.appointment?._id === props.appointmentId || item.appointment === props.appointmentId)
-    : null
-
-  const first = appointmentDraft || historyItems.value[0]
+  const first = historyItems.value[0]
   if (first) selectPlanning(first)
   else newPlanning()
 }
 
+function planningAppointmentId(planning) {
+  return planning?.appointment?._id || planning?.appointment || null
+}
+
+function openPlanningAppointment(planning) {
+  const appointmentId = planningAppointmentId(planning)
+  if (!appointmentId) return
+  router.push(`/atendimentos/${appointmentId}/patient/${props.patientId}`)
+}
+
+function handlePlanningImported(planning) {
+  showImportPlanningDrawer.value = false
+  selectPlanning(planning)
+}
+
 function selectPlanning(planning) {
+  skipNextAutosave = true
   activePlanningId.value = planning?._id || null
   draft.value = normalizePlanning(planning)
   selectedPointId.value = draft.value.points[0]?.localId || draft.value.points[0]?._id || null
 }
 
-function newPlanning() {
+function newPlanning(title = 'Planejamento Facial') {
+  skipNextAutosave = true
   activePlanningId.value = null
   draft.value = createEmptyDraft()
+  draft.value.title = title
   selectedPointId.value = null
+}
+
+function requestNewPlanning() {
+  showPlanningNameDrawer.value = true
+}
+
+async function createNamedPlanning(title) {
+  newPlanning(title)
+  showPlanningNameDrawer.value = false
+  const result = await saveDraft({ allowEmpty: true })
+  if (result?.success && window.matchMedia?.('(max-width: 760px)').matches) {
+    openMobileMap()
+  }
+}
+
+function openMobileMap() {
+  clearTimeout(mobileMapAnimationTimeout)
+  clearTimeout(mobileMapCloseTimeout)
+  mobileMapClosing.value = false
+  mobileMapOpening.value = true
+  mobileView.value = 'map'
+  mobileMapAnimationTimeout = setTimeout(() => {
+    mobileMapOpening.value = false
+  }, 420)
+}
+
+function openMobilePlanning(planning) {
+  selectPlanning(planning)
+  openMobileMap()
+}
+
+function returnToMobileHistory() {
+  if (mobileMapClosing.value) return
+
+  closeQuickEditor()
+  clearTimeout(mobileMapAnimationTimeout)
+  mobileMapOpening.value = false
+  mobileMapClosing.value = true
+  mobileMapCloseTimeout = setTimeout(() => {
+    mobileView.value = 'history'
+    mobileMapClosing.value = false
+  }, 340)
+}
+
+async function openPlanningFullscreen() {
+  if (!planningContainer.value?.requestFullscreen) return
+
+  try {
+    await planningContainer.value.requestFullscreen()
+  } catch {
+    toast.error('Não foi possível abrir o planejamento em tela cheia.')
+  }
+}
+
+async function closePlanningFullscreen() {
+  if (document.fullscreenElement) await document.exitFullscreen()
+}
+
+function handleFullscreenChange() {
+  const enteredFullscreen = document.fullscreenElement === planningContainer.value
+  isFullscreen.value = enteredFullscreen
+  faceZoom.value = enteredFullscreen ? 160 : 100
+  facePan.value = { x: 0, y: 0 }
+}
+
+function handleFullscreenKeydown(event) {
+  if (event.key === 'Escape' && isFullscreen.value) closePlanningFullscreen()
 }
 
 function inferRegion(x, y) {
@@ -205,9 +333,20 @@ function inferRegion(x, y) {
 }
 
 function addPoint(event) {
-  if (!canEdit.value) return
+  if (!canEdit.value) {
+    closeQuickEditor()
+    return
+  }
   if (ignoreNextMapClick.value) {
     ignoreNextMapClick.value = false
+    return
+  }
+  if (selectedPointId.value) {
+    closeQuickEditor()
+    return
+  }
+  if (!activePlanningId.value && !draft.value.points.length) {
+    requestNewPlanning()
     return
   }
   const { x, y } = getMapCoordinates(event, event.currentTarget)
@@ -235,37 +374,106 @@ function closeQuickEditor() {
 }
 
 function changeFaceZoom(amount) {
-  faceZoom.value = Math.max(60, Math.min(180, faceZoom.value + amount))
+  const nextZoom = Math.max(60, Math.min(300, faceZoom.value + amount))
+  faceZoom.value = nextZoom
+  if (nextZoom <= 100) facePan.value = { x: 0, y: 0 }
 }
 
 function resetFaceZoom() {
-  faceZoom.value = 100
+  faceZoom.value = isFullscreen.value ? 160 : 100
   facePan.value = { x: 0, y: 0 }
+}
+
+function updateProcedureScrollFade() {
+  const element = procedureList.value
+  const lastItem = element?.lastElementChild
+  procedureHasScrollBelow.value = Boolean(
+    lastItem &&
+      lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1,
+  )
+}
+
+function updateHistoryScrollFade() {
+  const element = historyList.value
+  const lastItem = element?.lastElementChild
+  historyHasScrollBelow.value = Boolean(
+    lastItem &&
+      lastItem.offsetTop + lastItem.offsetHeight > element.scrollTop + element.clientHeight + 1,
+  )
+}
+
+function updateScrollFades() {
+  updateProcedureScrollFade()
+  updateHistoryScrollFade()
 }
 
 function removeSelectedPoint() {
   if (!selectedPoint.value || !canEdit.value) return
   const pointId = selectedPoint.value.localId || selectedPoint.value._id
-  draft.value.points = draft.value.points.filter((point) => (point.localId || point._id) !== pointId)
+  draft.value.points = draft.value.points.filter(
+    (point) => (point.localId || point._id) !== pointId,
+  )
   closeQuickEditor()
 }
 
-async function saveDraft() {
-  if (!draft.value.points.length) {
-    toast.warning('Adicione pelo menos um ponto no mapa antes de salvar.')
-    return
+function scheduleAutosave() {
+  clearTimeout(autosaveTimeout)
+
+  if (!canEdit.value || !draft.value.points.length) return
+
+  autosaveTimeout = setTimeout(async () => {
+    if (planningStore.isLoading) {
+      scheduleAutosave()
+      return
+    }
+
+    await saveDraft({ autosave: true })
+  }, 900)
+}
+
+async function saveDraft(options = {}) {
+  const autosave = options?.autosave === true
+  const allowEmpty = options?.allowEmpty === true
+  clearTimeout(autosaveTimeout)
+
+  if (!draft.value.points.length && !allowEmpty) {
+    if (!autosave) toast.warning('Adicione pelo menos um ponto no mapa antes de salvar.')
+    return { success: false }
+  }
+
+  if (planningStore.isLoading) {
+    if (autosave) scheduleAutosave()
+    return { success: false }
+  }
+
+  if (!autosave) {
+    clearTimeout(saveFeedbackTimeout)
+    saveFeedback.value = 'syncing'
   }
 
   const result = await planningStore.save(payloadFromDraft(), activePlanningId.value)
   if (result.success) {
-    selectPlanning(result.data)
-    toast.success('Planejamento facial salvo.')
+    if (autosave) activePlanningId.value = result.data._id
+    else selectPlanning(result.data)
+    if (!autosave) {
+      saveFeedback.value = 'synced'
+      saveFeedbackTimeout = setTimeout(() => {
+        saveFeedback.value = 'idle'
+      }, 2200)
+    }
   } else {
-    toast.error(result.error)
+    if (!autosave) {
+      saveFeedback.value = 'idle'
+      toast.error(result.error)
+    }
   }
+
+  return result
 }
 
 async function finalizePlanning() {
+  if (planningStore.isLoading || isFinalized.value) return
+
   if (!activePlanningId.value) {
     await saveDraft()
   }
@@ -304,7 +512,6 @@ function startMapPan(event) {
     originY: facePan.value.y,
     moved: false,
   }
-  event.currentTarget.setPointerCapture?.(event.pointerId)
 }
 
 function moveMapPan(event) {
@@ -312,7 +519,11 @@ function moveMapPan(event) {
   if (!interaction || interaction.type !== 'pan') return
   const dx = event.clientX - interaction.startX
   const dy = event.clientY - interaction.startY
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) interaction.moved = true
+  if (!interaction.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    interaction.moved = true
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  if (!interaction.moved) return
   facePan.value = {
     x: Math.max(-180, Math.min(180, interaction.originX + dx)),
     y: Math.max(-180, Math.min(180, interaction.originY + dy)),
@@ -342,10 +553,16 @@ function startPointDrag(point, event) {
 function movePoint(event) {
   const interaction = mapInteraction.value
   if (!interaction || interaction.type !== 'point') return
-  const point = draft.value.points.find((item) => (item.localId || item._id) === interaction.pointId)
+  const point = draft.value.points.find(
+    (item) => (item.localId || item._id) === interaction.pointId,
+  )
   if (!point) return
   const { x, y } = getMapCoordinates(event, event.currentTarget.parentElement)
-  if (Math.abs(event.clientX - interaction.startX) > 3 || Math.abs(event.clientY - interaction.startY) > 3) interaction.moved = true
+  if (
+    Math.abs(event.clientX - interaction.startX) > 3 ||
+    Math.abs(event.clientY - interaction.startY) > 3
+  )
+    interaction.moved = true
   point.x = Number(x.toFixed(2))
   point.y = Number(y.toFixed(2))
 }
@@ -369,6 +586,16 @@ function pointStyle(point) {
 
 function quickEditorStyle(point) {
   const { x, y } = getProjectedCoordinates(point)
+
+  if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches) {
+    return {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+    }
+  }
+
   return {
     left: `calc(${x}% + ${facePan.value.x}px)`,
     top: `calc(${y}% + ${facePan.value.y}px)`,
@@ -408,12 +635,40 @@ function formatQuantity(value) {
 }
 
 function planningProcedures(planning) {
-  const labels = [...new Set((planning.points || []).map((point) => point.procedureLabel).filter(Boolean))]
+  const labels = [
+    ...new Set((planning.points || []).map((point) => point.procedureLabel).filter(Boolean)),
+  ]
   return labels.length ? labels.join(', ') : 'Sem pontos registrados'
 }
 
 function planningProfessional(planning) {
-  return planning.author?.name || planning.author?.fullName || planning.points?.find((point) => point.professionalName)?.professionalName || 'Profissional não informado'
+  return (
+    planning.author?.name ||
+    planning.author?.fullName ||
+    planning.points?.find((point) => point.professionalName)?.professionalName ||
+    'Profissional não informado'
+  )
+}
+
+function planningProfessionalImage(planning) {
+  const authorId = planning.author?._id || planning.author?.id || planning.author
+  if (!authorId) return null
+
+  const staffMember = (clinicStore.currentClinic?.staff || []).find(
+    (staff) => String(staff._id || staff.id) === String(authorId),
+  )
+
+  return staffMember?.profilePhotoUrl || null
+}
+
+function planningProfessionalInitials(planning) {
+  return planningProfessional(planning)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
 }
 
 watch(() => props.patientId, loadPlannings)
@@ -422,99 +677,223 @@ watch(
   () => draft.value.faceVariant,
   () => {
     faceImageLoadFailed.value = false
-  }
+  },
 )
 
 watch(
   () => props.patientGender,
   () => {
     draft.value.faceVariant = defaultFaceVariantFromGender()
-  }
+  },
 )
 
-onMounted(loadPlannings)
+watch(
+  draft,
+  () => {
+    if (skipNextAutosave) {
+      skipNextAutosave = false
+      return
+    }
+    scheduleAutosave()
+  },
+  { deep: true },
+)
+
+watch(isFullscreen, (active) => {
+  document.body.style.overflow = active ? 'hidden' : ''
+  nextTick(updateScrollFades)
+})
+
+watch(
+  () => [draft.value.points.length, historyItems.value.length],
+  () => nextTick(updateScrollFades),
+)
+
+onMounted(() => {
+  document.addEventListener('keydown', handleFullscreenKeydown)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  window.addEventListener('resize', updateScrollFades)
+  loadPlannings()
+  nextTick(updateScrollFades)
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(saveFeedbackTimeout)
+  clearTimeout(autosaveTimeout)
+  clearTimeout(mobileMapAnimationTimeout)
+  clearTimeout(mobileMapCloseTimeout)
+  document.body.style.overflow = ''
+  document.removeEventListener('keydown', handleFullscreenKeydown)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  window.removeEventListener('resize', updateScrollFades)
+})
 </script>
 
 <template>
-  <div class="facial-planning">
-    <aside class="planning-sidebar">
-      <div class="sidebar-heading">
-        <span>Procedimentos</span>
-        <button type="button" class="new-link" @click="newPlanning">
-          <Plus :size="14" />
-          Novo
-        </button>
-      </div>
-
-      <button
-        v-for="item in totals"
-        :key="item.type"
-        type="button"
-        class="procedure-option"
-        :class="{ active: activeType === item.type }"
-        @click="activeType = item.type"
-      >
-        <span class="procedure-color" :style="{ backgroundColor: item.color }"></span>
-        <span class="procedure-copy">
-          <strong>{{ item.label }}</strong>
-          <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
-        </span>
-        <span class="procedure-count">{{ item.points }}</span>
-      </button>
-
-      <div class="history-panel">
-        <div class="sidebar-heading compact">
-          <span>Histórico</span>
+  <div
+    ref="planningContainer"
+    class="facial-planning"
+    :class="{
+      'is-fullscreen': isFullscreen,
+      'mobile-history': mobileView === 'history',
+      'mobile-map-opening': mobileMapOpening,
+      'mobile-map-closing': mobileMapClosing,
+    }"
+  >
+    <section class="mobile-history-screen" aria-label="Histórico de planejamentos faciais">
+      <header class="mobile-history-header">
+        <div>
+          <p>Planejamento facial</p>
+          <h2>Histórico</h2>
         </div>
+        <AppButton variant="primary" size="sm" @click="requestNewPlanning">
+          <Plus :size="16" />
+          Novo
+        </AppButton>
+      </header>
+
+      <div class="mobile-history-list">
         <button
           v-for="item in historyItems"
           :key="item._id"
           type="button"
-          class="history-item"
-          :class="{ active: activePlanningId === item._id }"
-          @click="selectPlanning(item)"
+          class="mobile-history-item"
+          @click="openMobilePlanning(item)"
         >
-          <strong>{{ item.title || 'Planejamento Facial HOF' }}</strong>
-          <small>{{ formatDate(item.finalizedAt || item.updatedAt) }} · {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}</small>
-          <small class="history-procedures">{{ planningProcedures(item) }}</small>
-          <small>{{ planningProfessional(item) }}</small>
+          <span class="professional-avatar">
+            <span>{{ planningProfessionalInitials(item) }}</span>
+            <img
+              v-if="planningProfessionalImage(item)"
+              :src="planningProfessionalImage(item)"
+              :alt="`Foto de ${planningProfessional(item)}`"
+              @error="$event.target.remove()"
+            />
+          </span>
+          <span class="mobile-history-copy">
+            <span class="history-title-row">
+              <strong>{{ item.title || 'Planejamento Facial' }}</strong>
+              <small class="history-status" :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'">
+                {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}
+              </small>
+            </span>
+            <small class="history-date"><CalendarDays :size="13" /> {{ formatDate(item.finalizedAt || item.updatedAt) }}</small>
+            <small class="history-procedures">{{ planningProcedures(item) }}</small>
+            <small class="history-professional">{{ planningProfessional(item) }}</small>
+          </span>
         </button>
-        <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
+        <div v-if="!historyItems.length" class="mobile-empty-history">
+          <strong>Nenhum planejamento criado</strong>
+          <span>Crie um planejamento para começar a marcar os pontos no rosto.</span>
+        </div>
+      </div>
+    </section>
+
+    <header class="mobile-map-header">
+      <button type="button" aria-label="Voltar para o histórico" @click="returnToMobileHistory">
+        <ArrowLeft :size="20" />
+      </button>
+      <div>
+        <strong>{{ draft.title || 'Planejamento Facial' }}</strong>
+        <small>{{ isFinalized ? 'Procedimento realizado' : 'Em planejamento' }}</small>
+      </div>
+      <div class="mobile-map-actions">
+        <button
+          v-if="canEdit"
+          type="button"
+          class="mobile-planning-action"
+          :disabled="planningStore.isLoading"
+          @click="saveDraft"
+        >
+          <LoaderCircle v-if="planningStore.isLoading" :size="16" class="spin" />
+          <Save v-else :size="16" />
+          <span>Salvar</span>
+        </button>
+        <button
+          v-if="canFinalizeManually"
+          type="button"
+          class="mobile-planning-action primary"
+          :disabled="planningStore.isLoading"
+          @click="finalizePlanning"
+        >
+          <LoaderCircle v-if="planningStore.isLoading" :size="16" class="spin" />
+          <CheckCircle2 v-else :size="16" />
+          <span>Finalizar</span>
+        </button>
+        <button
+          v-if="isFinalized"
+          type="button"
+          class="mobile-planning-action"
+          :disabled="planningStore.isLoading"
+          @click="reopenPlanning"
+        >
+          <LockKeyholeOpen :size="18" />
+          <span>Reabrir</span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="planning-sidebar">
+      <section class="planning-header">
+        <div class="planning-title">
+          <h3>Planejamento Facial</h3>
+          <p>
+            {{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}
+          </p>
+        </div>
+
+      </section>
+
+      <div class="sidebar-heading">
+        <span>Procedimentos</span>
+      </div>
+
+      <div
+        ref="procedureList"
+        class="scroll-list procedure-list"
+        :class="{ 'has-scroll-below': procedureHasScrollBelow }"
+        @scroll="updateProcedureScrollFade"
+      >
+        <button
+          v-for="item in totals"
+          :key="item.type"
+          type="button"
+          class="procedure-option"
+          :class="{ active: activeType === item.type }"
+          @click="activeType = item.type"
+        >
+          <span class="procedure-color" :style="{ backgroundColor: item.color }"></span>
+          <span class="procedure-copy">
+            <strong>{{ item.label }}</strong>
+            <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
+          </span>
+          <span class="procedure-count">{{ item.points }}</span>
+        </button>
+      </div>
+
+      <div class="notes-block sidebar-notes-block">
+        <span class="panel-label">Observações clínicas</span>
+        <textarea
+          v-model="draft.notes"
+          rows="5"
+          placeholder="Observações gerais do planejamento..."
+          :disabled="!canEdit"
+        ></textarea>
+        <div v-if="isPlanningLinkedToAppointment" class="appointment-planning-notice">
+          <p>Este procedimento está vinculado a este atendimento.</p>
+          <AppButton
+            v-if="!isAppointmentPlanning"
+            variant="outline"
+            size="sm"
+            @click="openPlanningAppointment(draft)"
+          >
+            <ExternalLink :size="14" />
+            Ir para atendimento
+          </AppButton>
+        </div>
       </div>
     </aside>
 
     <section class="planning-workspace">
-      <header class="workspace-toolbar">
-        <div>
-          <h3>Planejamento Facial HOF</h3>
-          <p>{{ draft.mode === 'PLANNING' ? 'Modo Planejamento' : 'Modo Procedimento Realizado' }}</p>
-        </div>
-
-        <div class="toolbar-actions">
-          <div class="segmented-control">
-            <button type="button" :class="{ active: draft.mode === 'PLANNING' }" :disabled="!canEdit" @click="draft.mode = 'PLANNING'">
-              Planejamento
-            </button>
-            <button type="button" :class="{ active: draft.mode === 'REALIZED' }" :disabled="!canEdit" @click="draft.mode = 'REALIZED'">
-              Realizado
-            </button>
-          </div>
-
-          <AppButton v-if="canEdit" variant="secondary" size="sm" :loading="planningStore.isLoading" @click="saveDraft">
-            <Save :size="15" />
-            Salvar
-          </AppButton>
-          <AppButton v-if="canEdit" variant="primary" size="sm" :loading="planningStore.isLoading" @click="finalizePlanning">
-            <CheckCircle2 :size="15" />
-            Finalizar
-          </AppButton>
-          <AppButton v-if="isFinalized" variant="outline" size="sm" :loading="planningStore.isLoading" @click="reopenPlanning">
-            <LockKeyholeOpen :size="15" />
-            Reabrir
-          </AppButton>
-        </div>
-      </header>
-
       <div
         class="map-stage"
         :class="{ pannable: faceZoom > 100 }"
@@ -522,13 +901,47 @@ onMounted(loadPlannings)
         @pointermove="moveMapPan"
         @pointerup="stopMapPan"
         @pointercancel="stopMapPan"
+        @click="closeQuickEditor"
       >
+        <Transition name="save-feedback">
+          <div
+            v-if="saveFeedback !== 'idle'"
+            class="save-feedback-toast"
+            role="status"
+            aria-live="polite"
+          >
+            <LoaderCircle v-if="saveFeedback === 'syncing'" :size="16" class="spin" />
+            <CheckCircle2 v-else :size="16" />
+            <span>{{ saveFeedback === 'syncing' ? 'Sincronizando...' : 'Sincronizado' }}</span>
+          </div>
+        </Transition>
+        <div v-if="isFullscreen" class="fullscreen-map-header">
+          <button
+            type="button"
+            title="Sair da tela cheia"
+            aria-label="Sair da tela cheia"
+            @click="closePlanningFullscreen"
+          >
+            <X :size="19" />
+          </button>
+        </div>
         <div
           class="face-map"
-          :class="{ readonly: !canEdit, male: draft.faceVariant === 'MALE', pannable: faceZoom > 100 }"
-          @click="addPoint"
+          :class="{
+            readonly: !canEdit,
+            male: draft.faceVariant === 'MALE',
+            pannable: faceZoom > 100,
+          }"
+          @click.stop="addPoint"
         >
-          <div class="face-canvas" :style="{ '--face-zoom': faceZoom / 100, '--pan-x': `${facePan.x}px`, '--pan-y': `${facePan.y}px` }">
+          <div
+            class="face-canvas"
+            :style="{
+              '--face-zoom': faceZoom / 100,
+              '--pan-x': `${facePan.x}px`,
+              '--pan-y': `${facePan.y}px`,
+            }"
+          >
             <img
               v-if="faceImageSrc"
               class="face-image"
@@ -539,19 +952,33 @@ onMounted(loadPlannings)
             />
 
             <svg v-else viewBox="0 0 420 560" aria-hidden="true" class="face-svg">
-            <path class="neck" d="M158 390 C160 455 136 495 92 540 H328 C284 495 260 455 262 390" />
-            <path class="face-fill" d="M210 54 C118 54 78 132 82 236 C86 355 154 435 210 435 C266 435 334 355 338 236 C342 132 302 54 210 54 Z" />
-            <path class="hair" v-if="draft.faceVariant === 'FEMALE'" d="M82 218 C58 118 112 30 210 24 C308 30 362 118 338 218 C320 84 100 84 82 218 Z" />
-            <path class="hair" v-else d="M78 146 C95 52 158 20 214 28 C280 38 328 54 346 146 C298 96 129 90 78 146 Z" />
-            <path class="brow" d="M118 178 C145 160 174 160 194 175" />
-            <path class="brow" d="M226 175 C249 160 279 160 302 178" />
-            <ellipse class="eye" cx="158" cy="208" rx="31" ry="13" />
-            <ellipse class="eye" cx="262" cy="208" rx="31" ry="13" />
-            <circle class="iris" cx="158" cy="208" r="7" />
-            <circle class="iris" cx="262" cy="208" r="7" />
-            <path class="nose" d="M210 214 C199 252 190 285 210 298 C230 285 221 252 210 214" />
-            <path class="lip" d="M162 340 C190 325 229 325 258 340 C232 360 188 360 162 340 Z" />
-            <path class="jaw" d="M102 310 C128 394 173 430 210 430 C247 430 292 394 318 310" />
+              <path
+                class="neck"
+                d="M158 390 C160 455 136 495 92 540 H328 C284 495 260 455 262 390"
+              />
+              <path
+                class="face-fill"
+                d="M210 54 C118 54 78 132 82 236 C86 355 154 435 210 435 C266 435 334 355 338 236 C342 132 302 54 210 54 Z"
+              />
+              <path
+                class="hair"
+                v-if="draft.faceVariant === 'FEMALE'"
+                d="M82 218 C58 118 112 30 210 24 C308 30 362 118 338 218 C320 84 100 84 82 218 Z"
+              />
+              <path
+                class="hair"
+                v-else
+                d="M78 146 C95 52 158 20 214 28 C280 38 328 54 346 146 C298 96 129 90 78 146 Z"
+              />
+              <path class="brow" d="M118 178 C145 160 174 160 194 175" />
+              <path class="brow" d="M226 175 C249 160 279 160 302 178" />
+              <ellipse class="eye" cx="158" cy="208" rx="31" ry="13" />
+              <ellipse class="eye" cx="262" cy="208" rx="31" ry="13" />
+              <circle class="iris" cx="158" cy="208" r="7" />
+              <circle class="iris" cx="262" cy="208" r="7" />
+              <path class="nose" d="M210 214 C199 252 190 285 210 298 C230 285 221 252 210 214" />
+              <path class="lip" d="M162 340 C190 325 229 325 258 340 C232 360 188 360 162 340 Z" />
+              <path class="jaw" d="M102 310 C128 394 173 430 210 430 C247 430 292 394 318 310" />
             </svg>
           </div>
 
@@ -581,28 +1008,48 @@ onMounted(loadPlannings)
             @pointerup.stop
             @pointercancel.stop
           >
-            <button v-if="isFinalized" type="button" class="reopen-point-button" @click="reopenPlanning">
-              <LockKeyholeOpen :size="15" />
-              Reabrir planejamento
-            </button>
-            <template v-else>
             <div class="quick-editor-header">
-              <label>Quantidade</label>
+              <div class="quick-editor-title">
+                <i :style="{ backgroundColor: selectedPointProcedure.color }"></i>
+                <div>
+                  <label>Quantidade</label>
+                  <small>{{ selectedPointProcedure.label }}</small>
+                </div>
+              </div>
               <div class="quick-editor-actions">
-                <button v-if="canEdit" type="button" class="delete" title="Excluir ponto" aria-label="Excluir ponto" @click="removeSelectedPoint">
+                <button
+                  v-if="canEdit"
+                  type="button"
+                  class="delete"
+                  title="Excluir ponto"
+                  aria-label="Excluir ponto"
+                  @click="removeSelectedPoint"
+                >
                   <Trash2 :size="13" />
                 </button>
-                <button type="button" title="Fechar" aria-label="Fechar" @click="closeQuickEditor">
-                  <X :size="13" />
-                </button>
-                <button type="button" class="confirm" title="Confirmar" aria-label="Confirmar" @click="closeQuickEditor">
-                  <Check :size="13" />
+                <button
+                  v-else
+                  type="button"
+                  class="locked"
+                  title="Planejamento finalizado"
+                  aria-label="Planejamento finalizado"
+                  disabled
+                >
+                  <LockKeyhole :size="13" />
                 </button>
               </div>
             </div>
             <div class="quick-row">
-              <input v-model.number="selectedPoint.quantity" type="number" min="0" step="0.1" :disabled="!canEdit" />
-              <span>{{ selectedPoint.unit }}</span>
+              <div class="quick-quantity-field">
+                <input
+                  v-model.number="selectedPoint.quantity"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  :disabled="!canEdit"
+                />
+                <span>{{ selectedPoint.unit }}</span>
+              </div>
             </div>
             <div v-if="canEdit" class="quantity-presets">
               <button
@@ -615,31 +1062,104 @@ onMounted(loadPlannings)
                 {{ formatQuantity(quantity) }}
               </button>
             </div>
-            </template>
           </div>
         </div>
-        <p class="map-hint" @click.stop @pointerdown.stop @pointerup.stop>
-          <MousePointerClick :size="15" />
-          Clique no rosto para <strong>adicionar pontos</strong>
-        </p>
-        <div class="zoom-controls" aria-label="Zoom do mapa facial" @click.stop @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop>
+        <div
+          class="zoom-controls"
+          aria-label="Zoom do mapa facial"
+          @click.stop
+          @pointerdown.stop
+          @pointermove.stop
+          @pointerup.stop
+          @pointercancel.stop
+        >
           <div class="zoom-group">
-            <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" :disabled="faceZoom <= 60" @click="changeFaceZoom(-10)">
+            <button
+              type="button"
+              title="Diminuir zoom"
+              aria-label="Diminuir zoom"
+              :disabled="faceZoom <= 60"
+              @click="changeFaceZoom(-10)"
+            >
               <Minus :size="16" />
             </button>
-            <button type="button" class="zoom-level" title="Redefinir zoom" @click="resetFaceZoom">{{ faceZoom }}%</button>
-            <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" :disabled="faceZoom >= 180" @click="changeFaceZoom(10)">
+            <button type="button" class="zoom-level" title="Redefinir zoom" @click="resetFaceZoom">
+              {{ faceZoom }}%
+            </button>
+            <button
+              type="button"
+              title="Aumentar zoom"
+              aria-label="Aumentar zoom"
+              :disabled="faceZoom >= 300"
+              @click="changeFaceZoom(10)"
+            >
               <Plus :size="16" />
             </button>
           </div>
-          <button type="button" class="fit-map" title="Ajustar ao mapa" aria-label="Ajustar ao mapa" @click="resetFaceZoom">
-            <Maximize2 :size="16" />
+          <button
+            type="button"
+            class="fit-map"
+            :title="isFullscreen ? 'Sair da tela cheia' : 'Abrir planejamento em tela cheia'"
+            :aria-label="isFullscreen ? 'Sair da tela cheia' : 'Abrir planejamento em tela cheia'"
+            @click="isFullscreen ? closePlanningFullscreen() : openPlanningFullscreen()"
+          >
+            <Minimize2 v-if="isFullscreen" :size="16" />
+            <Maximize2 v-else :size="16" />
           </button>
         </div>
       </div>
     </section>
 
     <aside class="details-panel">
+      <section class="details-header">
+        <h3>Ações do planejamento</h3>
+        <div class="planning-actions">
+          <AppButton
+            v-if="canImportPlanning"
+            variant="outline"
+            size="sm"
+            @click="showImportPlanningDrawer = true"
+          >
+            <FileDown :size="15" />
+            Importar planejamento
+          </AppButton>
+          <AppButton v-if="isFinalized" variant="primary" size="sm" @click="requestNewPlanning">
+            <Plus :size="15" />
+            Novo
+          </AppButton>
+          <AppButton
+            v-if="canEdit"
+            variant="secondary"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="saveDraft"
+          >
+            <Save :size="15" />
+            Salvar
+          </AppButton>
+          <AppButton
+            v-if="canFinalizeManually"
+            variant="primary"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="finalizePlanning"
+          >
+            <CheckCircle2 :size="15" />
+            Finalizar
+          </AppButton>
+          <AppButton
+            v-if="isFinalized && (!isPlanningLinkedToAppointment || isAppointmentPlanning)"
+            variant="outline"
+            size="sm"
+            :loading="planningStore.isLoading"
+            @click="reopenPlanning"
+          >
+            <LockKeyholeOpen :size="15" />
+            Reabrir
+          </AppButton>
+        </div>
+      </section>
+
       <div class="summary-block">
         <span class="panel-label">Totais do mapa</span>
         <div v-for="item in totals" :key="item.type" class="total-row">
@@ -652,16 +1172,110 @@ onMounted(loadPlannings)
         <p v-if="!draft.points.length" class="muted">Clique no rosto para adicionar pontos.</p>
       </div>
 
-      <div class="notes-block">
-        <span class="panel-label">Observações clínicas</span>
-        <textarea v-model="draft.notes" rows="5" placeholder="Observações gerais do planejamento..." :disabled="!canEdit"></textarea>
-      </div>
-
-      <div v-if="planningStore.isLoading" class="loading-inline">
-        <LoaderCircle :size="16" class="spin" />
-        Sincronizando...
+      <div class="history-panel details-history-panel">
+        <div class="sidebar-heading compact">
+          <span>Histórico</span>
+          <div class="history-actions">
+            <button type="button" class="new-link" @click="requestNewPlanning">
+              <Plus :size="14" />
+              Novo
+            </button>
+          </div>
+        </div>
+        <div
+          ref="historyList"
+          class="scroll-list history-list"
+          :class="{ 'has-scroll-below': historyHasScrollBelow }"
+          @scroll="updateHistoryScrollFade"
+        >
+          <div
+            v-for="item in historyItems"
+            :key="item._id"
+            role="button"
+            tabindex="0"
+            class="history-item"
+            :class="{ active: activePlanningId === item._id }"
+            @click="selectPlanning(item)"
+            @keydown.enter="selectPlanning(item)"
+          >
+            <div class="history-item-main">
+              <span class="professional-avatar">
+                <span>{{ planningProfessionalInitials(item) }}</span>
+                <img
+                  v-if="planningProfessionalImage(item)"
+                  :src="planningProfessionalImage(item)"
+                  :alt="`Foto de ${planningProfessional(item)}`"
+                  @error="$event.target.remove()"
+                />
+              </span>
+              <span class="history-copy">
+                <span class="history-title-row">
+                  <strong>{{ item.title || 'Planejamento Facial' }}</strong>
+                  <small
+                    class="history-status"
+                    :class="item.status === 'FINALIZED' ? 'finalized' : 'draft'"
+                  >
+                    {{ item.status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}
+                  </small>
+                </span>
+                <small class="history-date">
+                  <CalendarDays :size="12" />
+                  {{ formatDate(item.finalizedAt || item.updatedAt) }}
+                </small>
+                <small class="history-procedures">{{ planningProcedures(item) }}</small>
+                <small class="history-professional">{{ planningProfessional(item) }}</small>
+                <button
+                  v-if="planningAppointmentId(item) && !isAppointmentPlanning"
+                  type="button"
+                  class="history-appointment-link"
+                  @click.stop="openPlanningAppointment(item)"
+                >
+                  <ExternalLink :size="12" />
+                  Atendimento
+                </button>
+              </span>
+            </div>
+          </div>
+          <p v-if="!historyItems.length" class="empty-history">Nenhum mapa salvo ainda.</p>
+        </div>
       </div>
     </aside>
+
+    <section class="mobile-procedure-carousel" aria-label="Procedimentos">
+      <div class="mobile-procedure-track">
+        <button
+          v-for="item in totals"
+          :key="item.type"
+          type="button"
+          class="mobile-procedure-card"
+          :class="{ active: activeType === item.type }"
+          @click="activeType = item.type"
+        >
+          <span class="mobile-procedure-icon" :style="{ color: item.color, backgroundColor: `${item.color}16` }">
+            <CircleDot :size="19" />
+          </span>
+          <span class="mobile-procedure-copy">
+            <strong>{{ item.label }}</strong>
+            <small>{{ formatQuantity(item.quantity) }} {{ item.unit }} utilizados</small>
+          </span>
+          <span class="mobile-procedure-count">{{ item.points }} {{ item.points === 1 ? 'ponto' : 'pontos' }}</span>
+        </button>
+      </div>
+    </section>
+
+    <ImportFacialPlanningDrawer
+      v-if="showImportPlanningDrawer"
+      :patient-id="patientId"
+      :appointment-id="appointmentId"
+      :record-id="recordId"
+      @close="showImportPlanningDrawer = false"
+      @imported="handlePlanningImported"
+    />
+    <FacialPlanningNameDrawer
+      v-if="showPlanningNameDrawer"
+      @close="showPlanningNameDrawer = false"
+      @confirm="createNamedPlanning"
+    />
   </div>
 </template>
 
@@ -693,8 +1307,7 @@ onMounted(loadPlannings)
   gap: 18px;
 }
 
-.sidebar-heading,
-.workspace-toolbar {
+.sidebar-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -818,32 +1431,6 @@ onMounted(loadPlannings)
   flex-direction: column;
 }
 
-.workspace-toolbar {
-  padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.workspace-toolbar h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #0f172a;
-}
-
-.workspace-toolbar p {
-  margin: 3px 0 0;
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .segmented-control,
 .face-switch {
   display: inline-flex;
@@ -885,6 +1472,42 @@ onMounted(loadPlannings)
   display: grid;
   place-items: center;
   padding: 28px;
+}
+
+.save-feedback-toast {
+  position: absolute;
+  z-index: 25;
+  top: 18px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid #d8e5ff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  font-size: 0.8rem;
+  font-weight: 700;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.save-feedback-toast svg:not(.spin) {
+  color: #0f9f6e;
+}
+
+.save-feedback-enter-active,
+.save-feedback-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.save-feedback-enter-from,
+.save-feedback-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
 }
 
 .face-switch {
@@ -978,7 +1601,9 @@ onMounted(loadPlannings)
   font-weight: 900;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
   cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .map-point:hover,
@@ -1064,14 +1689,6 @@ textarea:disabled {
   font-size: 0.88rem;
 }
 
-.loading-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -1111,15 +1728,6 @@ textarea:disabled {
     display: flex;
   }
 
-  .workspace-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .toolbar-actions {
-    justify-content: flex-start;
-  }
-
   .map-stage {
     padding: 64px 12px 18px;
   }
@@ -1127,9 +1735,10 @@ textarea:disabled {
 
 /* Clinical planning workspace: dense, quiet panels around the map. */
 .facial-planning {
-  grid-template-columns: minmax(220px, 0.95fr) minmax(520px, 2.25fr) minmax(270px, 1.05fr);
-  min-height: min(720px, calc(100vh - 250px));
-  gap: 12px;
+  grid-template-columns: minmax(235px, 0.9fr) minmax(440px, 1.9fr) minmax(250px, 0.95fr);
+  height: 100%;
+  min-height: 0;
+  gap: 10px;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1138,23 +1747,128 @@ textarea:disabled {
 
 .planning-sidebar,
 .planning-workspace,
-.summary-block,
-.notes-block {
+.details-panel {
   border: 1px solid #e5eaf2;
   border-radius: 12px;
   background: #ffffff;
 }
 
 .planning-sidebar {
-  padding: 16px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
   border-right: 1px solid #e5eaf2;
+  overflow: hidden;
+}
+
+.planning-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -14px -14px 14px;
+  padding: 14px;
+  border-bottom: 1px solid #e9edf4;
+  background: #fbfcff;
+  border-radius: 12px 12px 0 0;
+}
+
+.planning-title h3 {
+  margin: 0;
+  color: #17213b;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.planning-title p {
+  margin: 3px 0 0;
+  color: #2860df;
+  font-size: 0.74rem;
+}
+
+.planning-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.details-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid #e9edf4;
+  background: #fbfcff;
+}
+
+.details-header h3 {
+  margin: 0;
+  color: #17213b;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.planning-actions :deep(.app-button) {
+  width: 100%;
+  height: 32px;
+  justify-content: center;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 0.76rem;
+}
+
+.planning-actions :deep(.app-button:only-child) {
+  grid-column: 1 / -1;
+}
+
+.planning-actions :deep(.app-button:nth-child(3):last-child) {
+  grid-column: 1 / -1;
+}
+
+.planning-actions :deep(.variant-primary) {
+  background: #2563eb;
+}
+
+.planning-actions :deep(.variant-secondary) {
+  border: 1px solid #36b47e;
+  background: #ffffff;
+  color: #149765;
+}
+
+.planning-actions :deep(.variant-secondary:hover:not(.is-disabled)) {
+  border-color: #149765;
+  background: #149765;
+  color: #ffffff;
 }
 
 .details-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 0;
-  gap: 12px;
-  border-left: 0;
-  background: transparent;
+  gap: 0;
+  overflow: hidden;
+}
+
+.summary-block,
+.notes-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.notes-block {
+  border-top: 1px solid #e9edf4;
+}
+
+.sidebar-notes-block {
+  margin-top: 14px;
+  padding: 14px 0 0;
+}
+
+.sidebar-notes-block textarea {
+  min-height: 92px;
 }
 
 .sidebar-heading {
@@ -1183,12 +1897,53 @@ textarea:disabled {
 
 .procedure-option {
   grid-template-columns: 36px minmax(0, 1fr) 30px;
-  min-height: 59px;
-  gap: 10px;
-  margin-bottom: 8px;
-  padding: 8px;
+  min-height: 52px;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 7px;
   border-color: #edf0f5;
   border-radius: 8px;
+}
+
+.scroll-list {
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c5d2e7 transparent;
+}
+
+.scroll-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c5d2e7;
+}
+
+.scroll-list::after {
+  display: none;
+  position: sticky;
+  bottom: 0;
+  height: 28px;
+  margin-top: -28px;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 88%);
+}
+
+.scroll-list.has-scroll-below::after {
+  display: block;
+}
+
+.procedure-list {
+  max-height: 286px;
+  padding-right: 4px;
+}
+
+.procedure-list .procedure-option:last-of-type {
+  margin-bottom: 0;
 }
 
 .procedure-option:hover,
@@ -1227,8 +1982,40 @@ textarea:disabled {
 }
 
 .history-panel {
+  min-height: 0;
   margin-top: 17px;
   border-top-color: #e9edf4;
+}
+
+.history-list {
+  max-height: 156px;
+  padding-right: 4px;
+}
+
+.details-history-panel {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid #e9edf4;
+}
+
+.details-history-panel .sidebar-heading.compact {
+  margin: 0 0 10px;
+}
+
+.history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.details-history-panel .history-list {
+  min-height: 0;
+  flex: 1;
+  max-height: none;
 }
 
 .history-item {
@@ -1248,42 +2035,144 @@ textarea:disabled {
   background: #f7f9fd;
 }
 
-.planning-workspace {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.workspace-toolbar {
-  min-height: 64px;
-  padding: 10px 16px;
-  border-bottom-color: #edf0f5;
+.details-history-panel .history-item {
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid transparent;
   background: #ffffff;
 }
 
-.workspace-toolbar h3 {
-  color: #17213b;
-  font-size: 0.9rem;
-  line-height: 1.25;
+.details-history-panel .history-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.details-history-panel .history-item:hover {
+  border-color: #d8e3fb;
+  background: #f8faff;
+}
+
+.details-history-panel .history-item.active {
+  border-color: #c6d8ff;
+  background: #f3f7ff;
+}
+
+.history-item-main {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+
+.professional-avatar {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #dce6f7;
+  border-radius: 50%;
+  background: #eaf1ff;
+  color: #2860df;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.professional-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.history-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.history-title-row strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #253452;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.workspace-toolbar > div:first-child {
+.history-status {
   flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.63rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.workspace-toolbar p {
-  margin-top: 3px;
-  color: #2860df;
-  font-size: 0.76rem;
+.history-status.finalized {
+  background: #eaf8f1;
+  color: #16835a;
 }
 
-.toolbar-actions {
-  display: grid;
-  grid-template-columns: repeat(3, max-content);
-  grid-template-rows: auto auto;
+.history-status.draft {
+  background: #eef3ff;
+  color: #3865c5;
+}
+
+.history-date,
+.history-professional {
+  color: #74819a;
+  font-size: 0.7rem;
+}
+
+.history-date {
+  display: inline-flex;
   align-items: center;
-  justify-content: end;
-  gap: 7px;
+  gap: 4px;
+}
+
+.history-procedures {
+  color: #3e5680;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.history-appointment-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-appointment-link:hover {
+  background: #eaf1ff;
+}
+
+.planning-workspace {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .segmented-control,
@@ -1291,12 +2180,6 @@ textarea:disabled {
   padding: 3px;
   border-radius: 7px;
   background: #f2f4f8;
-}
-
-.toolbar-actions .segmented-control {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  justify-self: end;
 }
 
 .segmented-control button,
@@ -1313,25 +2196,8 @@ textarea:disabled {
   box-shadow: 0 1px 3px rgba(37, 54, 96, 0.1);
 }
 
-.toolbar-actions :deep(.app-button) {
-  height: 32px;
-  border-radius: 6px;
-  box-shadow: none;
-  font-size: 0.78rem;
-}
-
-.toolbar-actions :deep(.variant-primary) {
-  background: #2563eb;
-}
-
-.toolbar-actions :deep(.variant-secondary) {
-  border: 1px solid #36b47e;
-  background: #ffffff;
-  color: #149765;
-}
-
 .map-stage {
-  padding: 52px 20px 58px;
+  padding: 28px 18px 50px;
   overflow: hidden;
   background: #fdfdfe;
 }
@@ -1345,7 +2211,7 @@ textarea:disabled {
 }
 
 .face-map {
-  width: min(100%, 520px);
+  width: min(100%, 360px);
   max-height: 100%;
   filter: none;
   touch-action: none;
@@ -1356,7 +2222,6 @@ textarea:disabled {
   inset: 0;
   transform: translate(var(--pan-x), var(--pan-y)) scale(var(--face-zoom));
   transform-origin: center;
-  transition: transform 0.16s ease;
   pointer-events: none;
 }
 
@@ -1392,11 +2257,11 @@ textarea:disabled {
 }
 
 .quick-editor {
-  width: 208px;
-  padding: 11px 12px 12px;
+  width: 224px;
+  padding: 12px;
   border-radius: 10px;
-  border-color: #dfe6f1;
-  box-shadow: 0 12px 28px rgba(28, 47, 84, 0.16);
+  border-color: #dbe4f2;
+  box-shadow: 0 14px 30px rgba(28, 47, 84, 0.18);
   transform: translate(var(--quick-offset-x), var(--quick-offset-y));
 }
 
@@ -1425,6 +2290,41 @@ textarea:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.quick-editor-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-editor-title > i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.quick-editor .quick-editor-title label {
+  display: block;
+  color: #273651;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.quick-editor-title small {
+  display: block;
+  max-width: 118px;
+  overflow: hidden;
+  color: #77849a;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-editor-actions {
@@ -1433,13 +2333,13 @@ textarea:disabled {
 }
 
 .quick-editor-actions button {
-  width: 28px;
-  height: 28px;
+  width: 27px;
+  height: 27px;
   display: grid;
   place-items: center;
-  border: 0;
-  border-radius: 5px;
-  background: #f1f3f7;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f5f7fa;
   color: #65728b;
   cursor: pointer;
 }
@@ -1447,16 +2347,6 @@ textarea:disabled {
 .quick-editor-actions button:hover {
   background: #e3e8f1;
   color: #33415b;
-}
-
-.quick-editor-actions button.confirm {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.quick-editor-actions button.confirm:hover {
-  background: #1d4ed8;
-  color: #ffffff;
 }
 
 .quick-editor-actions button.delete {
@@ -1469,6 +2359,14 @@ textarea:disabled {
   color: #b91c1c;
 }
 
+.quick-editor-actions button.locked,
+.quick-editor-actions button.locked:disabled {
+  cursor: default;
+  opacity: 1;
+  background: #f1f3f7;
+  color: #77849a;
+}
+
 .quick-editor label,
 .notes-block {
   color: #62708a;
@@ -1477,21 +2375,54 @@ textarea:disabled {
 }
 
 .quick-row {
-  grid-template-columns: 104px auto;
-  gap: 10px;
+  display: block;
+  margin-top: 10px;
+}
+
+.quick-quantity-field {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.quick-quantity-field:focus-within {
+  border-color: #8fb0ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .quick-row input {
-  height: 46px;
-  padding: 7px 11px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
+  height: 40px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.quick-row span {
-  color: #6d7890;
-  font-size: 0.82rem;
+.quick-row input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.quick-quantity-field span {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border-left: 1px solid #e6ebf2;
+  background: #f8faff;
+  color: #49617f;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.quick-row input {
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -1499,14 +2430,14 @@ textarea:disabled {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .quantity-presets button {
   min-width: 0;
-  height: 29px;
+  height: 28px;
   border: 1px solid #e1e6ee;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #ffffff;
   color: #68748b;
   cursor: pointer;
@@ -1523,14 +2454,14 @@ textarea:disabled {
 
 .map-hint {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 12px;
+  left: 12px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   margin: 0;
-  padding: 9px 14px;
+  padding: 7px 10px;
   border: 1px solid #e7ebf2;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
@@ -1546,8 +2477,8 @@ textarea:disabled {
 
 .zoom-controls {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: 12px;
+  bottom: 12px;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -1603,8 +2534,7 @@ textarea:disabled {
 
 .summary-block,
 .notes-block {
-  padding: 16px;
-  gap: 10px;
+  gap: 8px;
 }
 
 .panel-label {
@@ -1615,7 +2545,7 @@ textarea:disabled {
 }
 
 .total-row {
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
   padding: 0;
   border-bottom-color: #edf0f5;
@@ -1648,31 +2578,58 @@ textarea:disabled {
 }
 
 .notes-block textarea {
-  min-height: 150px;
-  resize: vertical;
+  min-height: 112px;
+  resize: none;
+  font-weight: 400;
 }
 
-.loading-inline {
-  padding: 0 3px;
+.notes-block textarea::placeholder {
+  font-weight: 400;
+}
+
+.appointment-planning-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 10px;
+  border: 1px solid #dbe7ff;
+  border-radius: 7px;
+  background: #f6f9ff;
+}
+
+.appointment-planning-notice p {
+  margin: 0;
+  color: #536887;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.appointment-planning-notice :deep(button) {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 1180px) {
   .facial-planning {
     grid-template-columns: minmax(205px, 0.85fr) minmax(430px, 1.8fr);
+    height: auto;
+    min-height: 610px;
   }
 
   .details-panel {
     grid-column: 1 / -1;
     grid-row: auto;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
   }
-
 }
 
 @media (max-width: 760px) {
   .facial-planning {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: 0;
   }
 
@@ -1680,23 +2637,6 @@ textarea:disabled {
     grid-column: auto;
     grid-row: auto;
     display: flex;
-  }
-
-  .workspace-toolbar {
-    align-items: flex-start;
-  }
-
-  .workspace-toolbar h3 {
-    white-space: normal;
-  }
-
-  .toolbar-actions {
-    grid-template-columns: repeat(3, max-content);
-    justify-content: start;
-  }
-
-  .toolbar-actions .segmented-control {
-    justify-self: start;
   }
 
   .map-stage {
@@ -1718,6 +2658,543 @@ textarea:disabled {
 
   .quick-editor {
     width: min(208px, calc(100vw - 48px));
+  }
+}
+
+.facial-planning.is-fullscreen {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.is-fullscreen .planning-sidebar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 7;
+  width: min(310px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  box-shadow: 0 16px 36px rgba(34, 52, 86, 0.16);
+}
+
+.is-fullscreen .planning-header,
+.is-fullscreen .sidebar-notes-block,
+.is-fullscreen .details-panel {
+  display: none;
+}
+
+.is-fullscreen .planning-sidebar > .sidebar-heading {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 18px;
+  border-bottom: 1px solid #e7ecf3;
+  background: #fbfcff;
+}
+
+.is-fullscreen .procedure-list {
+  flex: 1;
+  max-height: none;
+  padding: 12px;
+}
+
+.is-fullscreen .planning-workspace {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.is-fullscreen .map-stage {
+  min-height: 0;
+  padding: 16px 16px 50px;
+}
+
+.fullscreen-map-header {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 7;
+}
+
+.fullscreen-map-header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce4ef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #44516a;
+  cursor: pointer;
+}
+
+.fullscreen-map-header button:hover {
+  border-color: #b9caf0;
+  color: #1d5eff;
+}
+
+@media (max-width: 760px) {
+  .facial-planning.is-fullscreen {
+    padding: 0;
+  }
+
+  .is-fullscreen .map-stage {
+    min-height: 0;
+    padding: 8px 8px 50px;
+  }
+
+  .is-fullscreen .planning-sidebar > .sidebar-heading {
+    padding: 14px 12px;
+    font-size: 0.74rem;
+  }
+
+  .is-fullscreen .procedure-list {
+    padding: 8px;
+  }
+}
+
+.mobile-history-screen,
+.mobile-map-header,
+.mobile-procedure-carousel {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .facial-planning {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: block;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #ffffff;
+  }
+
+  .facial-planning.mobile-history {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .facial-planning.mobile-history .planning-sidebar,
+  .facial-planning.mobile-history .planning-workspace,
+  .facial-planning.mobile-history .details-panel,
+  .facial-planning.mobile-history .mobile-map-header,
+  .facial-planning.mobile-history .mobile-procedure-carousel {
+    display: none;
+  }
+
+  .facial-planning.mobile-history .mobile-history-screen {
+    display: flex;
+  }
+
+  .mobile-history-screen {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    min-height: 360px;
+    flex-direction: column;
+    background: #f8fafc;
+    border: 1px solid #e5eaf2;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .mobile-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: calc(env(safe-area-inset-top) + 18px) 18px 18px;
+    border-bottom: 1px solid #e5eaf2;
+    background: #ffffff;
+  }
+
+  .mobile-history-header p,
+  .mobile-history-header h2 {
+    margin: 0;
+  }
+
+  .mobile-history-header p {
+    color: #52709f;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .mobile-history-header h2 {
+    margin-top: 2px;
+    color: #17213b;
+    font-size: 1.2rem;
+  }
+
+  .mobile-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px 16px calc(env(safe-area-inset-bottom) + 16px);
+    box-sizing: border-box;
+  }
+
+  .mobile-history-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid #e0e7f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  .mobile-history-item:active {
+    border-color: #b9d0ff;
+    background: #f5f8ff;
+  }
+
+  .mobile-history-item .professional-avatar {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+  }
+
+  .mobile-history-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    color: #6c7a94;
+    font-size: 0.73rem;
+  }
+
+  .mobile-history-item .history-title-row {
+    min-width: 0;
+  }
+
+  .mobile-history-item .history-title-row strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-history-item .history-procedures,
+  .mobile-history-item .history-professional {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-empty-history {
+    display: grid;
+    min-height: 200px;
+    place-content: center;
+    gap: 7px;
+    padding: 24px;
+    color: #72819a;
+    text-align: center;
+  }
+
+  .mobile-empty-history strong {
+    color: #31415e;
+  }
+
+  .mobile-empty-history span {
+    max-width: 240px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .facial-planning:not(.mobile-history) .planning-sidebar,
+  .facial-planning:not(.mobile-history) .details-panel {
+    display: none;
+  }
+
+  .facial-planning:not(.mobile-history) .planning-workspace {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .facial-planning.mobile-map-opening {
+    transform-origin: 50% 24%;
+    animation: mobile-planning-open 0.42s cubic-bezier(0.22, 0.9, 0.2, 1) both;
+  }
+
+  .facial-planning.mobile-map-closing {
+    transform-origin: 50% 24%;
+    pointer-events: none;
+    animation: mobile-planning-close 0.34s cubic-bezier(0.4, 0, 0.8, 0.2) both;
+  }
+
+  .mobile-map-opening .mobile-map-header,
+  .mobile-map-opening .mobile-procedure-carousel {
+    animation: mobile-planning-content-in 0.36s 0.08s ease-out both;
+  }
+
+  .facial-planning:not(.mobile-history) .mobile-map-header,
+  .facial-planning:not(.mobile-history) .mobile-procedure-carousel {
+    display: flex;
+  }
+
+  .mobile-map-header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 12;
+    align-items: center;
+    min-height: 58px;
+    padding: env(safe-area-inset-top) 12px 0;
+    border-bottom: 1px solid #e5eaf2;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .mobile-map-header > button,
+  .mobile-map-actions button {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid #dce5f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #405270;
+  }
+
+  .mobile-map-header > div:not(.mobile-map-actions) {
+    flex: 1;
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .mobile-map-header strong,
+  .mobile-map-header small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-map-header strong {
+    color: #21314d;
+    font-size: 0.82rem;
+  }
+
+  .mobile-map-header small {
+    margin-top: 2px;
+    color: #5c78b3;
+    font-size: 0.68rem;
+  }
+
+  .mobile-map-actions {
+    display: flex;
+    gap: 5px;
+  }
+
+  .mobile-map-actions .mobile-planning-action {
+    width: auto;
+    min-width: 0;
+    height: 34px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #1d5eff;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .mobile-map-actions .mobile-planning-action.primary {
+    border-color: #b7ccff;
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  .mobile-map-actions .mobile-planning-action:disabled {
+    cursor: wait;
+    opacity: 0.72;
+  }
+
+  .facial-planning:not(.mobile-history) .map-stage {
+    height: 100%;
+    min-height: 0;
+    padding: calc(env(safe-area-inset-top) + 70px) 8px calc(env(safe-area-inset-bottom) + 124px);
+  }
+
+  .facial-planning:not(.mobile-history) .face-map {
+    width: min(100%, 430px);
+  }
+
+  .facial-planning:not(.mobile-history) .zoom-controls {
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom) + 132px);
+  }
+
+  .facial-planning:not(.mobile-history) .zoom-controls .fit-map {
+    display: none;
+  }
+
+  .mobile-procedure-carousel {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 12;
+    flex-direction: column;
+    padding: 9px 0 calc(env(safe-area-inset-bottom) + 10px);
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 -10px 24px rgba(31, 50, 86, 0.07);
+  }
+
+  .mobile-procedure-track {
+    display: flex;
+    gap: 9px;
+    padding: 0 12px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .mobile-procedure-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-procedure-card {
+    display: grid;
+    grid-template-columns: auto minmax(108px, 1fr);
+    gap: 3px 8px;
+    width: 194px;
+    min-width: 194px;
+    padding: 10px;
+    border: 1px solid #e0e7f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    scroll-snap-align: start;
+  }
+
+  .mobile-procedure-card.active {
+    border-color: #acc7ff;
+    background: #f5f8ff;
+  }
+
+  .mobile-procedure-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    grid-row: span 2;
+    place-items: center;
+    border-radius: 50%;
+  }
+
+  .mobile-procedure-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .mobile-procedure-copy strong {
+    overflow: hidden;
+    color: #273752;
+    font-size: 0.74rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-procedure-copy small,
+  .mobile-procedure-count {
+    color: #71809a;
+    font-size: 0.67rem;
+  }
+
+  .mobile-procedure-count {
+    grid-column: 2;
+    color: #3565c6;
+    font-weight: 700;
+  }
+
+  .facial-planning:not(.mobile-history) .quick-editor {
+    z-index: 20;
+    width: min(360px, calc(100dvw - 24px));
+    max-height: min(360px, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  @keyframes mobile-planning-open {
+    from {
+      opacity: 0;
+      transform: translateY(22px) scale(0.96);
+      border-radius: 28px;
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      border-radius: 0;
+    }
+  }
+
+  @keyframes mobile-planning-content-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes mobile-planning-close {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      border-radius: 0;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(20px) scale(0.96);
+      border-radius: 28px;
+    }
   }
 }
 </style>

@@ -47,7 +47,6 @@ import {
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
-import AppTabs from '@/components/global/AppTabs.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { fetchAddressByCEP } from '@/api/external'
@@ -82,7 +81,6 @@ const activeTab = computed({
       'procedimentos': 'procedures',
       'anotacoes': 'notes',
       'orcamentos': 'budgets',
-      'orcamentos': 'budgets',
       'planejamento-facial': 'facial-planning',
       'termos': 'termos',
       'galeria': 'media'
@@ -96,20 +94,19 @@ const activeTab = computed({
       'procedures': 'procedimentos',
       'notes': 'anotacoes',
       'budgets': 'orcamentos',
-      'budgets': 'orcamentos',
       'facial-planning': 'planejamento-facial',
       'termos': 'termos',
       'media': 'galeria',
       'details': undefined // Remove param for details
     }
     const tabParam = reverseMap[newValue]
-    
+
     // Maintain current query params when switching tabs
-    router.push({ 
-      name: 'detalhes-paciente', 
-      params: { 
-        id: patient.value?._id || route.params.id, 
-        tab: tabParam 
+    router.push({
+      name: 'detalhes-paciente',
+      params: {
+        id: patient.value?._id || route.params.id,
+        tab: tabParam
       },
       query: route.query
     })
@@ -133,7 +130,7 @@ const answeredAnamneses = computed(() => anamnesisStore.answeredAnamneses || [])
 const pendingAnamneses = computed(() => anamnesisStore.pendingAnamneses || [])
 const expiredAnamneses = computed(() => anamnesisStore.expiredAnamneses || [])
 const showExpiredAnamneses = ref(false)
-const patientHistory = computed(() => 
+const patientHistory = computed(() =>
   (appointmentsStore.patientAppointments || []).filter(app => app.status !== 'Agendado')
 )
 
@@ -141,6 +138,18 @@ const genderOptions = [
   { value: 'Masculino', label: 'Masculino' },
   { value: 'Feminino', label: 'Feminino' },
   { value: 'Outro', label: 'Outro' },
+]
+
+const patientTabs = [
+  { value: 'details', label: 'Detalhes', icon: ClipboardList },
+  { value: 'anamneses', label: 'Anamneses', icon: FileText },
+  { value: 'history', label: 'Histórico', icon: History },
+  { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
+  { value: 'notes', label: 'Anotações', icon: MessageSquare },
+  { value: 'budgets', label: 'Orçamentos', icon: Receipt },
+  { value: 'facial-planning', label: 'Planejamento Facial', icon: Syringe },
+  { value: 'termos', label: 'Termos', icon: FileSignature },
+  { value: 'media', label: 'Galeria', icon: Folder },
 ]
 
 const referralSourceOptions = [
@@ -262,7 +271,7 @@ const formattedBirthDate = computed(() => {
 
 function formatSimpleDate(dateString) {
   if (!dateString) return ''
-  
+
   // If it's a date string (YYYY-MM-DD)
   if (dateString.length === 10 && dateString.includes('-')) {
     const [year, month, day] = dateString.split('-').map(Number)
@@ -296,7 +305,7 @@ function handleCopyLink(token) {
     return;
   }
   const link = `${window.location.origin}/anamnese/${token}`
-  
+
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(() => {
       toast.info('Link de resposta copiado!')
@@ -325,18 +334,18 @@ function handleCopyLink(token) {
 async function handleGeneratePdf(anamnesis) {
   // Bloqueia se já estiver gerando um PDF
   if (generatingPdfId.value) return
-  
+
   if (!patient.value) {
     toast.error('Dados do paciente não carregados.')
     return
   }
-  
+
   generatingPdfId.value = anamnesis._id
 
   try {
     const templateName = anamnesis.template?.name || anamnesis.templateName || 'anamnese'
     const result = await anamnesisStore.downloadPdf(patient.value._id, anamnesis._id, templateName)
-    
+
     if (!result.success) {
       toast.error(result.error || 'Erro ao baixar PDF.')
     }
@@ -427,7 +436,7 @@ function openAppointmentModal(appointment) {
     ...appointment,
     patient: patient.value
   }
-  
+
   selectedAppointment.value = {
     originalEvent: appointmentWithPatient,
     start: appointment.startTime,
@@ -528,26 +537,30 @@ async function deleteAppointment(appointment) {
 
     <div v-else-if="patient">
       <header class="patient-header">
-        <div class="patient-info">
-          <div class="patient-avatar">
-            {{ patient.name.charAt(0) }}
-          </div>
-          <div class="patient-title-wrapper">
-            <div class="name-and-status">
-              <h1 class="patient-name">{{ patient.name }}</h1>
-              <div v-if="missingInfo.length > 0" class="missing-info-badge" :title="`Faltam: ${missingInfo.join(', ')}`">
-                  <AlertTriangle :size="20" />
-                  <div class="missing-info-tooltip">
-                      <span class="tooltip-title">Faltam informações:</span>
-                      <ul class="tooltip-list">
-                          <li v-for="item in missingInfo" :key="item">{{ item }}</li>
-                      </ul>
-                  </div>
-              </div>
+        <div class="patient-info-card">
+          <div class="patient-info">
+            <div class="patient-avatar">
+              {{ patient.name.charAt(0) }}
             </div>
-            <div class="patient-meta">
-              <span>ID: #{{ patient._id.slice(-6).toUpperCase() }}</span>
-              <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+            <div class="patient-title-wrapper">
+              <div class="name-and-status">
+                <h1 class="patient-name">
+                  {{ patient.name }}<template v-if="patient.nickname"> ({{ patient.nickname }})</template>
+                </h1>
+                <div v-if="missingInfo.length > 0" class="missing-info-badge" :title="`Faltam: ${missingInfo.join(', ')}`">
+                    <AlertTriangle :size="20" />
+                    <div class="missing-info-tooltip">
+                        <span class="tooltip-title">Faltam informações:</span>
+                        <ul class="tooltip-list">
+                            <li v-for="item in missingInfo" :key="item">{{ item }}</li>
+                        </ul>
+                    </div>
+                </div>
+              </div>
+              <div class="patient-meta">
+                <span>ID: #{{ patient._id.slice(-6).toUpperCase() }}</span>
+                <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" />
+              </div>
             </div>
           </div>
         </div>
@@ -563,27 +576,24 @@ async function deleteAppointment(appointment) {
         </div>
       </header>
 
-      <div class="tabs-container-wrapper">
-        <AppTabs 
-          :model-value="activeTab" 
-          @update:model-value="activeTab = $event"
-          :items="[
-            { value: 'details', label: 'Detalhes', icon: ClipboardList },
-            { value: 'anamneses', label: 'Anamneses', icon: FileText },
-            { value: 'history', label: 'Histórico', icon: History },
-            { value: 'procedures', label: 'Procedimentos', icon: Stethoscope },
-            { value: 'notes', label: 'Anotações', icon: MessageSquare },
-            { value: 'budgets', label: 'Orçamentos', icon: Receipt },
-            { value: 'facial-planning', label: 'Planejamento Facial', icon: Syringe },
-            { value: 'termos', label: 'Termos', icon: FileSignature },
-            { value: 'media', label: 'Galeria', icon: Folder },
-          ]"
-        />
-      </div>
+      <div class="patient-tab-layout">
+        <aside class="patient-tab-sidebar" aria-label="Navegação do paciente">
+          <button
+            v-for="tab in patientTabs"
+            :key="tab.value"
+            type="button"
+            class="patient-tab-button"
+            :class="{ active: activeTab === tab.value }"
+            @click="activeTab = tab.value"
+          >
+            <component :is="tab.icon" :size="18" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </aside>
 
-      <div class="tab-content unified-card">
-        <Transition name="fade" mode="out-in">
-          <div :key="activeTab" class="unified-card-content">
+        <div class="tab-content unified-card">
+          <Transition name="fade" mode="out-in">
+            <div :key="activeTab" class="unified-card-content">
             <div v-if="activeTab === 'media'">
                 <PatientMediaGallery :patient-id="patient._id" />
             </div>
@@ -873,7 +883,7 @@ async function deleteAppointment(appointment) {
                     {{ showExpiredAnamneses ? 'Ocultar' : 'Mostrar' }} expiradas
                   </button>
                 </div>
-                
+
                 <ul v-if="showExpiredAnamneses" class="anamnesis-list">
                   <li v-for="item in expiredAnamneses" :key="item._id" class="anamnesis-item opacity-60">
                     <div class="anamnesis-info">
@@ -892,9 +902,9 @@ async function deleteAppointment(appointment) {
                   Carregando histórico...
                 </div>
                 <div v-else-if="patientHistory.length > 0" class="history-grid">
-                  <div 
-                    v-for="item in patientHistory" 
-                    :key="item._id" 
+                  <div
+                    v-for="item in patientHistory"
+                    :key="item._id"
                     class="history-card"
                     @click="openAppointmentModal(item)"
                   >
@@ -907,9 +917,9 @@ async function deleteAppointment(appointment) {
                         </div>
                         <div class="card-header-stats">
                           <span :class="['card-revenue-inline', { 'zero': !item.procedures || item.procedures.length === 0 || item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0) === 0 }]">
-                            {{ item.procedures && item.procedures.length > 0 
-                              ? formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0)) 
-                              : 'R$ 0,00' 
+                            {{ item.procedures && item.procedures.length > 0
+                              ? formatCurrency(item.procedures.reduce((sum, p) => sum + (p.finalValue || 0), 0))
+                              : 'R$ 0,00'
                             }}
                           </span>
                           <span class="card-divider">•</span>
@@ -1065,8 +1075,9 @@ async function deleteAppointment(appointment) {
             <div v-if="activeTab === 'termos'" class="card-section">
               <PatientConsentTermsTab :patient-id="patient._id" />
             </div>
-          </div>
-        </Transition>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
   </div>
@@ -1074,10 +1085,9 @@ async function deleteAppointment(appointment) {
 
 <style scoped>
 .patient-detail-view {
-  max-width: 1280px;
+  max-width: min(1680px, calc(100vw - 48px));
   width: 100%;
   margin: 0 auto;
-  padding: 0 1.5rem;
   overflow-y: overlay;
 }
 
@@ -1210,7 +1220,12 @@ async function deleteAppointment(appointment) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e3e9f2;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(25, 45, 84, 0.04);
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -1218,8 +1233,10 @@ async function deleteAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-grow: 1;
   min-width: 200px;
+}
+.patient-info-card {
+  min-width: 0;
 }
 .patient-avatar {
   width: 64px;
@@ -1324,6 +1341,7 @@ async function deleteAppointment(appointment) {
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   transition: box-shadow 0.2s;
+  min-width: 0;
 }
 
 .procedure-item:hover {
@@ -1334,17 +1352,24 @@ async function deleteAppointment(appointment) {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .proc-main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .proc-name {
   font-weight: 600;
   color: #111827;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proc-alias-badge {
@@ -1365,6 +1390,7 @@ async function deleteAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 0 0 auto;
 }
 
 .discount-tag {
@@ -1400,11 +1426,64 @@ async function deleteAppointment(appointment) {
 }
 
 
+.patient-tab-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.patient-tab-sidebar {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background-color: var(--branco);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+}
+
+.patient-tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 42px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.patient-tab-button svg {
+  flex-shrink: 0;
+}
+
+.patient-tab-button:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.patient-tab-button.active {
+  background-color: #eef4ff;
+  border-color: #dbeafe;
+  color: var(--azul-principal);
+}
+
 .unified-card {
   background-color: var(--branco);
   border: 1px solid #e5e7eb;
   border-radius: 1rem;
-  height: calc(100vh - 300px);
+  height: calc(100vh - 220px);
+  min-height: 620px;
   overflow-y: auto;
   position: relative;
 }
@@ -1412,7 +1491,11 @@ async function deleteAppointment(appointment) {
   height: 100%;
 }
 .card-section {
-  padding: 1.5rem 2rem;
+  padding: 1.3rem 1.3rem;
+}
+.full-width-section {
+  height: 100%;
+  box-sizing: border-box;
 }
 .section-title {
   display: flex;
@@ -1533,12 +1616,6 @@ async function deleteAppointment(appointment) {
   border-color: #d1d5db;
 }
 
-
-.tabs-container-wrapper {
-  display: flex;
-  width: 100%;
-  margin-bottom: 1rem;
-}
 
 /* Card Header */
 .card-header {
@@ -2083,20 +2160,58 @@ async function deleteAppointment(appointment) {
 @media (max-width: 768px) {
   .patient-detail-view {
     padding: 0rem;
+    max-width: 100%;
+  }
+  .patient-tab-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .patient-tab-sidebar {
+    position: static;
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    padding: 0.375rem;
+  }
+  .patient-tab-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 38px;
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
   }
   .card-section {
-    padding: 0.5rem;
+    padding: 0rem;
   }
   .unified-card {
     background-color: transparent;
     border: none;
     box-shadow: none;
     border-radius: 0;
+    height: auto;
+    width: 100%;
+    min-height: 0;
+    overflow: visible;
+  }
+  .history-section,
+  .history-grid,
+  .history-card {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .history-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .patient-header {
     align-items: center;
   }
   .patient-info {
+    width: 100%;
+  }
+  .patient-info-card {
     width: 100%;
   }
   .patient-name {
