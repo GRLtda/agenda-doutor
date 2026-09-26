@@ -1,19 +1,26 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
-import { LogOut, User, CreditCard, LifeBuoy } from 'lucide-vue-next'
+import { LogOut, User, CreditCard, LifeBuoy, MessageCircle } from 'lucide-vue-next'
 
 const props = defineProps({
   direction: {
     type: String,
     default: 'up', // 'up' or 'down'
-    validator: (value) => ['up', 'down'].includes(value)
-  }
+    validator: (value) => ['up', 'down'].includes(value),
+  },
+  variant: {
+    type: String,
+    default: 'default',
+    validator: (value) => ['default', 'onboarding'].includes(value),
+  },
 })
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const isOnboarding = computed(() => props.variant === 'onboarding')
 
 function openProfileModal() {
   router.replace({
@@ -38,40 +45,49 @@ function openSubscriptionTab() {
   })
 }
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+function handleSupport() {
+  const message = encodeURIComponent('Olá! Preciso de ajuda para escolher meu plano.')
+  window.open(`https://wa.me/5511921923978?text=${message}`, '_blank', 'noopener,noreferrer')
+}
+
+async function handleLogout() {
+  await authStore.logout()
 }
 </script>
 
 <template>
-  <div class="dropdown-menu" :class="`direction-${direction}`">
+  <div class="dropdown-menu" :class="`direction-${direction}`" role="menu">
     <ul>
-      <li>
-        <button class="dropdown-item" @click="openProfileModal">
+      <li v-if="!isOnboarding">
+        <button class="dropdown-item" role="menuitem" @click="openProfileModal">
           <User :size="16" />
           <span>Perfil</span>
         </button>
       </li>
-      <li v-if="authStore.user?.role === 'owner'">
-        <button class="dropdown-item" @click="openSubscriptionTab">
+      <li v-if="!isOnboarding && authStore.user?.role === 'owner'">
+        <button class="dropdown-item" role="menuitem" @click="openSubscriptionTab">
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
       </li>
 
-      <li class="separator"></li>
+      <li v-if="!isOnboarding" class="separator"></li>
 
       <li>
-        <button class="dropdown-item" @click="router.push('/ajuda')">
-          <LifeBuoy :size="16" />
-          <span>Central de Ajuda</span>
+        <button
+          class="dropdown-item"
+          role="menuitem"
+          @click="isOnboarding ? handleSupport() : router.push('/ajuda')"
+        >
+          <MessageCircle v-if="isOnboarding" :size="16" />
+          <LifeBuoy v-else :size="16" />
+          <span>{{ isOnboarding ? 'Suporte pelo WhatsApp' : 'Central de Ajuda' }}</span>
         </button>
       </li>
       <li>
-        <button @click="handleLogout()" class="dropdown-item text-red">
+        <button class="dropdown-item text-red" role="menuitem" @click="handleLogout()">
           <LogOut :size="16" />
-          <span>Deslogar</span>
+          <span>{{ isOnboarding ? 'Sair' : 'Deslogar' }}</span>
         </button>
       </li>
     </ul>
@@ -98,7 +114,6 @@ function handleLogout() {
 .dropdown-menu.direction-down {
   top: 120%;
 }
-
 
 @keyframes fade-in {
   from {

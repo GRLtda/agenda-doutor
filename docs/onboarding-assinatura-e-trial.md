@@ -27,3 +27,20 @@ O teste não cria cliente, sessão ou assinatura na Stripe. Enquanto ele estiver
 5. Confirme o redirecionamento para a seleção de planos e, ao escolher um plano, para o checkout da Stripe.
 
 Convites com `trialDays` igual a zero continuam exigindo assinatura antes de liberar o painel.
+
+## Cabeçalho da seleção de planos
+
+A etapa de seleção de planos usa um cabeçalho compacto com a marca Agenda Doutor, ação para voltar
+à configuração anterior e o avatar do usuário autenticado. Quando não houver foto de perfil válida,
+o avatar exibe a inicial do nome como fallback.
+
+Ao acionar o avatar, a tela reutiliza o componente `UserDropdown` empregado no TopBar do sistema,
+com a variante de onboarding limitada às ações:
+
+- **Suporte pelo WhatsApp**, que abre uma nova aba para o número oficial `+55 11 92192-3978` com
+  uma mensagem de ajuda sobre a escolha do plano;
+- **Sair**, que invalida a sessão atual no backend quando possível, limpa os dados locais de
+  autenticação e redireciona para o login.
+
+O menu fecha ao clicar fora dele ou ao pressionar `Esc`. Em telas estreitas, os controles do
+cabeçalho preservam apenas seus ícones para manter a área de planos utilizável.

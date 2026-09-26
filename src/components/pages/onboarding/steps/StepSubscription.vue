@@ -1,8 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowLeft, ArrowRight, Check, Users } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Users } from 'lucide-vue-next'
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
+import UserDropdown from '@/components/global/UserDropdown.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps({
   installationFeeCharged: {
@@ -16,6 +20,8 @@ const emit = defineEmits(['back'])
 const selectedPlan = ref('basic')
 const loadingPlan = ref(null)
 const errorMessage = ref(null)
+const isUserMenuOpen = ref(false)
+const hasProfilePhotoError = ref(false)
 const stripeLogo =
   'data:image/svg+xml,%3Csvg width=%2260%22 height=%2225%22 viewBox=%220 0 60 25%22 fill=%22none%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath fill=%22%23635BFF%22 d=%22M59.64 14.28c0-4.16-2.02-7.44-5.88-7.44-3.88 0-6.22 3.28-6.22 7.4 0 4.9 2.78 7.36 6.74 7.36 1.94 0 3.4-.44 4.5-1.06v-3.22c-1.1.56-2.36.9-3.96.9-1.58 0-2.98-.56-3.16-2.48h7.94c0-.22.04-1.08.04-1.46Zm-8.02-1.5c0-1.84 1.12-2.6 2.12-2.6.98 0 2.02.76 2.02 2.6h-4.14ZM41.24 6.84c-1.6 0-2.62.76-3.18 1.3l-.22-1.04h-3.56v18.18l4.04-.86.02-4.4c.58.42 1.44 1.02 2.86 1.02 2.9 0 5.54-2.34 5.54-7.5-.02-4.72-2.7-6.7-5.5-6.7Zm-.98 10.64c-.96 0-1.52-.34-1.92-.76l-.02-6.04c.42-.46 1-.78 1.94-.78 1.48 0 2.5 1.66 2.5 3.78 0 2.16-1 3.8-2.5 3.8ZM28.7 5.88l4.06-.88V1.72l-4.06.86v3.3Zm0 1.24h4.06v14.2H28.7V7.12Zm-4.36 1.2-.26-1.2h-3.5v14.2h4.04v-9.62c.96-1.26 2.58-1.02 3.08-.84V7.12c-.52-.2-2.38-.56-3.36 1.2ZM16.26 3.6l-3.94.84-.02 13c0 2.4 1.8 4.18 4.2 4.18 1.34 0 2.32-.24 2.86-.52v-3.28c-.52.2-3.1.9-3.1-1.44v-5.82h3.1V7.12h-3.1V3.6ZM4.1 11.24c0-.62.52-.86 1.38-.86 1.22 0 2.76.38 3.98 1.04V7.64c-1.34-.54-2.66-.76-3.98-.76-3.26 0-5.42 1.7-5.42 4.54 0 4.42 6.08 3.7 6.08 5.6 0 .74-.64.98-1.54.98-1.34 0-3.04-.54-4.4-1.28v3.84c1.5.64 3.02.92 4.4.92 3.34 0 5.64-1.66 5.64-4.54-.02-4.78-6.14-3.92-6.14-5.7Z%22/%3E%3C/svg%3E'
 
@@ -27,7 +33,12 @@ const plans = [
     price: 15900,
     displayPrice: 'R$159',
     description: 'Para clínicas em crescimento com mais profissionais e mais capacidade.',
-    features: ['Até 3 profissionais', 'Histórico clínico centralizado', 'Controle de equipe', 'Melhor custo por médico'],
+    features: [
+      'Até 3 profissionais',
+      'Histórico clínico centralizado',
+      'Controle de equipe',
+      'Melhor custo por médico',
+    ],
   },
   {
     id: 'basic',
@@ -36,7 +47,12 @@ const plans = [
     price: 9990,
     displayPrice: 'R$99,90',
     description: 'Para clínicas enxutas começarem com agenda, pacientes e rotina organizada.',
-    features: ['1 profissional atendendo', 'Agenda e cadastro de pacientes', 'Prontuários e anamnese', 'Suporte inicial'],
+    features: [
+      '1 profissional atendendo',
+      'Agenda e cadastro de pacientes',
+      'Prontuários e anamnese',
+      'Suporte inicial',
+    ],
     highlight: true,
   },
   {
@@ -46,11 +62,23 @@ const plans = [
     price: 19900,
     displayPrice: 'R$199',
     description: 'Para operações mais completas, com mais profissionais atendendo todos os dias.',
-    features: ['Até 5 profissionais', 'Fluxo completo da clínica', 'Mais capacidade de agenda', 'Escala para a equipe'],
+    features: [
+      'Até 5 profissionais',
+      'Fluxo completo da clínica',
+      'Mais capacidade de agenda',
+      'Escala para a equipe',
+    ],
   },
 ]
 
-const selectedPlanData = computed(() => plans.find((plan) => plan.id === selectedPlan.value) || plans[0])
+const selectedPlanData = computed(
+  () => plans.find((plan) => plan.id === selectedPlan.value) || plans[0],
+)
+const userInitial = computed(() => authStore.user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U')
+const profilePhotoUrl = computed(() => {
+  if (hasProfilePhotoError.value) return null
+  return authStore.user?.profilePhotoUrl || null
+})
 const installationFeeAmount = 10000
 const shouldChargeInstallation = computed(() => !props.installationFeeCharged)
 const totalToday = computed(() => {
@@ -95,12 +123,45 @@ async function handleSubscribe(planId = selectedPlan.value) {
   <main class="pricing-page">
     <header class="pricing-topbar">
       <div class="brand">
-        <ClinicLogo size="132px" />
+        <ClinicLogo size="104px" />
       </div>
-      <button class="back-button" type="button" @click="emit('back')">
-        <ArrowLeft :size="16" />
-        <span>Voltar</span>
-      </button>
+      <div class="topbar-actions">
+        <button class="back-button" type="button" @click="emit('back')">
+          <ArrowLeft :size="16" />
+          <span>Voltar</span>
+        </button>
+
+        <div
+          class="user-menu"
+          v-click-outside="() => (isUserMenuOpen = false)"
+          @keydown.esc="isUserMenuOpen = false"
+        >
+          <button
+            class="avatar-button"
+            type="button"
+            :aria-expanded="isUserMenuOpen"
+            aria-haspopup="menu"
+            aria-label="Abrir menu da conta"
+            @click="isUserMenuOpen = !isUserMenuOpen"
+          >
+            <img
+              v-if="profilePhotoUrl"
+              :src="profilePhotoUrl"
+              :alt="`Foto de ${authStore.user?.name || 'usuário'}`"
+              @error="hasProfilePhotoError = true"
+            />
+            <span v-else class="avatar-fallback" aria-hidden="true">{{ userInitial }}</span>
+            <ChevronDown :size="15" aria-hidden="true" />
+          </button>
+
+          <UserDropdown
+            v-if="isUserMenuOpen"
+            direction="down"
+            variant="onboarding"
+            @click="isUserMenuOpen = false"
+          />
+        </div>
+      </div>
     </header>
 
     <section class="pricing-shell">
@@ -192,7 +253,10 @@ async function handleSubscribe(planId = selectedPlan.value) {
     radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 30%),
     linear-gradient(to right, rgba(229, 231, 235, 0.35) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(229, 231, 235, 0.35) 1px, transparent 1px);
-  background-size: 100% 100%, 40px 40px, 40px 40px;
+  background-size:
+    100% 100%,
+    40px 40px,
+    40px 40px;
   color: var(--preto);
   min-height: 100vh;
   padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
@@ -211,6 +275,12 @@ async function handleSubscribe(planId = selectedPlan.value) {
   display: flex;
 }
 
+.topbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
 .back-button {
   align-items: center;
   background: #ffffff;
@@ -223,6 +293,58 @@ async function handleSubscribe(planId = selectedPlan.value) {
   font-weight: 700;
   gap: 0.4rem;
   padding: 0.55rem 0.85rem;
+}
+
+.back-button:hover,
+.avatar-button:hover {
+  background: #f8fafc;
+  border-color: #d1d5db;
+}
+
+.back-button:focus-visible,
+.avatar-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.avatar-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.2rem;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.avatar-button img,
+.avatar-fallback {
+  border-radius: 50%;
+  height: 34px;
+  width: 34px;
+}
+
+.avatar-button img {
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  align-items: center;
+  background: #e8efff;
+  color: var(--azul-principal);
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 800;
+  justify-content: center;
 }
 
 .pricing-shell {
@@ -554,6 +676,28 @@ async function handleSubscribe(planId = selectedPlan.value) {
 
   .plan-card.highlighted {
     transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing-page {
+    padding-top: 0.9rem;
+  }
+
+  .back-button span,
+  .avatar-button > svg {
+    display: none;
+  }
+
+  .back-button {
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+  }
+
+  .avatar-button {
+    padding-right: 0.2rem;
   }
 }
 </style>
