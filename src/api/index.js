@@ -39,6 +39,19 @@ apiClient.interceptors.request.use(async (config) => {
     config.url = `/v1${cleanUrl}`
   }
 
+  // Rotas públicas não devem depender da sessão que estiver salva no navegador.
+  // Remove também o header herdado de apiClient.defaults para não enviar um token
+  // expirado e fazer o backend interpretar a requisição como autenticada.
+  if (config.skipAuth) {
+    if (typeof config.headers?.delete === 'function') {
+      config.headers.delete('Authorization')
+    } else if (config.headers) {
+      delete config.headers.Authorization
+    }
+
+    return config
+  }
+
   // 2. Auth V2: Verifica expiração do token antes de cada requisição
   // Não faz refresh para rotas de autenticação (evita loop infinito)
   const isAuthRoute = AUTH_URLS.some((url) => config.url?.includes(url))
@@ -104,7 +117,12 @@ apiClient.interceptors.response.use(
 
     // Auth V2: Trata 401 - Token expirado ou inválido
     const isAuthRoute = AUTH_URLS.some((url) => originalRequest?.url?.includes(url))
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRoute &&
+      !originalRequest.skipAuth
+    ) {
       originalRequest._retry = true
 
       const errorCode = error.response?.data?.error?.code
