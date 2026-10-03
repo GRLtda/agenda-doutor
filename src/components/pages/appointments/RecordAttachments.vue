@@ -198,7 +198,7 @@ const selectedImagesForMontage = computed(() => {
     .map(a => ({ src: getOriginalImageUrl(a) }))
 })
 
-const MAX_ATTACHMENTS = 20
+const MAX_ATTACHMENTS = 40
 const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
 
 function getOriginalImageUrl(attachment) {
@@ -621,7 +621,7 @@ async function handleMontageComplete(file) {
         <div v-else class="action-content">
           <UploadCloud :size="24" />
           <span class="action-label">Adicionar Foto</span>
-          <span class="upload-limits">Máx: 20 Fotos</span>
+          <span class="upload-limits">Máx: {{ MAX_ATTACHMENTS }} Fotos</span>
         </div>
       </div>
 

@@ -17,7 +17,7 @@ const props = defineProps({
   },
   maxAttachments: {
     type: Number,
-    default: 20,
+    default: 40,
   },
 })
 
@@ -62,7 +62,8 @@ const currentPhoto = computed(() => photosData.value[selectedIndex.value] || nul
 // Converter arquivos para objetos com preview e metadados
 watch(() => props.files, (newFiles) => {
   if (newFiles.length > 0) {
-    photosData.value = newFiles.map((file, index) => ({
+    const remainingSlots = Math.max(0, props.maxAttachments - props.existingCount)
+    photosData.value = newFiles.slice(0, remainingSlots).map((file, index) => ({
       id: `photo-${Date.now()}-${index}`,
       file,
       preview: URL.createObjectURL(file),
