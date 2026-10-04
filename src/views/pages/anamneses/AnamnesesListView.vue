@@ -292,16 +292,14 @@ const showPagination = computed(() => allPages.value > 1)
 
 <style scoped>
 .anamneses-list-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
+  min-width: 0;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
   gap: 1rem;
   flex-wrap: wrap;
 }
@@ -315,7 +313,7 @@ const showPagination = computed(() => allPages.value > 1)
 }
 
 .page-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #64748b;
   margin: 0.25rem 0 0;
 }
@@ -384,9 +382,7 @@ const showPagination = computed(() => allPages.value > 1)
 }
 
 .list-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem 2rem;
+  min-height: 320px;
 }
 
 .state-container {
@@ -420,7 +416,7 @@ const showPagination = computed(() => allPages.value > 1)
 .anamnesis-card {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 1rem;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -580,9 +576,8 @@ const showPagination = computed(() => allPages.value > 1)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: white;
-  border-top: 1px solid #e2e8f0;
+  margin-top: 1.5rem;
+  padding: 0.5rem 0;
 }
 
 .pagination-info {
@@ -636,7 +631,6 @@ const showPagination = computed(() => allPages.value > 1)
   .page-header {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem;
   }
 
   .header-actions {
@@ -646,10 +640,6 @@ const showPagination = computed(() => allPages.value > 1)
 
   .status-filter, .search-bar {
     width: 100%;
-  }
-
-  .list-wrapper, .pagination-container {
-    padding: 1rem;
   }
 
   .pagination-container {

@@ -45,11 +45,26 @@
         </template>
       </StyledSelect>
 
-      <div class="date-range">
-        <input v-model="fromDate" type="date" class="date-input" @change="reloadFirstPage" />
-        <span class="date-separator">até</span>
-        <input v-model="toDate" type="date" class="date-input" @change="reloadFirstPage" />
-      </div>
+      <VueDatePicker
+        class="period-picker"
+        :model-value="dateRange"
+        range
+        :enable-time-picker="false"
+        locale="pt-BR"
+        format="dd/MM/yyyy"
+        auto-apply
+        teleport="body"
+        :z-index="12000"
+        @update:model-value="onDateRangeChange"
+      >
+        <template #trigger>
+          <button type="button" class="period-trigger" aria-label="Selecionar período">
+            <Calendar :size="16" />
+            <span>{{ dateRangeLabel }}</span>
+            <ChevronDown :size="14" />
+          </button>
+        </template>
+      </VueDatePicker>
 
       <div class="tag-filter" v-click-outside="() => (isTagMenuOpen = false)">
         <button
@@ -143,8 +158,8 @@
           <div class="media-info">
             <div class="patient-row">
               <div class="avatar">{{ file.patient?.name?.charAt(0)?.toUpperCase() || 'P' }}</div>
-              <div>
-                <button type="button" class="patient-name" @click.stop="goToPatient(file.patient?._id)">
+              <div class="patient-details">
+                <button type="button" class="patient-name" :title="file.patient?.name || 'Paciente'" @click.stop="goToPatient(file.patient?._id)">
                   {{ file.patient?.name || 'Paciente' }}
                 </button>
                 <span class="appointment-date">
@@ -196,6 +211,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import {
   Calendar,
   ChevronDown,
@@ -224,8 +241,7 @@ const selectedCategory = ref('imagens')
 const selectedFileType = ref('image')
 const selectedTags = ref([])
 const tagMode = ref('or')
-const fromDate = ref('')
-const toDate = ref('')
+const dateRange = ref(null)
 const isTagMenuOpen = ref(false)
 const selectedFile = ref(null)
 
@@ -251,6 +267,24 @@ const pagination = computed(() => store.clinicGallery.pagination || {
   totalPages: 1,
 })
 
+const dateRangeLabel = computed(() => {
+  if (!dateRange.value?.[0] || !dateRange.value?.[1]) return 'Selecionar período'
+  return `${dateRange.value[0].toLocaleDateString('pt-BR')} até ${dateRange.value[1].toLocaleDateString('pt-BR')}`
+})
+
+function formatFilterDate(date) {
+  if (!date) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function onDateRangeChange(value) {
+  dateRange.value = value
+  if (!value || (value[0] && value[1])) loadGallery(1)
+}
+
 function currentParams(page = pagination.value.page || 1) {
   return {
     page,
@@ -260,8 +294,8 @@ function currentParams(page = pagination.value.page || 1) {
     tagMode: tagMode.value,
     category: selectedCategory.value,
     fileType: selectedFileType.value,
-    from: fromDate.value,
-    to: toDate.value,
+    from: dateRange.value?.[1] ? formatFilterDate(dateRange.value[0]) : '',
+    to: dateRange.value?.[0] ? formatFilterDate(dateRange.value?.[1]) : '',
   }
 }
 
@@ -379,11 +413,7 @@ function getThumbnailUrl(file) {
 
 <style scoped>
 .clinic-gallery-page {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
-  min-height: 0;
-  background: #f8fafc;
+  min-width: 0;
 }
 
 .gallery-header {
@@ -391,9 +421,7 @@ function getThumbnailUrl(file) {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.5rem 2rem 1rem;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
 }
 
 .page-title {
@@ -407,7 +435,7 @@ function getThumbnailUrl(file) {
 .page-subtitle {
   margin: 0.25rem 0 0;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .result-summary {
@@ -428,15 +456,18 @@ function getThumbnailUrl(file) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 2rem;
+  padding: 1rem;
   background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  flex-wrap: wrap;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  flex-wrap: nowrap;
+  margin-bottom: 1.5rem;
 }
 
 .search-box {
   position: relative;
   flex: 1 1 300px;
+  min-width: 180px;
   max-width: 460px;
 }
 
@@ -460,7 +491,7 @@ function getThumbnailUrl(file) {
 }
 
 .search-input:focus,
-.date-input:focus {
+.period-trigger:focus-visible {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
@@ -484,6 +515,12 @@ function getThumbnailUrl(file) {
 
 .compact-select {
   width: 150px;
+  flex: 0 0 150px;
+}
+
+.period-picker {
+  width: max-content;
+  flex: 0 0 auto;
 }
 
 .select-prefix {
@@ -491,30 +528,23 @@ function getThumbnailUrl(file) {
   margin-right: 0.25rem;
 }
 
-.date-range {
+.period-trigger {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.date-input {
   min-height: 40px;
-  width: 142px;
+  padding: 0 0.75rem;
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
   background: #ffffff;
-  color: #334155;
+  color: #475569;
   font-size: 0.875rem;
-  padding: 0 0.65rem;
-}
-
-.date-separator {
-  color: #64748b;
-  font-size: 0.8125rem;
+  cursor: pointer;
 }
 
 .tag-filter {
   position: relative;
+  flex: 0 0 auto;
 }
 
 .tag-filter-button {
@@ -652,10 +682,7 @@ function getThumbnailUrl(file) {
 }
 
 .gallery-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1.5rem 2rem;
+  min-height: 320px;
 }
 
 .state-block {
@@ -702,7 +729,7 @@ function getThumbnailUrl(file) {
 
 .media-card {
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 1rem;
   background: #ffffff;
   overflow: hidden;
   cursor: pointer;
@@ -785,9 +812,13 @@ function getThumbnailUrl(file) {
 
 .patient-row {
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   gap: 0.65rem;
+}
+
+.patient-details {
+  min-width: 0;
 }
 
 .avatar {
@@ -875,9 +906,8 @@ function getThumbnailUrl(file) {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 2rem;
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
+  margin-top: 1.5rem;
+  padding: 0.5rem 0;
 }
 
 .pagination-info {
@@ -916,12 +946,8 @@ function getThumbnailUrl(file) {
 }
 
 @media (max-width: 900px) {
-  .gallery-header,
-  .filter-bar,
-  .gallery-content,
-  .pagination-bar {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .filter-bar {
+    flex-wrap: wrap;
   }
 
   .gallery-header,
@@ -932,17 +958,19 @@ function getThumbnailUrl(file) {
 
   .search-box,
   .compact-select,
-  .date-input,
+  .period-picker,
   .tag-filter,
   .tag-filter-button {
     width: 100%;
     max-width: none;
   }
 
-  .date-range {
+  .compact-select {
+    flex-basis: 100%;
+  }
+
+  .period-trigger {
     width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
   }
 
   .media-grid {

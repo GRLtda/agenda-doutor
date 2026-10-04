@@ -199,19 +199,19 @@ const dashboardRoutes = [
         path: 'anamneses',
         name: 'anamneses-list',
         component: AnamnesesListView,
-        meta: { title: 'Anamneses', layout: { noPadding: true } },
+        meta: { title: 'Anamneses' },
       },
       {
         path: 'termos',
         name: 'termos-list',
         component: () => import('../views/pages/termos/ConsentTermsListView.vue'),
-        meta: { title: 'Termos', layout: { noPadding: true } },
+        meta: { title: 'Termos' },
       },
       {
         path: 'galeria',
         name: 'galeria-clinica',
         component: () => import('../views/pages/galeria/ClinicGalleryView.vue'),
-        meta: { title: 'Galeria', layout: { noPadding: true } },
+        meta: { title: 'Galeria' },
       },
       {
         path: 'aniversariantes',

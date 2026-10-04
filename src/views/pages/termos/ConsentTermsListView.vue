@@ -355,16 +355,14 @@ function clearSearch() {
 
 <style scoped>
 .terms-list-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
+  min-width: 0;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
   gap: 1rem;
   flex-wrap: wrap;
 }
@@ -378,7 +376,7 @@ function clearSearch() {
 }
 
 .page-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #64748b;
   margin: 0.25rem 0 0;
 }
@@ -447,9 +445,7 @@ function clearSearch() {
 }
 
 .list-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem 2rem;
+  min-height: 320px;
 }
 
 .state-container {
@@ -483,7 +479,7 @@ function clearSearch() {
 .term-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 1rem;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -712,9 +708,8 @@ function clearSearch() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
+  margin-top: 1.5rem;
+  padding: 0.5rem 0;
 }
 
 .pagination-info {
@@ -768,7 +763,6 @@ function clearSearch() {
   .page-header {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem;
   }
 
   .header-actions {
@@ -779,11 +773,6 @@ function clearSearch() {
   .status-filter,
   .search-bar {
     width: 100%;
-  }
-
-  .list-wrapper,
-  .pagination-container {
-    padding: 1rem;
   }
 
   .pagination-container {

@@ -22,7 +22,7 @@
               <label class="meta-label">Paciente</label>
               <div class="meta-value date-value">
                 <User :size="14" />
-                <span>{{ file.patient.name }}</span>
+                <span class="truncate-value" :title="file.patient.name">{{ file.patient.name }}</span>
               </div>
             </div>
 
@@ -30,8 +30,17 @@
               <label class="meta-label">Atendimento</label>
               <div class="meta-value date-value">
                 <Stethoscope :size="14" />
-                <span>{{ formatAppointment(file.appointment) }}</span>
+                <span class="truncate-value" :title="formatAppointment(file.appointment)">{{ formatAppointment(file.appointment) }}</span>
               </div>
+              <button
+                v-if="file.appointment?._id && file.patient?._id"
+                type="button"
+                class="appointment-link"
+                @click="goToAppointment"
+              >
+                Ir para o atendimento
+                <ArrowUpRight :size="16" />
+              </button>
             </div>
 
             <!-- Descrição -->
@@ -65,7 +74,7 @@
              <div class="metadata-group">
                 <label class="meta-label">Arquivo</label>
                 <div class="meta-value description-value" style="flex-direction: column; gap: 4px; align-items: flex-start;">
-                    <span style="font-size: 0.8em; opacity: 0.7">{{ file.metadata?.originalName }}</span>
+                    <span class="truncate-value" style="font-size: 0.8em; opacity: 0.7" :title="file.metadata?.originalName">{{ file.metadata?.originalName }}</span>
                      <span style="font-size: 0.8em; opacity: 0.7">{{ file.metadata?.sizeBytes ? (file.metadata.sizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '' }}</span>
                 </div>
              </div>
@@ -101,7 +110,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { 
+  ArrowUpRight,
   X, 
   Calendar, 
   FileText, 
@@ -122,6 +133,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+const router = useRouter();
 const isLoading = ref(true);
 const imageUrl = computed(() => props.file?.originalUrl || props.file?.signedUrl || '');
 
@@ -139,6 +151,18 @@ function onImageLoad() {
 function onImageError() {
   isLoading.value = false;
   // Could emit error or handle it UI wise
+}
+
+function goToAppointment() {
+  if (!props.file?.appointment?._id || !props.file?.patient?._id) return;
+  emit('close');
+  router.push({
+    name: 'atendimento-em-andamento',
+    params: {
+      appointmentId: props.file.appointment._id,
+      patientId: props.file.patient._id,
+    },
+  });
 }
 
 function formatDate(dateString) {
@@ -230,6 +254,7 @@ function formatAppointment(appointment) {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .meta-label {
@@ -249,6 +274,40 @@ function formatAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.date-value svg {
+  flex-shrink: 0;
+}
+
+.truncate-value {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-link:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .description-value {
