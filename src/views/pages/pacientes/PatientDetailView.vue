@@ -114,9 +114,20 @@ const activeTab = computed({
   }
 })
 
-function startEditing() {
+async function startEditing() {
+  if (activeTab.value !== 'details') {
+    await router.push({
+      name: 'detalhes-paciente',
+      params: { id: patient.value?._id || route.params.id },
+      query: route.query,
+    })
+  }
+
+  editablePatient.value = JSON.parse(JSON.stringify({
+    ...patient.value,
+    address: patient.value.address || {},
+  }))
   isEditing.value = true
-  activeTab.value = 'details'
 }
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
@@ -606,7 +617,7 @@ async function deleteAppointment(appointment) {
             </div>
             <div v-if="activeTab === 'details'">
               <div v-if="isEditing && editablePatient">
-                <form @submit.prevent="handleSaveChanges">
+                <form class="patient-edit-form" @submit.prevent="handleSaveChanges">
                   <section class="card-section">
                     <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                     <div class="section-content grid-2-cols">
@@ -708,7 +719,7 @@ async function deleteAppointment(appointment) {
                   </footer>
                 </form>
               </div>
-              <div v-else>
+              <div v-else class="patient-details-readonly">
                 <section class="card-section">
                   <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                   <div class="section-content grid-2-cols">
@@ -2199,6 +2210,50 @@ async function deleteAppointment(appointment) {
   }
   .card-section {
     padding: 0rem;
+  }
+  .patient-details-readonly .card-section,
+  .patient-edit-form .card-section {
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.875rem;
+  }
+  .patient-details-readonly .divider,
+  .patient-edit-form .divider {
+    display: none;
+  }
+  .patient-details-readonly .section-title,
+  .patient-edit-form .section-title {
+    margin-bottom: 1.25rem;
+  }
+  .patient-details-readonly .section-content.grid-2-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+  .patient-edit-form .section-content.grid-2-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .patient-edit-form .section-content :deep(.form-group),
+  .patient-edit-form .form-group {
+    margin-bottom: 0;
+  }
+  .patient-edit-form .edit-form-footer {
+    gap: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.875rem;
+    background: #ffffff;
+  }
+  .patient-details-readonly .detail-item,
+  .patient-details-readonly .last-appointment-item {
+    gap: 0.375rem;
+    min-width: 0;
+  }
+  .patient-details-readonly .value {
+    overflow-wrap: anywhere;
   }
   .unified-card {
     background-color: transparent;
