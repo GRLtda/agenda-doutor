@@ -10,4 +10,6 @@ Na largura de desktop, busca, categoria, tipo de arquivo, período e tags ficam 
 
 Nomes de pacientes longos são abreviados com reticências nos cartões e no visualizador; o nome completo aparece ao passar o cursor. O visualizador também abre o atendimento vinculado pelo botão **Ir para o atendimento**, quando o arquivo possui paciente e atendimento identificados. O botão usa a rota existente `atendimento-em-andamento`.
 
+As tags automáticas de categoria, tipo, contexto e análise geradas pela API, junto com as marcas da migração legada (`migrado` e `cloudinary-legacy`), ficam ocultas no `tag-row` das miniaturas, no campo Tags da pré-visualização e no seletor de tags. Cada opção visível do seletor tem uma caixa de seleção. A contagem `+N` considera apenas as tags visíveis. As tags continuam armazenadas e disponíveis para busca textual; o seletor envia apenas tags visíveis. Como a API combina tags automáticas e manuais em um único array, uma tag manual com o mesmo texto de uma automática também fica oculta nessas apresentações.
+
 Para conferir, abra a galeria no desktop e no celular, compare o alinhamento do título e as margens com Pacientes e Procedimentos, e verifique filtros, cartões, modal e paginação. Use um paciente com nome longo para conferir as reticências e abra um arquivo vinculado a atendimento para testar o botão.

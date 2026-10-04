@@ -92,7 +92,7 @@
 
           <div class="tag-list">
             <label
-              v-for="tag in availableTags"
+              v-for="tag in visibleFilterTags"
               :key="tag.name"
               class="tag-option"
               :class="{ selected: selectedTags.includes(tag.name) }"
@@ -102,7 +102,7 @@
               <small>{{ tag.count }}</small>
             </label>
 
-            <div v-if="availableTags.length === 0" class="empty-tags">
+            <div v-if="visibleFilterTags.length === 0" class="empty-tags">
               Nenhuma tag encontrada
             </div>
           </div>
@@ -172,9 +172,9 @@
               {{ file.metadata.description }}
             </p>
 
-            <div v-if="file.metadata?.tags?.length" class="tag-row">
+            <div v-if="visibleGalleryTags(file.metadata?.tags).length" class="tag-row">
               <button
-                v-for="tag in file.metadata.tags.slice(0, 3)"
+                v-for="tag in visibleGalleryTags(file.metadata?.tags).slice(0, 3)"
                 :key="tag"
                 type="button"
                 class="mini-tag"
@@ -182,8 +182,8 @@
               >
                 {{ tag }}
               </button>
-              <span v-if="file.metadata.tags.length > 3" class="more-tags">
-                +{{ file.metadata.tags.length - 3 }}
+              <span v-if="visibleGalleryTags(file.metadata?.tags).length > 3" class="more-tags">
+                +{{ visibleGalleryTags(file.metadata?.tags).length - 3 }}
               </span>
             </div>
           </div>
@@ -232,6 +232,7 @@ import {
 import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import MediaViewerModal from '@/views/pages/pacientes/components/MediaViewerModal.vue'
+import { isAutomaticGalleryTag, visibleGalleryTags } from '@/utils/galleryTags'
 
 const router = useRouter()
 const store = useGalleryStore()
@@ -260,6 +261,7 @@ const fileTypeOptions = [
 
 const files = computed(() => store.clinicGallery.files || [])
 const availableTags = computed(() => store.clinicGallery.tags || [])
+const visibleFilterTags = computed(() => availableTags.value.filter((tag) => !isAutomaticGalleryTag(tag.name)))
 const pagination = computed(() => store.clinicGallery.pagination || {
   total: 0,
   page: 1,
@@ -665,9 +667,42 @@ function getThumbnailUrl(file) {
   background: #f8fafc;
 }
 
-.tag-option input {
+.tag-option input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
+  margin: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tag-option input[type='checkbox']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+}
+
+.tag-option input[type='checkbox']:checked {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.tag-option input[type='checkbox']:checked::before {
+  transform: scale(1);
+}
+
+.tag-option input[type='checkbox']:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .tag-option small {

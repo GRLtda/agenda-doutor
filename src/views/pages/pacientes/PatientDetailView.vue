@@ -17,6 +17,7 @@ import {
   FileDown,
   ArrowLeft,
   Edit,
+  X,
   Clipboard,
   FileText,
   CheckSquare,
@@ -112,6 +113,11 @@ const activeTab = computed({
     })
   }
 })
+
+function startEditing() {
+  isEditing.value = true
+  activeTab.value = 'details'
+}
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
@@ -569,9 +575,10 @@ async function deleteAppointment(appointment) {
             <Clipboard :size="16" />
             Aplicar Anamnese
           </AppButton>
-          <AppButton v-if="!isEditing" @click="isEditing = true" variant="primary">
-            <Edit :size="16" />
-            Editar
+          <AppButton @click="isEditing ? cancelEditing() : startEditing()" :variant="isEditing ? 'outline' : 'primary'">
+            <X v-if="isEditing" :size="16" />
+            <Edit v-else :size="16" />
+            {{ isEditing ? 'Cancelar' : 'Editar' }}
           </AppButton>
         </div>
       </header>
@@ -1088,7 +1095,6 @@ async function deleteAppointment(appointment) {
   max-width: min(1680px, calc(100vw - 48px));
   width: 100%;
   margin: 0 auto;
-  overflow-y: overlay;
 }
 
 /*
@@ -1228,6 +1234,8 @@ async function deleteAppointment(appointment) {
   box-shadow: 0 1px 2px rgba(25, 45, 84, 0.04);
   flex-wrap: wrap;
   gap: 1rem;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .patient-info {
   display: flex;
@@ -1280,9 +1288,16 @@ async function deleteAppointment(appointment) {
 @media (max-width: 768px) {
   .header-actions {
     width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 0.5rem;
   }
   .header-actions .app-button {
-    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
     justify-content: center;
   }
 }
@@ -2194,6 +2209,11 @@ async function deleteAppointment(appointment) {
     width: 100%;
     min-height: 0;
     overflow: visible;
+  }
+  .unified-card-content,
+  .full-width-section {
+    height: auto;
+    min-height: 0;
   }
   .history-section,
   .history-grid,

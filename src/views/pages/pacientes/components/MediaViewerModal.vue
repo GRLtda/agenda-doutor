@@ -58,9 +58,9 @@
             <!-- Tags -->
             <div class="metadata-group">
               <label class="meta-label">Tags</label>
-              <div v-if="file.metadata?.tags?.length" class="tags-list">
+              <div v-if="visibleGalleryTags(file.metadata?.tags).length" class="tags-list">
                 <span 
-                  v-for="tag in file.metadata.tags" 
+                  v-for="tag in visibleGalleryTags(file.metadata?.tags)"
                   :key="tag"
                   class="meta-tag"
                 >
@@ -111,6 +111,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { visibleGalleryTags } from '@/utils/galleryTags';
 import { 
   ArrowUpRight,
   X, 
