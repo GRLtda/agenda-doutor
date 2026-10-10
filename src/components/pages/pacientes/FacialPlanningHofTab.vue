@@ -92,6 +92,7 @@ const faceZoom = ref(100)
 const facePan = ref({ x: 0, y: 0 })
 const mapInteraction = ref(null)
 const ignoreNextMapClick = ref(false)
+const isControlPressed = ref(false)
 const isFullscreen = ref(false)
 const planningContainer = ref(null)
 const procedureList = ref(null)
@@ -316,7 +317,16 @@ function handleFullscreenChange() {
   facePan.value = { x: 0, y: 0 }
 }
 
+function resetControlKey() {
+  isControlPressed.value = false
+}
+
+function handleControlKeyup(event) {
+  isControlPressed.value = event.ctrlKey
+}
+
 function handleFullscreenKeydown(event) {
+  isControlPressed.value = event.ctrlKey
   if (event.key === 'Escape' && isFullscreen.value) closePlanningFullscreen()
 }
 
@@ -333,6 +343,7 @@ function inferRegion(x, y) {
 }
 
 function addPoint(event) {
+  if (event.ctrlKey || event.button !== 0) return
   if (!canEdit.value) {
     closeQuickEditor()
     return
@@ -503,9 +514,15 @@ async function reopenPlanning() {
 }
 
 function startMapPan(event) {
-  if (event.button !== 0 || faceZoom.value <= 100) return
+  ignoreNextMapClick.value = false
+  if (faceZoom.value <= 100 || !(event.button === 1 || (event.button === 0 && event.ctrlKey))) return
+  if (event.target.closest('button, input, textarea, select') && !event.target.closest('.map-point')) return
+  event.preventDefault()
+  event.stopPropagation()
+  event.currentTarget.setPointerCapture?.(event.pointerId)
   mapInteraction.value = {
     type: 'pan',
+    button: event.button,
     startX: event.clientX,
     startY: event.clientY,
     originX: facePan.value.x,
@@ -531,7 +548,7 @@ function moveMapPan(event) {
 }
 
 function stopMapPan() {
-  if (mapInteraction.value?.type === 'pan' && mapInteraction.value.moved) {
+  if (mapInteraction.value?.type === 'pan' && mapInteraction.value.button === 0) {
     ignoreNextMapClick.value = true
   }
   if (mapInteraction.value?.type === 'pan') mapInteraction.value = null
@@ -710,6 +727,8 @@ watch(
 )
 
 onMounted(() => {
+  document.addEventListener('keyup', handleControlKeyup)
+  window.addEventListener('blur', resetControlKey)
   document.addEventListener('keydown', handleFullscreenKeydown)
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   window.addEventListener('resize', updateScrollFades)
@@ -723,6 +742,8 @@ onBeforeUnmount(() => {
   clearTimeout(mobileMapAnimationTimeout)
   clearTimeout(mobileMapCloseTimeout)
   document.body.style.overflow = ''
+  document.removeEventListener('keyup', handleControlKeyup)
+  window.removeEventListener('blur', resetControlKey)
   document.removeEventListener('keydown', handleFullscreenKeydown)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('resize', updateScrollFades)
@@ -896,13 +917,17 @@ onBeforeUnmount(() => {
     <section class="planning-workspace">
       <div
         class="map-stage"
-        :class="{ pannable: faceZoom > 100 }"
-        @pointerdown="startMapPan"
+        :class="{ pannable: faceZoom > 100 && isControlPressed }"
+        @pointerdown.capture="startMapPan"
+        @auxclick.middle.prevent
         @pointermove="moveMapPan"
         @pointerup="stopMapPan"
         @pointercancel="stopMapPan"
         @click="closeQuickEditor"
       >
+        <p v-if="faceZoom > 100" class="map-pan-hint">
+          Segure Ctrl e arraste para mover, ou arraste com o botão do meio do mouse.
+        </p>
         <Transition name="save-feedback">
           <div
             v-if="saveFeedback !== 'idle'"
@@ -930,7 +955,7 @@ onBeforeUnmount(() => {
           :class="{
             readonly: !canEdit,
             male: draft.faceVariant === 'MALE',
-            pannable: faceZoom > 100,
+            pannable: faceZoom > 100 && isControlPressed,
           }"
           @click.stop="addPoint"
         >
@@ -1273,6 +1298,7 @@ onBeforeUnmount(() => {
     />
     <FacialPlanningNameDrawer
       v-if="showPlanningNameDrawer"
+      :teleport-to="isFullscreen && planningContainer ? planningContainer : 'body'"
       @close="showPlanningNameDrawer = false"
       @confirm="createNamedPlanning"
     />
@@ -2200,6 +2226,18 @@ textarea:disabled {
   padding: 28px 18px 50px;
   overflow: hidden;
   background: #fdfdfe;
+}
+
+.map-pan-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  pointer-events: none;
 }
 
 .map-stage.pannable {

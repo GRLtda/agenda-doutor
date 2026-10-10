@@ -3,6 +3,10 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { X } from 'lucide-vue-next'
 
 const props = defineProps({
+  teleportTo: {
+    type: [String, Object],
+    default: 'body',
+  },
   size: {
     type: String,
     default: 'md',
@@ -81,7 +85,7 @@ function handleOverlayPointerUp(event) {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTo">
     <div
       class="drawer-overlay"
       :class="{ 'is-closing': isClosing, 'is-leaving': isLeaving }"

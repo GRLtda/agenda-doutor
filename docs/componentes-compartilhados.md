@@ -5,7 +5,12 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
-- `SideDrawer`: rodapés de fluxos por etapas usam `step-navigation-footer`.
+- `SideDrawer`: aceita `teleportTo` (seletor ou elemento DOM), com padrão `body`.
+  Em tela cheia nativa, o consumidor pode passar o elemento em fullscreen para
+  manter o drawer visível. O destino é reativo e preserva o estado do formulário.
+  O planejador facial usa esse contrato no formulário de novo planejamento;
+  confira abertura, fechamento e saída de fullscreen com o formulário aberto.
+  Rodapés de fluxos por etapas usam `step-navigation-footer`.
   Contrato, telas e verificação: [SideDrawer com Stepper](side-drawer-stepper-pattern.md).
 
 - `AppDateRangePicker`: padrão de Financeiro → A receber reutilizado em todas

@@ -48,6 +48,7 @@ import {
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { fetchAddressByCEP } from '@/api/external'
@@ -548,8 +549,43 @@ async function deleteAppointment(appointment) {
       @close="closeAppointmentModal"
     />
 
-    <div v-if="patientsStore.isLoading && !patient" class="loading-state">
-      Carregando dados do paciente...
+    <div v-if="patientsStore.isLoading && !patient" class="patient-loading" role="status" aria-label="Carregando paciente" aria-busy="true">
+      <div aria-hidden="true">
+        <div class="patient-header">
+          <div class="patient-info patient-loading-info">
+            <AppSkeleton width="64px" height="64px" border-radius="50%" class="patient-loading-avatar" />
+            <div class="patient-title-wrapper patient-loading-lines">
+              <AppSkeleton width="80%" height="2rem" />
+              <AppSkeleton width="60%" height="1rem" />
+            </div>
+          </div>
+          <div class="header-actions">
+            <AppSkeleton height="38px" width="170px" />
+            <AppSkeleton height="38px" width="100px" />
+          </div>
+        </div>
+        <div class="patient-tab-layout">
+          <div class="patient-tab-sidebar">
+            <div v-for="tab in patientTabs" :key="tab.value" class="patient-tab-button">
+              <AppSkeleton width="18px" height="18px" />
+              <AppSkeleton width="100px" height="1rem" />
+            </div>
+          </div>
+          <div class="tab-content unified-card">
+            <div class="unified-card-content patient-details-readonly">
+              <section v-for="section in 3" :key="section" class="card-section">
+                <AppSkeleton width="45%" height="1.25rem" class="section-title" />
+                <div class="section-content grid-2-cols">
+                  <div v-for="field in 4" :key="field" class="patient-loading-lines">
+                    <AppSkeleton width="35%" height="0.75rem" />
+                    <AppSkeleton width="75%" height="1.125rem" />
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="patient">
@@ -1229,7 +1265,35 @@ async function deleteAppointment(appointment) {
     height: 300px;
     font-size: 1.2rem;
     color: var(--cinza-texto, #6b7280);
-    /* Se quiser um esqueleto, adicione aqui o HTML/CSS. Por enquanto, é texto. */
+}
+
+.patient-loading-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-loading-avatar {
+  flex-shrink: 0;
+}
+
+.patient-loading-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.patient-loading .patient-tab-button {
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .patient-loading-info {
+    flex-basis: 100%;
+  }
+  .patient-loading .header-actions .skeleton {
+    width: 100% !important;
+  }
 }
 
 /* Estilos existentes */

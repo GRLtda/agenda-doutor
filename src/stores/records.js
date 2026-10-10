@@ -82,6 +82,10 @@ export const useRecordsStore = defineStore('records', () => {
     const formData = new FormData()
     formData.append('image', file)
 
+    if (options.isMontage) {
+      formData.append('isMontage', 'true')
+    }
+
     if (options.wasCompressed) {
       formData.append('wasCompressed', 'true')
     }

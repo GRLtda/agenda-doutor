@@ -482,7 +482,7 @@ async function handleMontageComplete(file) {
     props.record?._id,
     fileToUpload,
     { patientId: props.patientId, appointmentId: props.appointmentId },
-    { wasCompressed },
+    { wasCompressed, isMontage: true },
   )
 
   if (success) {

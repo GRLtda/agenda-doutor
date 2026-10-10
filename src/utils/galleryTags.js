@@ -4,7 +4,7 @@ const automaticTags = new Set([
   'imagem', 'pdf', 'documento',
   'foto-paciente', 'logo-clinica',
   'atendimento', 'procedimento', 'laudo',
-  'perfil-foto', 'comprimida',
+  'perfil-foto', 'comprimida', 'montagem',
   'migrado', 'cloudinary-legacy',
 ])
 

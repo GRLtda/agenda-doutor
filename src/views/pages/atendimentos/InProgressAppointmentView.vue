@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getAttendance, updateAppointment } from '@/api/appointments'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useRecordsStore } from '@/stores/records'
 import { usePatientsStore } from '@/stores/patients'
@@ -84,6 +86,8 @@ const activeTab = ref('patient-info')
 const selectedModel = ref(null)
 const isViewMode = ref()
 const isLoadingData = ref(true)
+const loadError = ref('')
+let isUnmounted = false
 
 const isMobile = ref(false)
 const isKeyboardOpen = ref(false)
@@ -349,7 +353,7 @@ const editor = useEditor({
     },
   },
   onUpdate() {
-    if (isViewMode.value) return
+    if (isViewMode.value || isLoadingData.value || loadError.value) return
 
     saveStatus.value = 'saving'
     clearTimeout(debounceTimeout)
@@ -373,39 +377,32 @@ const patientAge = computed(() => {
   return 'N/A'
 })
 
-onMounted(async () => {
-  isLoadingData.value = true // Manter o loading ativo
-
-  // ✨ Buscar dados em paralelo para otimizar performance
-  const [patientResult, appointmentResult, _anamnesisResult, _proceduresResult] = await Promise.all([
-    patientsStore.fetchPatientById(patientId),
-    appointmentsStore.fetchAppointmentById(appointmentId),
-    anamnesisStore.fetchAnamnesisForPatient(patientId),
-    proceduresStore.fetchProcedures()
-  ])
-
-  patient.value = patientsStore.selectedPatient
-
-  if (!appointmentResult.success || !appointmentResult.data) {
-    toast.error('Agendamento não encontrado.')
-    router.push('/atendimentos')
-    return
-  }
-
-  appointment.value = appointmentResult.data
+async function loadAttendance() {
+  isLoadingData.value = true
+  loadError.value = ''
+  recordsStore.currentRecord = null
+  try {
+    const { data } = await getAttendance(appointmentId)
+    if (isUnmounted) return
+    if (String(data.patient._id) !== String(patientId)) {
+      throw new Error('O paciente não corresponde ao atendimento solicitado.')
+    }
+    patient.value = data.patient
+    patientsStore.selectedPatient = data.patient
+    appointment.value = data.appointment
+    recordsStore.currentRecord = data.record
+    anamnesisStore.patientAnamneses = data.anamneses
+    proceduresStore.procedures = data.procedures
 
   isViewMode.value = appointment.value.status === 'Realizado'
 
-  // ✨ Atualizar status para "Iniciado" quando não estiver em modo de visualização
-  // E buscar o prontuário em paralelo
-  const statusPromise = !isViewMode.value && appointment.value.status !== 'Iniciado'
-    ? appointmentsStore.updateAppointmentStatus(appointmentId, 'Iniciado')
-    : Promise.resolve()
-
-  await Promise.all([
-    statusPromise,
-    recordsStore.fetchRecordByAppointmentId(appointmentId)
-  ])
+  // A escrita mantém a rota auditada existente, sem recarregar agenda e dashboard.
+  if (!isViewMode.value && appointment.value.status !== 'Iniciado') {
+    await updateAppointment(appointmentId, { status: 'Iniciado' })
+    if (isUnmounted) return
+    appointment.value.status = 'Iniciado'
+    appointmentsStore.updateLocalStatus(appointmentId, 'Iniciado')
+  }
 
   if (isViewMode.value) {
     editor.value.setEditable(false)
@@ -428,7 +425,17 @@ onMounted(async () => {
     }, 1000)
   }
 
-  isLoadingData.value = false
+  } catch (error) {
+    loadError.value = error.response?.data?.message || error.response?.data?.error?.message || error.message || 'Não foi possível carregar o atendimento.'
+  } finally {
+    isLoadingData.value = false
+  }
+  await nextTick()
+  updateIndicator()
+}
+
+onMounted(() => {
+  loadAttendance()
 
   // ✨ ADICIONAR "ESCUTADORES" DE EVENTO MAIS ROBUSTOS ✨
   window.addEventListener('resize', handleResize)
@@ -443,6 +450,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  isUnmounted = true
   editor.value?.destroy()
   if (timerInterval.value) {
     clearInterval(timerInterval.value)
@@ -637,12 +645,7 @@ function openPatientProfile() {
 </script>
 
 <template>
-  <div v-if="isLoadingData" class="loading-container">
-    <LoaderCircle :size="48" class="animate-spin" />
-    <p>Carregando atendimento...</p>
-  </div>
-
-  <div v-else class="in-progress-appointment-layout">
+  <div class="in-progress-appointment-layout" :aria-busy="isLoadingData">
     <AddProcedureModal
       v-if="showAddProcedureModal"
       :appointment-id="appointmentId"
@@ -687,25 +690,51 @@ function openPatientProfile() {
         <X :size="24" />
       </button>
 
-      <div v-if="patient" class="patient-card">
-        <div class="avatar">{{ patient.name?.charAt(0) }}</div>
+      <div v-if="isLoadingData" class="patient-card" role="status" aria-label="Carregando paciente">
+        <div class="patient-card-identity" aria-hidden="true">
+          <AppSkeleton width="40px" height="40px" />
+          <div class="patient-card-skeleton patient-card-contact">
+            <AppSkeleton width="70%" height="18px" />
+            <AppSkeleton height="12px" />
+          </div>
+        </div>
+        <div class="patient-details patient-card-skeleton" aria-hidden="true">
+          <AppSkeleton v-for="item in 3" :key="item" height="14px" />
+        </div>
+      </div>
+      <div v-else-if="patient && !loadError" class="patient-card">
+        <div class="patient-card-identity">
+          <div class="avatar">{{ patient.name?.charAt(0) }}</div>
+          <div class="patient-card-contact">
+            <div class="name profile-name" @click="openPatientProfile">{{ patient.name }}</div>
+            <div v-if="patient.phone" class="patient-card-phone">
+              <PatientPhoneDisplay :phone="patient.phone" :show-flag="false" :country-code="patient.countryCode" />
+            </div>
+          </div>
+        </div>
         <div class="patient-details">
-          <div class="name profile-name" @click="openPatientProfile">{{ patient.name }}</div>
-          <div class="detail-row">
+          <div v-if="patient.birthDate" class="detail-row">
             <span>Idade</span>
             <span class="value">{{ patientAge }}</span>
           </div>
-          <div class="detail-row">
+          <div v-if="patient.healthInsurance" class="detail-row">
             <span>Convênio</span>
-            <span class="value">{{ patient.healthInsurance || '----' }}</span>
+            <span class="value">{{ patient.healthInsurance }}</span>
           </div>
-          <div class="detail-row">
-            <span>Primeiro Atend.</span>
-            <span class="value">{{
-              patient.firstAppointmentDate
-                ? new Date(patient.firstAppointmentDate).toLocaleDateString('pt-BR')
-                : 'N/A'
-            }}</span>
+          <div v-if="appointment" class="patient-card-appointment">
+            <span v-if="appointment.status !== 'Iniciado'" class="appointment-status-badge" :class="appointment.status.toLowerCase()">{{ appointment.status }}</span>
+            <div class="meta-item">
+              <Calendar :size="14" aria-hidden="true" />
+              <span>{{ formatDate(appointment.startTime) }} às {{ new Date(appointment.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+            </div>
+            <div v-if="appointment.type" class="meta-item type-meta">
+              <Stethoscope :size="14" aria-hidden="true" />
+              <span>{{ appointment.type }}</span>
+            </div>
+            <div v-if="appointment.isReturn" class="meta-item return-meta">
+              <RotateCcw :size="14" aria-hidden="true" />
+              <span>Retorno</span>
+            </div>
           </div>
         </div>
       </div>
@@ -724,6 +753,7 @@ function openPatientProfile() {
           v-for="item in menuItems"
           :key="item.id"
           :class="{ 'is-active': activeTab === item.id }"
+          :disabled="isLoadingData || !!loadError"
           @click="activeTab = item.id"
         >
           <component :is="item.icon" :size="20" stroke-width="2" />
@@ -740,7 +770,7 @@ function openPatientProfile() {
       </div>
 
       <div class="mobile-sidebar-footer">
-        <div v-if="!isViewMode" class="footer-info-group">
+        <div v-if="!isLoadingData && !loadError && !isViewMode" class="footer-info-group">
           <div class="appointment-timer">
             <Clock :size="18" />
             <span>{{ formattedElapsedTime }}</span>
@@ -754,7 +784,7 @@ function openPatientProfile() {
 
         <!-- ✨ Finalizar Atendimento (Mobile Sidebar) -->
         <AppButton
-          v-if="!isViewMode"
+          v-if="!isLoadingData && !loadError && !isViewMode"
           @click="saveAndFinish"
           variant="secondary"
           class="mobile-finish-btn"
@@ -770,48 +800,18 @@ function openPatientProfile() {
     <!-- ✨ Main Content Wrapper (TopBar + Content) -->
     <div class="main-content-wrapper">
       <header class="top-bar">
-        <div class="header-left">
-          <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle">
+          <button @click="isSidebarOpen = true" class="mobile-sidebar-toggle" aria-label="Abrir menu do atendimento">
             <Menu :size="24" />
           </button>
 
-          <div v-if="patient && appointment" class="header-patient-info">
-            <div class="patient-name-group">
-              <span class="patient-name profile-name" @click="openPatientProfile">{{ patient.name }}</span>
-              <span class="appointment-status-badge" :class="appointment.status.toLowerCase()">
-                {{ appointment.status }}
-              </span>
-            </div>
-            <div class="appointment-meta">
-              <div class="meta-item">
-                <Calendar :size="14" />
-                <span>{{ formatDate(appointment.startTime) }}</span>
-              </div>
-              <div class="meta-item type-meta" v-if="appointment.type">
-                <Stethoscope :size="14" />
-                <span>{{ appointment.type }}</span>
-              </div>
-              <div class="meta-item return-meta" v-if="appointment.isReturn">
-                <RotateCcw :size="14" />
-                <span>Retorno</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="header-center">
-          <div v-if="!isViewMode" class="appointment-timer desktop-only">
+        <div v-if="!isLoadingData && !loadError" class="header-center">
+          <div v-if="!isViewMode" class="appointment-timer">
             <Clock :size="18" />
             <span>{{ formattedElapsedTime }}</span>
           </div>
         </div>
 
-        <div class="header-right">
-          <div v-if="!isViewMode" class="appointment-timer mobile-only">
-            <Clock :size="18" />
-            <span>{{ formattedElapsedTime }}</span>
-          </div>
-
+        <div v-if="!isLoadingData && !loadError" class="header-right">
           <SaveStatusIndicator
             v-if="!isViewMode"
             :status="saveStatus"
@@ -851,7 +851,19 @@ function openPatientProfile() {
         class="editor-main-content"
         :class="{ 'keyboard-open-padding': isMobile && isKeyboardOpen }"
       >
-        <div v-if="activeTab === 'record'" class="tab-content">
+        <div v-if="isLoadingData" class="attendance-content-skeleton" role="status" aria-label="Carregando atendimento">
+          <div class="attendance-skeleton-column" v-for="column in 2" :key="column" aria-hidden="true">
+            <AppSkeleton width="55%" height="24px" />
+            <AppSkeleton height="150px" />
+            <AppSkeleton v-for="item in 3" :key="item" height="56px" />
+          </div>
+        </div>
+        <div v-else-if="loadError" class="loading-container" role="alert">
+          <p>{{ loadError }}</p>
+          <AppButton @click="loadAttendance">Tentar novamente</AppButton>
+          <AppButton variant="outline" @click="router.push('/atendimentos')">Voltar aos atendimentos</AppButton>
+        </div>
+        <div v-else-if="activeTab === 'record'" class="tab-content">
           <div class="editor-wrapper">
             <div v-if="editor && !isViewMode" class="editor-top-bar">
               <div class="modelos-dropdown">
@@ -1148,6 +1160,22 @@ function openPatientProfile() {
 </template>
 
 <style scoped>
+.attendance-content-skeleton {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 24px;
+  min-height: 70vh;
+}
+.attendance-skeleton-column, .patient-card-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .attendance-content-skeleton { grid-template-columns: 1fr; padding: 16px; }
+}
+.side-menu button:disabled { cursor: default; }
 .in-progress-appointment-layout {
   display: flex;
   flex-direction: row;
@@ -1163,7 +1191,8 @@ function openPatientProfile() {
 
 .top-bar {
   padding: 0.75rem 1.5rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   justify-content: space-between;
   align-items: center;
   min-height: 64px;
@@ -1881,14 +1910,9 @@ function openPatientProfile() {
   gap: 0.75rem;
 }
 
-
-.header-left {
-  flex: 2; /* ✨ Give more space to patient info */
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
 .header-right {
+  grid-column: 3;
+  justify-self: end;
   flex: 1;
   display: flex;
   justify-content: flex-end;
@@ -1896,11 +1920,12 @@ function openPatientProfile() {
   gap: 1rem;
 }
 .header-center {
-  flex: 0; /* ✨ Timer doesn't need to push everything away */
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   justify-content: center;
   min-width: fit-content;
-  margin: 0 1rem;
+  margin: 0;
 }
 .header-title {
   font-size: 1.25rem;
@@ -1909,28 +1934,6 @@ function openPatientProfile() {
 }
 
 /* ✨ New Header Patient Info Styles ✨ */
-.header-patient-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-left: 0.5rem;
-}
-
-.patient-name-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.patient-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #111827;
-  max-width: 300px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .appointment-status-badge {
   font-size: 0.6875rem;
@@ -1942,12 +1945,6 @@ function openPatientProfile() {
 }
 
 /* Status Colors */
-.appointment-status-badge.iniciado {
-  background-color: #eff6ff;
-  color: #3b82f6;
-  border: 1px solid #dbeafe;
-}
-
 .appointment-status-badge.realizado {
   background-color: #ecfdf5;
   color: #10b981;
@@ -1976,14 +1973,6 @@ function openPatientProfile() {
   background-color: #f9fafb;
   color: #6b7280;
   border: 1px solid #f3f4f6;
-}
-
-.appointment-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem; /* ✨ Slightly tighter gap */
-  flex-wrap: nowrap; /* ✨ Prevent stacking within the info area unless on mobile */
-  overflow: hidden;
 }
 
 .meta-item {
@@ -2063,8 +2052,9 @@ function openPatientProfile() {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .patient-card .avatar {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   border-radius: 0.5rem; /* Square with radius like clinic logo */
   background-color: #eef2ff;
   color: var(--azul-principal);
@@ -2075,6 +2065,46 @@ function openPatientProfile() {
   font-weight: 600;
   border: 1px solid #e5e7eb;
 }
+.patient-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.patient-card-contact { min-width: 0; flex: 1; }
+.patient-card-contact .name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+.patient-card-phone :deep(.phone-text) { white-space: normal; overflow-wrap: anywhere; }
+.patient-card-phone {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--cinza-texto);
+  margin-bottom: 0;
+  min-width: 0;
+}
+.patient-card-phone > svg, .patient-card-appointment .meta-item > svg {
+  flex-shrink: 0;
+}
+.patient-card-appointment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+}
+.patient-card-appointment .meta-item {
+  white-space: normal;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+.patient-card .name { overflow-wrap: anywhere; }
 .patient-card .patient-details .name {
   font-size: 1rem;
   font-weight: 600;
@@ -2083,12 +2113,15 @@ function openPatientProfile() {
 }
 .patient-card .detail-row {
   display: flex;
+  gap: 0.5rem;
   justify-content: space-between;
   font-size: 0.875rem;
   color: var(--cinza-texto);
   margin-bottom: 0.25rem;
 }
 .patient-card .detail-row .value {
+  text-align: right;
+  overflow-wrap: anywhere;
   font-weight: 500;
   color: #333;
 }
@@ -2457,7 +2490,7 @@ function openPatientProfile() {
 
   .top-bar {
     padding: 0.75rem 1rem;
-    display: flex; /* ✨ Show TopBar on Mobile */
+    display: grid;
     justify-content: space-between;
     gap: 0.5rem;
     position: relative; /* ✨ For absolute positioning of center element */
@@ -2480,9 +2513,7 @@ function openPatientProfile() {
     align-items: center;
   }
 
-  /* Show Timer on Mobile (Right side) */
-  .mobile-only.appointment-timer {
-    display: flex;
+  .header-center .appointment-timer {
     font-size: 0.85rem;
     padding: 0.3rem 0.6rem;
     background-color: #f3f4f6;
@@ -2490,17 +2521,12 @@ function openPatientProfile() {
     white-space: nowrap;
   }
 
-  /* Center: Patient Name */
+  /* Mantém o cronômetro centralizado sem sobrepor ações. */
   .header-center {
-    position: absolute; /* ✨ Absolute positioning for perfect center */
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     align-items: center;
     width: auto;
-    max-width: 50%; /* Prevent overlap with side elements */
-    overflow: hidden;
   }
 
   .mobile-patient-name {
@@ -2514,11 +2540,9 @@ function openPatientProfile() {
     max-width: 100%;
   }
 
-  /* ✨ Hide Patient Info on Mobile as requested ✨ */
+  /* Ações compactas no celular. */
   @media (max-width: 768px) {
-    .header-patient-info {
-      display: none;
-    }
+
     .header-actions span {
       display: inline !important; /* ✨ Show text on buttons on mobile */
       font-size: 0.875rem;
@@ -2528,30 +2552,6 @@ function openPatientProfile() {
        padding: 0.5rem 1rem;
        width: auto;
     }
-  }
-
-  /* Reset previous mobile rules that might conflict */
-  @media (max-width: 640px) {
-    .appointment-meta {
-      display: none;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .patient-name {
-      max-width: 120px;
-    }
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    flex: 1; /* Reset on mobile */
-  }
-
-  .header-center {
-     display: none; /* Hide center element (empty wrapper) on mobile */
   }
 
   .header-title {

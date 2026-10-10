@@ -4,6 +4,13 @@ import { FilePenLine } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 
+defineProps({
+  teleportTo: {
+    type: [String, Object],
+    default: 'body',
+  },
+})
+
 const emit = defineEmits(['close', 'confirm'])
 
 const title = ref('Planejamento Facial')
@@ -24,7 +31,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <SideDrawer size="sm" @close="emit('close')">
+  <SideDrawer size="sm" :teleport-to="teleportTo" @close="emit('close')">
     <template #header>
       <div class="drawer-header">
         <span class="header-icon"><FilePenLine :size="20" /></span>
