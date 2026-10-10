@@ -12,12 +12,14 @@ import {
   Camera,
   Loader2,
   CreditCard,
+  HardDrive,
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppTabs from '@/components/global/AppTabs.vue'
 import Switch from '@/components/global/Switch.vue'
 import ActiveSessionsView from './profile/ActiveSessionsView.vue'
 import SubscriptionView from './assinatura/SubscriptionView.vue'
+import StorageUsage from '@/components/global/StorageUsage.vue'
 import { useToast } from 'vue-toastification'
 
 const props = defineProps({
@@ -49,7 +51,7 @@ const activeTab = ref(props.activeTab || 'personal')
 watch(
   () => props.activeTab,
   (value) => {
-    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'subscription') {
+    if (value === 'personal' || value === 'security' || value === 'devices' || value === 'subscription' || value === 'storage') {
       activeTab.value = value
     }
   }
@@ -68,6 +70,7 @@ const profileTabItems = computed(() => {
     { value: 'personal', label: 'Informações Pessoais', icon: User },
     { value: 'security', label: 'Segurança', icon: Shield },
     { value: 'devices', label: 'Dispositivos Conectados', icon: Monitor },
+    { value: 'storage', label: 'Armazenamento', icon: HardDrive },
   ]
 
   if (isOwner.value) {
@@ -488,6 +491,10 @@ const updateFinancialAlerts = async (enabled) => {
 
           <div v-else-if="activeTab === 'devices'" class="devices-tab-wrapper">
             <ActiveSessionsView />
+          </div>
+
+          <div v-else-if="activeTab === 'storage'" class="storage-tab-wrapper">
+            <StorageUsage detailed />
           </div>
 
           <div v-else-if="activeTab === 'subscription' && isOwner" class="subscription-tab-wrapper">

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { storageUploadError } from '@/api/storage'
 import { ref } from 'vue'
 import {
   createRecord as apiCreateRecord,
@@ -100,7 +101,7 @@ export const useRecordsStore = defineStore('records', () => {
       currentRecord.value = response.data.record
       return { success: true, data: response.data }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Erro no upload do anexo.'
+      const errorMessage = storageUploadError(err) || err.response?.data?.message || 'Erro no upload do anexo.'
       return { success: false, error: errorMessage }
     }
   }
