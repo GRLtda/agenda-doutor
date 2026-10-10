@@ -1,14 +1,11 @@
 <script setup>
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 // ProdutosListView.vue — Listagem de produtos do catálogo de estoque
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
-import {
-  Plus, Search, Package, MoreHorizontal, Eye, Pencil,
-  Trash2, SlidersHorizontal, X, Check, LoaderCircle,
-  FlaskConical, Tag, AlertTriangle
-} from 'lucide-vue-next'
+import { Plus, Search, Package, Eye, Pencil, Trash2, SlidersHorizontal, X, Check, LoaderCircle, FlaskConical, Tag, AlertTriangle } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
@@ -23,7 +20,6 @@ const busca = ref('')
 const categoriaSel = ref('')
 const ativoSel = ref('')
 const page = ref(1)
-const actionsMenuOpenFor = ref(null)
 const showDrawer = ref(false)
 const isSaving = ref(false)
 const produtoForm = ref(novoProdutoVazio())
@@ -55,10 +51,6 @@ async function carregar() {
   await store.fetchProdutos(params)
 }
 
-function toggleMenu(id) {
-  actionsMenuOpenFor.value = actionsMenuOpenFor.value === id ? null : id
-}
-
 function abrirNovo() {
   produtoForm.value = novoProdutoVazio()
   showDrawer.value = true
@@ -67,7 +59,6 @@ function abrirNovo() {
 function abrirEditar(produto) {
   produtoForm.value = { ...produto }
   showDrawer.value = true
-  actionsMenuOpenFor.value = null
 }
 
 function fecharDrawer() {
@@ -98,7 +89,7 @@ async function salvar() {
 
 async function excluir(id) {
   if (!confirm('Excluir este produto? Ele não estará mais disponível para novos lotes.')) return
-  actionsMenuOpenFor.value = null
+
   const result = await store.deleteProduto(id)
   if (result.success) {
     toast.success('Produto excluído.')
@@ -109,7 +100,6 @@ async function excluir(id) {
 
 function verDetalhes(id) {
   router.push({ name: 'estoque-produto-detalhe', params: { id } })
-  actionsMenuOpenFor.value = null
 }
 
 function aplicarFiltros() {
@@ -258,16 +248,31 @@ function irParaPagina(p) {
                   </span>
                 </td>
                 <td class="actions-cell" @click.stop>
-                  <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)">
-                    <button class="btn-icon" @click.stop="toggleMenu(p._id)"><MoreHorizontal :size="20" /></button>
-                    <Transition name="fade">
-                      <div v-if="actionsMenuOpenFor === p._id" class="actions-dropdown">
-                        <button class="dropdown-item" @click.stop="verDetalhes(p._id)"><Eye :size="14" /> Ver detalhes</button>
-                        <button class="dropdown-item" @click.stop="abrirEditar(p)"><Pencil :size="14" /> Editar</button>
-                        <button class="dropdown-item delete" @click.stop="excluir(p._id)"><Trash2 :size="14" /> Excluir</button>
-                      </div>
-                    </Transition>
-                  </div>
+                  <AppDropdownActions>
+                    <template #default="{ close }">
+                      <button
+                        class="dropdown-item"
+                        @click.stop="close(), verDetalhes(p._id)"
+                      >
+                        <Eye :size="14" />
+                        Ver detalhes
+                      </button>
+                      <button
+                        class="dropdown-item"
+                        @click.stop="close(), abrirEditar(p)"
+                      >
+                        <Pencil :size="14" />
+                        Editar
+                      </button>
+                      <button
+                        class="dropdown-item delete"
+                        @click.stop="close(), excluir(p._id)"
+                      >
+                        <Trash2 :size="14" />
+                        Excluir
+                      </button>
+                    </template>
+                  </AppDropdownActions>
                 </td>
               </tr>
             </template>
@@ -297,16 +302,31 @@ function irParaPagina(p) {
                   <span class="nome">{{ p.nome }}</span>
                   <span v-if="p.fabricante" class="fabricante">{{ p.fabricante }}</span>
                 </div>
-                <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)" @click.stop>
-                  <button class="btn-icon" @click.stop="toggleMenu(p._id)"><MoreHorizontal :size="20" /></button>
-                  <Transition name="fade">
-                    <div v-if="actionsMenuOpenFor === p._id" class="actions-dropdown">
-                      <button class="dropdown-item" @click.stop="verDetalhes(p._id)"><Eye :size="14" /> Ver detalhes</button>
-                      <button class="dropdown-item" @click.stop="abrirEditar(p)"><Pencil :size="14" /> Editar</button>
-                      <button class="dropdown-item delete" @click.stop="excluir(p._id)"><Trash2 :size="14" /> Excluir</button>
-                    </div>
-                  </Transition>
-                </div>
+                <AppDropdownActions>
+                  <template #default="{ close }">
+                    <button
+                      class="dropdown-item"
+                      @click.stop="close(), verDetalhes(p._id)"
+                    >
+                      <Eye :size="14" />
+                      Ver detalhes
+                    </button>
+                    <button
+                      class="dropdown-item"
+                      @click.stop="close(), abrirEditar(p)"
+                    >
+                      <Pencil :size="14" />
+                      Editar
+                    </button>
+                    <button
+                      class="dropdown-item delete"
+                      @click.stop="close(), excluir(p._id)"
+                    >
+                      <Trash2 :size="14" />
+                      Excluir
+                    </button>
+                  </template>
+                </AppDropdownActions>
               </div>
 
               <div class="produto-card-tags">
@@ -541,31 +561,6 @@ th {
 
 /* Actions */
 .actions-cell { text-align: right; }
-.actions-wrapper { position: relative; display: inline-block; }
-.btn-icon { background:none; border:none; cursor:pointer; padding:.4rem; border-radius:50%; color:#6b7280; display:flex; align-items:center; }
-.btn-icon:hover { background:#f3f4f6; }
-.actions-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + .4rem);
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .75rem;
-  box-shadow: 0 6px 20px rgba(0,0,0,.1);
-  z-index: 20;
-  width: 160px;
-  padding: .4rem;
-}
-.dropdown-item {
-  display: flex; align-items: center; gap: .65rem;
-  padding: .55rem .65rem;
-  border-radius: .5rem;
-  width: 100%; background:none; border:none; cursor:pointer;
-  font-size: .875rem; font-weight: 500; color: #374151;
-}
-.dropdown-item:hover { background: #f3f4f6; }
-.dropdown-item.delete { color: #ef4444; }
-.dropdown-item.delete:hover { background: #fee2e2; }
 
 /* Empty */
 .empty-cell { padding: 4rem; text-align: center; }

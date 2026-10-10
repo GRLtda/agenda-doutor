@@ -979,13 +979,16 @@ async function handleToggleStatus() {
               </div>
               <div class="form-group">
                 <label>Unidade</label>
-                <select v-model="selectedNode.config.timeoutUnit" class="form-input">
-                  <option value="minutes">Minutos</option>
-                  <option value="hours">Horas</option>
-                  <option value="days">Dias</option>
-                  <option value="weeks">Semanas</option>
-                  <option value="months">Meses</option>
-                </select>
+                <StyledSelect
+                  v-model="selectedNode.config.timeoutUnit"
+                  :options="[
+                    { value: 'minutes', label: 'Minutos' },
+                    { value: 'hours', label: 'Horas' },
+                    { value: 'days', label: 'Dias' },
+                    { value: 'weeks', label: 'Semanas' },
+                    { value: 'months', label: 'Meses' },
+                  ]"
+                />
               </div>
             </div>
             <div class="field-hint">
@@ -1010,24 +1013,19 @@ async function handleToggleStatus() {
             <h3 class="section-title">Filtro</h3>
             <div class="form-group">
               <label>O que deseja verificar?</label>
-              <select
+              <StyledSelect
                 v-model="selectedNode.config.preset"
-                class="form-input"
-                @change="applyConditionPreset(selectedNode.config.preset)"
-              >
-                <option v-for="option in conditionPresetOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
+                :options="conditionPresetOptions"
+                @update:model-value="applyConditionPreset"
+              />
             </div>
 
             <div v-if="selectedNode.config.preset === 'appointment_status'" class="form-group">
               <label>Status</label>
-              <select v-model="selectedNode.config.conditions[0].value" class="form-input">
-                <option v-for="option in appointmentStatusOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
+              <StyledSelect
+                v-model="selectedNode.config.conditions[0].value"
+                :options="appointmentStatusOptions"
+              />
             </div>
 
             <div v-else-if="selectedNode.config.preset === 'whatsapp_button'" class="form-group">
@@ -1042,12 +1040,10 @@ async function handleToggleStatus() {
 
             <div v-else-if="selectedNode.config.preset === 'procedure_contains'" class="form-group">
               <label>Procedimento</label>
-              <select v-model="selectedNode.config.conditions[0].value" class="form-input">
-                <option value="">Selecione</option>
-                <option v-for="procedure in procedureOptions" :key="procedure.value" :value="procedure.value">
-                  {{ procedure.label }}
-                </option>
-              </select>
+              <StyledSelect
+                v-model="selectedNode.config.conditions[0].value"
+                :options="[{ value: '', label: 'Selecione' }, ...procedureOptions]"
+              />
             </div>
 
             <div class="field-hint">
@@ -1151,37 +1147,29 @@ async function handleToggleStatus() {
               ></textarea>
 
               <!-- Select -->
-              <select
+              <StyledSelect
                 v-else-if="field.type === 'select'"
                 v-model="selectedNode.config[field.key]"
-                class="form-input"
-              >
-                <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
+                :options="field.options.map((option) => ({ value: option, label: option }))"
+              />
 
               <!-- Procedure Select (Dynamic from Store) -->
-              <select
+              <StyledSelect
                 v-else-if="field.type === 'procedure-select'"
                 v-model="selectedNode.config[field.key]"
-                class="form-input"
-              >
-                <option value="" disabled>Selecione um procedimento</option>
-                <option v-for="proc in proceduresStore.procedures" :key="proc._id" :value="proc._id">
-                  {{ proc.name }}
-                </option>
-              </select>
+                :options="proceduresStore.procedures.map((proc) => ({ value: proc._id, label: proc.name }))"
+                placeholder="Selecione um procedimento"
+              />
 
               <!-- Template Select (Dynamic from Templates Store) -->
-              <select
+              <StyledSelect
                 v-else-if="field.type === 'template-select'"
                 v-model="selectedNode.config[field.key]"
-                class="form-input"
-              >
-                <option value="" disabled>Selecione um modelo</option>
-                <option v-for="template in templatesStore.templates" :key="template._id" :value="template._id">
-                  {{ template.name }}
-                </option>
-              </select>
+                :options="
+                  templatesStore.templates.map((template) => ({ value: template._id, label: template.name }))
+                "
+                placeholder="Selecione um modelo"
+              />
 
               <span v-if="field.helperText" class="helper-text">{{ field.helperText }}</span>
             </div>

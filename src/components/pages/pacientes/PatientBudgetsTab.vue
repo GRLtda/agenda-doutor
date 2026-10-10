@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, onMounted, watch, onUnmounted } from 'vue'
-import { Receipt, Plus, Eye, Send, Trash2, FileDown, Package, MoreVertical } from 'lucide-vue-next'
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
+import { computed, ref, onMounted, watch } from 'vue'
+import { Receipt, Plus, Eye, Send, Trash2, FileDown, Package } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useCrmStore } from '@/stores/crm'
@@ -21,7 +22,6 @@ const toast = useToast()
 const showBudgetModal = ref(false)
 const editingBudget = ref(null)
 const sendingBudgetId = ref(null)
-const openMenuId = ref(null)
 const whatsappUnavailableMessage = 'Não pode ser enviado agora. Vá em Marketing > Conexão e confira a conexão do WhatsApp.'
 const canSendWhatsapp = computed(() => crmStore.status === 'connected')
 
@@ -30,11 +30,6 @@ onMounted(() => {
     budgetsStore.fetchBudgetsByPatient(props.patientId)
   }
   crmStore.getInitialStatus()
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
 })
 
 watch(() => props.patientId, (newId) => {
@@ -76,7 +71,6 @@ function handleEditBudget(budget) {
   }
   editingBudget.value = budget
   showBudgetModal.value = true
-  openMenuId.value = null
 }
 
 function handleBudgetSaved() {
@@ -87,14 +81,13 @@ function handleBudgetSaved() {
 async function handleSendWhatsApp(budget) {
   if (!canSendWhatsapp.value) {
     toast.warning(whatsappUnavailableMessage)
-    openMenuId.value = null
+
     return
   }
 
   sendingBudgetId.value = budget._id
   const result = await budgetsStore.sendBudgetWhatsApp(budget._id)
   sendingBudgetId.value = null
-  openMenuId.value = null
 
   if (result.success) {
     toast.success('Orçamento enviado via WhatsApp!')
@@ -108,7 +101,6 @@ async function handleDeleteBudget(budget) {
     return
   }
 
-  openMenuId.value = null
   const result = await budgetsStore.deleteBudget(budget._id)
   if (result.success) {
     toast.success('Orçamento excluído.')
@@ -118,26 +110,9 @@ async function handleDeleteBudget(budget) {
 }
 
 async function handleDownloadPdf(budget) {
-  openMenuId.value = null
   const result = await budgetsStore.downloadPdf(budget._id, budget.name)
   if (!result.success) {
     toast.error(result.error || 'Erro ao baixar PDF.')
-  }
-}
-
-function toggleMenu(event, budgetId) {
-  event.stopPropagation()
-  if (openMenuId.value === budgetId) {
-    openMenuId.value = null
-  } else {
-    openMenuId.value = budgetId
-  }
-}
-
-function handleClickOutside(event) {
-  const dropdown = event.target.closest('.mobile-menu-container')
-  if (!dropdown) {
-    openMenuId.value = null
   }
 }
 </script>
@@ -238,14 +213,10 @@ function handleClickOutside(event) {
         </div>
 
         <!-- Mobile Actions Menu -->
-        <div class="mobile-menu-container mobile-only">
-          <button @click="(e) => toggleMenu(e, budget._id)" class="action-btn menu-trigger">
-            <MoreVertical :size="20" />
-          </button>
-
-          <div v-if="openMenuId === budget._id" class="dropdown-menu">
+        <div class="mobile-only"><AppDropdownActions menu-width="200px">
+          <template #default="{ close }">
             <button
-              @click="handleEditBudget(budget)"
+              @click="close(), handleEditBudget(budget)"
               class="dropdown-item"
               :disabled="budget.status === 'IMPORTED'"
             >
@@ -253,7 +224,7 @@ function handleClickOutside(event) {
               <span>Visualizar/Editar</span>
             </button>
             <button
-              @click="handleDownloadPdf(budget)"
+              @click="close(), handleDownloadPdf(budget)"
               class="dropdown-item"
             >
               <FileDown :size="16" />
@@ -261,7 +232,7 @@ function handleClickOutside(event) {
             </button>
             <span class="dropdown-tooltip-wrapper" :class="{ 'is-disabled': !canSendWhatsapp }">
               <button
-                @click="handleSendWhatsApp(budget)"
+                @click="close(), handleSendWhatsApp(budget)"
                 class="dropdown-item"
                 :disabled="sendingBudgetId === budget._id || !canSendWhatsapp"
               >
@@ -273,15 +244,15 @@ function handleClickOutside(event) {
               </span>
             </span>
             <button
-              @click="handleDeleteBudget(budget)"
+              @click="close(), handleDeleteBudget(budget)"
               class="dropdown-item delete-item"
               :disabled="budget.status === 'IMPORTED'"
             >
               <Trash2 :size="16" />
               <span>Excluir</span>
             </button>
-          </div>
-        </div>
+          </template>
+        </AppDropdownActions></div>
       </li>
     </ul>
 
@@ -328,7 +299,6 @@ function handleClickOutside(event) {
 .title-icon {
   color: var(--azul-principal);
 }
-
 
 .loading-state {
   padding: 2rem;
@@ -588,77 +558,27 @@ function handleClickOutside(event) {
   max-width: 280px;
 }
 
-/* Dropdown Menu Styles */
-.mobile-menu-container {
-  position: relative;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.25rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  min-width: 180px;
-  z-index: 50;
-  padding: 0.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  animation: fadeIn 0.15s ease-out;
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-0.25rem); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  border: none;
-  background: none;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: start;
-  cursor: pointer;
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-}
-
-.dropdown-item:hover:not(:disabled) {
-  background-color: #f3f4f6;
-  color: #111827;
-}
-
-.dropdown-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .dropdown-tooltip-wrapper {
   width: 100%;
-}
-
-.dropdown-tooltip-wrapper .dropdown-item {
-  width: 100%;
+  flex-direction: column;
 }
 
 .dropdown-tooltip-content {
-  bottom: calc(100% + 0.35rem);
+  position: static;
+  display: none;
+  width: auto;
+  max-width: 100%;
+  margin-top: .5rem;
+  transform: none;
 }
 
-.dropdown-item.delete-item:hover:not(:disabled) {
-  background-color: #fef2f2;
-  color: #dc2626;
-}
+.dropdown-tooltip-wrapper.is-disabled:hover .dropdown-tooltip-content { display: block; }
+.dropdown-tooltip-content::after { display: none; }
 
 /* Responsiveness */
 .mobile-only {

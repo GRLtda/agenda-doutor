@@ -1,31 +1,10 @@
 <script setup>
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import {
-  CalendarDays,
-  Plus,
-  CheckCircle,
-  Clock,
-  Search,
-  Check,
-  Play,
-  X,
-  CalendarPlus,
-  Bell,
-  AlertCircle,
-  Ban,
-  LayoutGrid, // ✨ New Icon
-  List, // ✨ New Icon
-  Filter, // ✨ New Icon
-  User,
-  Phone,
-  Activity,
-  Calendar,
-  Settings,
-  MoreHorizontal
-} from 'lucide-vue-next'
+import { CalendarDays, Plus, CheckCircle, Clock, Search, Check, Play, X, CalendarPlus, Bell, AlertCircle, Ban, LayoutGrid, Activity, Calendar, Settings } from 'lucide-vue-next'
 import { formatPhone } from '@/directives/phone-mask'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
@@ -52,7 +31,6 @@ const isDetailsModalOpen = ref(false)
 const selectedAppointment = ref(null)
 const searchQuery = ref('')
 const viewMode = ref('kanban') // 'kanban' | 'list'
-const activeActionMenu = ref(null) // ID of appointment with open menu
 const pendingStatusUpdates = ref(new Set())
 const canUseKanbanDrag = ref(false)
 const draggedAppointment = ref(null)
@@ -555,28 +533,13 @@ onMounted(async () => {
   isHydratingAppointmentsFilters.value = false
   await syncAppointmentsFiltersToQuery()
   await fetchAppointments()
-  document.addEventListener('click', closeActionMenu)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeActionMenu)
+
   kanbanDragMediaQuery?.removeEventListener('change', syncKanbanDragCapability)
   cleanupCardDrag()
 })
-
-function toggleActionMenu(id, event) {
-  event.stopPropagation()
-  if (activeActionMenu.value === id) {
-    activeActionMenu.value = null
-  } else {
-    activeActionMenu.value = id
-  }
-}
-
-function closeActionMenu(event) {
-    // Basic click outside check
-    activeActionMenu.value = null
-}
 </script>
 
 <template>
@@ -635,7 +598,6 @@ function closeActionMenu(event) {
             <List :size="18" />
           </button>
         </div>
-
 
       </div>
     </header>
@@ -929,27 +891,37 @@ function closeActionMenu(event) {
                       <Settings :size="16" class="icon-slate" />
                       <span>Ações</span>
                     </div>
-                    <div class="action-menu-container centered">
-                       <button @click="(e) => toggleActionMenu(appt._id, e)" class="action-dots-btn" :disabled="isStatusPending(appt._id)">
-                          <MoreHorizontal :size="20" />
-                       </button>
-
-                       <div v-if="activeActionMenu === appt._id" class="action-dropdown">
-                          <template v-if="appt.status === 'Agendado'">
-                              <button @click.stop="handleStatusChange(appt, 'Confirmado')" class="dropdown-item success" :disabled="isStatusPending(appt._id)">
-                                 <Check :size="16" /> Confirmar
-                              </button>
-                          </template>
-                          <template v-if="appt.status === 'Confirmado' || appt.status === 'Iniciado'">
-                              <button @click.stop="goToAppointmentPage(appt)" class="dropdown-item primary" :disabled="isStatusPending(appt._id)">
-                                 <Play :size="16" /> Atender
-                              </button>
-                          </template>
-                          <button @click.stop="openDetailsModal(appt)" class="dropdown-item">
-                            <Search :size="16" /> Detalhes
+                    <AppDropdownActions :disabled="isStatusPending(appt._id)">
+                      <template #default="{ close }">
+                        <template v-if="appt.status === 'Agendado'">
+                          <button
+                            @click.stop="close(), handleStatusChange(appt, 'Confirmado')"
+                            class="dropdown-item success"
+                            :disabled="isStatusPending(appt._id)"
+                          >
+                            <Check :size="16" />
+                            Confirmar
                           </button>
-                       </div>
-                    </div>
+                        </template>
+                        <template v-if="appt.status === 'Confirmado' || appt.status === 'Iniciado'">
+                          <button
+                            @click.stop="close(), goToAppointmentPage(appt)"
+                            class="dropdown-item primary"
+                            :disabled="isStatusPending(appt._id)"
+                          >
+                            <Play :size="16" />
+                            Atender
+                          </button>
+                        </template>
+                        <button
+                          @click.stop="close(), openDetailsModal(appt)"
+                          class="dropdown-item"
+                        >
+                          <Search :size="16" />
+                          Detalhes
+                        </button>
+                      </template>
+                    </AppDropdownActions>
                   </td>
                 </tr>
               </tbody>
@@ -1028,8 +1000,6 @@ function closeActionMenu(event) {
   font-weight: 700;
   line-height: 1;
 }
-
-
 
 .content-wrapper {
   min-height: calc(100vh - 280px);
@@ -1634,7 +1604,6 @@ function closeActionMenu(event) {
   flex: 1; /* Allow wrapper to fill container */
 }
 
-
 /* Fix table header */
 .appointments-table {
   width: 100%;
@@ -1720,10 +1689,6 @@ function closeActionMenu(event) {
   text-align: right;
 }
 
-
-
-
-
 @media (max-width: 1400px) {
   .page-header {
     flex-direction: column;
@@ -1775,10 +1740,6 @@ function closeActionMenu(event) {
   margin: 0 auto;
 }
 
-.action-menu-container.centered {
-  justify-content: center;
-}
-
 /* Updated Patient and Action Styles */
 .patient-cell {
   display: flex;
@@ -1817,92 +1778,6 @@ function closeActionMenu(event) {
 }
 
 /* Action Menu */
-.action-menu-container {
-  position: relative;
-  display: flex;
-  justify-content: center;
-}
-
-.action-dots-btn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-dots-btn:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
-}
-
-.action-dots-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.action-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.25rem;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 50;
-  width: 160px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0.25rem;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border: none;
-  background: transparent;
-  font-size: 0.85rem;
-  color: #475569;
-  cursor: pointer;
-  border-radius: 0.25rem;
-  transition: all 0.1s;
-}
-
-.dropdown-item:hover {
-  background-color: #f8fafc;
-  color: #1e293b;
-}
-
-.dropdown-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.dropdown-item.success {
-  color: #16a34a;
-}
-.dropdown-item.success:hover {
-  background-color: #f0fdf4;
-}
-
-.dropdown-item.primary {
-  color: #2563eb;
-}
-.dropdown-item.primary:hover {
-  background-color: #eff6ff;
-}
 /* Custom Alignment Classes (No Tailwind) */
 .th-content {
   display: flex;

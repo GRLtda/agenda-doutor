@@ -1,19 +1,10 @@
 <script setup>
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePatientsStore } from '@/stores/patients'
 import { useToast } from 'vue-toastification'
-import {
-  UserPlus,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Hash,
-  User,
-  Phone,
-  Users,
-  SlidersHorizontal,
-} from 'lucide-vue-next'
+import { UserPlus, Pencil, Trash2, Hash, User, Phone, Users, SlidersHorizontal } from 'lucide-vue-next'
 import AppPagination from '@/components/global/AppPagination.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -25,7 +16,6 @@ const toast = useToast()
 
 const patients = computed(() => patientsStore.allPatients)
 const pagination = computed(() => patientsStore.pagination)
-const actionsMenuOpenFor = ref(null)
 // const isInitialLoad = ref(true) // ❌ REMOVIDO
 
 const selectedPatientId = ref(null)
@@ -62,14 +52,7 @@ function handlePageChange(newPage) {
 }
 
 function goToPatient(patientId) {
-  if (actionsMenuOpenFor.value === patientId) {
-    return
-  }
   router.push(`/pacientes/${patientId}`)
-}
-
-function toggleActionsMenu(patientId) {
-  actionsMenuOpenFor.value = actionsMenuOpenFor.value === patientId ? null : patientId
 }
 
 async function handleDelete(patientId) {
@@ -83,7 +66,6 @@ async function handleDelete(patientId) {
       toast.error(patientsStore.error || 'Não foi possível excluir o paciente.')
     }
   }
-  actionsMenuOpenFor.value = null
 }
 
 const formatCPF = (cpf) => {
@@ -202,27 +184,21 @@ const formatCPF = (cpf) => {
                     <PatientPhoneDisplay :phone="patient.phone" :country-code="patient.countryCode" :show-flag="true" />
                 </td>
                 <td class="actions-cell" @click.stop>
-                  <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)">
-                    <button @click.stop="toggleActionsMenu(patient._id)" class="btn-icon">
-                      <MoreHorizontal :size="20" />
-                    </button>
-                    <Transition name="fade">
-                      <div v-if="actionsMenuOpenFor === patient._id" class="actions-dropdown">
-                        <router-link
-                          :to="`/pacientes/${patient._id}?edit=true`"
-                          class="dropdown-item"
-                        >
-                          <Pencil :size="14" /> Editar
-                        </router-link>
-                        <button
-                          @click.stop="handleDelete(patient._id)"
-                          class="dropdown-item delete"
-                        >
-                          <Trash2 :size="14" /> Excluir
-                        </button>
-                      </div>
-                    </Transition>
-                  </div>
+                  <AppDropdownActions>
+                    <template #default="{ close }">
+                      <router-link @click="close" :to="`/pacientes/${patient._id}?edit=true`" class="dropdown-item">
+                        <Pencil :size="14" />
+                        Editar
+                      </router-link>
+                      <button
+                        @click.stop="close(), handleDelete(patient._id)"
+                        class="dropdown-item delete"
+                      >
+                        <Trash2 :size="14" />
+                        Excluir
+                      </button>
+                    </template>
+                  </AppDropdownActions>
                 </td>
               </tr>
             </template>
@@ -271,28 +247,21 @@ const formatCPF = (cpf) => {
               </div>
             </div>
 
-            <div
-              class="actions-wrapper"
-              v-click-outside="() => (actionsMenuOpenFor = null)"
-              @click.stop
-            >
-              <button @click.stop="toggleActionsMenu(patient._id)" class="btn-icon">
-                <MoreHorizontal :size="20" />
-              </button>
-              <Transition name="fade">
-                <div v-if="actionsMenuOpenFor === patient._id" class="actions-dropdown">
-                  <router-link
-                    :to="`/pacientes/${patient._id}?edit=true`"
-                    class="dropdown-item"
-                  >
-                    <Pencil :size="14" /> Editar
-                  </router-link>
-                  <button @click.stop="handleDelete(patient._id)" class="dropdown-item delete">
-                    <Trash2 :size="14" /> Excluir
-                  </button>
-                </div>
-              </Transition>
-            </div>
+            <AppDropdownActions>
+              <template #default="{ close }">
+                <router-link @click="close" :to="`/pacientes/${patient._id}?edit=true`" class="dropdown-item">
+                  <Pencil :size="14" />
+                  Editar
+                </router-link>
+                <button
+                  @click.stop="close(), handleDelete(patient._id)"
+                  class="dropdown-item delete"
+                >
+                  <Trash2 :size="14" />
+                  Excluir
+                </button>
+              </template>
+            </AppDropdownActions>
           </div>
         </template>
 
@@ -528,60 +497,6 @@ th.actions-header .th-content {
 .actions-cell {
   text-align: right;
 }
-.actions-wrapper {
-  position: relative;
-  display: inline-block;
-}
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cinza-texto);
-}
-.btn-icon:hover {
-  background-color: #f3f4f6;
-}
-.actions-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  width: 140px;
-  padding: 0.5rem;
-}
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem;
-  border-radius: 0.5rem;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.dropdown-item:hover {
-  background-color: #f3f4f6;
-}
-.dropdown-item.delete {
-  color: #ef4444;
-}
-.dropdown-item.delete:hover {
-  background-color: #fee2e2;
-}
 .fade-enter-active,
 .fade-leave-active {
   transition:
@@ -755,21 +670,6 @@ th.actions-header .th-content {
   }
   .text-sm {
     font-size: 0.85rem;
-  }
-
-
-  /* ✨ CORREÇÃO CRÍTICA AQUI: Aumentar Z-INDEX e garantir posicionamento superior */
-  .actions-wrapper {
-    z-index: 100; /* Garante que ele fique acima dos cards vizinhos */
-  }
-
-  .actions-dropdown {
-    position: absolute;
-    right: 0;
-    /* Faz o menu abrir para cima (bottom: 100%) mais uma margem de 5px */
-    bottom: calc(100% + 5px);
-    top: auto; /* Anula o valor de desktop */
-    z-index: 100; /* Mantém o z-index alto */
   }
 
   .mobile-list > .state-cell {

@@ -191,44 +191,25 @@
       </div>
     </main>
 
-    <footer v-if="pagination.totalPages > 1" class="pagination-bar">
-      <span class="pagination-info">
-        Página {{ pagination.page }} de {{ pagination.totalPages }}
-      </span>
-      <div class="pagination-actions">
-        <button class="page-button" :disabled="pagination.page <= 1" @click="changePage(pagination.page - 1)">
-          <ChevronLeft :size="18" /> Anterior
-        </button>
-        <button class="page-button" :disabled="pagination.page >= pagination.totalPages" @click="changePage(pagination.page + 1)">
-          Próxima <ChevronRight :size="18" />
-        </button>
-      </div>
-    </footer>
+    <AppPagination
+      v-if="pagination.totalPages > 1"
+      :current-page="pagination.page"
+      :total-pages="pagination.totalPages"
+      :total-items="pagination.total"
+      :limit="pagination.limit"
+      @page-change="changePage"
+    />
   </div>
 </template>
 
 <script setup>
+import AppPagination from '@/components/global/AppPagination.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
-import {
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileImage,
-  FileText,
-  Filter,
-  FolderOpen,
-  ImageOff,
-  Images,
-  LoaderCircle,
-  Maximize2,
-  Search,
-  X,
-} from 'lucide-vue-next'
+import { Calendar, ChevronDown, FileImage, FileText, Filter, FolderOpen, ImageOff, Images, LoaderCircle, Maximize2, Search, X } from 'lucide-vue-next'
 import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import MediaViewerModal from '@/views/pages/pacientes/components/MediaViewerModal.vue'
@@ -936,57 +917,12 @@ function getThumbnailUrl(file) {
   background: #eff6ff;
 }
 
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding: 0.5rem 0;
-}
-
-.pagination-info {
-  color: #64748b;
-  font-size: 0.875rem;
-}
-
-.pagination-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.page-button {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  color: #475569;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.page-button:hover:not(:disabled) {
-  color: var(--azul-principal);
-  border-color: #cbd5e1;
-  background: #f8fafc;
-}
-
-.page-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 @media (max-width: 900px) {
   .filter-bar {
     flex-wrap: wrap;
   }
 
-  .gallery-header,
-  .pagination-bar {
+  .gallery-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1017,11 +953,6 @@ function getThumbnailUrl(file) {
 @media (max-width: 520px) {
   .media-grid {
     grid-template-columns: 1fr;
-  }
-
-  .pagination-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

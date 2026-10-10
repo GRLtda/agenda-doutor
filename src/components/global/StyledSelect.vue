@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue' // 1. Importar onUnmounted
+import { ref, computed, watch, nextTick, onUnmounted, useId } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -23,9 +23,10 @@ const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
 const isDropdownUpward = ref(false)
 const isPositioned = ref(false)
+const listId = useId()
+const activeIndex = ref(-1)
 
 const selectedOption = computed(() => {
-  if (!props.modelValue) return null
   return props.options.find((opt) => opt.value === props.modelValue)
 })
 
@@ -101,6 +102,7 @@ const handleClickOutside = (event) => {
 // 4. Atualizar o watch para adicionar e remover o listener de clique
 watch(isOpen, (newValue) => {
   if (newValue) {
+    activeIndex.value = props.options.findIndex(option => option.value === props.modelValue)
     isPositioned.value = false
     dropdownStyle.value = {}
     updateDropdownPosition()
@@ -132,6 +134,33 @@ function selectOption(option) {
   isOpen.value = false
 }
 
+function handleKeydown(event) {
+  if (event.key === 'Escape') {
+    isOpen.value = false
+    return
+  }
+  if (event.key === 'Tab') {
+    isOpen.value = false
+    return
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return
+  event.preventDefault()
+  if (!isOpen.value) {
+    isOpen.value = true
+    return
+  }
+  if (event.key === 'Enter' || event.key === ' ') {
+    if (props.options[activeIndex.value]) selectOption(props.options[activeIndex.value])
+    return
+  }
+  const count = props.options.length
+  if (!count) return
+  activeIndex.value = activeIndex.value < 0
+    ? (event.key === 'ArrowDown' ? 0 : count - 1)
+    : (activeIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count
+  nextTick(() => optionsListRef.value?.querySelector(`#${listId}-option-${activeIndex.value}`)?.scrollIntoView({ block: 'nearest' }))
+}
+
 defineExpose({
   focus: () => selectButtonRef.value?.focus(),
   selectButtonRef,
@@ -150,8 +179,15 @@ defineExpose({
         ref="selectButtonRef"
         type="button"
         class="select-button"
+        role="combobox"
+        aria-haspopup="listbox"
+        :aria-label="label || placeholder"
+        :aria-expanded="isOpen"
+        :aria-controls="isOpen ? listId : undefined"
+        :aria-activedescendant="isOpen && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined"
         :class="{ 'has-error': !!error }"
         @click="isOpen = !isOpen"
+        @keydown="handleKeydown"
       >
         <div class="flex items-center overflow-hidden w-full gap-2">
           <slot name="prefix"></slot>
@@ -175,6 +211,9 @@ defineExpose({
           <ul
             v-if="isOpen"
             ref="optionsListRef"
+            :id="listId"
+            role="listbox"
+            :aria-label="label || placeholder"
             class="options-list"
             :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned }"
             :style="dropdownStyle"
@@ -186,8 +225,12 @@ defineExpose({
             </li>
             <li
               v-else
-              v-for="option in options"
+              v-for="(option, index) in options"
               :key="option.value"
+              :id="`${listId}-option-${index}`"
+              role="option"
+              :aria-selected="option.value === modelValue"
+              :class="{ 'is-active': index === activeIndex }"
               @mousedown.prevent="selectOption(option)"
               class="option-item flex items-center gap-2"
             >
@@ -218,6 +261,7 @@ defineExpose({
 </template>
 
 <style scoped>
+.option-item.is-active { background-color: #f3f4f6; }
 .form-group {
   text-align: left;
 }

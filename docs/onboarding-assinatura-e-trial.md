@@ -2,6 +2,12 @@
 
 Este documento descreve o fluxo de acesso financeiro aplicado ao onboarding da clínica no frontend.
 
+Na etapa Horário de Funcionamento, os campos e o cálculo semanal são compartilhados
+com Configurações por `WorkingHoursFields` e `utils/workingHours.js`. Dias usam
+`Switch`; horários usam `StyledSelect`. O total considera minutos, de modo que
+`09:30–10:00` corresponde a `0,5h`. O salvamento e o avanço permanecem na etapa.
+Contrato e checklist: [Componentes compartilhados](componentes-compartilhados.md).
+
 ## Teste gratuito sem cartão
 
 O período de teste é definido no convite administrativo por meio de `trialDays`. Ao criar a clínica, a API grava `isTrialAccount` e `trialEndsAt`.

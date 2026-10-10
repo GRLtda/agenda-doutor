@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { ChevronDown, Check } from 'lucide-vue-next'
+import StyledSelect from '@/components/global/StyledSelect.vue'
+import { computed } from 'vue'
+import { Check } from 'lucide-vue-next'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { useClinicStore } from '@/stores/clinic'
@@ -43,7 +44,6 @@ const emit = defineEmits([
 ])
 
 const clinicStore = useClinicStore()
-const isDoctorSelectOpen = ref(false)
 
 const filteredStaff = computed(() => {
     if (!clinicStore.currentClinic?.staff) return []
@@ -52,19 +52,18 @@ const filteredStaff = computed(() => {
     )
 })
 
-const selectedDoctor = computed(() => {
-    if (!props.selectedDoctorId || !filteredStaff.value) return null
-    return filteredStaff.value.find(s => String(s._id) === String(props.selectedDoctorId))
-})
+const doctorOptions = computed(() => [
+  { value: '', label: 'Todos os profissionais' },
+  ...filteredStaff.value.map(staff => ({ value: String(staff._id), label: staff.name, image: staff.profilePhotoUrl })),
+])
 
 const localDatePickerModel = computed({
     get: () => props.datePickerModel,
     set: (val) => emit('update:datePickerModel', val)
 })
 
-function handleSelectDoctor(doc) {
-    emit('selectDoctor', doc)
-    isDoctorSelectOpen.value = false
+function handleSelectDoctor(id) {
+    emit('selectDoctor', filteredStaff.value.find(staff => String(staff._id) === id) || null)
 }
 
 function handleSwitchView(view) {
@@ -119,70 +118,12 @@ function handleToggleStatus(status) {
         <div class="sidebar-section">
             <h3 class="sidebar-title">Profissionais</h3>
             <!-- ✨ Custom Select com Fotos -->
-            <div class="relative">
-                <button
-                    @click="isDoctorSelectOpen = !isDoctorSelectOpen"
-                    class="custom-select-trigger"
-                    :class="{ 'is-open': isDoctorSelectOpen }"
-                >
-                    <div class="selected-value">
-                        <template v-if="selectedDoctor">
-                            <div class="doc-avatar-option">
-                                <img
-                                    v-if="selectedDoctor.profilePhotoUrl"
-                                    :src="selectedDoctor.profilePhotoUrl"
-                                    class="doc-img"
-                                />
-                                <div v-else class="doc-initial">
-                                    {{ selectedDoctor.name.charAt(0) }}
-                                </div>
-                                <span class="truncate">{{ selectedDoctor.name }}</span>
-                            </div>
-                        </template>
-                        <span v-else class="text-gray-500">Todos os profissionais</span>
-                    </div>
-                    <ChevronDown :size="16" class="text-gray-400" />
-                </button>
-
-                <div v-if="isDoctorSelectOpen" class="custom-select-dropdown">
-                    <div
-                        class="select-option"
-                        @click="handleSelectDoctor(null)"
-                        :class="{ 'selected': !selectedDoctorId }"
-                    >
-                        <span>Todos os profissionais</span>
-                        <Check v-if="!selectedDoctorId" :size="16" class="check-icon" />
-                    </div>
-
-                    <div
-                        v-for="emp in filteredStaff"
-                        :key="emp._id"
-                        class="select-option"
-                        @click="handleSelectDoctor(emp)"
-                        :class="{ 'selected': String(selectedDoctorId) === String(emp._id) }"
-                    >
-                         <div class="doc-avatar-option">
-                            <img
-                                v-if="emp.profilePhotoUrl"
-                                :src="emp.profilePhotoUrl"
-                                class="doc-img"
-                            />
-                            <div v-else class="doc-initial bg-blue-100 text-blue-600">
-                                {{ emp.name.charAt(0).toUpperCase() }}
-                            </div>
-                            <span class="truncate">{{ emp.name }}</span>
-                        </div>
-                        <Check v-if="String(selectedDoctorId) === String(emp._id)" :size="16" class="check-icon" />
-                    </div>
-                </div>
-
-                <!-- Backdrop transparente para fechar ao clicar fora (simples) -->
-                <div
-                    v-if="isDoctorSelectOpen"
-                    class="fixed inset-0 z-10"
-                    @click="isDoctorSelectOpen = false"
-                ></div>
-            </div>
+            <StyledSelect
+              :model-value="selectedDoctorId || ''"
+              :options="doctorOptions"
+              placeholder="Todos os profissionais"
+              @update:model-value="handleSelectDoctor"
+            />
         </div>
 
         <div class="sidebar-section">
@@ -236,101 +177,6 @@ function handleToggleStatus(status) {
 }
 
 /* Custom Select New */
-.custom-select-trigger {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.625rem 0.75rem;
-    background-color: #fff;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    z-index: 20; /* Above backdrop */
-}
-.custom-select-trigger:hover {
-    border-color: #9ca3af;
-}
-.custom-select-trigger.is-open {
-    border-color: var(--azul-principal);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.selected-value {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    overflow: hidden;
-}
-
-.custom-select-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    width: 100%;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    z-index: 30; /* Above trigger */
-    max-height: 240px;
-    overflow-y: auto;
-    padding: 0.25rem;
-}
-
-.select-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    border-radius: 0.375rem;
-    transition: background 0.2s;
-    font-size: 0.875rem;
-    color: #374151;
-}
-.select-option:hover {
-    background-color: #f3f4f6;
-}
-.select-option.selected {
-    background-color: #eff6ff;
-    color: var(--azul-principal);
-    font-weight: 500;
-}
-
-.doc-avatar-option {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-    overflow: hidden;
-}
-.doc-img {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
-    background-color: #e5e7eb;
-    border: 1px solid #e5e7eb;
-}
-.doc-initial {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #e0e7ff;
-    color: #4f46e5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-.check-icon {
-    color: var(--azul-principal);
-    margin-left: 0.5rem;
-}
 
 /* Custom Checkbox */
 .custom-checkbox {
@@ -392,7 +238,6 @@ function handleToggleStatus(status) {
 .status-dot.bg-green-100 { background-color: #22c55e; } /* Realizado */
 .status-dot.bg-red-100 { background-color: #ef4444; } /* Cancelado */
 .status-dot.bg-purple-100 { background-color: #a855f7; } /* Em Atendimento */
-
 
 /* View Switcher */
 .view-switcher {

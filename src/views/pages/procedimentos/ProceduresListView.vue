@@ -1,25 +1,11 @@
 <script setup>
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProceduresStore } from '@/stores/procedures'
 import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
-import {
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Stethoscope,
-  DollarSign,
-  Tag,
-  SlidersHorizontal,
-  X,
-  Check,
-  Package,
-  FileText,
-  ArrowLeft,
-  ArrowRight,
-} from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, Stethoscope, DollarSign, Tag, SlidersHorizontal, X, Check, Package, FileText, ArrowLeft, ArrowRight } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -32,7 +18,6 @@ const router = useRouter()
 const toast = useToast()
 
 const procedures = computed(() => proceduresStore.procedures)
-const actionsMenuOpenFor = ref(null)
 const selectedProcedure = ref(null)
 const showFormModal = ref(false)
 const isSaving = ref(false)
@@ -113,10 +98,6 @@ onMounted(async () => {
   ])
 })
 
-function toggleActionsMenu(procedureId) {
-  actionsMenuOpenFor.value = actionsMenuOpenFor.value === procedureId ? null : procedureId
-}
-
 function getKitForProcedure(procedureId) {
   if (!estoqueStore.kits) return null
   return estoqueStore.kits.find(k => (k.procedimentoId?._id || k.procedimentoId) === procedureId)
@@ -130,7 +111,6 @@ function handleEdit(procedure) {
   selectedProcedure.value = hydrateProcedureForm(procedure)
   currentStep.value = 1
   showFormModal.value = true
-  actionsMenuOpenFor.value = null
 }
 
 function handleNew() {
@@ -161,7 +141,6 @@ async function handleDelete(procedureId) {
       toast.error(proceduresStore.error || 'Não foi possível excluir o procedimento.')
     }
   }
-  actionsMenuOpenFor.value = null
 }
 
 function closeModal() {
@@ -374,21 +353,24 @@ const getPricingTypeInfo = (type) => {
                   </span>
                 </td>
                 <td class="actions-cell" @click.stop>
-                  <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)">
-                    <button @click.stop="toggleActionsMenu(procedure._id)" class="btn-icon">
-                      <MoreHorizontal :size="20" />
-                    </button>
-                    <Transition name="fade">
-                      <div v-if="actionsMenuOpenFor === procedure._id" class="actions-dropdown">
-                        <button @click.stop="handleEdit(procedure)" class="dropdown-item">
-                          <Pencil :size="14" /> Editar
-                        </button>
-                        <button @click.stop="handleDelete(procedure._id)" class="dropdown-item delete">
-                          <Trash2 :size="14" /> Excluir
-                        </button>
-                      </div>
-                    </Transition>
-                  </div>
+                  <AppDropdownActions>
+                    <template #default="{ close }">
+                      <button
+                        @click.stop="close(), handleEdit(procedure)"
+                        class="dropdown-item"
+                      >
+                        <Pencil :size="14" />
+                        Editar
+                      </button>
+                      <button
+                        @click.stop="close(), handleDelete(procedure._id)"
+                        class="dropdown-item delete"
+                      >
+                        <Trash2 :size="14" />
+                        Excluir
+                      </button>
+                    </template>
+                  </AppDropdownActions>
                 </td>
               </tr>
             </template>
@@ -436,21 +418,24 @@ const getPricingTypeInfo = (type) => {
               </div>
             </div>
 
-            <div class="actions-wrapper" v-click-outside="() => (actionsMenuOpenFor = null)" @click.stop>
-              <button @click.stop="toggleActionsMenu(procedure._id)" class="btn-icon">
-                <MoreHorizontal :size="20" />
-              </button>
-              <Transition name="fade">
-                <div v-if="actionsMenuOpenFor === procedure._id" class="actions-dropdown">
-                  <button @click.stop="handleEdit(procedure)" class="dropdown-item">
-                    <Pencil :size="14" /> Editar
-                  </button>
-                  <button @click.stop="handleDelete(procedure._id)" class="dropdown-item delete">
-                    <Trash2 :size="14" /> Excluir
-                  </button>
-                </div>
-              </Transition>
-            </div>
+            <AppDropdownActions>
+              <template #default="{ close }">
+                <button
+                  @click.stop="close(), handleEdit(procedure)"
+                  class="dropdown-item"
+                >
+                  <Pencil :size="14" />
+                  Editar
+                </button>
+                <button
+                  @click.stop="close(), handleDelete(procedure._id)"
+                  class="dropdown-item delete"
+                >
+                  <Trash2 :size="14" />
+                  Excluir
+                </button>
+              </template>
+            </AppDropdownActions>
 
           </div>
         </template>
@@ -966,68 +951,6 @@ th.actions-header .th-content {
   text-align: right;
 }
 
-.actions-wrapper {
-  position: relative;
-  display: inline-block;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cinza-texto);
-}
-
-.btn-icon:hover {
-  background-color: #f3f4f6;
-}
-
-.actions-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  width: 140px;
-  padding: 0.5rem;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem;
-  border-radius: 0.5rem;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.dropdown-item:hover {
-  background-color: #f3f4f6;
-}
-
-.dropdown-item.delete {
-  color: #ef4444;
-}
-
-.dropdown-item.delete:hover {
-  background-color: #fee2e2;
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition:
@@ -1517,16 +1440,6 @@ th.actions-header .th-content {
   .procedure-details-mobile .aliases-count {
     color: var(--cinza-texto);
     font-size: 0.8rem;
-  }
-
-  .actions-wrapper {
-    z-index: 100;
-  }
-
-  .actions-dropdown {
-    bottom: calc(100% + 5px);
-    top: auto;
-    z-index: 100;
   }
 
   .mobile-list > .state-cell {

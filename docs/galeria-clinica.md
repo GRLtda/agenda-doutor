@@ -4,6 +4,11 @@ A rota `/galeria` usa o espaçamento padrão do `DefaultLayout`, como as demais 
 
 Os filtros de busca, categoria, tipo de arquivo, período e tags, assim como a abertura do arquivo e o acesso ao paciente, continuam disponíveis. A alteração é visual e não modifica os parâmetros enviados à API nem as permissões da galeria.
 
+A paginação usa `AppPagination`, adaptando `pagination.totalPages` para
+`totalPages` e mantendo o handler `changePage`. O resumo inclui o intervalo e
+total de arquivos. Contratos e checklist em
+[Componentes compartilhados](componentes-compartilhados.md).
+
 O período usa um único `VueDatePicker` com seleção de intervalo. Ao escolher as duas datas, a galeria recarrega desde a primeira página e envia `from` e `to` no formato `YYYY-MM-DD`; limpar o período remove ambos os filtros.
 
 Na largura de desktop, busca, categoria, tipo de arquivo, período e tags ficam na mesma linha. Em telas estreitas, os filtros se reorganizam para manter os controles utilizáveis.

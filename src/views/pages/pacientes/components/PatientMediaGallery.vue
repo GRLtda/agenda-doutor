@@ -74,44 +74,13 @@
             </div>
 
             <!-- Dropdown de Tags -->
-            <div class="filter-dropdown-container" v-if="availableTags.length > 0">
-              <button 
-                class="toolbar-btn" 
-                :class="{ 'has-filters': filterTags.length > 0 }"
-                @click="isFilterDropdownOpen = !isFilterDropdownOpen"
-                title="Filtrar por Tags"
-              >
-                <Filter :size="16" />
-                <span class="btn-label-desktop">Tags</span>
-                <span v-if="filterTags.length > 0" class="filter-count-badge">{{ filterTags.length }}</span>
-                <ChevronDown :size="14" class="chevron-icon" :class="{ rotated: isFilterDropdownOpen }" />
-              </button>
-
-              <!-- Menu Dropdown -->
-              <div v-if="isFilterDropdownOpen" class="filter-dropdown-menu">
-                <div class="dropdown-header">
-                  <span>Filtrar Tags</span>
-                  <button v-if="filterTags.length > 0" @click="filterTags = []" class="clear-filter-btn">
-                    Limpar
-                  </button>
-                </div>
-                <div class="dropdown-list">
-                  <label 
-                    v-for="tag in availableTags" 
-                    :key="tag" 
-                    class="dropdown-item"
-                    :class="{ selected: filterTags.includes(tag) }"
-                  >
-                    <input 
-                      type="checkbox" 
-                      :value="tag"
-                      v-model="filterTags"
-                    />
-                    <span class="tag-label">{{ tag }}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+            <StyledMultiSelect
+              v-if="availableTags.length > 0"
+              v-model="filterTags"
+              class="tag-filter"
+              :options="availableTags.map((tag) => ({ value: tag, label: tag }))"
+              placeholder="Filtrar tags"
+            />
           </div>
         </div>
 
@@ -131,28 +100,16 @@
         </div>
 
         <!-- Paginação -->
-        <div 
-            v-if="store.currentFolderContent.pagination && store.currentFolderContent.pagination.totalPages > 1" 
-            class="pagination-controls"
-        >
-            <button 
-                class="pagination-btn" 
-                :disabled="store.currentFolderContent.pagination.page === 1"
-                @click="changePage(store.currentFolderContent.pagination.page - 1)"
-            >
-                Anterior
-            </button>
-            <span class="pagination-info">
-                Página {{ store.currentFolderContent.pagination.page }} de {{ store.currentFolderContent.pagination.totalPages }}
-            </span>
-            <button 
-                class="pagination-btn" 
-                :disabled="store.currentFolderContent.pagination.page >= store.currentFolderContent.pagination.totalPages"
-                @click="changePage(store.currentFolderContent.pagination.page + 1)"
-            >
-                Próxima
-            </button>
-        </div>
+        <AppPagination
+          v-if="
+            store.currentFolderContent.pagination && store.currentFolderContent.pagination.totalPages > 1
+          "
+          :current-page="store.currentFolderContent.pagination.page"
+          :total-pages="store.currentFolderContent.pagination.totalPages"
+          :total-items="store.currentFolderContent.pagination.total"
+          :limit="store.currentFolderContent.pagination.limit"
+          @page-change="changePage"
+        />
 
       </div>
 
@@ -168,11 +125,13 @@
 </template>
 
 <script setup>
+import AppPagination from '@/components/global/AppPagination.vue'
+import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
 import { onMounted, ref, watch, computed } from 'vue';
 import { useGalleryStore } from '@/stores/gallery';
 import MediaPreviewCard from './MediaPreviewCard.vue';
 import MediaViewerModal from './MediaViewerModal.vue';
-import { Search, X, Filter, ChevronDown } from 'lucide-vue-next';
+import { Search, X } from 'lucide-vue-next'
 
 const props = defineProps({
   patientId: {
@@ -187,7 +146,6 @@ const selectedFile = ref(null);
 // Filtering State
 const searchQuery = ref('');
 const filterTags = ref([]);
-const isFilterDropdownOpen = ref(false);
 
 onMounted(() => {
   store.fetchFolders(props.patientId);
@@ -198,7 +156,6 @@ onMounted(() => {
 watch(() => store.currentFolderContent.folder, () => {
     searchQuery.value = '';
     filterTags.value = [];
-    isFilterDropdownOpen.value = false;
 });
 
 // Computed: Tags disponíveis nos arquivos da pasta atual
@@ -242,7 +199,6 @@ const filteredFiles = computed(() => {
 
   return files;
 });
-
 
 function navigate(crumb) {
   if (crumb.id === null) {
@@ -291,6 +247,8 @@ function closePreview() {
 </script>
 
 <style scoped>
+.tag-filter { width: 240px; max-width: 100%; flex-shrink: 0; margin-bottom: 0; }
+@media (max-width: 640px) { .tag-filter { width: 100%; flex-shrink: 1; } }
 /* ... styles ... */
 
 .media-gallery-container {
@@ -302,7 +260,6 @@ function closePreview() {
   border-radius: 8px;
   position: relative;
 }
-
 
 .gallery-content {
   flex: 1;
@@ -355,25 +312,6 @@ function closePreview() {
   flex-shrink: 0;
 }
 
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  margin-top: auto; /* Push to bottom if space allows */
-  border-top: 1px solid #f3f4f6;
-  flex-shrink: 0;
-  background: white;
-  
-  /* Sticky fallback if internal scroll fails and container grows */
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-}
-
-/* ... rest of styles ... */
-
 .breadcrumbs {
   font-size: 1.1rem;
   font-weight: 500;
@@ -402,6 +340,7 @@ function closePreview() {
 
 .toolbar-main-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
   align-items: center;
   gap: 0.5rem;
@@ -450,178 +389,9 @@ function closePreview() {
   cursor: pointer;
 }
 
-/* Dropdown de Tags */
-.filter-dropdown-container {
-  position: relative;
-}
-
-.filter-count-badge {
-  background: #3b82f6;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  min-width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chevron-icon {
-  transition: transform 0.2s ease;
-  color: #9ca3af;
-}
-.chevron-icon.rotated {
-  transform: rotate(180deg);
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  background: white;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.toolbar-btn:hover {
-  background: #f9fafb;
-}
-
-.toolbar-btn.has-filters {
-  color: #2563eb;
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.filter-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 0.5rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 220px;
-  z-index: 50;
-  overflow: hidden;
-  animation: fadeIn 0.1s ease-out;
-}
-
-.dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: #f9fafb;
-}
-
-.clear-filter-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-
-.dropdown-list {
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 0.5rem 0;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background 0.1s;
-  user-select: none;
-}
-
-.dropdown-item:hover {
-  background: #f3f4f6;
-}
-
-.dropdown-item.selected {
-  background: #eff6ff;
-}
-
-.dropdown-item.selected .tag-label {
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.dropdown-item input[type="checkbox"] {
-  appearance: none;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 0.25rem;
-  border: 1px solid #d1d5db;
-  background-color: white;
-  margin: 0;
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-}
-
-.dropdown-item input[type="checkbox"]::before {
-  content: "";
-  width: 0.65rem;
-  height: 0.65rem;
-  transform: scale(0);
-  transition: 0.1s transform ease-in-out;
-  box-shadow: inset 1rem 1rem white;
-  transform-origin: center;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-  background-color: white;
-}
-
-.dropdown-item input[type="checkbox"]:checked {
-  background-color: #2563eb;
-  border-color: #2563eb;
-}
-
-.dropdown-item input[type="checkbox"]:checked::before {
-  transform: scale(1);
-}
-
-.tag-label {
-  font-size: 0.875rem;
-  color: #374151;
-  text-transform: capitalize;
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scrollbar do dropdown */
-.dropdown-list::-webkit-scrollbar {
-  width: 4px;
-}
-.dropdown-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
 }
 
 /* Folder Card */
@@ -693,57 +463,4 @@ function closePreview() {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.pagination-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  color: #374151;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #f3f4f6;
-}
-
-.pagination-info {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-.pagination-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  color: #374151;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #f3f4f6;
-}
-
-.pagination-info {
-  font-size: 0.875rem;
-  color: #6b7280;
 }</style>

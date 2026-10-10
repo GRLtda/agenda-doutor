@@ -1,7 +1,8 @@
 <script setup>
+import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
 import { ref, reactive, computed } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, Filter, CheckSquare, Square, Download, Check, ChevronDown } from 'lucide-vue-next'
+import { Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 import PhotoViewerUpload from './PhotoViewerUpload.vue'
@@ -57,9 +58,7 @@ const availableTags = computed(() => {
 
 // Computed: Fotos filtradas
 const filterTags = ref([]) // ✨ Filtro de tags (Array para v-model)
-const isFilterDropdownOpen = ref(false) // ✨ Estado do dropdown
 // toggleTagFilter removida (usando v-model)
-
 
 const filteredAttachments = computed(() => {
   let attachments = props.record?.attachments || []
@@ -338,7 +337,6 @@ async function compressImage(file) {
   })
 }
 
-
 function openImageViewer(attachment) {
   // Inicia carregamento da imagem real
   isImageLoading.value = true
@@ -516,44 +514,13 @@ async function handleMontageComplete(file) {
         </div>
 
         <!-- Dropdown de Tags (Ao lado da busca) -->
-        <div class="filter-dropdown-container" v-if="availableTags.length > 0">
-          <button 
-            class="toolbar-btn" 
-            :class="{ 'has-filters': filterTags.length > 0 }"
-            @click="isFilterDropdownOpen = !isFilterDropdownOpen"
-            title="Filtrar por Tags"
-          >
-            <Filter :size="16" />
-            <span class="btn-label-desktop">Tags</span>
-            <span v-if="filterTags.length > 0" class="filter-count-badge">{{ filterTags.length }}</span>
-            <ChevronDown :size="14" class="chevron-icon" :class="{ rotated: isFilterDropdownOpen }" />
-          </button>
-
-          <!-- Menu Dropdown -->
-          <div v-if="isFilterDropdownOpen" class="filter-dropdown-menu">
-            <div class="dropdown-header">
-              <span>Filtrar Tags</span>
-              <button v-if="filterTags.length > 0" @click="filterTags = []" class="clear-filter-btn">
-                Limpar
-              </button>
-            </div>
-            <div class="dropdown-list">
-              <label 
-                v-for="tag in availableTags" 
-                :key="tag" 
-                class="dropdown-item"
-                :class="{ selected: filterTags.includes(tag) }"
-              >
-                <input 
-                  type="checkbox" 
-                  :value="tag"
-                  v-model="filterTags"
-                />
-                <span class="tag-label">{{ tag }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
+        <StyledMultiSelect
+          v-if="availableTags.length > 0"
+          v-model="filterTags"
+          class="tag-filter"
+          :options="availableTags.map((tag) => ({ value: tag, label: tag }))"
+          placeholder="Filtrar tags"
+        />
         
         <div class="toolbar-actions">
           <button 
@@ -812,6 +779,8 @@ async function handleMontageComplete(file) {
 </template>
 
 <style scoped>
+.tag-filter { width: 240px; max-width: 100%; flex-shrink: 0; margin-bottom: 0; }
+@media (max-width: 640px) { .tag-filter { width: 100%; flex-shrink: 1; } }
 .attachments-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -1349,6 +1318,7 @@ async function handleMontageComplete(file) {
 
 .toolbar-main-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start; /* ✨ Mudado de space-between para flex-start */
   align-items: center;
   gap: 0.5rem; /* Menor gap entre search e tags */
@@ -1361,71 +1331,11 @@ async function handleMontageComplete(file) {
 
 .gallery-toolbar .search-box {
   width: 320px; /* Largura fixa ou flex-basis */
+  max-width: 100%;
   flex-shrink: 0;
 }
 
-/* Dropdown de Tags */
-.filter-dropdown-container {
-  position: relative;
-}
-
-.filter-count-badge {
-  background: #3b82f6;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  min-width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chevron-icon {
-  transition: transform 0.2s ease;
-  color: #9ca3af;
-}
-.chevron-icon.rotated {
-  transform: rotate(180deg);
-}
-
 /* Toolbar Button com Filtros Ativos (Sutil) */
-.toolbar-btn.has-filters {
-  color: #2563eb;
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.filter-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0; /* Alinha à esquerda pois agora está no começo da linha */
-  margin-top: 0.5rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 220px;
-  z-index: 50;
-  overflow: hidden;
-  animation: fadeIn 0.1s ease-out;
-}
-
-.dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: #f9fafb;
-}
 
 .upload-limits {
   font-size: 0.6rem;
@@ -1435,89 +1345,6 @@ async function handleMontageComplete(file) {
   width: 100%;
   line-height: 1.1;
   font-weight: 400;
-}
-
-.clear-filter-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-.clear-filter-btn:hover {
-  text-decoration: underline;
-}
-
-.dropdown-list {
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 0.5rem 0;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background 0.1s;
-  user-select: none;
-}
-
-.dropdown-item:hover {
-  background: #f3f4f6;
-}
-
-.dropdown-item.selected {
-  background: #eff6ff; /* Light Blue BG */
-}
-
-.dropdown-item.selected .tag-label {
-  color: #2563eb; /* Blue Text */
-  font-weight: 500;
-}
-
-.dropdown-item input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 0.25rem;
-  border: 1px solid #d1d5db; /* Gray-300 */
-  background-color: white;
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-  margin: 0;
-}
-
-.dropdown-item input[type="checkbox"]::before {
-  content: "";
-  width: 0.65rem;
-  height: 0.65rem;
-  transform: scale(0);
-  transition: 0.1s transform ease-in-out;
-  box-shadow: inset 1rem 1rem white; /* Icon color */
-  transform-origin: center;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-  background-color: white; /* Fallback */
-}
-
-.dropdown-item input[type="checkbox"]:checked {
-  background-color: #2563eb; /* Blue-600 */
-  border-color: #2563eb;
-}
-
-.dropdown-item input[type="checkbox"]:checked::before {
-  transform: scale(1);
-}
-
-.tag-label {
-  font-size: 0.875rem;
-  color: #374151;
-  text-transform: capitalize; /* ✨ Capitaliza as tags */
 }
 
 .toolbar-divider {
@@ -1530,15 +1357,6 @@ async function handleMontageComplete(file) {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scrollbar do dropdown */
-.dropdown-list::-webkit-scrollbar {
-  width: 4px;
-}
-.dropdown-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
 }
 
 .search-box {

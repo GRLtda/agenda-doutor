@@ -1,21 +1,11 @@
 <script setup>
+import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
 import { useAuthStore } from '@/stores/auth'
 import { usePlanAccess } from '@/composables/usePlanAccess'
 import { useToast } from 'vue-toastification'
-import {
-  UserPlus,
-  MoreHorizontal,
-  Trash2,
-  UserCog,
-  UserCheck,
-  Clock,
-  Mail,
-  Users,
-  XCircle,
-  Copy,
-} from 'lucide-vue-next'
+import { UserPlus, Trash2, UserCog, UserCheck, Clock, Mail, Users, XCircle, Copy } from 'lucide-vue-next'
 import InviteEmployeeModal from '@/components/pages/configuracoes/modals/InviteEmployeeModal.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
@@ -26,7 +16,6 @@ const { currentPlan } = usePlanAccess()
 const toast = useToast()
 
 const isModalOpen = ref(false)
-const actionsMenuOpenFor = ref(null)
 const editingRoleFor = ref(null)
 const selectedRole = ref('')
 
@@ -58,7 +47,6 @@ function getRoleLabel(roleValue) {
 }
 
 function openEditRole(employee) {
-  actionsMenuOpenFor.value = null
   selectedRole.value = employee.role
   editingRoleFor.value = employee._id
 }
@@ -74,7 +62,6 @@ async function handleUpdateRole(employeeId) {
 }
 
 async function handleDelete(employeeId) {
-  actionsMenuOpenFor.value = null
   if (confirm('Tem certeza que deseja demitir este funcionário? Esta ação não pode ser desfeita.')) {
     const { success } = await employeesStore.deactivateEmployee(employeeId)
     if (success) {
@@ -197,28 +184,24 @@ function copyInviteLink(token) {
             }}</span>
           </div>
           <div class="item-actions" @click.stop>
-            <div
-              v-if="
-                !isOwner(employee) &&
-                canManageTeam
-              "
-              class="actions-wrapper"
-              v-click-outside="() => (actionsMenuOpenFor = null)"
-            >
-              <AppButton @click.stop="actionsMenuOpenFor = employee._id" variant="default" size="sm" class="btn-icon">
-                <MoreHorizontal :size="20" />
-              </AppButton>
-              <Transition name="fade">
-                <div v-if="actionsMenuOpenFor === employee._id" class="actions-dropdown">
-                  <button @click="openEditRole(employee)" class="dropdown-item">
-                    <UserCog :size="14" /> Alterar Cargo
-                  </button>
-                  <button @click="handleDelete(employee._id)" class="dropdown-item delete">
-                    <Trash2 :size="14" /> Demitir
-                  </button>
-                </div>
-              </Transition>
-            </div>
+            <AppDropdownActions v-if="!isOwner(employee) && canManageTeam">
+              <template #default="{ close }">
+                <button
+                  @click="close(), openEditRole(employee)"
+                  class="dropdown-item"
+                >
+                  <UserCog :size="14" />
+                  Alterar Cargo
+                </button>
+                <button
+                  @click="close(), handleDelete(employee._id)"
+                  class="dropdown-item delete"
+                >
+                  <Trash2 :size="14" />
+                  Demitir
+                </button>
+              </template>
+            </AppDropdownActions>
           </div>
         </li>
       </ul>
@@ -455,45 +438,6 @@ function copyInviteLink(token) {
   white-space: nowrap;
 }
 
-.actions-wrapper {
-  position: relative;
-}
-.actions-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  width: 160px;
-  padding: 0.5rem;
-}
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem;
-  border-radius: 0.5rem;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #374151;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.dropdown-item:hover {
-  background-color: #f3f4f6;
-}
-.dropdown-item.delete {
-  color: #ef4444;
-}
-.dropdown-item.delete:hover {
-  background-color: #fee2e2;
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition:
@@ -571,7 +515,6 @@ function copyInviteLink(token) {
   .pending-text {
     display: none;
   }
-
 }
 
 /* --- NOVOS ESTILOS DE SKELETON --- */

@@ -1,5 +1,7 @@
 # Regras de layout
 
+Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.md).
+
 - Reutilizar componentes globais e o padrão da tela equivalente antes de criar CSS próprio.
 - Em Configurações, a ação principal fica à direita do header, via Teleport para #tab-actions, com AppButton variant="primary" e o azul principal do tema. Não repetir o título do header no conteúdo.
 - Carregamento de listas deve usar AppSkeleton com distribuição semelhante às linhas finais, sem substituir a lista apenas por texto de carregamento.

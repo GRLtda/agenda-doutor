@@ -45,7 +45,8 @@ async function updateDropdownPosition() {
   const rect = selectButtonRef.value.getBoundingClientRect()
   const viewportHeight = window.innerHeight
   const spaceBelow = viewportHeight - rect.bottom
-  const dropdownHeight = 300 // max-height aproximado
+  const dropdownHeight = optionsListRef.value?.offsetHeight || 300
+  const width = Math.min(rect.width, window.innerWidth - 16)
   
   let top = rect.bottom + 4
   if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
@@ -54,9 +55,9 @@ async function updateDropdownPosition() {
   
   dropdownStyle.value = {
     position: 'fixed',
-    top: `${top}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    top: `${Math.max(8, Math.min(top, viewportHeight - dropdownHeight - 8))}px`,
+    left: `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`,
+    width: `${width}px`,
   }
 }
 
@@ -140,6 +141,9 @@ function clearAll(event) {
         ref="selectButtonRef"
         type="button"
         class="select-button"
+        :aria-label="label || placeholder"
+        :aria-expanded="isOpen"
+        @keydown.esc.prevent="isOpen = false"
         :class="{ 'has-error': error, 'has-value': selectedItems.length > 0 }"
         @click="isOpen = !isOpen"
       >
@@ -173,7 +177,7 @@ function clearAll(event) {
 
       <Teleport to="body">
         <Transition name="fade">
-          <div v-if="isOpen" ref="optionsListRef" class="options-dropdown" :style="dropdownStyle">
+          <div v-if="isOpen" ref="optionsListRef" class="options-dropdown" :style="dropdownStyle" @keydown.esc.prevent="isOpen = false; selectButtonRef?.focus()">
             <!-- Search input -->
             <div v-if="searchable" class="search-container">
               <input
@@ -193,6 +197,11 @@ function clearAll(event) {
                 :key="option.value"
                 @mousedown.prevent="toggleOption(option)"
                 class="option-item"
+                tabindex="0"
+                role="checkbox"
+                :aria-checked="isSelected(option)"
+                @keydown.enter.prevent="toggleOption(option)"
+                @keydown.space.prevent="toggleOption(option)"
                 :class="{ 'is-selected': isSelected(option) }"
               >
                 <span class="option-checkbox">
@@ -330,6 +339,7 @@ function clearAll(event) {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
   z-index: 5000;
   overflow: hidden;
+  max-height: calc(100vh - 16px);
 }
 .search-container {
   padding: 0.5rem;
@@ -365,7 +375,7 @@ function clearAll(event) {
   font-size: 0.875rem;
   transition: background-color 0.15s;
 }
-.option-item:hover {
+.option-item:hover, .option-item:focus-visible {
   background-color: #f3f4f6;
 }
 .option-item.is-selected {

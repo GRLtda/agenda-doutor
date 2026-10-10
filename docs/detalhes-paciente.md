@@ -1,5 +1,11 @@
 # Detalhes do paciente
 
+Na aba Orçamentos, o menu de ações do celular reutiliza `AppDropdownActions`,
+mantendo os bloqueios para importados e para WhatsApp indisponível. Na aba
+Galeria, o filtro de tags reutiliza `StyledMultiSelect` e a navegação entre páginas
+usa `AppPagination`. Contratos e verificação dessas abas e dos anexos do
+atendimento: [Componentes compartilhados](componentes-compartilhados.md).
+
 No celular, a tela de detalhes do paciente usa a rolagem principal do `DefaultLayout`. O cartão da aba ativa e seu conteúdo crescem conforme os dados, sem criar uma segunda área vertical de rolagem. A navegação entre abas continua com rolagem horizontal para manter todas as opções acessíveis.
 
 Na aba Detalhes, as seções aparecem em cartões separados no celular, tanto em leitura quanto em edição. O formulário de edição usa uma coluna, espaçamento uniforme entre campos e ações em um cartão ao final. Textos longos em modo de leitura, como e-mail, quebram dentro do cartão.
