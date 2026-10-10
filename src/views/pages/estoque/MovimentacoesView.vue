@@ -1,9 +1,11 @@
 <script setup>
+import { localDateForApi } from '@/utils/financialDate'
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 // MovimentacoesView.vue — Livro-Razão de movimentações (imutável)
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
-import { Search, X, BookOpen } from 'lucide-vue-next'
+import { X, BookOpen } from 'lucide-vue-next'
 import EstoqueMovimentacaoTipo from '@/components/estoque/EstoqueMovimentacaoTipo.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
@@ -11,8 +13,15 @@ const store = useEstoqueStore()
 const router = useRouter()
 
 const tipo = ref('')
-const dataInicio = ref('')
-const dataFim = ref('')
+const dateRange = ref(null)
+const dataInicio = computed(() => dateRange.value?.[0] ? localDateForApi(dateRange.value[0]) : '')
+const dataFim = computed(() => dateRange.value?.[1] ? localDateForApi(dateRange.value[1]) : '')
+
+function updatePeriod(value) {
+  dateRange.value = value
+  page.value = 1
+  carregar()
+}
 const page = ref(1)
 
 const tipoOptions = [
@@ -35,8 +44,7 @@ async function carregar() {
 
 function limpar() {
   tipo.value = ''
-  dataInicio.value = ''
-  dataFim.value = ''
+  dateRange.value = null
   page.value = 1
   carregar()
 }
@@ -88,11 +96,7 @@ function prefixoAtendimento(atendimentoId) {
         />
       </div>
 
-      <div class="date-group">
-        <input class="filter-input" type="date" v-model="dataInicio" @change="carregar()" placeholder="De" title="Data início" />
-        <span class="date-sep">→</span>
-        <input class="filter-input" type="date" v-model="dataFim" @change="carregar()" placeholder="Até" title="Data fim" />
-      </div>
+      <AppDateRangePicker :model-value="dateRange" clearable @update:model-value="updatePeriod" />
 
       <button v-if="temFiltros" class="btn-clear" @click="limpar"><X :size="14" /> Limpar</button>
     </div>
@@ -252,12 +256,10 @@ function prefixoAtendimento(atendimentoId) {
 .subtitle { color: var(--cinza-texto); }
 
 .filtros-bar { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.5rem; align-items:center; }
-.filter-select, .filter-input {
+.filter-select {
   padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem;
   font-size:.875rem; color:#374151; background:#fff; cursor:pointer; outline:none;
 }
-.date-group { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
-.date-sep { color:#d1d5db; font-size:.85rem; }
 .btn-clear { display:inline-flex; align-items:center; gap:.35rem; padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem; font-size:.85rem; font-weight:600; cursor:pointer; background:#fff; color:#6b7280; }
 .btn-clear:hover { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
 
@@ -383,7 +385,6 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   .desktop-only { display:none; }
   .mobile-list { display:block; }
   .filtros-bar { flex-direction:column; }
-  .date-group { width:100%; }
   
   .card-header-flex { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
   .data-cel-mb { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; }

@@ -1,10 +1,11 @@
 <script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { CalendarDays, Plus, CheckCircle, Clock, Search, Check, Play, X, CalendarPlus, Bell, AlertCircle, Ban, LayoutGrid, Activity, Calendar, Settings } from 'lucide-vue-next'
+import { CalendarDays, Plus, CheckCircle, Clock, Search, Check, Play, X, CalendarPlus, Bell, AlertCircle, Ban, LayoutGrid, List, Activity, Calendar, Settings } from 'lucide-vue-next'
 import { formatPhone } from '@/directives/phone-mask'
 import CreateAppointmentModal from '@/components/pages/dashboard/CreateAppointmentModal.vue'
 import AppointmentDetailsModal from '@/components/pages/dashboard/AppointmentDetailsModal.vue'
@@ -15,8 +16,6 @@ import AppButton from '@/components/global/AppButton.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AppTableList from '@/components/global/AppTableList.vue'
 import CancelAppointmentSheet from '@/components/pages/dashboard/CancelAppointmentSheet.vue'
-import VueDatePicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const appointmentsStore = useAppointmentsStore()
@@ -551,27 +550,9 @@ onUnmounted(() => {
       </div>
       <div class="header-actions">
 
-        <!-- ✨ Date Range Picker (VueDatePicker) -->
+        <!-- Período compartilhado com Financeiro → A receber -->
         <div class="date-picker-wrapper">
-          <VueDatePicker
-            v-model="dateRange"
-            range
-            :enable-time-picker="false"
-            locale="pt-BR"
-            format="dd/MM/yyyy"
-            auto-apply
-            :clearable="false"
-            placeholder="Selecione o período"
-          >
-            <template #trigger>
-               <div class="custom-date-trigger">
-                  <div class="date-value">
-                     {{ formatDateDisplay(dateRange[0]) }}
-                     <CalendarDays :size="14" class="text-slate-400" />
-                  </div>
-               </div>
-            </template>
-          </VueDatePicker>
+          <AppDateRangePicker class="period-picker" v-model="dateRange" />
         </div>
 
         <!-- <div v-if="appointmentsActiveFiltersCount > 0" class="active-filters-indicator">
@@ -1006,7 +987,7 @@ onUnmounted(() => {
 }
 
 .date-picker-wrapper {
-  width: 290px;
+  width: auto;
 }
 
 @media (max-width: 768px) {
@@ -1043,33 +1024,6 @@ onUnmounted(() => {
   .view-switcher {
       justify-content: center;
   }
-}
-
-.custom-date-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background-color: var(--branco);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.5rem;
-  cursor: pointer;
-  height: 42px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.custom-date-trigger:hover {
-  border-color: #cbd5e1;
-}
-
-.date-value {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #1e293b;
-  font-weight: 500;
 }
 
 .separator {
@@ -1528,15 +1482,6 @@ onUnmounted(() => {
 }
 
 /* ✨ Header Controls Styles */
-.date-range-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
-}
 
 .date-input {
   border: none;

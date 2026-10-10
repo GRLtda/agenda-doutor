@@ -9,7 +9,10 @@ A paginação usa `AppPagination`, adaptando `pagination.totalPages` para
 total de arquivos. Contratos e checklist em
 [Componentes compartilhados](componentes-compartilhados.md).
 
-O período usa um único `VueDatePicker` com seleção de intervalo. Ao escolher as duas datas, a galeria recarrega desde a primeira página e envia `from` e `to` no formato `YYYY-MM-DD`; limpar o período remove ambos os filtros.
+O período usa `AppDateRangePicker`, compartilhado com Financeiro → A receber,
+com botão "início até fim" e calendário de intervalo. Ao escolher as duas datas,
+a galeria recarrega desde a primeira página e envia `from` e `to` no formato
+`YYYY-MM-DD`; a ação Limpar período remove ambos os filtros.
 
 Na largura de desktop, busca, categoria, tipo de arquivo, período e tags ficam na mesma linha. Em telas estreitas, os filtros se reorganizam para manter os controles utilizáveis.
 

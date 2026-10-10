@@ -45,26 +45,12 @@
         </template>
       </StyledSelect>
 
-      <VueDatePicker
+      <AppDateRangePicker
         class="period-picker"
         :model-value="dateRange"
-        range
-        :enable-time-picker="false"
-        locale="pt-BR"
-        format="dd/MM/yyyy"
-        auto-apply
-        teleport="body"
-        :z-index="12000"
+        clearable
         @update:model-value="onDateRangeChange"
-      >
-        <template #trigger>
-          <button type="button" class="period-trigger" aria-label="Selecionar período">
-            <Calendar :size="16" />
-            <span>{{ dateRangeLabel }}</span>
-            <ChevronDown :size="14" />
-          </button>
-        </template>
-      </VueDatePicker>
+      />
 
       <div class="tag-filter" v-click-outside="() => (isTagMenuOpen = false)">
         <button
@@ -203,12 +189,11 @@
 </template>
 
 <script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import AppPagination from '@/components/global/AppPagination.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import VueDatePicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
 import { Calendar, ChevronDown, FileImage, FileText, Filter, FolderOpen, ImageOff, Images, LoaderCircle, Maximize2, Search, X } from 'lucide-vue-next'
 import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -248,11 +233,6 @@ const pagination = computed(() => store.clinicGallery.pagination || {
   page: 1,
   limit: 30,
   totalPages: 1,
-})
-
-const dateRangeLabel = computed(() => {
-  if (!dateRange.value?.[0] || !dateRange.value?.[1]) return 'Selecionar período'
-  return `${dateRange.value[0].toLocaleDateString('pt-BR')} até ${dateRange.value[1].toLocaleDateString('pt-BR')}`
 })
 
 function formatFilterDate(date) {
@@ -473,8 +453,7 @@ function getThumbnailUrl(file) {
   font-size: 0.875rem;
 }
 
-.search-input:focus,
-.period-trigger:focus-visible {
+.search-input:focus {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
@@ -509,20 +488,6 @@ function getThumbnailUrl(file) {
 .select-prefix {
   color: #64748b;
   margin-right: 0.25rem;
-}
-
-.period-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 40px;
-  padding: 0 0.75rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  color: #475569;
-  font-size: 0.875rem;
-  cursor: pointer;
 }
 
 .tag-filter {
@@ -938,10 +903,6 @@ function getThumbnailUrl(file) {
 
   .compact-select {
     flex-basis: 100%;
-  }
-
-  .period-trigger {
-    width: 100%;
   }
 
   .media-grid {

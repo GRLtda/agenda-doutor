@@ -5,6 +5,17 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
+- `AppDateRangePicker`: padrão de Financeiro → A receber reutilizado em todas
+  as seleções de intervalo. `modelValue` é `[Date, Date]` ou `null`; emite
+  `update:modelValue` somente para um intervalo completo, inclusive um único dia
+  selecionado como início e fim. O botão mostra calendário e `dd/MM/aaaa até
+  dd/MM/aaaa`, com `Início`/`Fim` quando vazio. Calendário em português, sem hora,
+  dois meses, aplicação automática e painel teleportado para `body`; no celular,
+  os meses ficam empilhados. Props: `label`, `disabled`, `error` e `clearable`
+  (padrão `false`). Quando habilitada, a ação **Limpar período** emite `null`.
+  Erros são exibidos junto ao campo e associados ao botão para acessibilidade.
+  O componente não acessa API nem converte as datas em parâmetros de consulta.
+
 - `AppDropdownActions`: botão de ações, apenas um menu aberto entre suas instâncias,
   fechamento por clique externo ou Escape, com retorno de foco no Escape. O painel
   usa Teleport para `body`, acompanha rolagem e redimensionamento e abre acima
@@ -71,6 +82,34 @@ listagens; usar dados descartáveis para ações de edição, exclusão e confir
 
 Nos menus, conferir clique externo, Escape, alternância entre linhas, rolagem e
 opções próximas da borda inferior da tela. Nos selects, conferir também teclado.
+
+## Períodos: telas e comportamento
+
+Todas as telas abaixo usam `AppDateRangePicker`, incluindo a tela que originou
+o padrão. Escolher apenas a primeira data não altera o filtro aplicado.
+
+| Tela | Aplicação do período |
+| --- | --- |
+| Financeiro → A receber e A pagar | Mantém `dueStart`/`dueEnd`, filtros na URL e recarregamento automático. Limpar filtros mantém o comportamento de retornar ao mês atual. |
+| Financeiro → Caixa | Mantém `startDate`/`endDate` e filtros da URL. |
+| Financeiro → Resumo | Atualiza resumo, gráficos e rankings com o intervalo completo. |
+| Dashboard financeiro (`FinanceDashboardView`) | Período personalizado usa um intervalo único; atalhos Hoje/Semana/Mês/Ano e botão Aplicar permanecem. |
+| Atendimentos | Mostra ambas as datas; preserva filtros da URL e recarrega a listagem. O período ocupa a largura do componente, sem espaço reservado adicional antes do seletor Kanban/Lista; ambos os botões exibem seus ícones. Verificar o espaçamento e a troca de visualização em desktop e celular. |
+| Galeria da clínica | Mantém `from`/`to`, volta à primeira página; Limpar período remove as duas datas. |
+| Estoque → Movimentações | Converte datas selecionadas para `dataInicio`/`dataFim` em `YYYY-MM-DD` sem conversão UTC, volta à primeira página e recarrega. Limpar período remove ambas. |
+| Calendário → Criar/editar bloqueio | Um campo Período do bloqueio substitui as datas separadas. Horas de início/fim e Dia inteiro permanecem; erro de datas fica no período e erro de intervalo/horário no campo correspondente. Editar limpa o erro associado. |
+
+Datas únicas (nascimento, vencimento, pagamento, validade) e a navegação da agenda
+por dia/semana/mês continuam usando seus controles próprios. O dashboard
+financeiro legado e a listagem de anamneses pendentes não têm rota ativa própria.
+
+Verificar cada tela em desktop e celular: intervalo dentro do mês e entre meses,
+mesmo dia como início/fim, seleção incompleta, reabertura, fechamento externo e
+limpeza onde disponível. Nas telas com filtros na URL, recarregar a página para
+confirmar que o intervalo foi preservado. Em bloqueios, conferir criação/edição,
+Dia inteiro e horário final anterior ao inicial. A revisão visual isolada do
+componente cobriu seleção completa, seleção incompleta e limpeza, com dados
+simulados; os fluxos autenticados devem ser conferidos com dados de teste.
 
 ## Validação automatizada e limites
 

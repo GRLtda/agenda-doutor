@@ -3,6 +3,11 @@
 Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.md).
 
 - Reutilizar componentes globais e o padrão da tela equivalente antes de criar CSS próprio.
+- Seleção de período usa `AppDateRangePicker`, com o padrão de Financeiro → A receber:
+  botão com calendário e datas "início até fim", seleção de intervalo e aplicação
+  após escolher as duas datas. Não recriar controles locais nem usar dois campos
+  separados para datas de um período. Datas únicas e navegação da agenda por dia,
+  semana ou mês mantêm seus controles específicos.
 - Em Configurações, a ação principal fica à direita do header, via Teleport para #tab-actions, com AppButton variant="primary" e o azul principal do tema. Não repetir o título do header no conteúdo.
 - Carregamento de listas deve usar AppSkeleton com distribuição semelhante às linhas finais, sem substituir a lista apenas por texto de carregamento.
 - Listagens tabulares usam AppTableList como estrutura, cabeçalho discreto, linhas alinhadas e ações à direita. Não aplicar display:flex diretamente a td; usar um contêiner interno. Em telas estreitas, preservar acesso às colunas por rolagem horizontal.

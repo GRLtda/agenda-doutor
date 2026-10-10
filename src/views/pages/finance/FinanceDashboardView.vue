@@ -337,7 +337,6 @@ const handlePeriodChangeFromSheet = async (period) => {
       :isLoadingCustom="isLoadingCustom"
       :getPeriodDisplayLabel="getPeriodDisplayLabel"
       :getPeriodDateRange="getPeriodDateRange"
-      :formatDateDisplay="formatDateDisplay"
       @periodChange="handlePeriodChangeFromSheet"
       @applyCustom="applyCustomFilter"
       @cancelCustom="cancelCustomMode"

@@ -19,7 +19,9 @@ falhas na listagem oferecem **Tentar novamente**. Toast informa sucesso.
 
 O endereço deixou de ser editado na seção Identidade da Clínica, que apresenta
 um botão de navegação para a tabela de unidades. Identidade da Clínica é a primeira
-seção do menu; Endereços vem em seguida. A ação Excluir usa exclusão lógica.
+seção do menu; Endereços vem em seguida. A ação Excluir usa exclusão lógica e
+fica oculta no endereço padrão. Para excluir esse endereço, defina outro como
+padrão primeiro.
 
 No formulário de atendimento, o seletor usa `StyledSelect` e mostra nome e endereço completo.
 Durante o carregamento, usa `AppSkeleton`; em caso de falha, o seletor fica indisponível
@@ -46,6 +48,9 @@ certificado TLS do MongoDB. Os pré-requisitos, as variáveis e o comando ficam 
 ## Verificação
 
 - Em `crm-clinica`, executar `npm run build`.
+- Conferir que o endereço padrão não mostra Excluir, enquanto os demais mostram
+  a ação para usuários com permissão de gestão. Ao trocar o padrão, conferir que
+  a visibilidade acompanha a nova seleção.
 - Cadastrar dois endereços; tentar nome duplicado, campos vazios, CEP e UF
   inválidos. Conferir destaque, mensagem, foco e limpeza ao corrigir.
 - Definir um padrão e abrir novo atendimento; selecionar o outro local e salvar.

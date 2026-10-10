@@ -1,9 +1,8 @@
 ﻿<script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { CalendarMinus, Trash2, X, Clock, Calendar, PartyPopper, Ban, Tag } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
-import Datepicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import Switch from '@/components/global/Switch.vue'
@@ -153,6 +152,19 @@ watch(
 watch(clinicDoctorOptions, () => {
   applyDefaultDoctor()
 })
+
+function updateBlockPeriod(value) {
+  form.value.startDate = value[0]
+  form.value.endDate = value[1]
+  delete errors.value.startDate
+  delete errors.value.endDate
+  delete errors.value.interval
+}
+
+function clearTimeError(field) {
+  delete errors.value[field]
+  delete errors.value.interval
+}
 
 function validateForm() {
   const nextErrors = {}
@@ -386,20 +398,13 @@ async function handleDelete() {
 
         <Switch v-model="form.isAllDay" label="Dia inteiro" />
 
+        <AppDateRangePicker
+          :model-value="[form.startDate, form.endDate]"
+          label="Período do bloqueio"
+          :error="errors.startDate || errors.endDate || ''"
+          @update:model-value="updateBlockPeriod"
+        />
         <div class="date-time-grid">
-          <div class="form-group">
-            <label class="form-label">Data início</label>
-            <Datepicker
-              v-model="form.startDate"
-              locale="pt-BR"
-              format="dd/MM/yyyy"
-              :enable-time-picker="false"
-              auto-apply
-              :teleport="true"
-            />
-            <p v-if="errors.startDate" class="error-message">{{ errors.startDate }}</p>
-          </div>
-
           <FormInput
             v-model="form.startTime"
             class="time-field"
@@ -408,31 +413,17 @@ async function handleDelete() {
             :disabled="form.isAllDay"
             :error="errors.startTime"
             :required="!form.isAllDay"
+            @update:model-value="clearTimeError('startTime')"
           />
-        </div>
-
-        <div class="date-time-grid">
-          <div class="form-group">
-            <label class="form-label">Data fim</label>
-            <Datepicker
-              v-model="form.endDate"
-              locale="pt-BR"
-              format="dd/MM/yyyy"
-              :enable-time-picker="false"
-              auto-apply
-              :teleport="true"
-            />
-            <p v-if="errors.endDate" class="error-message">{{ errors.endDate }}</p>
-          </div>
-
           <FormInput
             v-model="form.endTime"
             class="time-field"
             label="Hora fim"
             type="time"
             :disabled="form.isAllDay"
-            :error="errors.endTime"
+            :error="errors.endTime || errors.interval"
             :required="!form.isAllDay"
+            @update:model-value="clearTimeError('endTime')"
           />
         </div>
 
@@ -446,7 +437,6 @@ async function handleDelete() {
           ></textarea>
         </div>
 
-        <p v-if="errors.interval" class="error-message">{{ errors.interval }}</p>
       </div>
     </template>
 

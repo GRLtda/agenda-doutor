@@ -169,7 +169,7 @@ onMounted(load)
               <td v-if="canManage"><div class="actions row-actions">
                 <AppButton variant="outline" size="sm" :disabled="saving" @click="edit(unit)"><Pencil :size="14" /> Editar</AppButton>
                 <AppButton v-if="!unit.isDefault" variant="outline" size="sm" :disabled="saving" @click="makeDefault(unit)"><Star :size="14" /> Definir padrão</AppButton>
-                <AppButton variant="outline" size="sm" :disabled="saving" @click="remove(unit)"><Trash2 :size="14" /> Excluir</AppButton>
+                <AppButton v-if="!unit.isDefault" variant="outline" size="sm" :disabled="saving" @click="remove(unit)"><Trash2 :size="14" /> Excluir</AppButton>
               </div></td>
             </tr>
           </tbody>

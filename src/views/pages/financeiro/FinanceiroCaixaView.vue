@@ -1,9 +1,8 @@
 <script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CalendarDays, SearchX } from 'lucide-vue-next'
-import VueDatePicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
+import { SearchX } from 'lucide-vue-next'
 import AppPagination from '@/components/global/AppPagination.vue'
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
@@ -116,10 +115,6 @@ function startOfMonthDate() {
 function endOfMonthDate() {
   const date = new Date()
   return new Date(date.getFullYear(), date.getMonth() + 1, 0)
-}
-
-function formatDateDisplay(dateInput) {
-  return formatFinancialDate(dateInput)
 }
 
 function formatDateForApi(dateInput) {
@@ -394,31 +389,11 @@ watch(() => route.query, () => {
         <p class="subtitle">Movimentações registradas por baixas de contas.</p>
       </div>
       <div class="header-actions">
-        <VueDatePicker
+        <AppDateRangePicker
           class="period-picker"
           :model-value="dateRange"
           @update:model-value="onRangeChange"
-          range
-          multi-calendars
-          :enable-time-picker="false"
-          locale="pt-BR"
-          format="dd/MM/yyyy"
-          auto-apply
-          teleport="body"
-          :z-index="12000"
-          :clearable="false"
-        >
-          <template #trigger>
-            <button class="period-trigger" type="button" aria-label="Selecionar período">
-              <CalendarDays :size="15" />
-              <span class="period-trigger__text">
-                <strong>{{ formatDateDisplay(dateRange[0]) || 'Início' }}</strong>
-                <span>até</span>
-                <strong>{{ formatDateDisplay(dateRange[1]) || 'Fim' }}</strong>
-              </span>
-            </button>
-          </template>
-        </VueDatePicker>
+        />
       </div>
     </div>
 
@@ -461,7 +436,6 @@ watch(() => route.query, () => {
         />
       </div>
     </div>
-
 
     <div class="table-wrapper" :class="{ 'is-loading': financeiroStore.loadingCaixa && financeiroStore.movimentosCaixa.length > 0 }">
       <div class="table-container desktop-only">
@@ -714,53 +688,6 @@ watch(() => route.query, () => {
   width: auto;
 }
 
-.period-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.55rem;
-  min-height: 40px;
-  width: auto;
-  min-width: 246px;
-  padding: 0 0.9rem;
-  border: 1px solid #e5eaf1;
-  border-radius: 0.75rem;
-  background: #fff;
-  color: #0f172a;
-  text-align: left;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
-  font-family: var(--fonte-principal);
-  font-size: 0.86rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.period-trigger:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  transform: translateY(-1px);
-}
-
-.period-trigger__text {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.42rem;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.period-trigger__text strong {
-  font-weight: 600;
-}
-
-.period-trigger__text span {
-  color: #94a3b8;
-  font-size: 0.78rem;
-  font-weight: 500;
-}
-
 .table-wrapper {
   display: flex;
   flex-direction: column;
@@ -995,8 +922,7 @@ th {
     margin-inline: -0.15rem;
   }
 
-  .period-picker,
-  .period-trigger {
+  .period-picker {
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
@@ -1004,11 +930,6 @@ th {
 
   .period-picker :deep(.dp__main) {
     width: 100%;
-  }
-
-  .period-trigger__text {
-    width: 100%;
-    justify-content: space-between;
   }
 
   .table-wrapper {

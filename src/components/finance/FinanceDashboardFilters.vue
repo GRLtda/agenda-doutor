@@ -1,18 +1,9 @@
 <script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import { ref } from 'vue'
 import BottomSheet from '@/components/global/BottomSheet.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
-import VueDatePicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
-import {
-  Filter,
-  User,
-  Calendar,
-  CalendarDays,
-  Hash,
-  Clock,
-  ArrowRight
-} from 'lucide-vue-next'
+import { Filter, User, Calendar, CalendarDays, Hash, Clock } from 'lucide-vue-next'
 
 const props = defineProps({
   selectedPeriod: {
@@ -51,10 +42,6 @@ const props = defineProps({
     type: Function,
     required: true
   },
-  formatDateDisplay: {
-    type: Function,
-    required: true
-  }
 })
 
 const emit = defineEmits([
@@ -91,12 +78,9 @@ const updateProfessional = (val) => {
   emit('update:selectedProfessional', val)
 }
 
-const updateStartDate = (val) => {
-  emit('update:customStartDate', val)
-}
-
-const updateEndDate = (val) => {
-  emit('update:customEndDate', val)
+const updateCustomRange = (value) => {
+  emit('update:customStartDate', value[0])
+  emit('update:customEndDate', value[1])
 }
 
 const handlePeriodChangeFromSheet = (period) => {
@@ -207,55 +191,10 @@ const cancelCustomMode = () => {
           <div v-if="selectedPeriod === 'custom'" class="mobile-filter-section custom-period-section">
             <span class="mobile-filter-label">Periodo personalizado</span>
 
-            <div class="mobile-date-trigger">
-              <div class="mobile-date-input-group">
-                <span class="mobile-date-input-label">Inicio</span>
-                <VueDatePicker
-                  :model-value="customStartDate"
-                  @update:model-value="updateStartDate"
-                  :enable-time-picker="false"
-                  locale="pt-BR"
-                  format="dd/MM/yyyy"
-                  auto-apply
-                  teleport="body"
-                  :z-index="12000"
-                  :clearable="false"
-                  placeholder="DD/MM/AAAA"
-                >
-                  <template #trigger>
-                    <button class="mobile-single-date-trigger" type="button">
-                      <CalendarDays :size="14" />
-                      <span>{{ customStartDate ? formatDateDisplay(customStartDate) : 'DD/MM/AAAA' }}</span>
-                    </button>
-                  </template>
-                </VueDatePicker>
-              </div>
-
-              <ArrowRight :size="14" class="mobile-date-arrow" />
-
-              <div class="mobile-date-input-group">
-                <span class="mobile-date-input-label">Fim</span>
-                <VueDatePicker
-                  :model-value="customEndDate"
-                  @update:model-value="updateEndDate"
-                  :enable-time-picker="false"
-                  locale="pt-BR"
-                  format="dd/MM/yyyy"
-                  auto-apply
-                  teleport="body"
-                  :z-index="12000"
-                  :clearable="false"
-                  placeholder="DD/MM/AAAA"
-                >
-                  <template #trigger>
-                    <button class="mobile-single-date-trigger" type="button">
-                      <CalendarDays :size="14" />
-                      <span>{{ customEndDate ? formatDateDisplay(customEndDate) : 'DD/MM/AAAA' }}</span>
-                    </button>
-                  </template>
-                </VueDatePicker>
-              </div>
-            </div>
+            <AppDateRangePicker
+              :model-value="[customStartDate, customEndDate]"
+              @update:model-value="updateCustomRange"
+            />
 
             <div class="mobile-filter-actions">
               <button class="mobile-filter-secondary" type="button" @click="cancelCustomMode">Cancelar</button>
@@ -488,53 +427,6 @@ const cancelCustomMode = () => {
   border-radius: 0.85rem;
   padding: 0.75rem;
   overflow: visible;
-}
-
-.mobile-date-trigger {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: end;
-  gap: 0.45rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  border-radius: 0.7rem;
-  min-height: 58px;
-  padding: 0.5rem;
-}
-
-.mobile-date-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.mobile-date-input-label {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: #94a3b8;
-  padding-left: 0.15rem;
-}
-
-.mobile-single-date-trigger {
-  width: 100%;
-  min-height: 33px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.55rem;
-  background-color: #f8fafc;
-  color: #334155;
-  font-size: 0.82rem;
-  font-weight: 400;
-  padding: 0.4rem 0.65rem;
-}
-
-.mobile-date-arrow {
-  color: #94a3b8;
-  margin-bottom: 0.5rem;
 }
 
 .mobile-filter-actions {
