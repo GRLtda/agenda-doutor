@@ -5,6 +5,9 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
+- `SideDrawer`: rodapés de fluxos por etapas usam `step-navigation-footer`.
+  Contrato, telas e verificação: [SideDrawer com Stepper](side-drawer-stepper-pattern.md).
+
 - `AppDateRangePicker`: padrão de Financeiro → A receber reutilizado em todas
   as seleções de intervalo. `modelValue` é `[Date, Date]` ou `null`; emite
   `update:modelValue` somente para um intervalo completo, inclusive um único dia
@@ -62,7 +65,7 @@ listagens; usar dados descartáveis para ações de edição, exclusão e confir
 | Tela / acesso | Conferir |
 | --- | --- |
 | Pacientes (`/pacientes`) | Menu Editar/Excluir nas representações desktop e celular; clique na linha continua abrindo o paciente. |
-| Procedimentos (`/procedimentos`) | Menu Editar/Excluir, fechamento após ação e confirmação de exclusão. |
+| Procedimentos (`/procedimentos`) | Menu Editar/Excluir, fechamento após ação e confirmação de exclusão. No sidebar de criação/edição, manter Cancelar/Voltar à esquerda e Próximo/Salvar à direita, com espaço entre os botões. A seta de Próximo é branca sobre o botão azul; os demais ícones preservam suas cores. Conferir as etapas em desktop e celular. |
 | Estoque → Produtos (`/estoque/produtos`) | Menu Ver detalhes/Editar/Excluir nas duas representações. |
 | Workflows (`/workflows`) | Menu editar/excluir sem abrir acidentalmente a linha; clique na linha abre o editor. |
 | Editor de workflow (`/workflows/:id`) | Prazo/unidade, presets de condição, status, procedimento e seletores dinâmicos de modelo/procedimento; salvar e reabrir para conferir os valores. |

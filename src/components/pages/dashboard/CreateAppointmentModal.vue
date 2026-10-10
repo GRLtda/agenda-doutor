@@ -16,6 +16,8 @@ import {
   Clock,
   Plus,
   X,
+  ArrowLeft,
+  ArrowRight,
   DoorClosed,
   Info,
   LoaderCircle,
@@ -978,14 +980,14 @@ async function handleSubmit() {
     </template>
 
     <template #footer>
-      <footer class="drawer-footer">
+      <footer class="drawer-footer step-navigation-footer">
         <div class="footer-actions">
           <AppButton
-            v-if="currentStep === 3 || (currentStep === 2 && !isEditMode)"
-            @click="currentStep--"
+            @click="currentStep === 1 || (currentStep === 2 && isEditMode) ? $emit('close') : currentStep--"
             class="flex-1"
           >
-            Voltar
+            <component :is="currentStep === 1 || (currentStep === 2 && isEditMode) ? X : ArrowLeft" :size="18" />
+            {{ currentStep === 1 || (currentStep === 2 && isEditMode) ? 'Cancelar' : 'Voltar' }}
           </AppButton>
           <AppButton
             v-if="currentStep < steps.length"
@@ -994,7 +996,8 @@ async function handleSubmit() {
             :disabled="isCheckingConflict"
             class="flex-1"
           >
-            Avançar
+            <ArrowRight :size="18" />
+            Próximo
           </AppButton>
           <AppButton
             v-else
@@ -1403,25 +1406,6 @@ async function handleSubmit() {
 }
 
 /* Footer */
-.drawer-footer {
-  display: flex;
-  align-items: center;
-  padding: clamp(1rem, 2vw, 1.5rem);
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
-}
-
-.footer-actions {
-  display: flex;
-  width: 100%;
-  gap: 0.75rem;
-}
-
-.footer-actions :deep(button),
-.footer-actions :deep(a) {
-  flex: 1 1 0;
-  min-width: 0;
-}
 
 @media (max-width: 768px) {
   .close-btn-outside {
@@ -1436,16 +1420,6 @@ async function handleSubmit() {
 
   .drawer-content {
     max-width: 100%;
-  }
-
-  .drawer-footer {
-    padding: 1rem;
-    flex-direction: row;
-    gap: 0.5rem;
-  }
-  .footer-actions {
-    width: 100%;
-    gap: 0.5rem;
   }
 
   .drawer-header {

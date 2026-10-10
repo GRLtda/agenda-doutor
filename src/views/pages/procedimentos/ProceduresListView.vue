@@ -643,7 +643,7 @@ const getPricingTypeInfo = (type) => {
       </div>
 
       <template #footer>
-        <div class="procedure-create-footer">
+        <div class="procedure-create-footer step-navigation-footer">
           <AppButton variant="default" @click="currentStep === 1 ? closeModal() : prevStep()">
             <component :is="currentStep === 1 ? X : ArrowLeft" :size="18" />
             {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}
@@ -1284,20 +1284,6 @@ th.actions-header .th-content {
   background: #f9fafb;
 }
 
-.procedure-create-footer {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  border-top: 1px solid #f3f4f6;
-  background: #fff;
-}
-
-.procedure-create-footer :deep(.app-button svg) {
-  color: #111827;
-  stroke: #111827;
-}
-
 /* Modal Styles */
 .drawer-header {
   padding: 1.5rem;
@@ -1328,14 +1314,6 @@ th.actions-header .th-content {
   border-radius: 4px;
   width: fit-content;
   font-weight: 500;
-}
-
-.drawer-footer {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  border-top: 1px solid #f3f4f6;
 }
 
 .btn-cancel,
@@ -1470,15 +1448,6 @@ th.actions-header .th-content {
   .procedure-create-review-grid,
   .margin-preview-grid {
     grid-template-columns: 1fr;
-  }
-
-  .procedure-create-footer {
-    padding: 1rem;
-  }
-
-  .procedure-create-footer :deep(.app-button) {
-    flex: 1 1 0;
-    min-width: 0;
   }
 }
 </style>

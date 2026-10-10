@@ -263,6 +263,43 @@ function handleOverlayPointerUp(event) {
 }
 
 /* Mobile Responsiveness for Close Button */
+.drawer-content :deep(.step-navigation-footer) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid #f3f4f6;
+  background: #fff;
+}
+
+.drawer-content :deep(.step-navigation-footer .footer-actions),
+.drawer-content :deep(.step-navigation-footer .footer-actions-right) {
+  display: contents;
+}
+
+.drawer-content :deep(.step-navigation-footer .app-button) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.drawer-content :deep(.step-navigation-footer .footer-btn-return),
+.drawer-content :deep(.step-navigation-footer .variant-primary) {
+  margin-left: auto;
+}
+
+.drawer-content :deep(.step-navigation-footer .variant-primary .lucide-arrow-right) {
+  color: #fff;
+  stroke: currentColor;
+}
+
+@media (max-width: 768px) {
+  .drawer-content :deep(.step-navigation-footer) {
+    padding: 1rem;
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 768px) {
   .close-btn-outside {
     display: none;

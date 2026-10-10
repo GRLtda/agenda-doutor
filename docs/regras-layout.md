@@ -3,6 +3,7 @@
 Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.md).
 
 - Reutilizar componentes globais e o padrão da tela equivalente antes de criar CSS próprio.
+- Sidebars por etapas seguem o [padrão de rodapé compartilhado](side-drawer-stepper-pattern.md): Cancelar/Voltar à esquerda, Próximo/ação final à direita, espaço entre as ações e seta de Próximo branca no botão azul.
 - Seleção de período usa `AppDateRangePicker`, com o padrão de Financeiro → A receber:
   botão com calendário e datas "início até fim", seleção de intervalo e aplicação
   após escolher as duas datas. Não recriar controles locais nem usar dois campos
