@@ -70,6 +70,7 @@ onMounted(refresh)
       </button>
       <div v-else class="storage-breakdown">
         <h3>Consumo por tipo</h3>
+        <p class="storage-muted">Identidade visual, fotos de perfil e assinaturas não consomem a cota da clínica.</p>
         <p v-if="!details.length" class="storage-muted">Nenhum arquivo contabilizado.</p>
         <div v-for="item in details" :key="item._id" class="storage-row">
           <span>{{ labels[item._id] || item._id }} <small>({{ item.files }})</small></span>
