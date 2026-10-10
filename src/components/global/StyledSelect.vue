@@ -163,7 +163,9 @@ defineExpose({
           </div>
           <component v-if="selectedIcon" :is="selectedIcon" :size="16" class="option-icon" />
           <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
-          <span class="truncate">{{ selectedLabel }}</span>
+          <slot name="selected-label" :option="selectedOption" :label="selectedLabel">
+            <span class="truncate">{{ selectedLabel }}</span>
+          </slot>
         </div>
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
       </button>
@@ -197,7 +199,9 @@ defineExpose({
               </div>
               <component v-if="option.icon" :is="option.icon" :size="16" class="option-icon" />
               <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
-              <span class="option-label">{{ option.label }}</span>
+              <slot name="option-label" :option="option">
+                <span class="option-label">{{ option.label }}</span>
+              </slot>
               <slot name="option-action" :option="option"></slot>
             </li>
             <li v-if="$slots.footer" class="options-footer" @mousedown.stop>

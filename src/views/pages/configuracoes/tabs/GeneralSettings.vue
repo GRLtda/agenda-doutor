@@ -3,10 +3,9 @@ import { ref, watch, nextTick, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useToast } from 'vue-toastification'
-import { UploadCloud, Building, MapPin, Save } from 'lucide-vue-next'
+import { UploadCloud, Building, MapPin, Save, ArrowRight } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import AppButton from '@/components/global/AppButton.vue'
-import { fetchAddressByCEP } from '@/api/external'
 import { onBeforeRouteLeave } from 'vue-router'
 
 const authStore = useAuthStore()
@@ -62,24 +61,6 @@ watch(
   { immediate: true, deep: true },
 )
 
-watch(
-  () => clinicData.value.address.cep,
-  async (newCep) => {
-    const currentComplement = clinicData.value.address.complement;
-
-    const numericCep = newCep.replace(/\D/g, '')
-    if (numericCep.length === 8) {
-      const address = await fetchAddressByCEP(numericCep)
-      if (address) {
-        clinicData.value.address.street = address.street
-        clinicData.value.address.district = address.neighborhood
-        clinicData.value.address.city = address.city
-        clinicData.value.address.state = address.state
-        clinicData.value.address.complement = currentComplement;
-      }
-    }
-  },
-)
 
 
 function handleFileSelect(event) {
@@ -97,6 +78,7 @@ async function handleUpdate() {
   // Snapshot dos dados do formulário para evitar que o watcher (ativado pelo uploadLogo -> fetchUser)
   // sobrescreva as mudanças de texto com os dados antigos do banco.
   const payload = JSON.parse(JSON.stringify(clinicData.value))
+  delete payload.address
 
   if (selectedLogoFile.value) {
     const formData = new FormData()
@@ -168,20 +150,10 @@ onBeforeRouteLeave((to, from, next) => {
 <template>
   <div class="general-settings">
     <form v-if="isDataLoaded" @submit.prevent="handleUpdate">
-      <!-- Grid de duas colunas -->
-      <div class="settings-grid">
-        <!-- Coluna: Identidade da Clínica -->
-        <section class="settings-section">
-          <div class="section-header">
-            <div class="section-icon">
-              <Building :size="20" />
-            </div>
-            <div class="section-title">
-              <h3>Identidade da Clínica</h3>
-              <p>Logo e informações principais</p>
-            </div>
-          </div>
 
+      <div class="settings-grid">
+
+        <section class="settings-section">
           <div class="identity-content">
             <!-- Logo Uploader -->
             <div class="logo-area">
@@ -236,70 +208,20 @@ onBeforeRouteLeave((to, from, next) => {
           </div>
         </section>
 
-        <!-- Coluna: Endereço -->
-        <section class="settings-section">
-          <div class="section-header">
-            <div class="section-icon">
-              <MapPin :size="20" />
-            </div>
-            <div class="section-title">
-              <h3>Endereço</h3>
-              <p>Localização da clínica</p>
-            </div>
-          </div>
 
-          <div class="address-grid">
-            <div class="field-row field-row-cep">
-              <FormInput 
-                v-model="clinicData.address.cep" 
-                label="CEP" 
-                placeholder="00000-000"
-                required 
-              />
-              <FormInput 
-                v-model="clinicData.address.street" 
-                label="Logradouro" 
-                placeholder="Rua, Avenida, etc."
-                required 
-              />
-            </div>
-
-            <div class="field-row field-row-address">
-              <FormInput 
-                v-model="clinicData.address.number" 
-                label="Número" 
-                placeholder="123"
-                required 
-              />
-              <FormInput
-                v-model="clinicData.address.complement"
-                label="Complemento"
-                placeholder="Sala, Andar"
-              />
-              <FormInput 
-                v-model="clinicData.address.district" 
-                label="Bairro" 
-                placeholder="Centro"
-              />
-              <FormInput 
-                v-model="clinicData.address.state" 
-                label="UF" 
-                placeholder="SP"
-              />
-            </div>
-
-            <div class="field-row field-row-city">
-              <FormInput 
-                v-model="clinicData.address.city" 
-                label="Cidade" 
-                placeholder="São Paulo"
-              />
-            </div>
-          </div>
-        </section>
       </div>
 
-      <!-- Footer Actions -->
+      <aside class="units-callout">
+        <div class="section-icon"><MapPin :size="20" /></div>
+        <div class="callout-copy">
+          <h3>Endereços de atendimento</h3>
+          <p>Cadastre os endereços e escolha o local padrão dos agendamentos.</p>
+        </div>
+        <AppButton variant="outline" size="sm" :to="{ query: { ...$route.query, tab: 'unidades' } }">
+          Gerenciar endereços <ArrowRight :size="16" />
+        </AppButton>
+      </aside>
+
       <div class="footer-actions">
         <span v-if="hasUnsavedChanges" class="unsaved-indicator">
           <span class="dot"></span>
@@ -322,321 +244,38 @@ onBeforeRouteLeave((to, from, next) => {
 
     <!-- Loading State -->
     <div v-else class="loading-state">
-      <div class="spinner"></div>
       <p>Carregando dados da clínica...</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.general-settings {
-  width: 100%;
-}
-
-/* Grid Principal */
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 1.5rem;
-  align-items: stretch;
-}
-
-.section-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-}
-
-.section-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  border-radius: 0.625rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--azul-principal);
-  flex-shrink: 0;
-}
-
-.section-title h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 0.125rem 0;
-}
-
-.section-title p {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin: 0;
-}
-
-/* Identidade da Clínica */
-.identity-content {
-  display: flex;
-  flex-direction: row;
-  gap: 1.5rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.logo-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 120px;
-}
-
-.logo-container {
-  width: 80px;
-  height: 80px;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  border: 2px solid #e5e7eb;
-  background: #f9fafb;
-  flex-shrink: 0;
-}
-
-.logo-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.logo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-}
-
-
-
-.logo-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.logo-hint {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
-
-
-.identity-fields {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-/* Grid de Endereço */
-.address-grid {
-  display: flex;
-  flex-direction: column;
-}
-
-.field-row {
-  display: grid;
-  gap: 1rem;
-}
-
-.field-row-cep {
-  grid-template-columns: 130px 1fr;
-}
-
-.field-row-address {
-  grid-template-columns: 80px 1fr 1fr 60px;
-}
-
-.field-row-city {
-  grid-template-columns: 200px;
-}
-
-/* Footer */
-.footer-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-}
-
-.unsaved-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #f59e0b;
-  font-weight: 500;
-}
-
-.unsaved-indicator .dot {
-  width: 8px;
-  height: 8px;
-  background: #f59e0b;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.save-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Loading */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  gap: 1rem;
-  color: #6b7280;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: var(--azul-principal);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Responsividade */
-@media (max-width: 900px) {
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .identity-content {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .logo-area {
-    width: 100%;
-    flex-shrink: 1;
-  }
-
-  .identity-fields {
-    width: 100%;
-  }
-
-  .identity-fields :deep(.form-group),
-  .identity-fields :deep(input) {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-}
-
-@media (max-width: 768px) {
-
-  .identity-content {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .logo-area {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    flex-shrink: 1;
-    width: 100%;
-  }
-
-  .logo-label {
-    width: 100%;
-  }
-
-  .field-row-cep,
-  .field-row-city {
-    grid-template-columns: 1fr;
-  }
-
-  .field-row-address {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .identity-fields {
-    width: 100%;
-  }
-
-  .identity-fields :deep(.form-group),
-  .identity-fields :deep(input) {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .footer-actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .unsaved-indicator {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-
-  .section-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .identity-content {
-    gap: 1rem;
-  }
-
-  .logo-area {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .logo-label {
-    width: auto;
-  }
-
-  .identity-fields {
-    width: 100%;
-  }
-
-  .identity-fields :deep(.form-group),
-  .identity-fields :deep(input) {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .address-grid :deep(.form-group),
-  .address-grid :deep(input) {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .field-row-address {
-    grid-template-columns: 1fr;
-  }
+.general-settings { width: 100%; min-width: 0; }
+.settings-grid { display: grid; gap: 1.5rem; }
+.settings-section { padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: 1rem; background: #f9fafb; }
+.identity-content { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 2rem; align-items: start; }
+.logo-area { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 0; }
+.logo-label { font-size: .875rem; font-weight: 500; color: #374151; }
+.logo-container { width: 96px; height: 96px; border: 1px solid #e5e7eb; border-radius: .75rem; overflow: hidden; background: white; }
+.logo-image { width: 100%; height: 100%; object-fit: contain; }
+.logo-placeholder { display: grid; place-items: center; height: 100%; color: #9ca3af; }
+.logo-hint { font-size: .75rem; color: #6b7280; text-align: center; }
+.identity-fields { display: grid; gap: .5rem; min-width: 0; padding-top: .25rem; }
+.units-callout { display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: 1rem; background: #f9fafb; }
+.section-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: .75rem; color: var(--azul-principal); background: #eef2ff; flex-shrink: 0; }
+.callout-copy { flex: 1; min-width: 0; }
+.callout-copy h3 { margin: 0 0 .25rem; font-size: .875rem; font-weight: 600; color: #111827; }
+.callout-copy p { margin: 0; font-size: .8125rem; line-height: 1.5; color: #6b7280; }
+.footer-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #e5e7eb; }
+.unsaved-indicator { display: flex; align-items: center; gap: .5rem; margin-right: auto; font-size: .8125rem; color: #6b7280; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; }
+.loading-state { padding: 2rem; text-align: center; color: #6b7280; }
+@media (max-width: 640px) {
+  .identity-content { grid-template-columns: 1fr; gap: 1.25rem; }
+  .logo-area { justify-self: start; }
+  .units-callout { flex-wrap: wrap; }
+  .callout-copy { flex-basis: calc(100% - 56px); }
+  .units-callout > :last-child { width: 100%; }
+  .footer-actions > .unsaved-indicator { flex-basis: 100%; }
 }
 </style>

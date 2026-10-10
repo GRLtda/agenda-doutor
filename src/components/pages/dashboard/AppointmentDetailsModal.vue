@@ -1,6 +1,7 @@
 ﻿<script setup>
 import { computed, ref, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { listUnits, getUnit, formatUnitAddress } from '@/api/units'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
@@ -53,6 +54,24 @@ const router = useRouter()
 
 const patient = computed(() => props.event.originalEvent.patient)
 const appointment = computed(() => props.event.originalEvent)
+const location = ref(null)
+const locationError = ref('')
+const locationCount = ref(0)
+async function loadLocation() {
+  const id = appointment.value._id
+  const unitId = appointment.value.unitId?._id || appointment.value.unitId
+  location.value = null; locationError.value = ''; locationCount.value = 0
+  try {
+    const { data } = await listUnits()
+    if (id !== appointment.value._id) return
+    locationCount.value = data.units.length
+    let unit = data.units.find(item => item._id === (unitId || data.defaultUnitId))
+    if (unitId && !unit) unit = (await getUnit(unitId)).data
+    if (id !== appointment.value._id) return
+    location.value = unit || { name: 'Endereço padrão da clínica', address: data.legacyAddress || {} }
+  } catch { if (id === appointment.value._id) locationError.value = 'Não foi possível carregar o local de atendimento.' }
+}
+watch(() => [appointment.value._id, appointment.value.unitId], loadLocation, { immediate: true })
 
 const badgeInfo = computed(() => {
   return useStatusBadge(props.event.originalEvent.status)
@@ -432,6 +451,19 @@ function handleApprove() {
         </div>
       </section>
 
+      <section v-if="locationCount > 1 || locationError" class="section">
+        <div class="location-box">
+          <h4 class="location-label"><MapPin :size="16" /> Endereço de atendimento</h4>
+          <template v-if="location">
+            <p class="location-name">{{ location.name }}</p>
+            <p class="location-address">{{ formatUnitAddress(location.address) || 'Endereço não informado' }}</p>
+          </template>
+          <div v-else-if="locationError" class="location-error" role="alert">
+            <span>{{ locationError }}</span>
+            <AppButton variant="outline" size="sm" @click="loadLocation">Tentar novamente</AppButton>
+          </div>
+        </div>
+      </section>
       <!-- Reason -->
       <section class="section">
          <div class="reason-box">
@@ -693,6 +725,12 @@ function handleApprove() {
 </template>
 
 <style scoped>
+.location-box { background: #f9fafb; padding: 1rem; border: 1px solid #e5e7eb; border-radius: .75rem; }
+.location-label { display: flex; align-items: center; gap: .5rem; margin: 0 0 .75rem; font-size: .75rem; font-weight: 600; color: #6b7280; }
+.location-label svg { color: var(--azul-principal); }
+.location-name { margin: 0 0 .25rem; font-size: .875rem; font-weight: 600; color: #374151; }
+.location-address { margin: 0; font-size: .8125rem; line-height: 1.5; color: #6b7280; overflow-wrap: anywhere; }
+.location-error { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; font-size: .8125rem; color: #b42318; }
 /* Header */
 .drawer-header {
   padding: 1.5rem;

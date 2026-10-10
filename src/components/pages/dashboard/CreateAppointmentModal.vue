@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { listUnits, formatUnitAddress } from '@/api/units'
 import { usePatientsStore } from '@/stores/patients'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useClinicStore } from '@/stores/clinic'
@@ -10,6 +11,7 @@ import { useToast } from 'vue-toastification'
 import {
   User,
   Calendar,
+  MapPin,
   Bell,
   Clock,
   Plus,
@@ -32,6 +34,7 @@ import {
 import Stepper from '@/components/pages/onboarding/Stepper.vue'
 import SearchableSelect from '@/components/global/SearchableSelect.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import Switch from '@/components/global/Switch.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
@@ -56,6 +59,50 @@ const router = useRouter()
 let debounceTimeout = null
 const currentStep = ref(1)
 const errors = ref({})
+const units = ref([])
+const unitsReady = ref(false)
+const unitsLoading = ref(false)
+const unitsError = ref('')
+const existingReady = ref(!props.initialData?._id)
+const formError = ref('')
+const appointmentForm = ref(null)
+async function loadUnits() {
+  unitsReady.value = false; unitsLoading.value = true; unitsError.value = ''
+  try {
+    if (!existingReady.value && !(await hydrateExistingAppointment())) throw Object.assign(new Error('Não foi possível carregar o atendimento original. Tente novamente antes de salvar.'), { originalAppointment: true })
+    const { data } = await listUnits()
+    units.value = data.units
+    if (!appointmentData.value.unitId) appointmentData.value.unitId = data.defaultUnitId || (data.units.length === 1 ? data.units[0]._id : '')
+    unitsReady.value = true
+  } catch (error) { unitsError.value = error.originalAppointment ? error.message : 'Não foi possível carregar os endereços. Tente novamente antes de salvar.' }
+  finally { unitsLoading.value = false }
+}
+async function focusFirstError() {
+  await nextTick()
+  appointmentForm.value?.querySelector('.has-error input, .has-error button, button.has-error, select.has-error, textarea.has-error, .form-error')?.focus()
+}
+async function showSubmitError(error) {
+  const data = error?.response?.data || {}
+  const fields = data.fields || data.error?.details?.fields
+  errors.value = {}
+  if (fields) {
+    for (const [key, message] of Object.entries(fields)) {
+      if (['patient', 'doctor', 'unitId', 'notes', 'startTime', 'endTime', 'date'].includes(key)) errors.value[['startTime', 'endTime', 'date'].includes(key) ? 'time' : key] = message
+      else formError.value = data.message || message
+    }
+  } else {
+    const message = data.message || 'Não foi possível salvar o atendimento. Tente novamente.'
+    if (/paciente/i.test(message)) errors.value.patient = message
+    else if (/médico|medico|profissional/i.test(message)) errors.value.doctor = message
+    else if (/horário|horario|intervalo|data|bloqueio/i.test(message)) errors.value.time = message
+    else if (/queixa|motivo|notes/i.test(message)) errors.value.notes = message
+    else formError.value = message
+  }
+  if (errors.value.doctor && clinicStore.currentClinic?.plan === 'basic') { formError.value = errors.value.doctor; delete errors.value.doctor }
+  if (errors.value.patient || errors.value.doctor) currentStep.value = 1
+  else if (errors.value.time || errors.value.notes || errors.value.unitId) currentStep.value = 2
+  await focusFirstError()
+}
 const patientSearchQuery = ref('')
 
 // ✨ 2. Novos estados para verificação de conflito
@@ -115,13 +162,14 @@ const clinicWorkingHours = computed(() => {
 
 const steps = [
   { name: 'Paciente', icon: User, subtitle: 'Identificação' },
-  { name: 'Horário', icon: Calendar, subtitle: 'Data e Hora' },
+  { name: 'Agendamento', icon: Calendar, subtitle: 'Data, hora e local' },
   { name: 'Lembretes', icon: Bell, subtitle: 'Notificações' },
 ]
 
 const appointmentData = ref({
   patient: null,
   doctor: null,
+  unitId: '',
   notes: '',
   date: new Date(),
   startTime: null,
@@ -134,17 +182,21 @@ const appointmentData = ref({
 })
 
 async function hydrateExistingAppointment() {
-  if (!props.initialData?._id) return
+  if (!props.initialData?._id) return true
 
   const { success, data } = await appointmentsStore.fetchAppointmentById(props.initialData._id)
-  if (!success || !data) return
+  if (!success || !data) return false
 
   appointmentData.value.patient = data.patient?._id || data.patient || appointmentData.value.patient
   appointmentData.value.doctor = data.doctor?._id || data.doctor || appointmentData.value.doctor
+  appointmentData.value.unitId = data.unitId?._id || data.unitId || ''
   appointmentData.value.notes = data.notes || appointmentData.value.notes || ''
+  existingReady.value = true
+  return true
 }
 
 onMounted(async () => {
+  appointmentData.value.unitId = props.initialData?.unitId?._id || props.initialData?.unitId || ''
   if (props.initialData) {
     appointmentData.value.patient = props.initialData.patient?._id || props.initialData.patient
     appointmentData.value.doctor = props.initialData.doctor?._id || props.initialData.doctor || null
@@ -173,7 +225,7 @@ onMounted(async () => {
   if (!appointmentData.value.doctor && authStore.user?.role === 'medico') {
     appointmentData.value.doctor = authStore.user._id
   }
-  await hydrateExistingAppointment()
+  await loadUnits()
 })
 
 const patientOptions = computed(() => {
@@ -548,15 +600,25 @@ watch(
 )
 
 // ✨ 7. Função de validação atualizada
+watch(() => ({ ...appointmentData.value }), (value, previous) => {
+  for (const key of ['patient', 'doctor', 'unitId', 'notes']) if (value[key] !== previous[key]) delete errors.value[key]
+  if (value.date !== previous.date || value.startTime !== previous.startTime || value.endTime !== previous.endTime) delete errors.value.time
+  formError.value = ''
+})
+
 function validateStep() {
   errors.value = {}
+  if (currentStep.value >= 2 && (!unitsReady.value || unitsLoading.value)) { formError.value = unitsError.value || 'Aguarde o carregamento dos endereços.'; focusFirstError(); return false }
+  if (currentStep.value >= 2 && units.value.length && !appointmentData.value.unitId) { currentStep.value = 2; errors.value.unitId = 'Selecione um endereço.'; focusFirstError(); return false }
   if (currentStep.value === 1) {
     if (!appointmentData.value.patient) {
       errors.value.patient = 'Por favor, selecione um paciente para continuar.'
+      focusFirstError()
       return false
     }
     if (!appointmentData.value.doctor && requiresDoctorSelection.value) {
       errors.value.doctor = 'Por favor, selecione um médico responsável.'
+      focusFirstError()
       return false
     }
   }
@@ -565,11 +627,17 @@ function validateStep() {
     (!appointmentData.value.startTime || !appointmentData.value.endTime)
   ) {
     errors.value.time = 'Selecione um horário de início e fim.'
+    focusFirstError()
     return false
   }
 
   // A verificação de conflito só bloqueia a etapa de horário e o envio final
   if (currentStep.value >= 2) {
+    if (!appointmentData.value.date || !Number.isFinite(new Date(appointmentData.value.date).getTime())) {
+      errors.value.time = 'Selecione uma data válida.'
+      focusFirstError()
+      return false
+    }
     if (isCheckingConflict.value) {
       errors.value.time = 'Verificando disponibilidade...'
       return false
@@ -592,9 +660,11 @@ function nextStep() {
 }
 
 async function handleSubmit() {
-  if (!validateStep()) return
+  formError.value = ''
+  if (!validateStep()) { await focusFirstError(); return }
 
   // Pega data e hora da UI
+  if (!appointmentData.value.startTime || !appointmentData.value.endTime) { errors.value.time = 'Selecione um horário de início e fim.'; currentStep.value = 2; await focusFirstError(); return }
   const [startHour, startMinute] = appointmentData.value.startTime.split(':').map(Number)
   const [endHour, endMinute] = appointmentData.value.endTime.split(':').map(Number)
   const baseDate = new Date(appointmentData.value.date)
@@ -609,11 +679,12 @@ async function handleSubmit() {
     // --- MODO REMARCAR (UPDATE) ---
     const appointmentId = props.initialData?._id
     if (!appointmentId) {
-      toast.error('Erro: ID do agendamento original não encontrado para remarcação.')
+      formError.value = 'Agendamento original não encontrado. Feche e abra o formulário novamente.'
       return
     }
 
     const payload = {
+      ...(appointmentData.value.unitId ? { unitId: appointmentData.value.unitId } : {}),
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       notes: appointmentData.value.notes.trim(),
@@ -628,11 +699,12 @@ async function handleSubmit() {
       emit('saved')
       emit('close')
     } else {
-      toast.error(error?.response?.data?.message || 'Erro ao remarcar o agendamento.')
+      await showSubmitError(error)
     }
   } else {
     // --- MODO CRIAR (NOVO/REAGENDAR) ---
     const payload = {
+      ...(appointmentData.value.unitId ? { unitId: appointmentData.value.unitId } : {}),
       patient: appointmentData.value.patient,
       doctor: appointmentData.value.doctor, // NOVO: ID do médico
       notes: appointmentData.value.notes.trim(),
@@ -654,10 +726,7 @@ async function handleSubmit() {
       emit('saved')
       emit('close')
     } else {
-      toast.error(
-        error?.response?.data?.message ||
-          (isRescheduleMode.value ? 'Erro ao reagendar.' : 'Erro ao criar agendamento.'),
-      )
+      await showSubmitError(error)
     }
   }
 }
@@ -703,7 +772,8 @@ async function handleSubmit() {
     </template>
 
     <template #default>
-      <div v-auto-animate class="appointment-form">
+      <div ref="appointmentForm" v-auto-animate class="appointment-form">
+        <p v-if="formError" class="error-message form-error" role="alert" tabindex="-1">{{ formError }}</p>
         <div v-if="currentStep === 1" class="step-content">
           <div>
             <SearchableSelect
@@ -748,16 +818,46 @@ async function handleSubmit() {
             <label class="form-label">Motivo / Queixa</label>
             <textarea
               v-model="appointmentData.notes"
-              class="notes-input"
+              class="notes-input" :class="{ 'has-error': errors.notes }" :aria-invalid="!!errors.notes"
               rows="4"
               maxlength="250"
               placeholder="Descreva o motivo da consulta ou a queixa principal do paciente"
             />
-            <p class="helper-text">{{ appointmentData.notes.length }}/250</p>
+            <p class="helper-text">{{ appointmentData.notes.length }}/250</p><p v-if="errors.notes" class="error-message">{{ errors.notes }}</p>
           </div>
         </div>
 
         <div v-if="currentStep === 2" class="step-content">
+        <div v-if="unitsLoading || unitsError || units.length > 1" class="form-group unit-select-group">
+          <label class="form-label"><MapPin :size="16" /> Endereço de atendimento</label>
+          <div v-if="unitsLoading" aria-busy="true" aria-label="Carregando endereços">
+            <AppSkeleton height="48px" border-radius="0.75rem" />
+          </div>
+          <StyledSelect
+            v-else-if="unitsReady"
+            v-model="appointmentData.unitId"
+            :options="units.map(unit => ({ value: unit._id, name: unit.name, address: formatUnitAddress(unit.address), isDefault: unit.isDefault, label: unit.name + (unit.isDefault ? ' (Padrão)' : '') + ' — ' + formatUnitAddress(unit.address) }))"
+            :placeholder="units.length ? 'Selecione um endereço' : 'Endereço padrão da clínica'"
+            :error="errors.unitId || false"
+            @update:model-value="delete errors.unitId"
+          >
+            <template #selected-label="{ option, label }">
+              <div v-if="option" class="unit-option-copy">
+                <span class="unit-option-title">{{ option.name }} <span v-if="option.isDefault" class="unit-default-tag">Padrão</span></span>
+                <span class="unit-option-address" :title="option.address">{{ option.address }}</span>
+              </div>
+              <span v-else>{{ label }}</span>
+            </template>
+            <template #option-label="{ option }">
+              <div class="unit-option-copy">
+                <span class="unit-option-title">{{ option.name }} <span v-if="option.isDefault" class="unit-default-tag">Padrão</span></span>
+                <span class="unit-option-address" :title="option.address">{{ option.address }}</span>
+              </div>
+            </template>
+          </StyledSelect>
+          <p v-if="unitsError" role="alert" class="error-message">{{ unitsError }} <button type="button" :disabled="unitsLoading" @click="loadUnits">Tentar novamente</button></p>
+        </div>
+
           <div v-if="isEditMode" class="form-group">
             <label class="form-label">Motivo / Queixa</label>
             <textarea
@@ -919,6 +1019,13 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
+.unit-option-copy { display: flex; align-items: center; gap: .5rem; min-width: 0; width: 100%; text-align: left; overflow: hidden; }
+.unit-option-title { display: flex; align-items: center; flex-shrink: 0; max-width: 50%; overflow: hidden; white-space: nowrap; gap: .5rem; font-size: .875rem; font-weight: 600; color: #374151; }
+.unit-option-address { display: block; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; font-weight: 400; line-height: 1.5; color: #6b7280; }
+.unit-default-tag { display: inline-flex; padding: .125rem .375rem; border-radius: .375rem; color: var(--azul-principal); background: #eef2ff; font-size: .625rem; font-weight: 500; }
+.unit-select-group :deep(.form-group) { margin-bottom: 0; }
+.notes-input.has-error { border-color:#dc2626 }
+
 /* Header */
 .drawer-header {
   padding: clamp(1rem, 2vw, 1.5rem);

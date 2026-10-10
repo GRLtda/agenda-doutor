@@ -44,3 +44,16 @@ com a variante de onboarding limitada às ações:
 
 O menu fecha ao clicar fora dele ou ao pressionar `Esc`. Em telas estreitas, os controles do
 cabeçalho preservam apenas seus ícones para manter a área de planos utilizável.
+
+## Validação do cadastro
+
+A etapa Dados da Clínica exige nome, responsável e endereço completo. Erros locais
+e os fields da API aparecem no FormInput correspondente, são limpos ao editar e
+o primeiro campo inválido recebe foco. Falhas gerais ficam no formulário e
+permitem repetir o envio; os campos e o botão ficam bloqueados durante salvamento.
+A API retorna a clínica com o endereço Principal já vinculado. Em falha recuperável,
+repetir o envio retoma o cadastro; não libera clínica pendente para uso. Contrato e
+testes: [Cadastro de clínicas](../../api-clinic/docs/CADASTRO_CLINICAS.md).
+
+Verificar obrigatórios, CEP/UF inválidos retornados pela API, CNPJ duplicado,
+limpeza de erros ao editar, foco e nova tentativa após HTTP 503.

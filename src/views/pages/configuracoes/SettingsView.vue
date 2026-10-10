@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Building,
+  MapPin,
   Clock,
   FileSignature,
   FileText,
@@ -11,6 +12,7 @@ import {
   Users,
 } from 'lucide-vue-next'
 import OptionsModalShell from '@/components/global/OptionsModalShell.vue'
+import UnitsSettings from '@/views/pages/configuracoes/tabs/UnitsSettings.vue'
 import GeneralSettings from '@/views/pages/configuracoes/tabs/GeneralSettings.vue'
 import WorkingHoursSettings from '@/views/pages/configuracoes/tabs/WorkingHoursSettings.vue'
 import AnamnesisTemplates from '@/views/pages/configuracoes/tabs/AnamnesisTemplates.vue'
@@ -33,6 +35,7 @@ const tabs = [
     icon: Building,
     component: GeneralSettings,
   },
+  { value: 'unidades', label: 'Endereços', description: 'Endereços e local padrão dos agendamentos.', icon: MapPin, component: UnitsSettings },
   {
     value: 'configuracoes',
     label: 'Configurações',
