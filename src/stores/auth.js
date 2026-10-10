@@ -23,6 +23,7 @@ import { registerFcmToken, markNotificationsAsRead } from '@/api/notifications-v
 import { messaging, getToken, onMessage } from '@/services/firebase'
 import { trackClarityEvent } from '@/services/clarity'
 import { useClinicStore } from './clinic'
+import { storageUploadError } from '@/api/storage'
 // router import removed to avoid circular dependency
 
 // Storage keys
@@ -644,7 +645,7 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: 'Erro ao fazer upload' }
       } catch (error) {
         console.error('[Auth] Erro no upload da foto:', error)
-        return { success: false, error: error.response?.data?.error?.message || 'Erro ao fazer upload' }
+        return { success: false, error: storageUploadError(error) || error.response?.data?.error?.message || error.response?.data?.message || 'Erro ao fazer upload' }
       }
     },
 
