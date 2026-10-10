@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
 import { LogOut, User, CreditCard, LifeBuoy, MessageCircle } from 'lucide-vue-next'
+import StorageUsage from './StorageUsage.vue'
 
 const props = defineProps({
   direction: {
@@ -45,6 +46,18 @@ function openSubscriptionTab() {
   })
 }
 
+function openStorageTab() {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: '1',
+      profileTab: 'storage',
+      settings: undefined,
+      tab: undefined,
+    },
+  })
+}
+
 function handleSupport() {
   const message = encodeURIComponent('Olá! Preciso de ajuda para escolher meu plano.')
   window.open(`https://wa.me/5511921923978?text=${message}`, '_blank', 'noopener,noreferrer')
@@ -69,6 +82,10 @@ async function handleLogout() {
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
+      </li>
+
+      <li v-if="!isOnboarding" class="storage-section">
+        <StorageUsage @details="openStorageTab" />
       </li>
 
       <li v-if="!isOnboarding" class="separator"></li>
@@ -102,7 +119,7 @@ async function handleLogout() {
   border-radius: 0.75rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
-  width: 220px;
+  width: min(280px, calc(100vw - 24px));
   z-index: 100;
   animation: fade-in 0.2s ease-out;
 }
@@ -157,6 +174,7 @@ ul {
   background-color: #e5e7eb;
   margin: 0.5rem 0;
 }
+.storage-section { border-top: 1px solid #e5e7eb; margin-top: .35rem; }
 
 .text-red {
   color: #ef4444;
