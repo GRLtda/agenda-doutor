@@ -1,7 +1,7 @@
 # Unidades de atendimento
 
 Em **Configurações → Endereços**, a tabela mostra nome, endereço e
-indicação do padrão. Proprietários, médicos e gerentes podem adicionar, editar e definir
+indicação do padrão. Proprietários, médicos e gerentes podem adicionar, editar, excluir e definir
 o padrão. Outros usuários autenticados da clínica podem consultar os locais e
 selecioná-los ao agendar, respeitando o acesso existente ao agendamento.
 
@@ -20,7 +20,7 @@ falhas na listagem oferecem **Tentar novamente**. Toast informa sucesso.
 O endereço deixou de ser editado na seção Identidade da Clínica, que apresenta
 um botão de navegação para a tabela de unidades. Identidade da Clínica é a primeira
 seção do menu; Endereços vem em seguida. A ação Excluir usa exclusão lógica e
-fica disponível somente para proprietários e médicos, oculta no endereço padrão. Para excluir esse endereço, defina outro como
+fica disponível para proprietários, médicos e gerentes, oculta no endereço padrão. Para excluir esse endereço, defina outro como
 padrão primeiro.
 
 No formulário de atendimento, o seletor usa `StyledSelect` e mostra nome e endereço completo.
@@ -48,9 +48,9 @@ certificado TLS do MongoDB. Os pré-requisitos, as variáveis e o comando ficam 
 ## Verificação
 
 - Em `crm-clinica`, executar `npm run build`.
-- Com gerente, conferir cadastro, edição e definição do padrão disponíveis e ausência de Excluir. Com recepcionista, conferir apenas consulta.
+- Com gerente, conferir cadastro, edição, exclusão e definição do padrão disponíveis; Excluir permanece oculto no padrão. Com recepcionista, conferir apenas consulta.
 - Conferir que o endereço padrão não mostra Excluir, enquanto os demais mostram
-  a ação para proprietários e médicos. Ao trocar o padrão, conferir que
+  a ação para proprietários, médicos e gerentes. Ao trocar o padrão, conferir que
   a visibilidade acompanha a nova seleção.
 - Cadastrar dois endereços; tentar nome duplicado, campos vazios, CEP e UF
   inválidos. Conferir destaque, mensagem, foco e limpeza ao corrigir.

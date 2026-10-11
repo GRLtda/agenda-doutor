@@ -14,7 +14,6 @@ import { Trash2, Plus, Pencil, Star, Save, MapPin } from 'lucide-vue-next'
 const auth = useAuthStore()
 const toast = useToast()
 const canManage = computed(() => ['owner', 'medico', 'gerente'].includes(auth.user?.role))
-const canDelete = computed(() => ['owner', 'medico'].includes(auth.user?.role))
 const units = ref([])
 const loading = ref(true)
 const cepLoading = ref(false)
@@ -170,7 +169,7 @@ onMounted(load)
               <td v-if="canManage"><div class="actions row-actions">
                 <AppButton variant="outline" size="sm" :disabled="saving" @click="edit(unit)"><Pencil :size="14" /> Editar</AppButton>
                 <AppButton v-if="!unit.isDefault" variant="outline" size="sm" :disabled="saving" @click="makeDefault(unit)"><Star :size="14" /> Definir padrão</AppButton>
-                <AppButton v-if="canDelete && !unit.isDefault" variant="outline" size="sm" :disabled="saving" @click="remove(unit)"><Trash2 :size="14" /> Excluir</AppButton>
+                <AppButton v-if="!unit.isDefault" variant="outline" size="sm" :disabled="saving" @click="remove(unit)"><Trash2 :size="14" /> Excluir</AppButton>
               </div></td>
             </tr>
           </tbody>
