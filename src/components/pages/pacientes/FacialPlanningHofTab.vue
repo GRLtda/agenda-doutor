@@ -952,6 +952,7 @@ onBeforeUnmount(() => {
         </div>
         <div
           class="face-map"
+          @dragstart.prevent
           :class="{
             readonly: !canEdit,
             male: draft.faceVariant === 'MALE',
@@ -2261,6 +2262,13 @@ textarea:disabled {
   transform: translate(var(--pan-x), var(--pan-y)) scale(var(--face-zoom));
   transform-origin: center;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.face-canvas :is(img, svg) {
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .face-map.pannable {

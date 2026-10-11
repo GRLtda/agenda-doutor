@@ -1,8 +1,10 @@
 <script setup>
+import AppEmptyState from '@/components/global/AppEmptyState.vue'
+import AttachmentsEmptyIllustration from './AttachmentsEmptyIllustration.vue'
 import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
 import { ref, reactive, computed } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
+import { ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 import PhotoViewerUpload from './PhotoViewerUpload.vue'
@@ -565,7 +567,7 @@ async function handleMontageComplete(file) {
       </div>
     </Transition>
 
-    <div class="attachments-grid">
+    <div v-if="!disabled || record?.attachments?.length" class="attachments-grid">
       <!-- Botão Adicionar -->
       <div
         v-if="!disabled"
@@ -668,14 +670,18 @@ async function handleMontageComplete(file) {
       </div>
     </div>
 
-    <div
-      v-if="(!record?.attachments?.length || record?.attachments?.length === 0) && !isUploading"
-      class="empty-attachments"
+    <AppEmptyState
+      v-if="!record?.attachments?.length && !isUploading && !isCompressing"
+      class="attachments-empty-state"
+      title="Nenhuma imagem neste atendimento"
+      :text="disabled
+        ? 'Este atendimento ainda não possui fotos ou montagens anexadas.'
+        : 'Adicione fotos para registrar a evolução do paciente ou crie uma montagem.'"
     >
-      <ImageIcon :size="48" class="empty-icon" />
-      <h3 class="empty-title">Nenhum anexo ainda</h3>
-      <p v-if="!disabled" class="empty-text">Clique em "Adicionar Imagem" para começar.</p>
-    </div>
+      <template #illustration>
+        <AttachmentsEmptyIllustration />
+      </template>
+    </AppEmptyState>
 
     <input
       type="file"
@@ -779,6 +785,22 @@ async function handleMontageComplete(file) {
 </template>
 
 <style scoped>
+.attachments-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.attachments-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: clamp(24px, 5vw, 56px) 16px;
+}
+
 .tag-filter { width: 240px; max-width: 100%; flex-shrink: 0; margin-bottom: 0; }
 @media (max-width: 640px) { .tag-filter { width: 100%; flex-shrink: 1; } }
 .attachments-grid {
@@ -815,12 +837,6 @@ async function handleMontageComplete(file) {
 .action-card.disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.empty-icon {
-  width: 100%;
-  display: flex;
-  justify-content: center;
 }
 
 .action-card.disabled:hover {
@@ -1046,21 +1062,6 @@ async function handleMontageComplete(file) {
 }
 .delete-button:hover {
   background-color: rgb(239, 68, 68);
-}
-
-.empty-attachments {
-  text-align: center;
-  padding: 3rem;
-  color: #9ca3af;
-}
-.empty-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 1rem 0 0.5rem;
-  color: #4b5563;
-}
-.empty-text {
-  font-size: 0.9rem;
 }
 
 .image-viewer-overlay {

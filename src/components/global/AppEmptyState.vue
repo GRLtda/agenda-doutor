@@ -1,9 +1,11 @@
 <template>
   <div class="state-cell">
     <div class="empty-state-content">
-      <div class="empty-state-icon-bg">
-        <component :is="icon" v-if="icon" :size="24" />
-      </div>
+      <slot name="illustration">
+        <div class="empty-state-icon-bg">
+          <component :is="icon" v-if="icon" :size="24" />
+        </div>
+      </slot>
       <h3 class="empty-state-title">{{ title }}</h3>
       <p class="empty-state-text">{{ text }}</p>
     </div>
@@ -14,7 +16,7 @@
 defineProps({
   title: { type: String, required: true },
   text: { type: String, required: true },
-  icon: { type: [Object, Function], required: true }
+  icon: { type: [Object, Function], default: null }
 })
 </script>
 

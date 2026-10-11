@@ -1,0 +1,63 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 240 180"
+  fill="none"
+  aria-hidden="true"
+  focusable="false"
+>
+  <ellipse cx="120" cy="148" rx="79" ry="9" fill="var(--empty-shadow, #d5e0f5)" opacity=".3" />
+  <rect x="40" y="41" width="160" height="102" rx="26" fill="var(--empty-backdrop, #f0f4fc)" />
+  <path
+    d="M55 76a10 10 0 0 1 10-10h34l12 12h65a10 10 0 0 1 10 10v48H55Z"
+    fill="var(--empty-layer, #dce6fa)"
+  />
+  <g transform="rotate(-10 102 87)">
+    <rect
+      x="65"
+      y="36"
+      width="73"
+      height="98"
+      rx="9"
+      fill="var(--empty-shadow, #d5e0f5)"
+      opacity=".35"
+      transform="translate(0 3)"
+    />
+    <rect x="65" y="36" width="73" height="98" rx="9" fill="var(--empty-paper, #fff)" />
+    <rect x="73" y="44" width="57" height="66" rx="5" fill="var(--empty-backdrop, #f0f4fc)" />
+    <circle cx="114" cy="60" r="6" fill="var(--empty-accent, #6b95ed)" opacity=".6" />
+    <path d="m76 101 17-21 12 12 9-10 13 19Z" fill="var(--empty-accent, #6b95ed)" opacity=".45" />
+    <rect x="80" y="118" width="36" height="3" rx="1.5" fill="var(--empty-layer, #dce6fa)" />
+  </g>
+  <g transform="rotate(8 148 94)">
+    <rect
+      x="113"
+      y="51"
+      width="69"
+      height="88"
+      rx="9"
+      fill="var(--empty-shadow, #d5e0f5)"
+      opacity=".3"
+      transform="translate(0 3)"
+    />
+    <rect x="113" y="51" width="69" height="88" rx="9" fill="var(--empty-paper, #fff)" />
+    <rect x="121" y="59" width="53" height="58" rx="5" fill="var(--empty-layer, #dce6fa)" />
+    <circle cx="159" cy="73" r="5" fill="var(--empty-paper, #fff)" opacity=".8" />
+    <path d="m124 108 14-19 11 12 9-8 13 15Z" fill="var(--empty-accent, #6b95ed)" opacity=".55" />
+    <rect x="129" y="125" width="32" height="3" rx="1.5" fill="var(--empty-layer, #dce6fa)" />
+  </g>
+  <path
+    d="M49 107a8 8 0 0 1 8-8h47l10 10h70a8 8 0 0 1 8 9l-3 21a9 9 0 0 1-9 8H60a9 9 0 0 1-9-8Z"
+    fill="var(--empty-layer, #dce6fa)"
+  />
+  <rect
+    x="69"
+    y="120"
+    width="27"
+    height="5"
+    rx="2.5"
+    fill="var(--empty-paper, #fff)"
+    opacity=".75"
+  />
+  <circle cx="196" cy="58" r="4" fill="var(--empty-accent, #6b95ed)" opacity=".35" />
+  <circle cx="44" cy="94" r="3" fill="var(--empty-accent, #6b95ed)" opacity=".25" />
+</svg>
