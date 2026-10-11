@@ -127,3 +127,9 @@ simulados; os fluxos autenticados devem ser conferidos com dados de teste.
 - Revisão visual isolada dos componentes compartilhados em `1280×800` e
   `390×844`, com dados simulados, sem acesso autenticado nem escrita na API.
   Essa revisão não substitui o checklist das telas com dados reais.
+
+## Ilustrações nos estados vazios
+
+`AppEmptyState` aceita o slot `illustration` para substituir o ícone circular por um SVG contextual. O `icon` é opcional; consumidores existentes continuam com o mesmo visual. Título e texto permanecem obrigatórios. O estado vazio de anexos do atendimento usa esse slot; veja [Imagens e anexos sem fotos](atendimento.md#imagens-e-anexos-sem-fotos).
+
+Regras visuais, arquivos SVG, posicionamento, comportamento e fila de adoção: [Estados vazios das telas](estados-vazios.md).

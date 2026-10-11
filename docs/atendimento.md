@@ -38,3 +38,13 @@ antigos do paciente nem ações de escrita enquanto aguarda a resposta.
 Conferir prontuário ausente, anexos, anamneses, atendimento realizado somente leitura
 e rejeição de URL com paciente diferente. A consulta mantém a primeira página de
 até 20 anamneses ativas, conforme a rota existente. Não há cache de dados clínicos.
+
+## Imagens e anexos sem fotos
+
+Quando não há anexos, Imagens e montagem usa `AppEmptyState` com a ilustração vetorial em `src/assets/illustrations/attachments-empty.svg`, exibida por `AttachmentsEmptyIllustration`: pasta e cartões de fotografia sobrepostos, composição centralizada e margens generosas em `viewBox="0 0 240 180"`. O SVG é decorativo, responsivo e usa as variáveis CSS `--empty-paper`, `--empty-backdrop`, `--empty-layer`, `--empty-shadow` e `--empty-accent`, com padrões branco e azuis suaves da marca. A profundidade usa camadas e transparências, sem contornos escuros.
+
+O título informa ausência de imagens. Em edição, o texto orienta adicionar fotos ou criar montagem, usando os controles existentes acima. Em somente leitura, descreve a ausência sem sugerir escrita. O vazio não aparece durante envio/compressão, quando já existem anexos ou quando filtros não encontram resultados entre anexos existentes.
+
+Verifique atendimento sem prontuário, prontuário sem anexos, somente leitura, envio/compressão e retorno após excluir a última foto. Confira desktop e celular, variáveis de tema, primeira foto salva e filtros sem resultados.
+
+O conjunto de ilustração, título e texto fica centralizado horizontal e verticalmente no espaço restante da aba. Em edição, os controles de adicionar foto e montagem permanecem acima; em somente leitura, a grade vazia não ocupa espaço. O SVG é importado como conteúdo estático local (`?raw`), preservando a herança das variáveis CSS do tema; nunca injete SVG vindo de usuários nesse componente. Verifique o alinhamento em atendimento realizado e editável, desktop e celular.

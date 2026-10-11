@@ -25,3 +25,5 @@ caso de falha, a mensagem e a ação de nova tentativa ficam visíveis.
 
 - Seleções de opções usam os componentes compartilhados StyledSelect ou SearchableSelect,
   conforme o campo existente. Não introduzir select nativo em formulários padronizados.
+
+- Estados vazios de páginas, abas e cards seguem [Estados vazios das telas](estados-vazios.md): SVG em arquivo, azuis suaves da marca e conjunto centralizado na área útil. Consulte a fila de adoção antes de migrar uma tela.
