@@ -5,6 +5,36 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
+- `CopyContact`: props `value`, `label` e `message`, conteúdo pelo slot padrão.
+  Copia via Clipboard API somente acima de 768px e mostra feedback em popover
+  Reka UI teleportado por 1,8s. Não propaga o clique à linha; erro permanece no
+  popover. Cancela o timer ao desmontar e não mostra feedback de sucesso antes
+  da confirmação de cópia. Primeiro uso: [Pacientes](listagem-pacientes.md).
+  Usa o visual do tooltip de `FormInput`: fundo branco, borda cinza, raio de 6px,
+  sombra e seta. O conteúdo é um `div` nativo via `as-child`, preservando CSS
+  scoped após Teleport. Cursor padrão permanece sobre o contato.
+
+- `AppointmentDetailsModal`: aceita `loading` e `error` opcionais; durante a
+  carga, `event` pode ser nulo. O mesmo SideDrawer mostra skeleton no corpo,
+  mantendo o título/fechamento e ocultando ações até existir o evento completo.
+  Erro exibe nova tentativa via evento `retry`. Padrões antigos sem essas props
+  mantêm o comportamento. Primeiro uso: [Pacientes](listagem-pacientes.md).
+
+- `Checkbox` (`components/ui/checkbox`): contorno cinza de 1,5px, tamanho 18px,
+  preenchimento com `--azul-principal` animado em 180ms, ícone branco e traço
+  para seleção parcial. Mantém contratos do Reka UI e foco visível por teclado;
+  respeita `prefers-reduced-motion` e estado desabilitado.
+  A caixa tem alinhamento flex e indicador absoluto: montar/desmontar o ícone
+  não altera a linha de base nem a altura do cabeçalho da tabela.
+
+- `AppTableList`: seleção opcional com `selectable`, `items`, `itemKey` (padrão
+  `_id`) e `v-model:selectedKeys`. O slot padrão recebe `isSelected(item)`,
+  `selectRow(item, checked)`, `selectAll(checked)`, `allSelected`, `someSelected`
+  e `selectable`. O consumidor renderiza os seletores e impede propagação do
+  clique. Selecionar todos afeta apenas `items`; a seleção não chama API nem
+  executa ações em lote. Desabilitado por padrão, preserva os consumidores
+  existentes. Primeiro uso: [Tabela de pacientes](listagem-pacientes.md).
+
 - `SideDrawer`: aceita `teleportTo` (seletor ou elemento DOM), com padrão `body`.
   Em tela cheia nativa, o consumidor pode passar o elemento em fullscreen para
   manter o drawer visível. O destino é reativo e preserva o estado do formulário.
@@ -46,6 +76,18 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
   selecionar tags corresponde a qualquer uma das tags selecionadas.
 - `AppPagination`: `currentPage`, `totalPages`, `totalItems`, `limit` e evento
   `page-change`. Os consumidores adaptam `pages` ou `totalPages` sem alterar a API.
+  O campo Número da página permite salto direto em desktop/celular, via Enter
+  ou saída do campo, sem botão Ir. Aceita dígitos, limita a 1 até `totalPages`
+  e restaura a página atual quando vazio;
+  acompanha mudanças de `currentPage` e não emite ao confirmar a página atual.
+  Rodapé branco com borda superior, resumo de resultados, botões contornados de
+  primeira/anterior/próxima/última página e página ativa azul. No desktop, mostra
+  números com reticências e campo de salto; no celular, mantém o campo de salto
+  entre as setas. A lista de pacientes oculta resumo e atalhos extremos no mobile.
+  Outros consumidores mantêm o resumo acima. Botões têm
+  rótulos acessíveis, foco visível e limites desabilitados; a página atual usa
+  `aria-current`. Clicar na página atual não emite nova consulta. Não há seletor
+  de quantidade por página: `limit` continua controlado pelo consumidor.
 - `WorkingHoursFields`: recebe `v-model` com os dias e emite uma nova lista ao
   alterar `isOpen`, `startTime` ou `endTime`. Usa `Switch` e `StyledSelect`;
   horários mantêm o formato `HH:mm` e opções de 30 em 30 minutos. Onboarding

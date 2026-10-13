@@ -12,6 +12,11 @@ Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.m
 - Em Configurações, a ação principal fica à direita do header, via Teleport para #tab-actions, com AppButton variant="primary" e o azul principal do tema. Não repetir o título do header no conteúdo.
 - Carregamento de listas deve usar AppSkeleton com distribuição semelhante às linhas finais, sem substituir a lista apenas por texto de carregamento.
 - Listagens tabulares usam AppTableList como estrutura, cabeçalho discreto, linhas alinhadas e ações à direita. Não aplicar display:flex diretamente a td; usar um contêiner interno. Em telas estreitas, preservar acesso às colunas por rolagem horizontal.
+- Na listagem de pacientes, manter a tabela na altura útil restante da janela,
+  independentemente da quantidade de registros. Evitar rolagem vertical da página;
+  dados excedentes rolam dentro da tabela, preservando acesso à paginação.
+  No celular, pacientes usam cards com rolagem interna e paginação fora da área
+  rolável, mantendo altura limitada ao espaço útil da janela.
 - Editar e definir padrão usam AppButton com ícone e variante visível (outline); ações não podem aparecer como texto solto sem estilo.
 - Opções booleanas, como Usar como unidade padrão, usam Switch, com rótulo, estado selecionado e estado desabilitado perceptíveis. Não usar checkbox nativo sem estilo.
 - Formulários de endereço consultam CEP usando a integração existente em api/external.js. Exibir consulta em andamento, permitir nova tentativa e preenchimento manual em caso de falha. Não sobrescrever edições feitas enquanto a consulta estava em andamento nem aplicar respostas de um CEP anterior.

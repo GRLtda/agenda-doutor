@@ -34,31 +34,35 @@ import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import CancelAppointmentSheet from '@/components/pages/dashboard/CancelAppointmentSheet.vue'
 
 const props = defineProps({
-  event: { type: Object, required: true },
+  event: { type: Object, default: null },
+  loading: { type: Boolean, default: false },
+  error: { type: String, default: '' },
   hasPrevious: { type: Boolean, default: false },
   hasNext: { type: Boolean, default: false },
   currentIndex: { type: Number, default: 0 },
   totalCount: { type: Number, default: 0 },
 })
 
-const emit = defineEmits(['close', 'edit', 'previous', 'next', 'return', 'reschedule'])
+const emit = defineEmits(['close', 'edit', 'previous', 'next', 'return', 'reschedule', 'retry'])
 
 const appointmentsStore = useAppointmentsStore()
 const authStore = useAuthStore()
 const toast = useToast()
 const router = useRouter()
 
-const patient = computed(() => props.event.originalEvent.patient)
-const appointment = computed(() => props.event.originalEvent)
+const patient = computed(() => props.event?.originalEvent?.patient || {})
+const appointment = computed(() => props.event?.originalEvent || {})
 const location = ref(null)
 const locationError = ref('')
 const locationCount = ref(0)
 async function loadLocation() {
   const id = appointment.value._id
+  if (!id) return
   const unitId = appointment.value.unitId?._id || appointment.value.unitId
   location.value = null; locationError.value = ''; locationCount.value = 0
   try {
@@ -389,14 +393,14 @@ function handleApprove() {
       <header class="drawer-header">
         <div class="header-left">
           <h2>Detalhes do Agendamento</h2>
-          <span class="appointment-id">ID #{{ appointment._id.slice(-6).toUpperCase() }}</span>
+          <span v-if="appointment._id" class="appointment-id">ID #{{ appointment._id.slice(-6).toUpperCase() }}</span>
         </div>
         <div class="header-right">
           <button @click="$emit('close')" class="mobile-close-btn">
             <X :size="24" />
           </button>
            <!-- Paginação visual -->
-          <div class="pagination-controls">
+          <div v-if="!loading && !error" class="pagination-controls">
             <span class="page-info">{{ currentIndex + 1 }} de {{ totalCount }}</span>
             <div class="nav-buttons">
               <button
@@ -422,6 +426,16 @@ function handleApprove() {
     </template>
 
     <template #default>
+      <div v-if="loading" class="details-loading" role="status" aria-label="Carregando detalhes do agendamento" aria-busy="true">
+        <AppSkeleton width="45%" height="20px" />
+        <div class="loading-patient"><AppSkeleton width="48px" height="48px" border-radius="50%" /><div><AppSkeleton width="75%" /><AppSkeleton width="90%" height="12px" /></div></div>
+        <AppSkeleton height="90px" />
+        <AppSkeleton width="60%" height="20px" />
+        <AppSkeleton height="150px" />
+        <AppSkeleton height="100px" />
+      </div>
+      <div v-else-if="error" class="details-loading" role="alert"><p>{{ error }}</p><AppButton variant="outline" @click="$emit('retry')">Tentar novamente</AppButton></div>
+      <template v-else-if="event">
       <!-- Personal Detail -->
       <section class="section">
         <h3 class="section-title">Dados do Paciente</h3>
@@ -657,10 +671,11 @@ function handleApprove() {
          </div>
       </section>
 
+      </template>
     </template>
 
     <template #footer>
-      <footer class="drawer-footer">
+      <footer v-if="!loading && !error && event" class="drawer-footer">
 
          <AppButton
             v-if="appointment.status === 'Iniciado'"
@@ -725,6 +740,10 @@ function handleApprove() {
 </template>
 
 <style scoped>
+.details-loading { display: flex; flex-direction: column; gap: 1.5rem; padding: 0; }
+.loading-patient { display: flex; align-items: center; gap: 1rem; }
+.loading-patient > div:first-child { flex-shrink: 0; }
+.loading-patient > div:last-child { flex: 1; display: flex; flex-direction: column; gap: .75rem; }
 .location-box { background: #f9fafb; padding: 1rem; border: 1px solid #e5e7eb; border-radius: .75rem; }
 .location-label { display: flex; align-items: center; gap: .5rem; margin: 0 0 .75rem; font-size: .75rem; font-weight: 600; color: #6b7280; }
 .location-label svg { color: var(--azul-principal); }

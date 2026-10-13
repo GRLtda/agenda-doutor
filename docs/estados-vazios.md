@@ -34,7 +34,7 @@ Imagens e anexos do atendimento já é a referência implementada. As demais tel
 | 1 | Galeria da clínica; galeria do paciente | Pasta e fotografias; reutilizar SVG de anexos | Pendente |
 | 1 | Atendimento: procedimentos; termos | Ficha clínica; documento e assinatura | Pendente |
 | 1 | Paciente: orçamentos; termos | Folha de orçamento; documento e assinatura | Pendente |
-| 2 | Pacientes | Fichas de pacientes | Pendente |
+| 2 | Pacientes | Fichas de pacientes (`patients-empty.svg`) | Implementado; [contrato](listagem-pacientes.md) |
 | 2 | Atendimentos | Calendário e ficha | Pendente |
 | 2 | Procedimentos | Ficha clínica e instrumentos | Pendente |
 | 2 | Anamneses; termos | Prancheta e formulário; documento e assinatura | Pendente |

@@ -235,7 +235,12 @@ const patientOptions = computed(() => {
     patientSearchQuery.value.trim().length > 0
       ? patientsStore.searchResults
       : patientsStore.allPatients.slice(0, 3)
-  return (source || []).map((p) => ({ value: p._id, label: p.name }))
+  const options = [...(source || [])]
+  const initialPatient = props.initialData?.patient
+  if (initialPatient?._id && !options.some(patient => patient._id === initialPatient._id)) {
+    options.unshift(initialPatient)
+  }
+  return options.map((p) => ({ value: p._id, label: p.name }))
 })
 
 const doctorOptions = computed(() => {

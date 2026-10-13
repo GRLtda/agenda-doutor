@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
 
 const props = defineProps({
   currentPage: { type: Number, required: true },
@@ -10,9 +10,17 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['page-change'])
+const pageDraft = ref(String(props.currentPage))
+watch(() => props.currentPage, page => { pageDraft.value = String(page) })
+function submitPage() {
+  const number = Number(pageDraft.value)
+  const page = pageDraft.value && Number.isFinite(number) ? Math.min(Math.max(Math.trunc(number), 1), Math.max(props.totalPages, 1)) : props.currentPage
+  pageDraft.value = String(page)
+  changePage(page)
+}
 
 const changePage = (page) => {
-  if (page < 1 || page > props.totalPages || page === '...') {
+  if (page < 1 || page > props.totalPages || page === '...' || page === props.currentPage) {
     return
   }
   emit('page-change', page)
@@ -63,188 +71,71 @@ const summaryText = computed(() => {
 </script>
 
 <template>
-  <div class="pagination-container">
-    <div class="summary-desktop">
-      <span class="summary-text">{{ summaryText }}</span>
-    </div>
-
-    <div class="nav-desktop">
-      <button
-        @click="changePage(currentPage - 1)"
-        :disabled="isFirstPage"
-        class="btn-nav"
-      >
-        <ChevronLeft class="h-4 w-4 shrink-0" />
-        <span class="hidden sm:inline">Anterior</span>
-      </button>
-
+  <nav class="pagination-container" aria-label="Paginação">
+    <span class="summary-text">{{ summaryText }}</span>
+    <div class="pagination-navigation">
+      <button type="button" class="btn-nav" :disabled="isFirstPage" aria-label="Primeira página" title="Primeira página" @click="changePage(1)"><ChevronsLeft :size="16" /></button>
+      <button type="button" class="btn-nav" :disabled="isFirstPage" aria-label="Página anterior" title="Página anterior" @click="changePage(currentPage - 1)"><ChevronLeft :size="16" /></button>
       <div class="page-numbers">
         <template v-for="(page, index) in pageNumbers" :key="index">
-          <span v-if="page === '...'" class="dots">...</span>
-          <button
-            v-else
-            @click="changePage(page)"
-            :class="['btn-page', { active: page === currentPage }]"
-          >
-            {{ page }}
-          </button>
+          <span v-if="page === '...'" class="dots" aria-hidden="true">…</span>
+          <button v-else type="button" class="btn-page" :class="{ active: page === currentPage }" :aria-label="`Página ${page}`" :aria-current="page === currentPage ? 'page' : undefined" @click="changePage(page)">{{ page }}</button>
         </template>
       </div>
-
-      <button
-        @click="changePage(currentPage + 1)"
-        :disabled="isLastPage"
-        class="btn-nav"
-      >
-        <span class="hidden sm:inline">Próximo</span>
-        <ChevronRight class="h-4 w-4 shrink-0" />
-      </button>
+      <form class="page-jump mobile-jump" @submit.prevent="submitPage">
+        <input v-model="pageDraft" type="text" inputmode="numeric" aria-label="Número da página" @input="pageDraft = pageDraft.replace(/\D/g, '')" @blur="submitPage" @keydown.enter.prevent="$event.target.blur()" />
+        <span>/ {{ totalPages }}</span>
+      </form>
+      <button type="button" class="btn-nav" :disabled="isLastPage" aria-label="Próxima página" title="Próxima página" @click="changePage(currentPage + 1)"><ChevronRight :size="16" /></button>
+      <button type="button" class="btn-nav" :disabled="isLastPage" aria-label="Última página" title="Última página" @click="changePage(totalPages)"><ChevronsRight :size="16" /></button>
     </div>
-
-    <div class="nav-mobile">
-      <button
-        @click="changePage(currentPage - 1)"
-        :disabled="isFirstPage"
-        class="btn-nav"
-      >
-        <ChevronLeft class="h-4 w-4" />
-      </button>
-
-      <span class="mobile-summary">
-        Página {{ currentPage }} / {{ totalPages }}
-      </span>
-
-      <button
-        @click="changePage(currentPage + 1)"
-        :disabled="isLastPage"
-        class="btn-nav"
-      >
-        <ChevronRight class="h-4 w-4" />
-      </button>
-    </div>
-  </div>
+    <form class="page-jump desktop-jump" @submit.prevent="submitPage"><span>Página</span><input v-model="pageDraft" type="text" inputmode="numeric" aria-label="Número da página" @input="pageDraft = pageDraft.replace(/\D/g, '')" @blur="submitPage" @keydown.enter.prevent="$event.target.blur()" /><span>de {{ totalPages }}</span></form>
+  </nav>
 </template>
 
 <style scoped>
-/* Container principal */
+.page-jump { position: relative; display: flex; align-items: center; gap: .375rem; color: #64748b; font-size: .75rem; }
+.page-jump input { width: 42px; height: 30px; padding: 0 .25rem; border: 1px solid #dce1e7; border-radius: 6px; text-align: center; background: #fff; color: #334155; }
+.mobile-jump { display: none; }
+.page-jump input:focus-visible { outline: 2px solid var(--azul-principal, #0057ff); outline-offset: 2px; }
 .pagination-container {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.25rem;
-  background-color: transparent;
+  gap: .75rem 1rem;
   width: 100%;
-  border-top: none; /* Remove border to clean up layout inside cards */
+  min-height: 64px;
+  padding: .875rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
-
-/* --- Layout Desktop --- */
-.summary-desktop {
-  display: flex;
-  align-items: center;
-  color: var(--cinza-texto);
-}
-
-.summary-text {
-  font-size: 0.82rem;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-.nav-desktop {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.page-numbers {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  margin: 0 0.5rem;
-}
-
-/* --- Navegação Mobile --- */
-.nav-mobile {
-  display: none;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mobile-summary {
-  color: #64748b;
-  font-weight: 500;
-  font-size: 0.8rem;
-}
-
-/* --- Estilos Gerais de Botões --- */
-.btn-nav,
-.btn-page {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  background-color: transparent;
-  color: #475569;
-  font-weight: 500;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-nav {
-  padding: 0.3rem 0.5rem;
-  gap: 0.25rem;
-}
-
-.btn-page {
-  width: 28px;
-  height: 28px;
-}
-
-.btn-nav:hover:not(:disabled),
-.btn-page:hover:not(.active) {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-.btn-nav:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-page.active {
-  background-color: var(--azul-principal, #3b82f6);
-  color: #ffffff;
-  border-color: var(--azul-principal, #3b82f6);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
-}
-
-.dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 28px;
-  color: #94a3b8;
-  font-size: 0.85rem;
-}
-
-/* ✨ INÍCIO DOS ESTILOS RESPONSIVOS ✨ */
+.summary-text, .page-summary { color: #64748b; font-size: .75rem; line-height: 1.5; }
+.page-summary { white-space: nowrap; }
+.page-summary strong { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; margin: 0 .25rem; border: 1px solid #e5e7eb; border-radius: 6px; color: #334155; font-weight: 500; }
+.pagination-navigation, .page-numbers { display: flex; align-items: center; gap: .375rem; }
+.page-numbers { margin: 0 .375rem; }
+.btn-nav, .btn-page { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #475569; font-size: .75rem; font-weight: 500; cursor: pointer; transition: background-color 150ms, border-color 150ms, color 150ms; }
+.btn-nav { border-color: #dce1e7; background: #fff; box-shadow: 0 1px 2px #0f172a05; }
+.btn-nav:hover:not(:disabled), .btn-page:hover:not(.active) { background: #f1f5f9; border-color: #dce1e7; color: #0f172a; }
+.btn-nav:disabled { color: #c0c6d0; background: #fafbfc; cursor: not-allowed; box-shadow: none; }
+.btn-page.active { background: var(--azul-principal, #0057ff); border-color: var(--azul-principal, #0057ff); color: #fff; }
+.btn-nav:focus-visible, .btn-page:focus-visible { outline: 2px solid var(--azul-principal, #0057ff); outline-offset: 2px; }
+.dots { width: 24px; text-align: center; color: #94a3b8; }
+.mobile-page { display: none; min-width: 68px; text-align: center; font-size: .8125rem; font-weight: 600; color: #334155; }
+.mobile-page span { font-weight: 400; color: #64748b; }
+@media (max-width: 1100px) { .page-summary { display: none; } }
 @media (max-width: 768px) {
-  .pagination-container {
-    padding: 0.5rem 0;
-  }
-
-  .summary-desktop,
-  .nav-desktop {
-    display: none;
-  }
-
-  .nav-mobile {
-    display: flex;
-  }
+  .desktop-jump { display: none; }
+  .mobile-jump { display: flex; }
+  .pagination-container { justify-content: center; gap: .5rem; padding: .75rem 1rem; }
+  .summary-text { width: 100%; text-align: center; }
+  .page-numbers { display: none; }
+  .mobile-page { display: inline-block; }
+  .btn-nav { width: 32px; height: 32px; }
 }
+@media (prefers-reduced-motion: reduce) { .btn-nav, .btn-page { transition: none; } }
 </style>
