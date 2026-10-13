@@ -56,6 +56,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: [],
+        navigateFallback: null,
         clientsClaim: true,
         skipWaiting: true,
       },
@@ -68,38 +69,6 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('jspdf')) {
-              return 'vendor-pdf'
-            }
-            if (id.includes('@tiptap') || id.includes('tiptap') || id.includes('prosemirror')) {
-              return 'vendor-editor'
-            }
-            if (id.includes('chart.js') || id.includes('vue-chartjs')) {
-              return 'vendor-charts'
-            }
-            if (id.includes('@sentry')) {
-              return 'vendor-sentry'
-            }
-            if (id.includes('vue-cal')) {
-              return 'vendor-calendar'
-            }
-            if (id.includes('@vue-flow') || id.includes('dagre')) {
-              return 'vendor-flow'
-            }
-            if (id.includes('html2canvas')) {
-              return 'vendor-html2canvas'
-            }
-            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
-              return 'vendor-vue'
-            }
-          }
-        },
-      },
-    },
     chunkSizeWarningLimit: 1000,
   },
 })
