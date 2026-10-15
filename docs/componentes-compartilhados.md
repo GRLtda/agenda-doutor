@@ -114,8 +114,8 @@ listagens; usar dados descartáveis para ações de edição, exclusão e confir
 | Pacientes (`/pacientes`) | Menu Editar/Excluir nas representações desktop e celular; clique na linha continua abrindo o paciente. |
 | Procedimentos (`/procedimentos`) | Menu Editar/Excluir, fechamento após ação e confirmação de exclusão. No sidebar de criação/edição, manter Cancelar/Voltar à esquerda e Próximo/Salvar à direita, com espaço entre os botões. A seta de Próximo é branca sobre o botão azul; os demais ícones preservam suas cores. Conferir as etapas em desktop e celular. |
 | Estoque → Produtos (`/estoque/produtos`) | Menu Ver detalhes/Editar/Excluir nas duas representações. |
-| Workflows (`/workflows`) | Menu editar/excluir sem abrir acidentalmente a linha; clique na linha abre o editor. |
-| Editor de workflow (`/workflows/:id`) | Prazo/unidade, presets de condição, status, procedimento e seletores dinâmicos de modelo/procedimento; salvar e reabrir para conferir os valores. |
+| Workflows (`/workflows`) | [Tabela e cards](listagem-workflows.md): filtros, seleção, altura fixa, paginação e menu editar/excluir sem abrir a linha; clique na linha abre o editor. |
+| Editor de workflow (`/workflows/:id`) | [Editor flutuante](editor-workflows.md): clique/arraste de etapas, conexões, edição isolada, proteções de saída e publicação. Conferir prazo/unidade, presets e seletores; salvar/reabrir para validar. |
 | Configurações → Membros da Equipe | Visibilidade por permissão; Alterar Cargo/Demitir; menu ausente para proprietário. Abrir pelo menu da clínica. |
 | Atendimentos (`/atendimentos`) | Na lista: Confirmar/Atender/Detalhes conforme status; bloqueio enquanto atualização está pendente. |
 | Paciente → Orçamentos (`/pacientes/:id/orcamentos`) | Menu no celular; PDF, editar, enviar WhatsApp e excluir; ações bloqueadas para importados ou WhatsApp desconectado; mensagem de indisponibilidade. |
@@ -175,3 +175,14 @@ simulados; os fluxos autenticados devem ser conferidos com dados de teste.
 `AppEmptyState` aceita o slot `illustration` para substituir o ícone circular por um SVG contextual. O `icon` é opcional; consumidores existentes continuam com o mesmo visual. Título e texto permanecem obrigatórios. O estado vazio de anexos do atendimento usa esse slot; veja [Imagens e anexos sem fotos](atendimento.md#imagens-e-anexos-sem-fotos).
 
 Regras visuais, arquivos SVG, posicionamento, comportamento e fila de adoção: [Estados vazios das telas](estados-vazios.md).
+
+O slot footer de StyledSelect fica fixo no rodapé da lista rolável (sticky),
+com fundo branco. O catálogo usa essa ação para Criar novo modelo de WhatsApp;
+ver [catálogo](catalogo-workflows.md).
+
+MessageTemplateSelect reutiliza StyledSelect, decora opções com ícones e padroniza
+o rodapé fixo Criar novo modelo, inclusive com opções vazias. Preserva v-model,
+labels/erros/required/placeholder e encaminha a marketing-modelos?novo=1. O evento
+create permite ao catálogo fechar seu painel. Usado nos campos de mensagem de
+workflows e Marketing → Mensagens; não cria templates automaticamente.
+WorkflowLoading usa AppSkeleton e estado acessível para o carregamento do canvas.

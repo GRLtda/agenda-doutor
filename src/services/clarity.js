@@ -1,3 +1,4 @@
+const IS_DEVELOPMENT = import.meta.env.DEV || ['dev', 'development', 'test'].includes(import.meta.env.MODE)
 const CLARITY_PROJECT_ID = (import.meta.env.VITE_CLARITY_PROJECT_ID || 'w1lc3ih72u').trim()
 
 let clarityInitialized = false
@@ -23,7 +24,7 @@ function sanitizeEventName(eventName) {
 }
 
 export function initClarity() {
-  if (!isBrowser() || !CLARITY_PROJECT_ID || clarityInitialized) return false
+  if (IS_DEVELOPMENT || !isBrowser() || !CLARITY_PROJECT_ID || clarityInitialized) return false
 
   ensureClarityQueue()
 
@@ -39,7 +40,7 @@ export function initClarity() {
 
 export function trackClarityEvent(eventName) {
   const safeEventName = sanitizeEventName(eventName)
-  if (!safeEventName || !isBrowser() || typeof window.clarity !== 'function') return
+  if (IS_DEVELOPMENT || !safeEventName || !isBrowser() || typeof window.clarity !== 'function') return
 
   window.clarity('event', safeEventName)
 }

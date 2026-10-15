@@ -13,7 +13,7 @@ import {
   ReceiptText,
   Save
 } from 'lucide-vue-next'
-import StyledSelect from '@/components/global/StyledSelect.vue'
+import MessageTemplateSelect from '@/components/global/MessageTemplateSelect.vue'
 import Switch from '@/components/global/Switch.vue'
 
 const settingsStore = useCrmSettingsStore()
@@ -192,7 +192,7 @@ function getDescription(type) {
         <!-- Card Footer -->
         <div class="card-footer">
           <label class="select-label">Modelo de mensagem</label>
-          <StyledSelect
+          <MessageTemplateSelect
             v-if="uiSettings[trigger.type]"
             v-model="uiSettings[trigger.type].templateId"
             :options="getTemplateOptions(trigger.type)"

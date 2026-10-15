@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 const toast = useToast()
 let draftSaveQueue = Promise.resolve()
 let draftSaveSequence = 0
+let workflowFetchSequence = 0
 
 function responseData(response) {
     return response?.data?.data || response?.data || {}
@@ -288,7 +289,7 @@ export const useWorkflowsStore = defineStore('workflows', {
             }
         },
 
-        async saveDraftGraph() {
+        async saveDraftGraph({ preserveLocal = false } = {}) {
             if (!this.currentWorkflow?._id) return
             const graph = this.buildDraftGraph()
             const workflowId = this.currentWorkflow._id
@@ -299,8 +300,10 @@ export const useWorkflowsStore = defineStore('workflows', {
                 const definition = mapDefinition(responseData(response).definition)
                 if (definition && sequence === draftSaveSequence) {
                     this.currentWorkflow = definition
-                    this.nodes = (definition.draftGraph?.nodes || []).map(nodeFromV2)
-                    this.edges = (definition.draftGraph?.edges || []).map(edgeFromV2)
+                    if (!preserveLocal) {
+                        this.nodes = (definition.draftGraph?.nodes || []).map(nodeFromV2)
+                        this.edges = (definition.draftGraph?.edges || []).map(edgeFromV2)
+                    }
                 }
                 return definition
             }
@@ -324,21 +327,24 @@ export const useWorkflowsStore = defineStore('workflows', {
         },
 
         async fetchWorkflowById(id) {
+            const sequence=++workflowFetchSequence
             this.loading = true
             this.currentWorkflow = null
             this.nodes = []
             this.edges = []
             try {
                 const response = await workflowsApi.getWorkflowById(id)
+                if(sequence!==workflowFetchSequence)return
                 const definition = mapDefinition(responseData(response).definition || responseData(response).workflow)
                 this.currentWorkflow = definition
                 this.nodes = (definition?.draftGraph?.nodes || []).map(nodeFromV2)
                 this.edges = (definition?.draftGraph?.edges || []).map(edgeFromV2)
             } catch (err) {
+                if(sequence!==workflowFetchSequence)return
                 this.error = err.message
                 toast.error('Erro ao carregar detalhes do workflow')
             } finally {
-                this.loading = false
+                if(sequence===workflowFetchSequence)this.loading = false
             }
         },
 
@@ -364,6 +370,14 @@ export const useWorkflowsStore = defineStore('workflows', {
             } finally {
                 this.loading = false
             }
+        },
+
+        async createFromCatalog(templateKey, templateId) {
+            const response = await workflowsApi.createFromCatalog(templateKey, templateId)
+            const workflow = mapDefinition(responseData(response).definition)
+            this.workflows.push(workflow)
+            toast.success('Workflow criado como rascunho')
+            return workflow
         },
 
         async updateWorkflow(id, data) {
@@ -399,8 +413,16 @@ export const useWorkflowsStore = defineStore('workflows', {
         },
 
         async deactivateWorkflow(id) {
-            toast.info('No v2, edite o rascunho e publique uma nova versao quando estiver pronto.')
-            return this.fetchWorkflowById(id)
+            const response=await workflowsApi.deactivateWorkflow(id)
+            const workflow=mapDefinition(responseData(response).definition)
+            const index=this.workflows.findIndex(item=>item._id===id)
+            if(index!==-1)this.workflows[index]={...this.workflows[index],...workflow}
+            if(this.currentWorkflow?._id===id)this.currentWorkflow={...this.currentWorkflow,...workflow}
+            return workflow
+        },
+        async bulkAction(ids, action) {
+            const response=await workflowsApi.bulkAction(ids,action)
+            return responseData(response).results || []
         },
 
         async deleteWorkflow(id) {
@@ -413,7 +435,7 @@ export const useWorkflowsStore = defineStore('workflows', {
             }
         },
 
-        async addNode(nodeData) {
+        async addNode(nodeData, { persist = true } = {}) {
             const key = makeNodeKey(nodeData.subtype)
             const node = {
                 _id: key,
@@ -427,6 +449,7 @@ export const useWorkflowsStore = defineStore('workflows', {
             }
 
             this.nodes.push(node)
+            if (!persist) return node
             try {
                 await this.saveDraftGraph()
                 return node

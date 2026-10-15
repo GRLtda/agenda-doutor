@@ -38,7 +38,7 @@ Imagens e anexos do atendimento já é a referência implementada. As demais tel
 | 2 | Atendimentos | Calendário e ficha | Pendente |
 | 2 | Procedimentos | Ficha clínica e instrumentos | Pendente |
 | 2 | Anamneses; termos | Prancheta e formulário; documento e assinatura | Pendente |
-| 2 | Workflows | Blocos conectados | Pendente |
+| 2 | Workflows | Blocos conectados (`workflows-empty.svg`) | Implementado; [contrato](listagem-workflows.md) |
 | 3 | Financeiro: contas a receber/pagar; caixa | Documentos financeiros; extrato e moedas discretas | Pendente |
 | 3 | Financeiro: resumo | Gráfico e extrato; versão compacta nos cards | Pendente |
 | 3 | Estoque: produtos; kits; lotes; movimentações; painel | Caixas, etiquetas e setas suaves | Pendente |

@@ -17,6 +17,9 @@ Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.m
   dados excedentes rolam dentro da tabela, preservando acesso à paginação.
   No celular, pacientes usam cards com rolagem interna e paginação fora da área
   rolável, mantendo altura limitada ao espaço útil da janela.
+- [Listagem de workflows](listagem-workflows.md) segue o mesmo painel de altura
+  fixa, filtros e seleção de pacientes, com cards no celular e paginação fora
+  da rolagem interna, inclusive quando há apenas um registro.
 - Editar e definir padrão usam AppButton com ícone e variante visível (outline); ações não podem aparecer como texto solto sem estilo.
 - Opções booleanas, como Usar como unidade padrão, usam Switch, com rótulo, estado selecionado e estado desabilitado perceptíveis. Não usar checkbox nativo sem estilo.
 - Formulários de endereço consultam CEP usando a integração existente em api/external.js. Exibir consulta em andamento, permitir nova tentativa e preenchimento manual em caso de falha. Não sobrescrever edições feitas enquanto a consulta estava em andamento nem aplicar respostas de um CEP anterior.

@@ -357,6 +357,10 @@ defineExpose({
   font-size: 0.875rem;
 }
 .options-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #fff;
   margin-top: 0.25rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e5e7eb;

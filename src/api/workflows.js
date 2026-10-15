@@ -9,6 +9,10 @@ export default {
         return apiClient.get('/v2/workflows/catalog')
     },
 
+    createFromCatalog(templateKey, templateId) {
+        return apiClient.post(`/v2/workflows/catalog/${encodeURIComponent(templateKey)}/instantiate`, { templateId })
+    },
+
     getWorkflowById(id) {
         return apiClient.get(`/v2/workflows/definitions/${id}`)
     },
@@ -26,9 +30,11 @@ export default {
     },
 
     deactivateWorkflow(id) {
-        return apiClient.patch(`/v2/workflows/definitions/${id}/draft`, { status: 'draft' })
+        return apiClient.post(`/v2/workflows/definitions/${id}/deactivate`)
     },
 
+    setWorkflowActive(id) { return apiClient.post(`/v2/workflows/definitions/${id}/activate`) },
+    bulkAction(ids, action) { return apiClient.post('/v2/workflows/definitions/bulk', { ids, action }) },
     deleteWorkflow(id) {
         return apiClient.delete(`/v2/workflows/definitions/${id}`)
     },
