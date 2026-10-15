@@ -186,3 +186,9 @@ labels/erros/required/placeholder e encaminha a marketing-modelos?novo=1. O even
 create permite ao catálogo fechar seu painel. Usado nos campos de mensagem de
 workflows e Marketing → Mensagens; não cria templates automaticamente.
 WorkflowLoading usa AppSkeleton e estado acessível para o carregamento do canvas.
+
+## SideDrawer com painel secundário
+
+Props secondaryOpen/secondaryLabel, slot secondary e evento close-secondary compõem dois painéis contíguos em um overlay. bodyClass permite aplicar o fundo de uma tela ao corpo sem alterar outros consumidores. ResizeObserver reposiciona o X externo; o fechamento pelo overlay anima o grupo inteiro. Contrato, responsividade e foco: [Execuções](execucoes-workflows.md).
+
+WorkflowActionDialog reutiliza BottomSheet para confirmar ações de workflow, escolher o modo de inativação e aguardar três segundos antes de cancelamentos. Contrato: [Execuções](execucoes-workflows.md).

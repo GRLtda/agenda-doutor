@@ -190,6 +190,12 @@ const dashboardRoutes = [
         meta: { title: 'Workflows' },
       },
       {
+        path: 'workflows/execucoes',
+        name: 'workflow-runs',
+        component: () => import('../views/pages/workflows/WorkflowRunsView.vue'),
+        meta: { title: 'Execuções de workflows' },
+      },
+      {
         path: 'workflows/:id',
         name: 'workflow-editor',
         component: () => import('../views/pages/workflows/WorkflowEditor.vue'),

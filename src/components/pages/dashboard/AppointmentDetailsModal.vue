@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { listUnits, getUnit, formatUnitAddress } from '@/api/units'
@@ -34,6 +34,10 @@ import { useStatusBadge } from '@/composables/useStatusBadge.js'
 import { formatPhone } from '@/directives/phone-mask.js'
 import AppButton from '@/components/global/AppButton.vue'
 import SideDrawer from '@/components/global/SideDrawer.vue'
+import WorkflowRunsTable from '@/components/pages/workflows/WorkflowRunsTable.vue'
+import WorkflowRunDetails from '@/components/pages/workflows/WorkflowRunDetails.vue'
+import workflowsApi from '@/api/workflows'
+import { useWorkflowPolling } from '@/composables/useWorkflowPolling'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import CancelAppointmentSheet from '@/components/pages/dashboard/CancelAppointmentSheet.vue'
@@ -57,6 +61,22 @@ const router = useRouter()
 
 const patient = computed(() => props.event?.originalEvent?.patient || {})
 const appointment = computed(() => props.event?.originalEvent || {})
+const executionsOpen = ref(false)
+const selectedExecution = ref(null)
+const executionsHeading = ref(null)
+watch(selectedExecution, () => nextTick(() => executionsHeading.value?.querySelector('button')?.focus()))
+const executionsRevision = ref(0)
+const { data: executionSummary, refresh: refreshExecutions } = useWorkflowPolling(() => appointment.value._id, async () => {
+  if (!appointment.value._id || props.loading || props.error) return null
+  return (await workflowsApi.getRuns({ appointmentId: appointment.value._id, limit: 1 })).data.data
+})
+watch(() => appointment.value._id, () => { executionsOpen.value = false; selectedExecution.value = null })
+function closeExecutions() {
+  if (selectedExecution.value) selectedExecution.value = null
+  else executionsOpen.value = false
+}
+function executionChanged() { executionsRevision.value++; refreshExecutions() }
+function toggleExecutions() { executionsOpen.value = !executionsOpen.value }
 const location = ref(null)
 const locationError = ref('')
 const locationCount = ref(0)
@@ -388,7 +408,12 @@ function handleApprove() {
 </script>
 
 <template>
-  <SideDrawer @close="$emit('close')">
+  <SideDrawer :secondary-open="executionsOpen" secondary-label="Execuções do atendimento" @close-secondary="closeExecutions" @close="$emit('close')">
+    <template #secondary>
+      <header ref="executionsHeading" class="executions-heading"><div class="executions-heading-title"><span class="executions-heading-icon"><Activity :size="19" /></span><div><h2>{{ selectedExecution ? 'Detalhes da execução' : 'Execuções do atendimento' }}</h2><p>Automações vinculadas a este atendimento</p></div></div><AppButton variant="outline" size="sm" :aria-label="selectedExecution ? 'Voltar à lista' : 'Voltar ao atendimento'" @click="closeExecutions"><ChevronLeft :size="14" />Voltar</AppButton></header>
+      <div v-if="selectedExecution" class="execution-detail-scroll"><WorkflowRunDetails :run-id="selectedExecution" @changed="executionChanged" @view-appointment="executionsOpen = false" /></div>
+      <WorkflowRunsTable v-else :key="executionsRevision" :appointment-id="appointment._id" compact @select="selectedExecution = $event" />
+    </template>
     <template #header>
       <header class="drawer-header">
         <div class="header-left">
@@ -396,6 +421,7 @@ function handleApprove() {
           <span v-if="appointment._id" class="appointment-id">ID #{{ appointment._id.slice(-6).toUpperCase() }}</span>
         </div>
         <div class="header-right">
+          <button v-if="!loading && !error && executionSummary?.pagination.total > 0" class="nav-btn executions-toggle" :class="{ active: executionsOpen }" :aria-expanded="executionsOpen" :aria-label="executionsOpen ? 'Recolher execuções' : 'Ver execuções'" :title="executionsOpen ? 'Recolher execuções' : 'Ver execuções'" @click="toggleExecutions"><Activity :size="16" /></button>
           <button @click="$emit('close')" class="mobile-close-btn">
             <X :size="24" />
           </button>
@@ -740,6 +766,7 @@ function handleApprove() {
 </template>
 
 <style scoped>
+.executions-toggle{order:2}.header-right .pagination-controls{order:1}.header-right .mobile-close-btn{order:3}.header-right:has(.executions-toggle){gap:8px}.executions-toggle.active{color:#2563eb;background:#eff6ff;border-color:#bfdbfe}.executions-heading-title{display:flex;align-items:center;gap:10px;min-width:0}.executions-heading-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:36px;height:36px;background:#fff;border:1px solid #e5e7eb;border-radius:9px;color:#2563eb}.executions-heading-title p{font-size:.7rem;color:#64748b;margin:3px 0 0}.executions-heading-title h2{font-size:.875rem!important}.executions-heading .app-button{flex-shrink:0}@media(max-width:480px){.executions-heading-title p{display:none}.executions-heading{padding:14px!important}.executions-heading-icon{display:none}}.executions-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;border-bottom:1px solid #d1d5db;flex-shrink:0}.executions-heading h2{font-size:1rem;font-weight:600;color:#111827}.execution-detail-scroll{flex:1;min-height:0;overflow:auto;padding:20px}
 .details-loading { display: flex; flex-direction: column; gap: 1.5rem; padding: 0; }
 .loading-patient { display: flex; align-items: center; gap: 1rem; }
 .loading-patient > div:first-child { flex-shrink: 0; }

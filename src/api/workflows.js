@@ -29,12 +29,13 @@ export default {
         return apiClient.post(`/v2/workflows/definitions/${id}/publish`)
     },
 
-    deactivateWorkflow(id) {
-        return apiClient.post(`/v2/workflows/definitions/${id}/deactivate`)
+    deactivateWorkflow(id, deactivationMode = 'cancel_all') {
+        return apiClient.post(`/v2/workflows/definitions/${id}/deactivate`, { deactivationMode })
     },
 
     setWorkflowActive(id) { return apiClient.post(`/v2/workflows/definitions/${id}/activate`) },
-    bulkAction(ids, action) { return apiClient.post('/v2/workflows/definitions/bulk', { ids, action }) },
+    bulkAction(ids, action, options = {}) { return apiClient.post('/v2/workflows/definitions/bulk', { ids, action, ...options }) },
+    cancelDefinitionRuns(id) { return apiClient.post(`/v2/workflows/definitions/${id}/runs/cancel`) },
     deleteWorkflow(id) {
         return apiClient.delete(`/v2/workflows/definitions/${id}`)
     },

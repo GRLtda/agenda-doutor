@@ -48,3 +48,7 @@ O título informa ausência de imagens. Em edição, o texto orienta adicionar f
 Verifique atendimento sem prontuário, prontuário sem anexos, somente leitura, envio/compressão e retorno após excluir a última foto. Confira desktop e celular, variáveis de tema, primeira foto salva e filtros sem resultados.
 
 O conjunto de ilustração, título e texto fica centralizado horizontal e verticalmente no espaço restante da aba. Em edição, os controles de adicionar foto e montagem permanecem acima; em somente leitura, a grade vazia não ocupa espaço. O SVG é importado como conteúdo estático local (`?raw`), preservando a herança das variáveis CSS do tema; nunca injete SVG vindo de usuários nesse componente. Verifique o alinhamento em atendimento realizado e editável, desktop e celular.
+
+## Execuções no detalhe do agendamento
+
+O AppointmentDetailsModal possui painel secundário à esquerda, acoplado e deslizante, para execuções ligadas exatamente ao atendimento. Consulte [Execuções de workflows](execucoes-workflows.md).

@@ -1,8 +1,12 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useMediaQuery } from '@vueuse/core'
 
 const props = defineProps({
+  secondaryOpen: { type: Boolean, default: false },
+  secondaryLabel: { type: String, default: 'Painel secundário' },
+  bodyClass: { type: String, default: '' },
   teleportTo: {
     type: [String, Object],
     default: 'body',
@@ -14,7 +18,37 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'close-secondary'])
+const overlay = ref(null)
+const secondary = ref(null)
+const narrow = useMediaQuery('(max-width: 1099px)')
+const secondaryLayout = ref(props.secondaryOpen)
+const drawerGroup = ref(null)
+const groupWidth = ref(0)
+let groupObserver
+const closePosition = computed(() => secondaryLayout.value ? { right: `min(calc(100% - 52px), ${groupWidth.value + 20}px)` } : undefined)
+let opener, secondaryOpener
+watch(() => props.secondaryOpen, async open => {
+  if (open) { secondaryOpener = document.activeElement; secondaryLayout.value = true }
+  await nextTick()
+  if (open) secondary.value?.querySelector('button')?.focus()
+  else if (!secondaryLayout.value) secondaryOpener?.focus?.()
+})
+function secondaryLeft() { secondaryLayout.value = false; nextTick(() => secondaryOpener?.focus?.()) }
+function handleKey(event) {
+  if (event.defaultPrevented || !overlay.value?.contains(event.target)) return
+  if (event.key === 'Escape') {
+    event.preventDefault(); event.stopPropagation()
+    if (props.secondaryOpen) emit('close-secondary')
+    else requestClose()
+  }
+  if (event.key === 'Tab') {
+    const nodes = [...overlay.value.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length && !el.closest('[inert]'))
+    const first = nodes[0], last = nodes.at(-1)
+    if (event.shiftKey && event.target === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && event.target === last) { event.preventDefault(); first?.focus() }
+  }
+}
 
 const isClosing = ref(false)
 const isLeaving = ref(false)
@@ -32,12 +66,20 @@ const widthClass = computed(() => {
 })
 
 onMounted(() => {
+  groupObserver = new ResizeObserver(() => { groupWidth.value = drawerGroup.value?.getBoundingClientRect().width || 0 })
+  groupObserver.observe(drawerGroup.value)
+  opener = document.activeElement
+  document.addEventListener('keydown', handleKey)
+  nextTick(() => overlay.value?.focus())
   closeButtonTimer = window.setTimeout(() => {
     isCloseButtonVisible.value = true
   }, closeButtonEnterDelayMs)
 })
 
 onUnmounted(() => {
+  groupObserver?.disconnect()
+  document.removeEventListener('keydown', handleKey)
+  opener?.focus?.()
   window.clearTimeout(closeButtonTimer)
   window.clearTimeout(closeSequenceTimer)
   window.clearTimeout(emitCloseTimer)
@@ -87,8 +129,13 @@ function handleOverlayPointerUp(event) {
 <template>
   <Teleport :to="teleportTo">
     <div
+      ref="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Painel de detalhes"
+      tabindex="-1"
       class="drawer-overlay"
-      :class="{ 'is-closing': isClosing, 'is-leaving': isLeaving }"
+      :class="{ 'is-closing': isClosing, 'is-leaving': isLeaving, 'has-secondary': secondaryOpen }"
       @pointerdown="handleOverlayPointerDown"
       @pointerup="handleOverlayPointerUp"
     >
@@ -96,29 +143,35 @@ function handleOverlayPointerUp(event) {
       <button
         @click="requestClose"
         class="close-btn-outside"
+        aria-label="Fechar detalhes"
+        :style="closePosition"
         :class="[widthClass, { 'is-visible': isCloseButtonVisible }]"
         :disabled="!isCloseButtonVisible || isClosing"
       >
         <X :size="24" />
       </button>
 
-      <div class="drawer-content" :class="widthClass">
+      <div ref="drawerGroup" class="drawer-group" :class="[widthClass, { 'with-secondary': secondaryLayout }]">
+        <Transition name="secondary-slide" @after-leave="secondaryLeft"><aside v-if="secondaryOpen" ref="secondary" class="drawer-secondary" :aria-label="secondaryLabel"><slot name="secondary"></slot></aside></Transition>
+      <div class="drawer-content" :class="widthClass" :inert="secondaryOpen && narrow">
         <!-- Header Slot -->
         <slot name="header" :close="requestClose"></slot>
 
         <!-- Body Slot -->
-        <div class="drawer-body">
+        <div class="drawer-body" :class="bodyClass">
           <slot :close="requestClose"></slot>
         </div>
 
         <!-- Footer Slot -->
         <slot name="footer" :close="requestClose"></slot>
       </div>
+      </div>
     </div>
   </Teleport>
 </template>
 
 <style scoped>
+.drawer-group{display:contents}.drawer-group.with-secondary{display:flex;gap:0;padding:0;margin:0;height:100%;max-width:calc(100vw - 16px);isolation:isolate;position:relative}.with-secondary.size-md{width:1120px}.with-secondary.size-sm{width:1040px}.with-secondary.size-lg{width:1240px}.with-secondary.size-xl{width:1440px}.with-secondary .drawer-content{flex:0 0 480px;border-radius:0 18px 18px 0}.with-secondary.size-sm .drawer-content{flex-basis:400px}.with-secondary.size-lg .drawer-content{flex-basis:600px}.with-secondary.size-xl .drawer-content{flex-basis:800px}.drawer-secondary{width:640px;min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#f3f4f6;border:1.3px solid #abb0b8;border-right:0;border-radius:18px 0 0 18px;position:relative;z-index:-1}.secondary-slide-enter-active,.secondary-slide-leave-active{transition:transform 280ms ease,opacity 280ms ease}.secondary-slide-enter-from,.secondary-slide-leave-to{transform:translateX(100%);opacity:0}.drawer-overlay.is-leaving .drawer-group.with-secondary{animation:slide-out .28s cubic-bezier(.4,0,1,1) both}.drawer-overlay.is-leaving .with-secondary .drawer-content{animation:none}.with-secondary .drawer-content{animation:none}@media(max-width:1099px){.drawer-group.with-secondary{width:100%;max-width:640px}.with-secondary .drawer-content{display:none}.drawer-secondary{width:100%;border-right:1.3px solid #abb0b8;border-radius:18px}}@media(max-width:768px){.drawer-group.with-secondary{max-width:100%}.drawer-secondary{border-radius:0}}@media(prefers-reduced-motion:reduce){.secondary-slide-enter-active,.secondary-slide-leave-active{transition:none}.drawer-overlay,.drawer-content,.drawer-group{animation:none!important}}
 .drawer-overlay {
   position: fixed;
   top: 0;

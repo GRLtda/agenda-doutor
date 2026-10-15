@@ -2,6 +2,7 @@
 import WorkflowCatalog from '@/components/pages/workflows/WorkflowCatalog.vue'
 import { BookOpen } from 'lucide-vue-next'
 import WorkflowListActions from '@/components/pages/workflows/WorkflowListActions.vue'
+import WorkflowActionDialog from '@/components/pages/workflows/WorkflowActionDialog.vue'
 import AppTableList from '@/components/global/AppTableList.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
@@ -89,19 +90,21 @@ async function handleCreate() {
 }
 
 const actionBusy = ref(false)
-async function runAction(action, ids) {
-  if (actionBusy.value || !ids.length) return
-  const question=action==='archive'?'Excluir os workflows selecionados? Eles serão arquivados e as execuções em andamento serão canceladas.':action==='deactivate'?'Inativar os workflows selecionados e cancelar suas execuções em andamento?':'Ativar os workflows selecionados? Os rascunhos sem versão publicada serão publicados.'
-  if (!confirm(question)) return
-  actionBusy.value=true
+const actionDialog = ref(null)
+function runAction(action, ids) {
+  if (actionBusy.value || actionDialog.value || !ids.length) return
+  actionDialog.value = { action, ids: [...ids], workflowName: ids.length === 1 ? workflows.value.find(w => w._id === ids[0])?.name || 'Fluxo selecionado' : 'Workflows selecionados' }
+}
+async function finishWorkflowAction({ action, mode, results = [], canceledCount }) {
+  actionDialog.value = null; actionBusy.value = true
   try {
-    const results=await workflowsStore.bulkAction([...ids],action)
-    const failed=results.filter(result=>!result.success)
+    const failed = results.filter(result => !result.success)
     await reloadWorkflows(); await nextTick()
-    selectedKeys.value=failed.map(result=>result.id).filter(id=>visibleWorkflows.value.some(item=>item._id===id))
-    if(failed.length)toast.error(`${failed.length} workflow(s) não foram alterados. ${failed[0].message || 'Tente novamente.'}`)
-    else toast.success(action==='archive'?'Workflows excluídos.':action==='deactivate'?'Workflows inativados e execuções canceladas.':'Workflows ativados.')
-  } catch {toast.error('Não foi possível concluir a ação. Tente novamente.')} finally {actionBusy.value=false}
+    selectedKeys.value = failed.map(result => result.id).filter(id => visibleWorkflows.value.some(item => item._id === id))
+    if (failed.length) toast.error(`${failed.length} workflow(s) não foram alterados. ${failed[0].message || 'Tente novamente.'}`)
+    else toast.success(action === 'cancel_runs' ? `${canceledCount} execução(ões) cancelada(s).` : action === 'archive' ? 'Workflows excluídos.' : action === 'deactivate' ? mode === 'new_only' ? 'Workflows inativados para novos atendimentos. Execuções existentes continuam.' : 'Workflows inativados e execuções canceladas.' : 'Workflows ativados.')
+  } catch { toast.error('A ação foi concluída, mas não foi possível atualizar a lista. Tente recarregar.') }
+  finally { actionBusy.value = false }
 }
 function handleDelete(id) { return runAction('archive',[id]) }
 const executionLabels={queued:'Na fila',running:'Em execução',waiting:'Aguardando',completed:'Concluída',failed:'Falhou',canceled:'Cancelada',interrupted:'Interrompida',restarted:'Reiniciada'}
@@ -177,8 +180,8 @@ async function reloadWorkflows() { workflowsStore.error = null; await workflowsS
 
 
 <template>
-  <div class="workflows-list-page">
-    <header class="page-header"><div><h1 class="title">Workflows</h1><p class="subtitle">Automatize processos e gerencie fluxos de trabalho.</p></div><div class="workflow-header-actions"><AppButton variant="outline" aria-label="Catálogo de workflows" @click="showCatalog = true"><BookOpen :size="18" /><span>Catálogo de workflows</span></AppButton><AppButton variant="primary" class="add-btn" aria-label="Novo workflow" @click="nameError = ''; openCreateModal()"><Plus :size="18" /><span>Novo workflow</span></AppButton></div></header>
+  <div class="workflows-list-page"><WorkflowActionDialog v-if="actionDialog" v-bind="actionDialog" @close="actionDialog = null" @complete="finishWorkflowAction" />
+    <header class="page-header"><div><h1 class="title">Workflows</h1><p class="subtitle">Automatize processos e gerencie fluxos de trabalho.</p></div><div class="workflow-header-actions"><AppButton variant="outline" @click="router.push({ name: 'workflow-runs' })"><Activity :size="18" /><span>Ver todas as execuções</span></AppButton><AppButton variant="outline" aria-label="Catálogo de workflows" @click="showCatalog = true"><BookOpen :size="18" /><span>Catálogo de workflows</span></AppButton><AppButton variant="primary" class="add-btn" aria-label="Novo workflow" @click="nameError = ''; openCreateModal()"><Plus :size="18" /><span>Novo workflow</span></AppButton></div></header>
     <AppTableList v-model:selected-keys="selectedKeys" :items="visibleWorkflows" selectable :pagination="pagination" @page-change="page = $event">
       <template #filters>
         <div class="workflow-filters" :class="{ expanded: filtersOpen }">
@@ -202,12 +205,12 @@ async function reloadWorkflows() { workflowsStore.error = null; await workflowsS
               <td class="selection-cell" @click.stop><Checkbox :disabled="actionBusy" :model-value="isSelected(workflow)" :aria-label="`Selecionar ${workflow.name}`" @update:model-value="selectRow(workflow, $event === true)" /></td>
               <td><div class="workflow-identity"><div class="workflow-icon"><Workflow :size="20" /></div><div class="workflow-info"><router-link :to="`/workflows/${workflow._id}`" class="workflow-name" @click.stop>{{ workflow.name }}</router-link><span class="workflow-desc" :title="workflow.description">{{ workflow.description || 'Sem descrição' }}</span></div></div></td>
               <td><div class="last-execution"><span>{{executionDate(workflow)}}</span><small v-if="workflow.lastExecution">{{executionLabels[workflow.lastExecution.status] || workflow.lastExecution.status}}</small></div></td><td><span class="status-badge" :class="{ active: workflow.isActive }">{{workflow.isActive?'Ativo':workflow.status==='draft'?'Rascunho':'Inativo'}}</span></td>
-              <td class="actions-cell"><WorkflowListActions :active="workflow.isActive" :selected="isSelected(workflow)" :disabled="actionBusy" @select="selectRow(workflow,!isSelected(workflow))" @activate="runAction('activate',[workflow._id])" @deactivate="runAction('deactivate',[workflow._id])" @edit="nameError = ''; openEditModal(workflow)" @delete="handleDelete(workflow._id)" /></td>
+              <td class="actions-cell"><WorkflowListActions @cancel-runs="runAction('cancel_runs',[workflow._id])" @executions="router.push({ name: 'workflow-runs', query: { definitionId: workflow._id } })" :active="workflow.isActive" :selected="isSelected(workflow)" :disabled="actionBusy" @select="selectRow(workflow,!isSelected(workflow))" @activate="runAction('activate',[workflow._id])" @deactivate="runAction('deactivate',[workflow._id])" @edit="nameError = ''; openEditModal(workflow)" @delete="handleDelete(workflow._id)" /></td>
             </tr>
           </tbody></table></div>
           <div class="results-scroll mobile-cards">
             <article v-for="workflow in visibleWorkflows" :key="workflow._id" class="workflow-card" :class="{ selected: isSelected(workflow) }">
-              <div class="card-header"><Checkbox :disabled="actionBusy" :model-value="isSelected(workflow)" :aria-label="`Selecionar ${workflow.name}`" @update:model-value="selectRow(workflow, $event === true)" /><div class="workflow-icon"><Workflow :size="20" /></div><div class="workflow-info"><router-link :to="`/workflows/${workflow._id}`" class="workflow-name" :title="workflow.name">{{ workflow.name }}</router-link><span class="workflow-desc" :title="workflow.description">{{ workflow.description || 'Sem descrição' }}</span></div><WorkflowListActions :active="workflow.isActive" :selected="isSelected(workflow)" :disabled="actionBusy" @select="selectRow(workflow,!isSelected(workflow))" @activate="runAction('activate',[workflow._id])" @deactivate="runAction('deactivate',[workflow._id])" @edit="nameError = ''; openEditModal(workflow)" @delete="handleDelete(workflow._id)" /></div>
+              <div class="card-header"><Checkbox :disabled="actionBusy" :model-value="isSelected(workflow)" :aria-label="`Selecionar ${workflow.name}`" @update:model-value="selectRow(workflow, $event === true)" /><div class="workflow-icon"><Workflow :size="20" /></div><div class="workflow-info"><router-link :to="`/workflows/${workflow._id}`" class="workflow-name" :title="workflow.name">{{ workflow.name }}</router-link><span class="workflow-desc" :title="workflow.description">{{ workflow.description || 'Sem descrição' }}</span></div><WorkflowListActions @cancel-runs="runAction('cancel_runs',[workflow._id])" @executions="router.push({ name: 'workflow-runs', query: { definitionId: workflow._id } })" :active="workflow.isActive" :selected="isSelected(workflow)" :disabled="actionBusy" @select="selectRow(workflow,!isSelected(workflow))" @activate="runAction('activate',[workflow._id])" @deactivate="runAction('deactivate',[workflow._id])" @edit="nameError = ''; openEditModal(workflow)" @delete="handleDelete(workflow._id)" /></div>
               <div class="card-footer"><span class="status-badge" :class="{ active: workflow.isActive }">{{workflow.isActive?'Ativo':workflow.status==='draft'?'Rascunho':'Inativo'}}</span><span class="mobile-execution"><Clock :size="13" />{{executionDate(workflow)}}<small v-if="workflow.lastExecution"> · {{executionLabels[workflow.lastExecution.status]}}</small></span></div>
             </article>
           </div>
@@ -456,7 +459,7 @@ th { position: sticky; top: 0; z-index: 1; height: 44px; padding-top: 0; padding
   }
 }
 
-.workflow-header-actions {display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.workflow-header-actions {display:flex;flex-wrap:wrap;align-items:center;gap:10px;flex-shrink:0;}
 @media(max-width:768px) { .page-header { flex-wrap:wrap; }.workflow-header-actions {width:100%;justify-content:flex-end;}.workflow-header-actions :deep(.app-button) {font-size:.75rem;} }
 
 .workflow-bulk-bar {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;color:#475569;font-size:.75rem;}.bulk-buttons {display:flex;align-items:center;gap:8px;}.bulk-delete {color:#dc2626;}.last-execution {display:flex;flex-direction:column;gap:4px;white-space:nowrap;}.last-execution small {color:#64748b;font-size:.7rem;}.mobile-execution {display:flex;align-items:center;gap:5px;flex-wrap:wrap;}.workflow-row td:first-child {width:44px;}

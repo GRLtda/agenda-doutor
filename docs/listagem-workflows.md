@@ -22,7 +22,7 @@ filtrar volta à primeira, e excluir ajusta a página quando necessário.
 
 Desktop: seletor, Workflow (ícone, nome e descrição), Última execução, Status e Ações.
 Cabeçalho discreto e fixo durante rolagem. Clicar na linha/nome abre o editor.
-Menu Selecionar/Ativar ou Inativar/Editar/Excluir é independente da navegação da linha.
+Menu Ver execuções deste fluxo/Cancelar todas as execuções/Selecionar/Ativar ou Inativar/Editar/Excluir é independente da navegação da linha.
 
 Até 768px, cards substituem a tabela, com borda completa e fundo azul suave
 na seleção. Nome/descrição longos usam reticências; última execução e status ficam abaixo.
@@ -74,7 +74,7 @@ abrindo o editor sem publicar. Contrato, ideias e fontes:
 
 ## Ações de ciclo de vida
 
-Ações pedem confirmação e impedem submissão dupla. Inativar e excluir cancelam
+Ações usam WorkflowActionDialog sobre o BottomSheet existente e impedem submissão dupla. Excluir cancela
 as execuções e as esperas no backend. Excluir arquiva: não apaga definitivamente.
 Após ações, recarrega a lista para atualizar última execução/status. Lote informa
 falhas parciais e mantém os itens com falha selecionados. Última execução mostra
@@ -90,3 +90,9 @@ esse é o estado retornado pela API; Excluir etapa no menu restaura pelo Desfaze
 A resposta da listagem é resumida: não contém draftGraph/runPolicy; esses campos
 são carregados no GET individual ao abrir o editor. A última execução vem de lookup
 indexado limitado a um registro por definição, sem buscar todos os históricos.
+
+## Execuções
+
+O topo oferece Ver todas as execuções; os menus de desktop e cards oferecem Ver execuções, com filtro por definição. Consulte [Execuções de workflows](execucoes-workflows.md).
+
+Inativar abre a escolha entre Apenas novos atendimentos (padrão, mantém execuções existentes) e Cancelar execuções e inativar. A segunda opção e o cancelamento de todas pelo menu aguardam três segundos antes de liberar confirmação. Ativar e excluir também usam o mesmo popup. Contratos e detalhes: [Execuções](execucoes-workflows.md) e [Ciclo de vida v2](../../api-clinic/docs/WORKFLOW_LIFECYCLE.md).
