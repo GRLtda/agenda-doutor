@@ -1,8 +1,7 @@
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useConsentTermsStore } from '@/stores/consent-terms'
-import { useToast } from 'vue-toastification'
 import confetti from 'canvas-confetti'
 import { marked } from 'marked'
 import {
@@ -18,7 +17,6 @@ import {
 
 const route = useRoute()
 const consentTermsStore = useConsentTermsStore()
-const toast = useToast()
 
 const responseData = ref(null)
 const submissionStatus = ref('pending') // pending, success, error
@@ -40,6 +38,21 @@ const signatureMethod = ref('draw') // 'draw', 'type', 'upload'
 const typedName = ref('')
 const uploadedSignature = ref(null)
 const fileInput = ref(null)
+const signatureError = ref('')
+const submissionError = ref('')
+watch([typedName, acceptedTerms, identityConfirmation], () => {
+  signatureError.value = ''
+  submissionError.value = ''
+})
+watch(signatureMethod, async () => {
+  hasSignature.value = false
+  signatureError.value = ''
+  submissionError.value = ''
+  await nextTick()
+  if (signatureMethod.value === 'draw') initCanvas()
+  else if (signatureMethod.value === 'type') onTypedNameInput()
+  else hasSignature.value = !!uploadedSignature.value
+})
 
 // Computed
 const renderedContent = computed(() => {
@@ -120,6 +133,8 @@ function initCanvas() {
 }
 
 function startDrawing(e) {
+  signatureError.value = ''
+  submissionError.value = ''
   isDrawing.value = true
   const point = getPoint(e, signatureCanvas.value)
   lastPoint = point
@@ -163,6 +178,8 @@ function handleTouchMove(e) {
 }
 
 function clearSignature() {
+  signatureError.value = ''
+  submissionError.value = ''
   if (signatureMethod.value === 'draw') {
     if (ctx && signatureCanvas.value) {
       ctx.save()
@@ -182,13 +199,22 @@ function clearSignature() {
 function handleFileUpload(event) {
   const file = event.target.files?.[0]
   if (!file) return
+  signatureError.value = ''
+  submissionError.value = ''
   
-  if (!file.type.startsWith('image/')) {
-    toast.error('Por favor, selecione uma imagem válida.')
+  uploadedSignature.value = null
+  hasSignature.value = false
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    signatureError.value = 'Selecione uma imagem PNG, JPEG ou WebP.'
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    signatureError.value = 'A imagem deve ter no máximo 5 MB. Use uma imagem menor ou desenhe sua assinatura.'
     return
   }
   
   const reader = new FileReader()
+  reader.onerror = () => { signatureError.value = 'Não foi possível ler a imagem. Selecione o arquivo novamente.' }
   reader.onload = (e) => {
     uploadedSignature.value = e.target?.result
     hasSignature.value = true
@@ -233,18 +259,20 @@ function getSignatureData() {
 
 // -- Submit --
 async function handleSubmit() {
+  if (consentTermsStore.isLoading) return
+  submissionError.value = ''
   if (!canSubmit.value) {
     if (!hasSignature.value) {
-      toast.error('Por favor, assine o termo no campo indicado.')
+      signatureError.value = 'Por favor, assine o termo no campo indicado.'
     } else if (!acceptedTerms.value || !identityConfirmation.value) {
-      toast.error('Por favor, marque todas as confirmações obrigatórias.')
+      submissionError.value = 'Por favor, marque todas as confirmações obrigatórias.'
     }
     return
   }
 
   const signatureData = getSignatureData()
   if (!signatureData) {
-    toast.error('Erro ao capturar assinatura.')
+    signatureError.value = 'Não foi possível capturar a assinatura. Assine novamente.'
     return
   }
 
@@ -255,7 +283,12 @@ async function handleSubmit() {
     signatureMethod: signatureMethod.value
   }
 
-  const { success } = await consentTermsStore.submitSignature(token, payload)
+  const { success, error, message } = await consentTermsStore.submitSignature(token, payload)
+  if (!success) {
+    if (error?.response?.data?.field === 'signatureData') signatureError.value = message
+    else submissionError.value = message
+    return
+  }
 
   if (success) {
     submissionStatus.value = 'success'
@@ -408,7 +441,7 @@ async function handleSubmit() {
           <div class="term-content" v-html="renderedContent"></div>
 
           <!-- Signature Area -->
-          <div class="signature-section">
+          <div class="signature-section" :class="{ 'has-error': signatureError }">
             <div class="signature-header">
               <h3>Sua Assinatura</h3>
               <button @click="clearSignature" class="clear-btn" type="button">
@@ -475,7 +508,7 @@ async function handleSubmit() {
               <input 
                 ref="fileInput"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 @change="handleFileUpload"
                 class="file-input"
                 id="signature-upload"
@@ -491,6 +524,7 @@ async function handleSubmit() {
             </div>
           </div>
 
+          <p v-if="signatureError" class="signature-error" role="alert">{{ signatureError }}</p>
           <!-- Confirmations -->
           <div class="confirmations">
             <label class="checkbox-item" @click.prevent="acceptedTerms = !acceptedTerms">
@@ -512,13 +546,14 @@ async function handleSubmit() {
           </div>
 
           <!-- Submit -->
+          <p v-if="submissionError" class="signature-error" role="alert">{{ submissionError }}</p>
           <button 
             @click="handleSubmit" 
             class="submit-button"
-            :disabled="!canSubmit"
+            :disabled="!canSubmit || consentTermsStore.isLoading"
           >
             <Send :size="18" />
-            Assinar e Enviar
+            {{ consentTermsStore.isLoading ? 'Enviando assinatura…' : 'Assinar e Enviar' }}
           </button>
 
           <p class="lgpd">
@@ -539,6 +574,17 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
+.signature-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+.signature-section.has-error :is(canvas, input, .upload-label) {
+  border-color: #b91c1c;
+  outline: 1px solid #b91c1c;
+}
 .consent-page {
   display: flex;
   flex-direction: column;

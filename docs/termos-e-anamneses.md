@@ -1,5 +1,48 @@
 # Listagens de Termos e Anamneses
 
+## Assinatura pelo paciente
+
+A página `/termo/:token` consulta e envia sem autenticação do CRM, inclusive
+quando existe sessão expirada no navegador. Aceita desenho, nome digitado ou
+imagem PNG/JPEG/WebP de até 5 MB. Ao voltar à aba Desenhar, o canvas é
+reinicializado. Durante o envio, o botão fica desabilitado.
+
+Erros da imagem aparecem junto à área de assinatura; falhas gerais aparecem
+antes do botão e permanecem visíveis, preservando a assinatura para nova
+tentativa. A mensagem usa tanto `message` quanto `error.message` da API e
+identifica falha de conexão ou excesso de tamanho quando não há mensagem.
+Editar a assinatura ou as confirmações limpa o erro. Falhas de envio não
+dependem de toast. Contrato e limitações:
+[Assinatura pública de termos](../../api-clinic/docs/CONSENT_TERMS.md).
+
+Verificar em desktop e celular: alternar os três métodos, selecionar imagem
+inválida/grande, simular conexão perdida e respostas 403/409/413/500/503,
+confirmar mensagem persistente e nova tentativa. Teste das mensagens:
+`node --test tests/consent-signature-error.test.js`.
+
+### Testes automatizados
+
+Execute `npm run test:consent` em `crm-clinica`. O comando roda o teste de
+mensagens com Node e a suíte Vitest configurada em `vitest.consent.config.js`.
+As dependências de teste são Vitest, Vue Test Utils e JSDOM (26, compatível
+com o runtime Node 22 usado pelo projeto).
+
+- `tests/consent-view.spec.js` monta o componente real e verifica token,
+  confirmações, envio digitado, desenho com mouse/toque, troca de abas,
+  limpeza, upload válido/inválido/grande, falha de leitura, erro persistente,
+  assinatura preservada, nova tentativa e bloqueio durante envio.
+- `tests/consent-api-store.spec.js` verifica `skipAuth` nas duas chamadas
+  públicas, propagação de erro sem toast e ciclo de carregamento do store.
+- `tests/consent-signature-error.test.js` verifica ambos os contratos de
+  mensagem, falha de conexão, 413 sem JSON e fallback HTTP.
+
+Store, rota, confetti e APIs externos são simulados nos testes do componente;
+canvas e FileReader também. Estes testes não substituem revisão visual nem
+teste em navegador real. A cobertura do backend está descrita em
+[Assinatura pública de termos](../../api-clinic/docs/CONSENT_TERMS.md#suíte-automatizada-do-módulo).
+
+## Listagens
+
 As rotas `/termos` e `/anamneses` usam o espaçamento e a rolagem padrão do `DefaultLayout`, como as outras páginas de listagem. O cabeçalho, os cartões e a paginação seguem as mesmas margens no desktop e no celular.
 
 As duas telas preservam a busca por paciente, o filtro de status, os estados de carregamento e vazio, os cartões com ações e a paginação. Esta alteração afeta apenas a apresentação; não modifica a API, os dados ou as permissões.

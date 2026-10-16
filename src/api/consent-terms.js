@@ -78,13 +78,13 @@ export const sendConsentTermPdf = (patientId, termId) => {
 
 // Busca o termo público usando o token
 export const getPublicConsentTerm = (token) => {
-    return apiClient.get(`/consent-terms/public/${token}`)
+    return apiClient.get(`/consent-terms/public/${token}`, { skipAuth: true })
 }
 
 // Paciente submete assinatura
 export const submitConsentTermSignature = (token, payload) => {
     // payload: { signatureData, acceptedTerms, identityConfirmation }
-    return apiClient.put(`/consent-terms/public/${token}`, payload)
+    return apiClient.put(`/consent-terms/public/${token}`, payload, { skipAuth: true })
 }
 
 export const getAllConsentTerms = (page = 1, limit = 20, status = 'Todos', search = '') => {
