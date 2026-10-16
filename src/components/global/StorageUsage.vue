@@ -46,7 +46,7 @@ const unclassifiedWidth = computed(() => Math.max(quota.value, used.value, break
 
 const notice = computed(() => {
   if (!summary.value) return null
-  if (summary.value.blocked) return { title: 'Armazenamento em verificação', text: 'Novos envios estão temporariamente indisponíveis.' }
+  if (summary.value.blocked) return { title: 'Armazenamento em verificação', text: 'Envios de imagens e documentos estão temporariamente indisponíveis. Pacientes podem continuar assinando termos.' }
   if (!summary.value.ready) return { title: 'Inventário em atualização', text: 'O consumo pode mudar.' }
   if (tone.value === 'full') return { title: 'Armazenamento cheio', text: 'Sem espaço disponível para novos arquivos.' }
   if (tone.value === 'critical') return { title: 'Armazenamento quase cheio', text: 'Considere liberar espaço para novos arquivos.' }

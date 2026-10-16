@@ -1,5 +1,10 @@
 # Armazenamento na interface
 
+Administradores consultam o inventário completo e os arquivos isentos no
+[painel administrativo](../../crm-clinica-admin/docs/ARMAZENAMENTO.md).
+A aba do perfil da clínica conserva sua visualização de cota e categorias
+contabilizadas, sem expor o inventário administrativo.
+
 O componente compartilhado `src/components/global/StorageUsage.vue` apresenta o consumo no menu do usuário e os detalhes na aba do perfil (`?profile=1&profileTab=storage`). As cotas, isenções e operações de inventário estão documentadas em [Cotas de armazenamento](../../api-clinic/docs/STORAGE_QUOTAS.md).
 
 ## Carregamento e atualização
@@ -21,6 +26,11 @@ O container inteiro do resumo no menu abre a aba de armazenamento do perfil, por
 A visualização detalhada usa `storage-details` e ocupa toda a largura disponível, sem limite de 640px. O conteúdo é organizado em cards com borda discreta, cantos arredondados e espaçamento uniforme: capacidade utilizada primeiro (consumo destacado, percentual, atualização, barra e espaço disponível); distribuição por categoria com legenda e barra segmentada; e aviso de estado, quando aplicável. Não há card de arquivos isentos. O título Armazenamento do modal não se repete no conteúdo. O menu mantém seu formato compacto.
 
 O aviso de inventário em atualização usa um card próprio com ícone de atenção, fundo amarelo suave e borda clara, separando título e explicação. Bloqueio e alertas de capacidade usam o mesmo espaço, preservando a prioridade: bloqueio, inventário não pronto, cheio, crítico e próximo do limite. O aviso usa `role="status"` e não depende somente de cor. Skeletons ocupam os cards de capacidade e distribuição na primeira carga. Em celular, o padding diminui e o cabeçalho pode quebrar linha.
+
+No bloqueio por verificação, o aviso informa que envios de imagens/documentos
+estão indisponíveis, mas pacientes continuam podendo assinar termos. A exceção
+é aplicada pelo backend à categoria isenta `assinaturas`; não remove o bloqueio
+nem libera os demais uploads. Leitura/download permanecem disponíveis.
 
 `GET /storage/details` retorna categorias de ativos ativos e contabilizados, com `_id`, `usedBytes` e `files`. Imagens, documentos e outros arquivos aparecem na legenda mesmo com consumo zero. Categorias adicionais retornadas pela API também são representadas; identidade visual (`branding`), fotos de perfil (`perfil`) e assinaturas (`assinaturas`) têm rótulos conhecidos, embora sejam isentas pela política atual. A interface não inventa volumes de categorias isentas nem os inclui artificialmente no gráfico.
 
