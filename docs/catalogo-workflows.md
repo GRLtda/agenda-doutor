@@ -41,6 +41,13 @@ submissão dupla. Fechar durante criação não cancela escrita iniciada nem nav
 ao concluir após desmontagem. Sem templates, orienta Marketing → Modelos.
 Backend atualizado é necessário; não há fallback de geração local.
 
+O seletor oferece “Criar novo modelo” no rodapé, com o mesmo estilo do cadastro
+de paciente no novo agendamento, e menu de pelo menos 400 px limitado à janela.
+Escolher mensagem exibe aviso de variáveis sem preenchimento garantido, usando
+`eventType` do modelo inicial e `messageVariableSupport` da resposta do catálogo.
+O aviso não bloqueia criar rascunho; informa substituição por vazio quando faltarem
+dados. A mesma regra é aplicada no [editor](editor-workflows.md).
+
 ## Referências das ideias
 
 Inspiração de comunicação administrativa e continuidade do cuidado:

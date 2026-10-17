@@ -6,6 +6,25 @@ e contratos da API v2 permanecem existentes; esta mudança não altera o motor.
 
 ## Interface
 
+O seletor de mensagens usa `MessageTemplateSelect`: menu com largura mínima de
+400 px, limitado à janela com margem de 8 px, e ação centralizada “Criar novo modelo”
+no rodapé, com contorno/fundo/raio iguais ao cadastro de paciente no novo agendamento.
+A criação mantém a navegação existente para Marketing → Modelos e aguarda salvar
+o rascunho pelo bloqueio de saída do editor.
+
+Ao escolher um modelo, `WorkflowMessageVariableWarning` lista as variáveis sem
+preenchimento garantido para os inícios conectados à mensagem. Considera texto e
+componentes interativos, múltiplos inícios e ausência de ligação, sem toast nem
+bloqueio de publicação. Alterar modelo, início ou ligações recalcula o aviso.
+A relação vem de `messageVariableSupport` do catálogo backend; não há catálogo
+paralelo no frontend. Informa que variáveis sem dados serão substituídas por texto
+vazio no envio. Relação completa: [Guia da API](../../api-clinic/docs/WORKFLOWS_GUIDE.md#relação-de-variáveis-por-início).
+Teste: `node --test tests/workflowMessageVariables.test.js tests/workflowEditor.test.js`.
+Revisão isolada com componentes reais e dados fictícios confirmou menu de 400 px
+no desktop e de 374 px em janela de 390 px (margens de 8 px), ação no rodapé,
+fechamento por Escape e atualização do aviso ao trocar procedimento por agendamento,
+sem erros de console. O build de produção passou. A revisão não enviou mensagens reais.
+
 - Barra superior flutuante: voltar, nome/status, estado de salvamento, Salvar e
   Publicar. Publicado indica a existência da versão publicada, não que qualquer
   edição local já esteja publicada. Publicar salva o grafo e chama o endpoint

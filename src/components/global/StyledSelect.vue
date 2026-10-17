@@ -9,6 +9,7 @@ const props = defineProps({
   required: { type: Boolean, default: false },
   error: { type: [Boolean, String], default: false },
   placeholder: { type: String, default: 'Selecione' },
+  dropdownMinWidth: { type: Number, default: 0 },
   dropdownDirection: {
     type: String,
     default: 'auto',
@@ -77,11 +78,13 @@ async function updateDropdownPosition() {
     ? Math.max(8, rect.top - dropdownHeight - 4)
     : Math.min(viewportHeight - dropdownHeight - 8, rect.bottom + 4)
 
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+  const width = Math.min(Math.max(rect.width, props.dropdownMinWidth), viewportWidth - 16)
   dropdownStyle.value = {
     position: 'fixed',
     top: `${calculatedTop}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    left: `${Math.max(8, Math.min(rect.left, viewportWidth - width - 8))}px`,
+    width: `${width}px`,
     transformOrigin: shouldOpenUp ? 'bottom center' : 'top center',
   }
   isPositioned.value = true

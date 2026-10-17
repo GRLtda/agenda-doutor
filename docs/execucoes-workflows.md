@@ -1,5 +1,11 @@
 # Execuções de workflows
 
+Erros imediatos no envio de WhatsApp, inclusive número não registrado, agora
+chegam como `failed` na etapa e na execução; badges, histórico e nó usam o
+vermelho existente e o fluxo não continua para a próxima mensagem. O ajuste é
+no motor: execuções antigas já concluídas não são reclassificadas. Aceite pelo
+provedor é distinto de entrega/leitura e falhas posteriores não são reconciliadas.
+
 A rota `/workflows/execucoes` usa `AppTableList`, como a [listagem de workflows](listagem-workflows.md), com dez registros por página e paginação no servidor. Filtros usam StyledSelect para workflow/status e AppDateRangePicker para período de início, incluindo o último dia completo no fuso do navegador. A ordenação é última atividade/ID decrescente. A consulta inicial inclui todos os status. Acesso pelo menu de um workflow envia definitionId na query string. Definições arquivadas continuam no histórico; quando a definição filtrada não consta das opções, aparece “Workflow selecionado”.
 
 A tabela tem seis colunas: Workflow (ícone e nome), Paciente/atendimento, Status, Etapas atuais, Atividade (última atividade e início) e Ações. O skeleton repete essas seis colunas no desktop; no celular/secundário acompanha os cards, com ícone, nome, bloco da etapa, horários e botão. Em telas até 768px, cards preservam as informações. Altura limitada, rolagem interna e paginação fora da região rolável. Skeleton, falha com nova tentativa e AppEmptyState com workflows-empty.svg seguem as regras compartilhadas. Não há seleção em lote de execuções nem contador de execuções no cabeçalho dos filtros; a paginação mantém seu resumo padrão. Cards do secundário agrupam workflow/status, paciente, etapa e horários, com ação no rodapé.

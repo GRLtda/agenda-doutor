@@ -11,6 +11,8 @@ import WorkflowNode from './WorkflowNode.vue'
 import WorkflowEdge from '@/components/pages/workflows/WorkflowEdge.vue'
 import { workflowSteps, stepTitle, graphSnapshot, canConnectSteps, simulateWorkflow } from '@/utils/workflowEditor'
 import MessageTemplateSelect from '@/components/global/MessageTemplateSelect.vue'
+import WorkflowMessageVariableWarning from '@/components/pages/workflows/WorkflowMessageVariableWarning.vue'
+import { messageSourceEvents } from '@/utils/workflowMessageVariables'
 import WorkflowLoading from '@/components/pages/workflows/WorkflowLoading.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import { layoutWorkflow } from '@/utils/workflowLayout'
@@ -94,6 +96,8 @@ const templateOptions = computed(() => {
     label: template.name
   }))
 })
+const selectedMessageTemplate = computed(() => templatesStore.templates.find(template => template._id === selectedNode.value?.config?.templateId))
+const selectedMessageEvents = computed(() => messageSourceEvents(nodes.value, edges.value, selectedNode.value?._id || selectedNode.value?.key))
 
 // Procedure options for StyledMultiSelect (sem opção 'todos', pois multi-select vazio = todos)
 const procedureOptions = computed(() => {
@@ -751,6 +755,7 @@ onUnmounted(() => { disposed = true; stopSimulation(); clearTimeout(fitTimer); c
               :required="true" :error="nodeError" @update:model-value="nodeError = ''"
             />
 
+            <WorkflowMessageVariableWarning :template="selectedMessageTemplate" :events="selectedMessageEvents" :support="workflowsStore.catalog?.messageVariableSupport" />
             <div class="field-hint">
               <span class="hint-icon" aria-hidden="true"><AlertCircle :size="14" /></span>
               <span>Os modelos são criados em <strong>Marketing → Modelos</strong>. Eles podem conter variáveis como {paciente}, {data_consulta}, etc.</span>
@@ -786,6 +791,7 @@ onUnmounted(() => { disposed = true; stopSimulation(); clearTimeout(fitTimer); c
               :options="iconOptions(templateOptions)"
               :required="true" :error="nodeError" @update:model-value="nodeError = ''"
             />
+            <WorkflowMessageVariableWarning :template="selectedMessageTemplate" :events="selectedMessageEvents" :support="workflowsStore.catalog?.messageVariableSupport" />
           </div>
         </template>
 

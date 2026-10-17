@@ -68,6 +68,10 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
   O botão expõe combobox/listbox; setas percorrem opções, Enter ou espaço
   selecionam, Escape e Tab fecham. `SearchableSelect` continua específico para
   busca; `StyledMultiSelect` continua específico para múltiplos valores.
+  `dropdownMinWidth` opcional (número em pixels, padrão 0) amplia o menu sem alterar
+  o campo. Largura e posição ficam limitadas à janela com margem de 8 px.
+  `MessageTemplateSelect` usa 400 px e rodapé com ação centralizada/contornada
+  “Criar novo modelo”, seguindo o cadastro de paciente no novo agendamento.
 - `StyledMultiSelect`: opções `{ value, label }` e `v-model` com array de valores.
   Os filtros de tags dos anexos e da galeria do paciente usam esse componente,
   com busca, seleção múltipla, remoção individual e limpeza pelo ícone X.
