@@ -7,6 +7,12 @@ As fundações de bordas, cores, fontes e skeleton ficam no
 
 ## Contratos de reutilização
 
+- `ApiAvailabilityBanner`: props `visible`, `loading` e `canRetry`; evento
+  `retry`. Aviso único fixo no topo, teleportado para `body` acima dos modais,
+  sem expiração durante indisponibilidade. Reutilizado globalmente em `App.vue`.
+  Preservação de sessão, critérios de falha, recuperação e testes estão em
+  [Autenticação e indisponibilidade](autenticacao.md).
+
 - `FinanceSummaryCard` é reutilizado pelo [Resumo do estoque](estoque.md)
   para os quatro indicadores, com `label`, `value`, `subtext` e `loading`.
   A navegação fica em um botão externo com foco visível. Não recebe séries

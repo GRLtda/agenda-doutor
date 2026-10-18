@@ -1,9 +1,10 @@
 import axios from 'axios'
 import * as Sentry from '@sentry/vue'
-import { ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout'
+import { getApiAvailabilityRevision, isApiUnavailable, reportApiFailure, reportApiSuccess } from '@/services/apiAvailability'
+import { isCanceledApiError, isTemporaryApiError } from '@/utils/apiErrors'
 
-export const isGlobalOffline = ref(false)
+export const isGlobalOffline = isApiUnavailable
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -32,6 +33,7 @@ const AUTH_URLS = ['/v2/auth/login', '/v2/auth/refresh', '/v2/auth/logout']
 
 // --- Interceptador de Requisição ---
 apiClient.interceptors.request.use(async (config) => {
+  config._availabilityRevision = getApiAvailabilityRevision()
   // 1. Versionamento dinâmico (v1 default, override v2)
   const versionPrefixRegex = /^\/?v\d+(\/|$)/
   if (config.url && !versionPrefixRegex.test(config.url)) {
@@ -65,7 +67,7 @@ apiClient.interceptors.request.use(async (config) => {
       if (!isRefreshing) {
         isRefreshing = true
         try {
-          await authStore.refreshTokens()
+          if (!await authStore.refreshTokens()) throw new axios.CanceledError('Sessão alterada durante a renovação.')
           processQueue(null, authStore.accessToken)
         } catch (refreshError) {
           processQueue(refreshError, null)
@@ -97,46 +99,41 @@ apiClient.interceptors.request.use(async (config) => {
 // --- Interceptador de Resposta ---
 apiClient.interceptors.response.use(
   (response) => {
-    if (isGlobalOffline.value) {
-      isGlobalOffline.value = false
-    }
+    reportApiSuccess(response.config?._availabilityRevision)
     return response
   },
   async (error) => {
     const originalRequest = error.config
 
-    // Trata erros de rede
-    if (error.code === 'ERR_NETWORK' || !error.response) {
-      console.error('⚠️ Conexão perdida com a API.')
-      isGlobalOffline.value = true
+    if (isCanceledApiError(error)) return Promise.reject(error)
+
+    // Rede, timeout, limite temporário e indisponibilidade do servidor não invalidam sessão.
+    if (isTemporaryApiError(error)) {
+      reportApiFailure(error)
       Sentry.captureException(error)
       return Promise.reject(error)
-    } else {
-      isGlobalOffline.value = false
     }
 
     // Auth V2: Trata 401 - Token expirado ou inválido
     const isAuthRoute = AUTH_URLS.some((url) => originalRequest?.url?.includes(url))
+    const errorCode = error.response?.data?.error?.code || error.response?.data?.code
+    const confirmedInvalidSession =
+      (error.response?.status === 401 && ['AUTH_INVALID_REFRESH_TOKEN', 'AUTH_SESSION_REVOKED'].includes(errorCode)) ||
+      (error.response?.status === 403 && errorCode === 'USER_INACTIVE')
+
+    if (confirmedInvalidSession && !isAuthRoute && !originalRequest?.skipAuth) {
+      const { useAuthStore } = await import('@/stores/auth')
+      await useAuthStore().invalidateSession()
+      return Promise.reject(error)
+    }
     if (
       error.response?.status === 401 &&
+      originalRequest &&
       !originalRequest._retry &&
       !isAuthRoute &&
       !originalRequest.skipAuth
     ) {
       originalRequest._retry = true
-
-      const errorCode = error.response?.data?.error?.code
-
-      // Se o refresh token é inválido, força logout
-      if (errorCode === 'AUTH_INVALID_REFRESH_TOKEN') {
-        const { useAuthStore } = await import('@/stores/auth')
-        const authStore = useAuthStore()
-        authStore.logout()
-
-        const router = (await import('@/router')).default
-        router.push({ name: 'login' })
-        return Promise.reject(error)
-      }
 
       // Tenta renovar o token
       if (!isRefreshing) {
@@ -145,7 +142,7 @@ apiClient.interceptors.response.use(
           const { useAuthStore } = await import('@/stores/auth')
           const authStore = useAuthStore()
 
-          await authStore.refreshTokens()
+          if (!await authStore.refreshTokens()) throw new axios.CanceledError('Sessão alterada durante a renovação.')
           processQueue(null, authStore.accessToken)
 
           // Atualiza o header e reenvia a requisição original
@@ -161,8 +158,8 @@ apiClient.interceptors.response.use(
         // Aguarda o refresh em andamento e reenvia
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then(() => {
-          const { useAuthStore } = require('@/stores/auth')
+        }).then(async () => {
+          const { useAuthStore } = await import('@/stores/auth')
           const authStore = useAuthStore()
           originalRequest.headers.Authorization = `Bearer ${authStore.accessToken}`
           return apiClient(originalRequest)

@@ -8,3 +8,8 @@ Validacao: iniciar npm run dev e conferir ausencia de requisicoes para Sentry e 
 
 Diagnóstico e regressão do `RangeError: Invalid time value` em clique no
 cabeçalho do VueCal: [Calendário](calendario.md#diagnóstico-do-erro-p1).
+
+Falhas de rede/timeout e HTTP 408/429/5xx ativam o aviso global sem apagar a
+sessão. O interceptor continua encaminhando falhas ao Sentry; cancelamentos
+intencionais não geram esse aviso nem captura nesse interceptor. Contrato,
+limitações e testes: [Autenticação e indisponibilidade](autenticacao.md).

@@ -2,6 +2,11 @@
 
 Este documento descreve o fluxo de acesso financeiro aplicado ao onboarding da clínica no frontend.
 
+Falha de conexão na consulta da conta preserva a sessão e não presume que a
+clínica está ausente. Sem perfil em cache, a aplicação aguarda recuperação
+antes de decidir onboarding ou plano. As validações financeiras abaixo
+continuam ativas. Consulte [Autenticação e indisponibilidade](autenticacao.md).
+
 Na etapa Horário de Funcionamento, os campos e o cálculo semanal são compartilhados
 com Configurações por `WorkingHoursFields` e `utils/workingHours.js`. Dias usam
 `Switch`; horários usam `StyledSelect`. O total considera minutos, de modo que

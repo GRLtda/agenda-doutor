@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prévia do aviso de conexão</title>
+    <style>
+      body { margin: 0; background: #f8fafc; font: 14px Arial, sans-serif; --fonte-principal: Arial, sans-serif; }
+      main { max-width: 840px; padding: 110px 24px 24px; margin: auto; }
+      section.preview-card { background: white; border: 1px solid #e8edf4; border-radius: 12px; padding: 24px; }
+      h1 { font-size: 24px; font-weight: 500; }
+      p { color: #64748b; line-height: 1.5; }
+      input { padding: 12px; width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 12px; }
+      .modal-example { position: fixed; z-index: 50000; right: 24px; bottom: 24px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px #0f172a18; }
+      @media (max-width: 720px) { main { padding-top: 180px; } .modal-example { right: 16px; left: 16px; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h, ref } from 'vue'
+      import Banner from '/src/components/layout/ApiAvailabilityBanner.vue'
+      if (new URLSearchParams(location.search).has('mobile')) {
+        const frame = document.createElement('iframe')
+        frame.src = location.pathname
+        frame.title = 'Aviso de conexão no celular'
+        frame.style.cssText = 'display:block;width:375px;max-width:100%;height:700px;margin:16px auto;border:1px solid #e8edf4'
+        document.body.appendChild(frame)
+      } else {
+      createApp({ setup() {
+        const visible = ref(true)
+        const note = ref('Rascunho de exemplo preservado na tela')
+        return () => h('div', [
+          h(Banner, { visible: visible.value, canRetry: true, onRetry: () => { visible.value = false } }),
+          h('main', [h('h1', 'Sua página continua aberta'), h('p', 'Prévia com dados fictícios. O botão simula recuperação sem chamar a API.'),
+            h('section', { class: 'preview-card' }, [h('label', { for: 'note' }, 'Observação em edição'), h('input', { id: 'note', value: note.value, onInput: event => { note.value = event.target.value } }), h('p', 'Este conteúdo não é remontado quando o aviso desaparece.')]),
+          ]),
+          h('aside', { class: 'modal-example' }, 'Exemplo de modal: o aviso fica acima desta camada.'),
+        ])
+      } }).mount('#app')
+      }
+    </script>
+  </body>
+</html>

@@ -24,6 +24,8 @@ import { messaging, getToken, onMessage } from '@/services/firebase'
 import { trackClarityEvent } from '@/services/clarity'
 import { useClinicStore } from './clinic'
 import { storageUploadError } from '@/api/storage'
+import { isCanceledApiError, isInvalidSessionError } from '@/utils/apiErrors'
+import { reportApiFailure } from '@/services/apiAvailability'
 // router import removed to avoid circular dependency
 
 // Storage keys
@@ -37,9 +39,12 @@ export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(null)
   const refreshToken = ref(null)
   const expiresAt = ref(0)
+  const sessionValidationUnavailable = ref(false)
 
   // Flag para evitar múltiplos refreshs simultâneos
   let refreshPromise = null
+  let userPromise = null
+  let sessionGeneration = 0
 
   // Inicialização: carrega tokens do localStorage
   _loadStoredTokens()
@@ -121,11 +126,30 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function _clearTokens() {
+    sessionGeneration++
+    userPromise = null
+    refreshPromise = null
+    sessionValidationUnavailable.value = false
     accessToken.value = null
     refreshToken.value = null
     expiresAt.value = 0
     localStorage.removeItem(STORAGE_KEY_TOKENS)
     delete apiClient.defaults.headers.common['Authorization']
+  }
+
+  function clearLocalSession() {
+    user.value = null
+    _clearTokens()
+    sessionValidationUnavailable.value = false
+    localStorage.removeItem(STORAGE_KEY_USER)
+    Sentry.setUser(null)
+    useClinicStore().setClinic(null)
+  }
+
+  async function invalidateSession() {
+    clearLocalSession()
+    const { default: router } = await import('@/router')
+    await router.replace({ name: 'login' })
   }
 
   function setUser(newUser) {
@@ -265,32 +289,44 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUser() {
     if (!accessToken.value) return null
-    try {
-      const response = await getMeV2()
-      // API V2 retorna { success: true, data: user }
-      const userData = response.data.data
-      setUser(userData)
+    if (userPromise) return userPromise
+    const generation = sessionGeneration
+    const pending = Promise.resolve().then(async () => {
+      try {
+        const response = await getMeV2()
+        if (generation !== sessionGeneration) return user.value
+        // API V2 retorna { success: true, data: user }
+        const userData = response.data.data
+        setUser(userData)
+        sessionValidationUnavailable.value = false
 
-      // Initialize Push Notifications once user is fetched
-      initPushNotifications()
+        // Initialize Push Notifications once user is fetched
+        initPushNotifications()
 
-      return userData
-    } catch (error) {
-      if (error.response && error.response.status === 403) {
-        return user.value
-      } else if (error.response?.data?.error?.code === 'CLINIC_NOT_FOUND') {
-        console.warn('[Auth V2] Usuário autenticado, mas sem clínica vinculada (CLINIC_NOT_FOUND). Mantendo sessão para onboarding.')
-        // Não faz logout, permite que o fluxo siga (ex: para onboarding)
-        return user.value
-      } else {
-        logout()
-        console.error('[Auth V2] Erro ao buscar usuário, token pode ser inválido:', error)
-
-        const { default: router } = await import('@/router')
-        router.push({ name: 'login' })
-        return null
+        return userData
+      } catch (error) {
+        if (generation !== sessionGeneration || isCanceledApiError(error)) return user.value
+        if (isInvalidSessionError(error)) {
+          await invalidateSession()
+          return null
+        }
+        if (error.response && error.response.status === 403) {
+          return user.value
+        } else if (error.response?.data?.error?.code === 'CLINIC_NOT_FOUND') {
+          console.warn('[Auth V2] Usuário autenticado, mas sem clínica vinculada (CLINIC_NOT_FOUND). Mantendo sessão para onboarding.')
+          // Não faz logout, permite que o fluxo siga (ex: para onboarding)
+          return user.value
+        } else {
+          sessionValidationUnavailable.value = true
+          reportApiFailure(error)
+          return user.value
+        }
+      } finally {
+        if (userPromise === pending) userPromise = null
       }
-    }
+    })
+    userPromise = pending
+    return pending
   }
 
   /**
@@ -298,7 +334,9 @@ export const useAuthStore = defineStore('auth', () => {
    * Retorna access_token + refresh_token
    */
   async function login(credentials) {
-    logout() // Limpa estado anterior
+    const previousRefreshToken = refreshToken.value
+    clearLocalSession()
+    if (previousRefreshToken) logoutV2(previousRefreshToken).catch(() => {})
     try {
       const response = await loginV2(credentials.email, credentials.password)
       const { data } = response.data // API V2 retorna { success, data: { access_token, ... } }
@@ -342,27 +380,34 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     if (!refreshToken.value) {
+      await invalidateSession()
       throw new Error('No refresh token available')
     }
 
-    refreshPromise = (async () => {
+    const generation = sessionGeneration
+    const tokenToRefresh = refreshToken.value
+    const pending = Promise.resolve().then(async () => {
       try {
-        const response = await refreshV2(refreshToken.value)
+        const response = await refreshV2(tokenToRefresh)
+        if (generation !== sessionGeneration) return false
         const { data } = response.data
 
         _saveTokens(data)
         return true
       } catch (error) {
-        console.error('[Auth V2] Falha ao renovar tokens:', error)
-        // Sessão expirada, força logout e redireciona
-        logout()
-        const { default: router } = await import('@/router')
-        router.push({ name: 'login' })
+        if (generation === sessionGeneration && !isCanceledApiError(error)) {
+          if (isInvalidSessionError(error)) await invalidateSession()
+          else {
+            sessionValidationUnavailable.value = true
+            reportApiFailure(error)
+          }
+        }
         throw error
       } finally {
-        refreshPromise = null
+        if (refreshPromise === pending) refreshPromise = null
       }
-    })()
+    })
+    refreshPromise = pending
 
     return refreshPromise
   }
@@ -425,29 +470,12 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function logout() {
     trackClarityEvent('logout_click')
-
-    // Tenta invalidar sessão no backend (fire and forget)
-    if (refreshToken.value) {
-      try {
-        await logoutV2(refreshToken.value)
-      } catch (e) {
-        // Ignora erros de logout - token já pode estar inválido
-        console.warn('[Auth V2] Erro ao invalidar sessão no backend:', e)
-      }
-    }
-
-    // Limpa estado local
-    user.value = null
-    _clearTokens()
-    localStorage.removeItem(STORAGE_KEY_USER)
-    Sentry.setUser(null)
-
-    const clinicStore = useClinicStore()
-    clinicStore.setClinic(null)
-
-    // Redireciona para login explicitamente
+    const previousRefreshToken = refreshToken.value
+    clearLocalSession()
+    // A saída local não depende da disponibilidade do servidor.
+    if (previousRefreshToken) logoutV2(previousRefreshToken).catch(() => {})
     const { default: router } = await import('@/router')
-    router.push({ name: 'login' })
+    await router.replace({ name: 'login' })
   }
 
   /**
@@ -515,14 +543,16 @@ export const useAuthStore = defineStore('auth', () => {
       // Verifica se precisa renovar
       if (isTokenExpiringSoon()) {
         try {
-          await refreshTokens()
+          if (!await refreshTokens()) return false
         } catch (e) {
-          // Sessão expirada, usuário precisa fazer login novamente
-          return
+          // Uma falha temporária preserva tokens e usuário para nova tentativa.
+          return false
         }
       }
       await fetchUser()
+      return isAuthenticated.value && !sessionValidationUnavailable.value
     }
+    return false
   }
 
   // --- Funções de Recuperação de Senha (V1) ---
@@ -601,6 +631,7 @@ export const useAuthStore = defineStore('auth', () => {
     expiresAt,
     isAuthenticated,
     hasClinic,
+    sessionValidationUnavailable,
 
     notifications,
     unreadCount,
@@ -611,6 +642,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Auth V2
     login,
     logout,
+    invalidateSession,
     logoutAll,
     refreshTokens,
     isTokenExpiringSoon,

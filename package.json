@@ -3,6 +3,7 @@
   "version": "1.9.4",
   "type": "module",
   "scripts": {
+    "test:auth": "vitest run --config vitest.auth.config.js",
     "test:calendar": "vitest run --config vitest.calendar.config.js",
     "test:stock": "vitest run --config vitest.stock.config.js",
     "test:uploads": "vitest run --config vitest.uploads.config.js",
