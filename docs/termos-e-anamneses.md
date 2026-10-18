@@ -41,6 +41,19 @@ canvas e FileReader também. Estes testes não substituem revisão visual nem
 teste em navegador real. A cobertura do backend está descrita em
 [Assinatura pública de termos](../../api-clinic/docs/CONSENT_TERMS.md#suíte-automatizada-do-módulo).
 
+## Aplicar termo e anamnese
+
+Ao abrir os modais de aplicação no paciente, a consulta inicial do WhatsApp é
+silenciosa: não exibe toast de conexão ou desconexão. O status continua sendo
+atualizado para habilitar o envio da notificação somente quando conectado.
+Os dois modais usam `crmStore.getInitialStatus({ showToast: false })`; os
+demais consumidores mantêm o comportamento padrão dos avisos.
+
+Para verificar, abra os dois modais com WhatsApp conectado e desconectado:
+não deve aparecer toast de status na abertura, e a opção de notificação deve
+respeitar a disponibilidade da conexão. Na tela de conexão, confirme que o
+aviso de sucesso continua aparecendo após conectar.
+
 ## Listagens
 
 As rotas `/termos` e `/anamneses` usam o espaçamento e a rolagem padrão do `DefaultLayout`, como as outras páginas de listagem. O cabeçalho, os cartões e a paginação seguem as mesmas margens no desktop e no celular.

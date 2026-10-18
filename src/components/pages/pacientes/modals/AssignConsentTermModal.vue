@@ -42,7 +42,7 @@ watch(canSendWhatsappNotification, (canSend) => {
 onMounted(async () => {
   await Promise.all([
     consentTermsStore.fetchTemplates(),
-    crmStore.getInitialStatus(),
+    crmStore.getInitialStatus({ showToast: false }),
   ])
   if (!canSendWhatsappNotification.value) {
     sendNotification.value = false

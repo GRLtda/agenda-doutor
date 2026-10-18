@@ -254,7 +254,7 @@ export const useCrmStore = defineStore('crm', () => {
     }
   }
 
-  async function checkStatus() {
+  async function checkStatus({ showToast = true } = {}) {
     try {
       const response = await checkWhatsAppStatus()
       const state = normalizeResponse(response.data)
@@ -281,7 +281,7 @@ export const useCrmStore = defineStore('crm', () => {
 
       switch (state.status) {
         case 'connected':
-          applyConnectedState(state, previousStatus)
+          applyConnectedState(state, previousStatus, showToast)
           break
 
         case 'disconnected':
@@ -290,7 +290,7 @@ export const useCrmStore = defineStore('crm', () => {
             initializingDisconnectRetryCount >= 3 ||
             previousStatus === 'disconnected'
           ) {
-            applyDisconnectedState(state, previousStatus)
+            applyDisconnectedState(state, previousStatus, showToast)
           }
           break
 
@@ -442,14 +442,14 @@ export const useCrmStore = defineStore('crm', () => {
     }
   }
 
-  async function getInitialStatus() {
+  async function getInitialStatus({ showToast = true } = {}) {
     stopPolling()
     initializingDisconnectRetryCount = 0
     isLoading.value = true
     isLoadingQrImage.value = false
 
     try {
-      await checkStatus()
+      await checkStatus({ showToast })
     } catch (e) {
       if (status.value !== 'disconnected') {
         status.value = 'disconnected'
