@@ -5,6 +5,13 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
+- `FinanceSummaryCard` é reutilizado pelo [Resumo do estoque](estoque.md)
+  para os quatro indicadores, com `label`, `value`, `subtext` e `loading`.
+  A navegação fica em um botão externo com foco visível. Não recebe séries
+  fictícias de estoque; o gráfico de movimentações usa os dados reais da consulta.
+  `StockDashboardEmpty` adapta `AppEmptyState` para os painéis compactos de
+  estoque com uma ilustração local; veja [Estados vazios](estados-vazios.md).
+
 - `AppToaster` mantém uma única pilha Sonner no canto inferior direito, com
   até quatro notificações visíveis. `useToast().upload({ title, description,
   progress })` usa um toast nativo Sonner de carregamento na mesma pilha,

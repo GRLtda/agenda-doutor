@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" aria-hidden="true" focusable="false">
+  <ellipse cx="120" cy="150" rx="83" ry="14" fill="var(--empty-backdrop, #f0f4fc)" />
+  <rect x="57" y="39" width="104" height="103" rx="12" transform="rotate(-8 57 39)" fill="var(--empty-layer, #dce6fa)" opacity=".55" />
+  <rect x="72" y="38" width="104" height="108" rx="12" fill="var(--empty-shadow, #d5e0f5)" opacity=".45" />
+  <rect x="68" y="32" width="104" height="108" rx="12" fill="var(--empty-paper, #fff)" />
+  <rect x="85" y="51" width="54" height="6" rx="3" fill="var(--empty-layer, #dce6fa)" />
+  <rect x="85" y="65" width="34" height="5" rx="2.5" fill="var(--empty-backdrop, #f0f4fc)" />
+  <path d="m91 93 29-14 29 14v27l-29 14-29-14z" fill="var(--empty-layer, #dce6fa)" />
+  <path d="m91 93 29 14 29-14-29-14z" fill="var(--empty-backdrop, #f0f4fc)" />
+  <path d="M120 107v27l29-14V93z" fill="var(--empty-accent, #6b95ed)" opacity=".27" />
+  <path d="m107 85 29 14v10l-8 4v-10L99 89z" fill="var(--empty-paper, #fff)" opacity=".8" />
+</svg>

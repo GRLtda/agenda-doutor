@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prévia local do estoque</title>
+    <style>
+      body { margin: 0; background: #f8fafc; }
+      #preview-controls { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 24px; background: #fff; border-bottom: 1px solid #e8edf4; font: 12px Arial, sans-serif; }
+      #preview-controls a { padding: 6px; color: #64748b; }
+      #app { padding: 28px; }
+      #mobile { display: block; width: 375px; max-width: 100%; height: 900px; border: 1px solid #e8edf4; margin: 16px auto; background: #f8fafc; }
+      @media (max-width: 600px) { #app { padding: 16px; } }
+    </style>
+  </head>
+  <body>
+    <nav id="preview-controls"><span>Prévia com dados fictícios</span><a href="?state=populated">Com dados</a><a href="?state=empty">Vazio</a><a href="?state=loading">Carregando</a><a href="?state=error">Erro</a><a href="?mobile=1">Celular</a></nav>
+    <div id="app"></div>
+    <script type="module">
+      import '/src/assets/css/global.css'
+      import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import { useEstoqueStore } from '/src/stores/estoque.js'
+      import Dashboard from '/src/views/pages/estoque/EstoqueDashboardView.vue'
+      const query = new URLSearchParams(location.search)
+      if (query.has('mobile')) {
+        document.getElementById('app').remove()
+        const frame = document.createElement('iframe')
+        frame.id = 'mobile'
+        frame.title = 'Dashboard de estoque no celular'
+        frame.src = '?embedded=1&state=populated'
+        document.body.appendChild(frame)
+      } else {
+        if (query.has('embedded')) document.getElementById('preview-controls').remove()
+        const app = createApp(Dashboard)
+        const pinia = createPinia()
+        app.use(pinia)
+        app.use(createRouter({ history: createMemoryHistory(), routes: [
+          { path: '/', component: Dashboard },
+          ...['produtos', 'lotes', 'movimentacoes', 'kits'].map(name => ({ path: `/estoque/${name}`, name: `estoque-${name}`, component: { template: '<p>Destino de exemplo</p>' } })),
+          { path: '/estoque/produtos/:id', name: 'estoque-produto-detalhe', component: { template: '<p>Insumo de exemplo</p>' } },
+        ] }))
+        const store = useEstoqueStore(pinia)
+        store.fetchDashboardSummary = async () => {
+          if (query.get('state') === 'loading') return new Promise(() => {})
+          if (query.get('state') === 'error') return { success: false, error: 'Falha de conexão simulada. Tente novamente.' }
+          if (query.get('state') !== 'empty') {
+            store.stats = { totalProdutos: 48, totalLotesAtivos: 126 }
+            store.healthScore = 87
+            store.alertasEstoqueMinimo = [
+              { produtoId: 'p1', nomeProduto: 'Luvas de procedimento', saldoTotal: 12, quantidadeMinima: 20 },
+              { produtoId: 'p2', nomeProduto: 'Anestésico tópico', saldoTotal: 3, quantidadeMinima: 5 },
+            ]
+            store.alertasVencimentos = [{ loteId: 'b1', nomeProduto: 'Soro fisiológico', numeroLote: 'SF-2026', dataValidade: '2026-11-04T12:00:00Z' }]
+            store.chartData = {
+              categorias: [{ _id: 'Descartáveis', count: 22 }, { _id: 'Medicamentos', count: 14 }, { _id: 'Anestésicos', count: 8 }, { _id: 'Outros', count: 4 }],
+              trends: Array.from({ length: 7 }, (_, index) => {
+                const date = new Date()
+                date.setDate(date.getDate() - (6 - index))
+                const day = date.toISOString().split('T')[0]
+                return [{ _id: { day, tipo: 'ENTRADA' }, total: [18, 28, 14, 35, 22, 12, 30][index] }, { _id: { day, tipo: 'SAIDA_CONSUMO' }, total: [10, 16, 18, 21, 13, 8, 20][index] }]
+              }).flat(),
+            }
+          }
+          return { success: true }
+        }
+        app.mount('#app')
+      }
+    </script>
+  </body>
+</html>
