@@ -5,6 +5,34 @@ e campos de horários. As regras gerais continuam em [Regras de layout](regras-l
 
 ## Contratos de reutilização
 
+- `AppToaster` mantém uma única pilha Sonner no canto inferior direito, com
+  até quatro notificações visíveis. `useToast().upload({ title, description,
+  progress })` usa um toast nativo Sonner de carregamento na mesma pilha,
+  com `AppUploadToast` apenas como conteúdo: título curto com peso 500,
+  subtítulo com peso 400, nome do arquivo, barra e percentual. A moldura,
+  largura responsiva e animações são do Sonner. No carregamento, a nuvem
+  tem 20px, usa `--azul-principal` e fica no topo, alinhada ao título.
+  As notificações finais preservam seus ícones nativos. Novas notificações se sobrepõem
+  conforme o empilhamento padrão, sem criar um container flutuante separado.
+  Retorna `{ id, update, success, error, dismiss }`. `update({ progress,
+  description, title })` atualiza o estado sem criar outro toast; `progress:
+  null` mostra espera indeterminada. `success(titulo, descricao)` e
+  `error(titulo, descricao)` dispensam o progresso e criam uma notificação
+  nativa final com título e descrição, que expira em quatro segundos. Uma
+  instância nova reinicia o temporizador e a altura medida, evitando altura
+  antiga ao passar o mouse. O timer nativo pausa durante interação/aba oculta.
+  A largura segue `--width` do Sonner mesmo para nomes curtos. Durante envio,
+  o tipo `loading` pausa a duração finita; não se usa `duration: Infinity`
+  seguida de troca de duração. Fechar apenas oculta a notificação:
+  não cancela o envio nem recria o toast ao concluir. Conteúdo é texto escapado,
+  e a barra expõe semântica de progresso e respeita movimento reduzido.
+  Primeiro uso: [Upload no atendimento](atendimento.md#upload-de-imagens).
+  Testes: `npm run test:uploads` (API compartilhada, componente, anexos, store
+  e expiração real com Sonner montado e relógio simulado após upload longo).
+  Prévia visual isolada: com `npm run dev`, abra
+  `/tests/fixtures/uploads-preview.html`. Usa dados fictícios, sem enviar arquivos,
+  e permite conferir nomes longos, largura estreita e empilhamento com outro toast.
+
 - `CopyContact`: props `value`, `label` e `message`, conteúdo pelo slot padrão.
   Copia via Clipboard API somente acima de 768px e mostra feedback em popover
   Reka UI teleportado por 1,8s. Não propaga o clique à linha; erro permanece no

@@ -39,6 +39,9 @@ const isCompressing = ref(false)
 const imageLoadErrors = reactive(new Set())
 const showPhotoViewer = ref(false)
 const pendingFiles = ref([])
+const dragDepth = ref(0)
+const uploadValidationError = ref('')
+const canUpload = computed(() => !props.disabled && !isUploading.value && !showPhotoViewer.value && !showMontageEditor.value)
 
 // Filtering & Selection State
 const searchQuery = ref('')
@@ -182,6 +185,7 @@ async function handleBulkDownload() {
 }
 
 function handleBulkMontage() {
+  if (props.disabled || isUploading.value) return
   if (selectedAttachmentIds.value.size > 4) {
     toast.warning('Selecione no máximo 4 fotos para a montagem.')
     return
@@ -357,83 +361,142 @@ function formatDate(dateString) {
   })
 }
 function triggerFileUpload() {
-  if (props.disabled) return
+  if (!canUpload.value || hasReachedLimit.value) return
+  uploadValidationError.value = ''
   fileInput.value.click()
 }
+function validateFiles(files) {
+  uploadValidationError.value = ''
+  if (files.some(file => !file.type.startsWith('image/'))) {
+    uploadValidationError.value = 'Selecione apenas arquivos de imagem.'
+    return false
+  }
+  if ((props.record?.attachments?.length || 0) + files.length > MAX_ATTACHMENTS) {
+    uploadValidationError.value = `Este atendimento permite no máximo ${MAX_ATTACHMENTS} imagens. Reduza a quantidade de arquivos.`
+    return false
+  }
+  return files.length > 0
+}
+function handleDragEnter(event) {
+  if (canUpload.value && !hasReachedLimit.value && Array.from(event.dataTransfer?.types || []).includes('Files')) {
+    dragDepth.value++
+  }
+}
+function handleDragLeave() {
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+function handleDragOver(event) {
+  if (event.dataTransfer) event.dataTransfer.dropEffect = canUpload.value && !hasReachedLimit.value ? 'copy' : 'none'
+}
+async function handleDrop(event) {
+  dragDepth.value = 0
+  if (!canUpload.value) return
+  const files = Array.from(event.dataTransfer?.files || [])
+  if (!validateFiles(files)) return
+  await handlePhotoViewerUpload(files.map(file => ({ file, description: '', tags: [] })))
+}
 async function handleFileUpload(event) {
-  if (props.disabled) return
+  if (!canUpload.value) return
   const files = Array.from(event.target.files)
-  if (!files.length) return
+  event.target.value = ''
+  if (!validateFiles(files)) return
 
   // Abre o PhotoViewer para preparar as fotos antes do upload
   pendingFiles.value = files
   showPhotoViewer.value = true
   
-  // Limpa o input para permitir selecionar os mesmos arquivos novamente
-  event.target.value = ''
 }
 
 // Processa o upload das fotos vindas do PhotoViewer
 async function handlePhotoViewerUpload(photosWithMetadata) {
+  if (props.disabled || isUploading.value) return
   showPhotoViewer.value = false
   pendingFiles.value = []
   
-  if (!photosWithMetadata || photosWithMetadata.length === 0) return
+  if (!photosWithMetadata?.length || !validateFiles(photosWithMetadata.map(photo => photo.file))) return
 
   isUploading.value = true
 
   let successCount = 0
   let errorCount = 0
   let compressedCount = 0
+  let lastError = ''
+  let recordId = props.record?._id
+  const notification = toast.upload({ title: 'Subindo arquivo', progress: 0 })
 
-  // Upload sequential to avoid overwhelming the server/browser
-  for (let photoData of photosWithMetadata) {
-    let { file, description, tags } = photoData
-    let wasCompressed = false
+  try {
+    // Upload sequential to avoid overwhelming the server/browser
+    for (const [index, photoData] of photosWithMetadata.entries()) {
+      let { file, description, tags, isMontage = false } = photoData
+      let wasCompressed = false
+      const label = photosWithMetadata.length > 1 ? `${index + 1} de ${photosWithMetadata.length}` : 'Aguarde enquanto enviamos seu arquivo.'
+      notification.update({ title: 'Subindo arquivo', fileName: file.name, description: label, progress: index / photosWithMetadata.length * 100 })
     
-    // Comprimir imagens maiores que 10MB
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      try {
-        isCompressing.value = true
-        const originalSize = (file.size / (1024 * 1024)).toFixed(2)
-        file = await compressImage(file)
-        const newSize = (file.size / (1024 * 1024)).toFixed(2)
-        console.log(`[RecordAttachments] Imagem comprimida de ${originalSize}MB para ${newSize}MB`)
-        compressedCount++
-        wasCompressed = true
-      } catch (err) {
-        console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
-        toast.error(`Falha ao comprimir imagem: ${file.name}`)
+      // Comprimir imagens maiores que 10MB
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        try {
+          isCompressing.value = true
+          notification.update({ description: 'Comprimindo imagem…', progress: null })
+          const originalSize = (file.size / (1024 * 1024)).toFixed(2)
+          file = await compressImage(file)
+          const newSize = (file.size / (1024 * 1024)).toFixed(2)
+          console.log(`[RecordAttachments] Imagem comprimida de ${originalSize}MB para ${newSize}MB`)
+          compressedCount++
+          wasCompressed = true
+        } catch (err) {
+          console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
+          lastError = `Falha ao comprimir imagem: ${file.name}`
+          errorCount++
+          continue
+        } finally {
+          isCompressing.value = false
+        }
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        lastError = `A imagem ${file.name} continua maior que ${MAX_FILE_SIZE_MB} MB após a compressão.`
         errorCount++
         continue
-      } finally {
-        isCompressing.value = false
+      }
+      notification.update({ description: label, progress: index / photosWithMetadata.length * 100 })
+      recordId = props.record?._id || recordId
+      const { success, error: uploadError, data } = await recordsStore.uploadAttachmentImage(
+        recordId,
+        file,
+        { patientId: props.patientId, appointmentId: props.appointmentId },
+        {
+          wasCompressed, description, tags, isMontage,
+          onUploadProgress: (event) => {
+            const fraction = event.total > 0 ? event.loaded / event.total : event.progress
+            notification.update({
+              progress: Number.isFinite(fraction) ? Math.min(99, (index + fraction) / photosWithMetadata.length * 100) : null,
+              description: fraction >= 1 ? 'Salvando arquivo…' : label,
+            })
+          },
+        },
+      )
+
+      if (success) {
+        successCount++
+        recordId = data?.record?._id || recordId
+      } else {
+        errorCount++
+        lastError = uploadError || 'Erro no upload do anexo.'
       }
     }
 
-    const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
-      props.record?._id,
-      file,
-      { patientId: props.patientId, appointmentId: props.appointmentId },
-      { wasCompressed, description, tags },
-    )
-
-    if (success) {
-      successCount++
-    } else {
-      errorCount++
-      if (uploadError) {
-        toast.error(uploadError)
-      }
+    if (errorCount > 0) {
+      notification.error('Falha no envio', `${successCount} enviada(s), ${errorCount} com falha. ${lastError}`)
+    } else if (successCount > 0) {
+      const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
+      notification.success(successCount === 1 ? 'Imagem anexada' : 'Imagens anexadas', `${successCount === 1 ? 'Arquivo enviado' : `${successCount} arquivos enviados`} com sucesso.${compressedMsg}`)
     }
+  } catch (error) {
+    notification.error('Falha ao enviar imagem', error?.message || 'Tente novamente.')
+  } finally {
+    isUploading.value = false
+    isCompressing.value = false
   }
-
-  if (successCount > 0) {
-    const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
-    toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!${compressedMsg}`)
-  }
-
-  isUploading.value = false
 }
 
 function handlePhotoViewerClose() {
@@ -457,48 +520,25 @@ async function handleDeleteAttachment(uploadId) {
 }
 
 async function handleMontageComplete(file) {
-  if (props.disabled) return
-  
-  isUploading.value = true
-  let wasCompressed = false
-
-  // Comprimir montagem se maior que 10MB
-  let fileToUpload = file
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    try {
-      isCompressing.value = true
-      fileToUpload = await compressImage(file)
-      console.log(`[RecordAttachments] Montagem comprimida de ${(file.size / (1024 * 1024)).toFixed(2)}MB para ${(fileToUpload.size / (1024 * 1024)).toFixed(2)}MB`)
-      wasCompressed = true
-    } catch (err) {
-      console.error('[RecordAttachments] Erro ao comprimir montagem:', err)
-      toast.error('Falha ao comprimir a montagem.')
-      isUploading.value = false
-      return
-    } finally {
-      isCompressing.value = false
-    }
-  }
-  
-  const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
-    props.record?._id,
-    fileToUpload,
-    { patientId: props.patientId, appointmentId: props.appointmentId },
-    { wasCompressed, isMontage: true },
-  )
-
-  if (success) {
-    toast.success('Montagem salva com sucesso!')
-  } else {
-    toast.error(uploadError || 'Falha ao salvar a montagem.')
-  }
-
-  isUploading.value = false
+  showMontageEditor.value = false
+  await handlePhotoViewerUpload([{ file, isMontage: true, description: '', tags: [] }])
 }
 </script>
 
 <template>
-  <div class="attachments-container">
+  <div
+    class="attachments-container"
+    :class="{ 'is-dragging': dragDepth > 0 && canUpload && !hasReachedLimit }"
+    @dragenter.prevent="handleDragEnter"
+    @dragover.prevent="handleDragOver"
+    @dragleave.prevent="handleDragLeave"
+    @drop.prevent.stop="handleDrop"
+  >
+    <div v-if="dragDepth > 0 && canUpload && !hasReachedLimit" class="attachments-drop-overlay" role="status">
+      <UploadCloud :size="32" aria-hidden="true" />
+      <span>Solte as imagens para enviar</span>
+    </div>
+    <p v-if="uploadValidationError" class="upload-validation-error" role="alert">{{ uploadValidationError }}</p>
     <!-- Toolbar de Filtro e Seleção -->
     <div class="gallery-toolbar" v-if="!disabled && (record?.attachments?.length > 0 || searchQuery)">
       <div class="toolbar-main-row">
@@ -572,7 +612,7 @@ async function handleMontageComplete(file) {
       <div
         v-if="!disabled"
         class="action-card"
-        :class="{ disabled: disabled || hasReachedLimit }"
+        :class="{ disabled: !canUpload || hasReachedLimit }"
         @click="!hasReachedLimit && triggerFileUpload()"
       >
         <div v-if="hasReachedLimit" class="action-content limit-reached">
@@ -598,8 +638,8 @@ async function handleMontageComplete(file) {
       <div
         v-if="!disabled"
         class="action-card"
-        :class="{ disabled: hasReachedLimit }"
-        @click="!hasReachedLimit && (showMontageEditor = true)"
+        :class="{ disabled: !canUpload || hasReachedLimit }"
+        @click="canUpload && !hasReachedLimit && (showMontageEditor = true)"
       >
         <div v-if="hasReachedLimit" class="action-content limit-reached">
           <AlertTriangle :size="22" />
@@ -690,7 +730,7 @@ async function handleMontageComplete(file) {
       accept="image/*"
       multiple
       hidden
-      :disabled="disabled"
+      :disabled="!canUpload || hasReachedLimit"
     />
 
     <!-- Editor de Montagem -->
@@ -786,11 +826,31 @@ async function handleMontageComplete(file) {
 
 <style scoped>
 .attachments-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
 }
+
+.attachments-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 150px;
+  border: 2px dashed var(--azul-principal, #6366f1);
+  border-radius: 12px;
+  background: rgb(239 246 255 / 95%);
+  color: var(--azul-principal, #6366f1);
+  font-weight: 600;
+  pointer-events: none;
+}
+.upload-validation-error { margin: 0 0 12px; color: #b91c1c; font-size: 13px; }
 
 .attachments-empty-state {
   flex: 1;

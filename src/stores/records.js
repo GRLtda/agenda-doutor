@@ -101,6 +101,7 @@ export const useRecordsStore = defineStore('records', () => {
     try {
       const response = await apiClient.post(`/records/${currentRecordId}/attachments/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: options.onUploadProgress,
       })
       currentRecord.value = response.data.record
       return { success: true, data: response.data }

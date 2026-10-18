@@ -49,6 +49,47 @@ Verifique atendimento sem prontuário, prontuário sem anexos, somente leitura, 
 
 O conjunto de ilustração, título e texto fica centralizado horizontal e verticalmente no espaço restante da aba. Em edição, os controles de adicionar foto e montagem permanecem acima; em somente leitura, a grade vazia não ocupa espaço. O SVG é importado como conteúdo estático local (`?raw`), preservando a herança das variáveis CSS do tema; nunca injete SVG vindo de usuários nesse componente. Verifique o alinhamento em atendimento realizado e editável, desktop e celular.
 
+## Upload de imagens
+
+O container inteiro de **Imagens e Anexos** aceita imagens arrastadas do
+computador. Ao soltar, inicia o envio diretamente, com descrição e tags vazias.
+O destaque de arraste informa onde soltar. Selecionar pelo botão Adicionar Foto
+continua abrindo a preparação com descrição e tags antes do envio; montagens
+usam o mesmo fluxo de upload com seu marcador `isMontage`.
+
+Somente imagens são aceitas. O lote não pode exceder o limite de 40 anexos
+do atendimento: arquivos incompatíveis ou excesso de quantidade mostram erro
+no próprio container, limpo na próxima seleção/soltura. Somente leitura,
+envio em andamento e editores abertos impedem um novo upload por arraste.
+Imagens maiores que 10 MB passam pela compressão existente; se continuarem
+maiores que 10 MB, o arquivo não é enviado. O backend mantém a validação final
+de formato, autorização, quantidade e armazenamento; as rotas não mudaram.
+
+O envio usa o [toast de upload compartilhado](componentes-compartilhados.md#contratos-de-reutilização),
+na mesma pilha das notificações. Exibe o nome do arquivo, a posição no lote
+e o percentual calculado por `onUploadProgress` do Axios, encaminhado pelo
+store `uploadAttachmentImage` nas opções. O callback não integra o FormData.
+Compressão ou envio sem tamanho conhecido mostram espera indeterminada.
+Após transmitir os bytes, informa “Salvando arquivo…” e limita o progresso
+a 99% até a resposta do servidor. O lote é sequencial; a barra considera a
+posição e a fração transmitida do arquivo atual, com peso igual por arquivo.
+Sucesso só aparece após persistência: o progresso sai e uma notificação nativa
+mostra título “Imagem anexada” (ou “Imagens anexadas”) e subtítulo de confirmação,
+com fechamento automático em quatro segundos, pausado durante interação/aba oculta.
+O envio mantém título curto, nome do arquivo como subtítulo e largura padrão
+mesmo para nomes curtos. Moldura, empilhamento e animações seguem o Sonner.
+Em falha parcial, informa quantas imagens foram salvas, quantas falharam e a
+última causa. Exceções encerram a notificação e liberam o container. Fechar
+a notificação não cancela o upload. Não há cancelamento nem retentativa automática.
+
+Execute `npm run test:uploads`. A suíte verifica arraste direto, progresso,
+espera pela persistência, bloqueios, validação local, falha parcial, exceção,
+preparação pelo input, toast compartilhado e encaminhamento do callback.
+Para verificar visualmente em desktop e celular, envie por seleção, arraste e
+montagem; use rede lenta, desconecte durante envio, teste limite, arquivo inválido
+e atendimento somente leitura. Gere outra notificação enquanto o envio ocorre
+e confira o empilhamento, fechamento, nomes longos e ausência de overflow.
+
 ## Execuções no detalhe do agendamento
 
 O AppointmentDetailsModal possui painel secundário à esquerda, acoplado e deslizante, para execuções ligadas exatamente ao atendimento. Consulte [Execuções de workflows](execucoes-workflows.md).
