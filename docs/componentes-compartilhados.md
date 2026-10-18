@@ -2,6 +2,8 @@
 
 Este documento descreve a consolidação de menus, seletores, filtros, paginação
 e campos de horários. As regras gerais continuam em [Regras de layout](regras-layout.md).
+As fundações de bordas, cores, fontes e skeleton ficam no
+[Design System](<Design System/README.md>).
 
 ## Contratos de reutilização
 

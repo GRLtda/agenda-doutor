@@ -5,3 +5,6 @@ O Sentry em src/main.ts e o Clarity em src/services/clarity.js ficam desativados
 Nos demais ambientes, Sentry usa VITE_SENTRY_DSN e MODE; Clarity usa VITE_CLARITY_PROJECT_ID com o ID padrao existente.
 
 Validacao: iniciar npm run dev e conferir ausencia de requisicoes para Sentry e clarity.ms, inclusive ao provocar erro ou clicar em acoes rastreadas. Em build de producao, as integracoes mantem o comportamento anterior.
+
+Diagnóstico e regressão do `RangeError: Invalid time value` em clique no
+cabeçalho do VueCal: [Calendário](calendario.md#diagnóstico-do-erro-p1).

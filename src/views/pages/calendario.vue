@@ -30,6 +30,7 @@ import { ptBR } from 'date-fns/locale'
 import { useToast } from 'vue-toastification'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import CalendarFilterPanel from '@/components/pages/calendario/CalendarFilterPanel.vue'
+import { getCalendarCellAppointmentData } from '@/utils/calendarCellClick'
 
 const appointmentsStore = useAppointmentsStore()
 const scheduleBlocksStore = useScheduleBlocksStore()
@@ -476,6 +477,7 @@ const updateCalendarView = () => {
 }
 
 function handleDayHeaderClick(date) {
+  if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return
   if (!isMobile.value) {
     selectedDate.value = date
     if (calendarView.value === 'month') {
@@ -802,17 +804,10 @@ function getScheduleBlockLabelStyle(blockEvent) {
   }
 }
 
-// ✨ CORREÇÃO: Função ajustada para enviar os dados corretos ao modal
-function handleCellClick(date) {
-  const now = new Date()
-  if (date < now) {
-    return
-  }
-  initialAppointmentData.value = {
-    // O modal espera 'date' e 'startTime'
-    date: date,
-    startTime: format(date, 'HH:mm'),
-  }
+function handleCellClick(payload) {
+  const appointmentData = getCalendarCellAppointmentData(payload)
+  if (!appointmentData) return
+  initialAppointmentData.value = appointmentData
   isModalOpen.value = true
 }
 
@@ -1134,7 +1129,7 @@ const getDayNumber = (heading) => {
                     no-events-text=""
                 >
                     <template #weekday-heading="{ heading }">
-                    <div class="custom-weekday-heading" @click="heading.date && handleDayHeaderClick(heading.date)">
+                    <div class="custom-weekday-heading" @click.stop="heading.date && handleDayHeaderClick(heading.date)">
                         <div class="day-name">{{ getAbbreviatedDay(heading.label) }}</div>
                         <div class="day-number" :class="{ 'is-today': heading.today }">
                         {{ getDayNumber(heading) }}
