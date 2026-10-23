@@ -1,4 +1,51 @@
-# Resumo do estoque
+# Estoque
+
+## Listagens e tabelas
+
+Produtos (`/estoque/produtos`), Lotes (`/estoque/lotes`) e Movimentações
+(`/estoque/movimentacoes`) seguem o [modelo de Pacientes](listagem-pacientes.md).
+`StockTableList` reutiliza `AppTableList` e `AppPagination`: filtros dentro do
+painel branco, cabeçalho cinza suave de 44px, texto sem caixa alta, peso 500,
+células com padding de 1rem por 1,25rem e ações alinhadas à direita.
+Os seletores mostram ícone e prefixo dentro do controle. Limpar permanece
+visível com 88px e desabilitado quando não há filtros. Em Produtos, a busca
+continua sendo aplicada com Enter; seletores aplicam imediatamente.
+Mudar filtros retorna à primeira página, inclusive em Lotes e Movimentações.
+
+O painel preenche a altura disponível mesmo com poucos registros. A rolagem
+vertical e horizontal fica no conteúdo, mantendo cabeçalho fixo e paginação
+fora da rolagem. Até 768px, as três listagens usam os cards existentes com
+fundo branco, borda completa, raio de 12px e intervalo de .75rem. Filtros,
+fundo e paginação se integram à página como em Pacientes; o rodapé móvel
+mantém anterior, campo de página/total e próxima. Novo produto mostra apenas
+o ícone no celular, com nome acessível. Os filtros ficam em uma coluna.
+
+Carregamento usa `AppSkeleton` no lugar das linhas/cards. Falhas de consulta
+aparecem no painel com Tentar novamente, preservando filtros/página, e não
+são apresentadas como ausência de cadastros. Vazios usam `StockDashboardEmpty`
+com a ilustração local do estoque e distinguem ausência de dados de filtros
+sem resultado, sem duplicar a ação de cadastro do cabeçalho.
+
+As tabelas de itens dos kits e de lotes no detalhe de produto seguem os mesmos
+cabeçalhos e espaçamentos, com rolagem horizontal em telas estreitas. Kits
+preserva seus cards expansíveis e usa a paginação compartilhada.
+Produtos mantém 20 registros por página; Lotes e Movimentações, 25; Kits, 20.
+As consultas, permissões e confirmações das ações de negócio permanecem as
+existentes. Seleção e ações em lote não foram adicionadas.
+
+### Verificação das listagens
+
+`npm run test:stock` inclui `stock-table-list.spec.js`: filtros no painel,
+evento da paginação compartilhada, skeleton, vazio com ilustração e erro com
+nova tentativa. Com `npm run dev`, abra
+`/tests/fixtures/stock-tables-preview.html`: dados fictícios sem chamadas à API,
+links para as três telas e controles para dados, vazio, carregamento e erro.
+O parâmetro `desktop=1` mostra uma prévia reduzida em iframe de 1440×900.
+Conferir desktop/celular, cabeçalho fixo, rolagem interna, menus, paginação,
+filtros após mudar de página e estados sem registros. No aplicativo autenticado,
+verificar edição, cadastro, exclusão e descarte com dados de teste.
+
+## Resumo do estoque
 
 A rota `/estoque` (`EstoqueDashboardView`) segue a apresentação de
 Financeiro → Resumo: título e descrição, controles compartilhados, quatro

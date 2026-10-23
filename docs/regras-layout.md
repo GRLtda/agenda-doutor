@@ -5,6 +5,9 @@ Contratos e checklist: [Componentes compartilhados](componentes-compartilhados.m
 Fundações visuais: [Design System](<Design System/README.md>) — bordas,
 paleta, fontes e carregamento com skeleton.
 
+Marketing → [Conexão WhatsApp](conexao-whatsapp.md) usa estados reais da integração,
+instruções de pareamento e skeleton; não apresenta histórico ou metadados simulados.
+
 - Reutilizar componentes globais e o padrão da tela equivalente antes de criar CSS próprio.
 - Sidebars por etapas seguem o [padrão de rodapé compartilhado](side-drawer-stepper-pattern.md): Cancelar/Voltar à esquerda, Próximo/ação final à direita, espaço entre as ações e seta de Próximo branca no botão azul.
 - Seleção de período usa `AppDateRangePicker`, com o padrão de Financeiro → A receber:

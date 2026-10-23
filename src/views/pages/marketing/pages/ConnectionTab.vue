@@ -1,1249 +1,679 @@
 <script setup>
-import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
-import { 
-  Smartphone, 
-  CheckCircle, 
-  XCircle, 
-  Loader, 
-  Wifi, 
-  QrCode, 
-  LogOut, 
-  ShieldCheck, 
-  Lock,
-  MessageSquare,
-  Server,
-  Zap,
-  Activity,
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useTimestamp } from '@vueuse/core'
+import {
+  Smartphone,
+  QrCode,
   RefreshCw,
-  Mail,
-  Globe,
-  Briefcase,
-  User,
-  AlertTriangle
+  LogOut,
+  CheckCircle2,
+  AlertCircle,
+  Wifi,
+  Info,
+  BriefcaseBusiness,
+  MessageSquare,
+  MonitorOff,
 } from 'lucide-vue-next'
+import AppButton from '@/components/global/AppButton.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
+import AppEmptyState from '@/components/global/AppEmptyState.vue'
+import connectionIllustration from '@/assets/illustrations/whatsapp-connect-empty.svg?raw'
 import { useCrmStore } from '@/stores/crm'
 
-const crmStore = useCrmStore()
-
-const status = computed(() => crmStore.status)
-const qrCode = computed(() => crmStore.qrCode)
-const isLoading = computed(() => crmStore.isLoading) // Loading geral da store
-const connections = computed(() => crmStore.connections)
-const isLoadingQrImage = computed(() => crmStore.isLoadingQrImage) // Pega o novo estado
-const connectionError = computed(() => crmStore.connectionError)
-
-const isTransitioning = ref(false)
-const lastQrCode = ref('')
-
-// Helpers para dados da instância
-// Helpers para dados da instância
-const instanceInfo = computed(() => connections.value[0]?.instance || {})
-const apiVersion = computed(() => connections.value[0]?.apiVersion || 'v1.0.0')
-const sessionId = computed(() => connections.value[0]?.sessionId || '---')
-
-// Persiste o último QR Code válido para a animação
-watch(qrCode, (newQr) => {
-  if (newQr) {
-    lastQrCode.value = newQr
+const crm = useCrmStore()
+const checking = ref(true)
+const busy = computed(() => checking.value || crm.isLoading)
+const connected = computed(() => crm.status === 'connected')
+const pairing = computed(() =>
+  ['creating_qr', 'initializing', 'qrcode_pending', 'qrcode'].includes(crm.status),
+)
+const account = computed(() => crm.connections[0] || {})
+const messagesPrivacyText = 'Esta tela não exibe suas conversas. A integração recebe e armazena mensagens e processa seu conteúdo para os envios e as automações da clínica.'
+const now = useTimestamp({ interval: 60_000 })
+const linkedDate = computed(() => {
+  const value = account.value.linkedAt
+  const date = value ? new Date(value) : null
+  return date && Number.isFinite(date.getTime()) && date.getTime() <= now.value ? date : null
+})
+const linkedSince = computed(() => {
+  if (!linkedDate.value) return 'Data não informada'
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(linkedDate.value)
+})
+const linkedAge = computed(() => {
+  if (!linkedDate.value) return ''
+  const minutes = Math.floor((now.value - linkedDate.value.getTime()) / 60_000)
+  if (minutes < 1) return 'Vinculado agora'
+  if (minutes < 60) return `Há ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `Há ${hours} ${hours === 1 ? 'hora' : 'horas'}`
+  const days = Math.floor(hours / 24)
+  return `Há ${days} ${days === 1 ? 'dia' : 'dias'}`
+})
+const failedPhoto = ref(false)
+watch(() => account.value.profileImage, () => { failedPhoto.value = false })
+const accountName = computed(() => account.value.username || account.value.name || 'Conta conectada')
+const initials = computed(() => accountName.value.trim().split(/\s+/).slice(0, 2).map(name => Array.from(name)[0]).join('').toUpperCase())
+const accountType = computed(() => {
+  if (account.value.instance?.isBusiness === true) return 'Conta comercial'
+  if (account.value.instance?.isBusiness === false) return 'Conta pessoal'
+  return 'Não informado pelo WhatsApp'
+})
+const phone = computed(() => {
+  const number = String(account.value.number || '').split('@')[0].split(':')[0]
+  if (!/^\d{8,15}$/.test(number)) return 'Número não informado'
+  if (/^55\d{10,11}$/.test(number))
+    return `+55 (${number.slice(2, 4)}) ${number.slice(4, -4)}-${number.slice(-4)}`
+  return `+${number}`
+})
+const stateLabel = computed(() => {
+  if (checking.value) return 'Verificando conexão'
+  if (connected.value) return 'Conectado'
+  if (crm.status === 'api_error') return 'Verificação indisponível'
+  if (crm.status === 'creating_qr') return 'Preparando QR Code'
+  if (crm.status === 'initializing') return 'Conectando'
+  if (pairing.value) return 'Aguardando leitura'
+  return 'Não conectado'
+})
+async function refresh() {
+  checking.value = true
+  try {
+    await crm.getInitialStatus({ showToast: false })
+  } finally {
+    checking.value = false
   }
-})
-
-watch(status, (newStatus, oldStatus) => {
-  // Só anima se não vier de 'disconnected' (evita animação ao recarregar a página já conectado)
-  if (newStatus === 'connected' && oldStatus !== 'disconnected') {
-    isTransitioning.value = true
-    setTimeout(() => {
-      isTransitioning.value = false
-    }, 2000) // 2 segundos de transição
-  }
-})
-
-async function initiateConnection() {
-  await crmStore.initiateOrResetConnection()
 }
-
-async function logoutConnection() {
-  await crmStore.logoutConnection()
-}
-
-async function getInitialStatus() {
-  await crmStore.getInitialStatus()
-}
-
-function formatPhoneNumber(jid) {
-  if (!jid) return 'Número desconhecido';
-  // Remove o sufixo @s.whatsapp.net
-  const number = jid.replace('@s.whatsapp.net', '');
-  
-  // Formatação simples para números brasileiros (ex: 5515991136994 -> +55 (15) 99113-6994)
-  // Verifica se começa com 55 e tem tamanho suficiente
-  if (number.startsWith('55') && number.length >= 12) {
-    const ddd = number.substring(2, 4);
-    const prefix = number.substring(4, number.length - 4);
-    const suffix = number.substring(number.length - 4);
-    return `+55 (${ddd}) ${prefix}-${suffix}`;
-  }
-  
-  return number;
-}
-
-onMounted(() => {
-  getInitialStatus()
-})
-
-onUnmounted(() => {
-  crmStore.stopPolling()
-})
+onMounted(refresh)
+onUnmounted(() => crm.stopPolling())
 </script>
 
 <template>
-  <div class="connection-tab dashboard-container">
-    
-    <!-- Header -->
+  <div class="whatsapp-connection">
     <header class="page-header">
-      <div class="header-left">
-        <div class="header-text">
-            <h1 class="title">Conexão WhatsApp</h1>
-            <p class="subtitle">Gerencie a conexão da sua clínica com o WhatsApp API.</p>
-        </div>
+      <div>
+        <h1>Conexão WhatsApp</h1>
+        <p>Conecte o número da clínica para usar os envios de mensagens do sistema.</p>
       </div>
-      
-      <div class="header-right">
-        <div class="status-capsule" :class="status === 'connected' ? 'status-online' : 'status-offline'">
-           <div class="status-indicator"></div>
-           <span>{{ status === 'connected' ? 'Online' : 'Desconectado' }}</span>
-        </div>
-      </div>
+      <AppButton variant="outline" :loading="checking" :disabled="busy" @click="refresh"
+        ><RefreshCw :size="16" />Atualizar status</AppButton
+      >
     </header>
 
-    <!-- Top Grid: KPIs (Sempre visível) -->
-    <div class="top-grid">
-      <!-- Status -->
-      <div class="kpi-card" title="Estado atual da conexão com o WhatsApp">
-        <div class="kpi-header">
-          <span class="kpi-label">Status da Conexão</span>
-          <div class="icon-bg" :class="status === 'connected' ? 'bg-green-50' : 'bg-gray-50'">
-            <Wifi :size="18" :class="status === 'connected' ? 'text-green-500' : 'text-gray-400'" />
+    <div class="connection-layout">
+      <section class="panel connection-panel" :aria-busy="busy">
+        <div class="panel-heading">
+          <div>
+            <h2>{{ connected ? 'WhatsApp da clínica' : 'Conectar uma conta' }}</h2>
+            <p>
+              {{
+                connected
+                  ? 'Dados da conta retornados pelo WhatsApp.'
+                  : 'Use o celular com o número que deseja vincular.'
+              }}
+            </p>
           </div>
+          <span
+            class="status-badge"
+            :class="{ connected, error: crm.status === 'api_error' && !checking }"
+            role="status"
+            ><span class="status-dot" />{{ stateLabel }}</span
+          >
         </div>
-        <div class="kpi-body">
-          <span class="kpi-value" :class="status === 'connected' ? 'text-green-600' : 'text-gray-400'">{{ status === 'connected' ? 'Ativo' : '---' }}</span>
-          <span class="kpi-sub">{{ status === 'connected' ? 'Conectado e operante' : 'Aguardando conexão' }}</span>
-        </div>
-      </div>
 
-      <!-- Tipo de Conta -->
-      <div class="kpi-card" title="Tipo de conta configurada (Business ou Pessoal)">
-        <div class="kpi-header">
-          <span class="kpi-label">Tipo de Conta</span>
-          <div class="icon-bg" :class="status === 'connected' ? 'bg-blue-50' : 'bg-gray-50'">
-            <Briefcase v-if="status === 'connected' && instanceInfo.isBusiness" :size="18" class="text-blue-500" />
-            <User v-else :size="18" :class="status === 'connected' ? 'text-blue-500' : 'text-gray-400'" />
-          </div>
+        <div
+          v-if="checking"
+          class="connection-state skeleton-state"
+          aria-label="Verificando conexão com o WhatsApp"
+        >
+          <AppSkeleton width="104px" height="104px" border-radius="24px" />
+          <AppSkeleton width="200px" height="22px" /><AppSkeleton
+            width="min(320px, 100%)"
+            height="16px"
+          />
         </div>
-        <div class="kpi-body">
-          <span class="kpi-value capitalize" :class="status !== 'connected' ? 'text-gray-400' : ''">
-            {{ status === 'connected' ? (instanceInfo.isBusiness ? 'Business' : 'Pessoal') : '---' }}
-          </span>
-          <span class="kpi-sub">
-            {{ status === 'connected' ? (instanceInfo.platform === 'md' ? 'Multi-device' : (instanceInfo.platform || 'Legacy')) : '---' }}
-          </span>
-        </div>
-      </div>
 
-      <!-- Número -->
-      <div class="kpi-card" title="Número e Nome da conta conectada">
-        <div class="kpi-header">
-          <span class="kpi-label">Número Conectado</span>
-          <div class="icon-bg" :class="status === 'connected' ? 'bg-emerald-50' : 'bg-gray-50'">
-            <MessageSquare :size="18" :class="status === 'connected' ? 'text-emerald-500' : 'text-gray-400'" />
-          </div>
+        <div
+          v-else-if="crm.status === 'api_error'"
+          class="connection-state error-state"
+          role="alert"
+        >
+          <span class="state-icon"><AlertCircle :size="28" /></span>
+          <h3>Não foi possível verificar a conexão</h3>
+          <p>
+            {{ crm.connectionError || 'Tente novamente em instantes para consultar o WhatsApp.' }}
+          </p>
+          <AppButton variant="outline" :disabled="busy" @click="refresh"
+            ><RefreshCw :size="16" />Tentar novamente</AppButton
+          >
         </div>
-        <div class="kpi-body">
-          <span class="kpi-value phone-number" :class="status !== 'connected' ? 'text-gray-400' : ''">{{ status === 'connected' ? formatPhoneNumber(connections[0]?.number) : '---' }}</span>
-          <span class="kpi-sub">{{ status === 'connected' ? (connections[0]?.username || connections[0]?.name || 'WhatsApp') : '---' }}</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Main Content Grid (Sempre visível) -->
-    <div class="main-content-grid">
-      <!-- Card Detalhes da Conta -->
-      <div class="table-card profile-details-card">
-        <div class="card-header">
-          <div class="card-header-text">
-            <h3 class="card-title">Detalhes da Conta</h3>
-            <p class="card-subtitle">{{ status === 'connected' ? 'Informações públicas do perfil conectado.' : 'Conecte seu WhatsApp para começar.' }}</p>
-          </div>
-        </div>
-        
-        <!-- Conteúdo CONECTADO -->
-        <div v-if="status === 'connected' && !isTransitioning" class="profile-content">
-          <div class="profile-avatar-large">
-            <img
-              v-if="connections[0]?.profileImage"
-              :src="connections[0].profileImage"
-              alt="Perfil WhatsApp"
-              class="profile-image"
-            />
-            <div v-else class="profile-image-placeholder">
-              <Smartphone :size="48" />
-            </div>
-            <div class="status-badge-profile">
-              <CheckCircle :size="20" class="text-white fill-green-500" />
+        <div v-else-if="connected" class="connected-content">
+          <div class="account-profile">
+            <span class="avatar">
+              <img v-if="account.profileImage && !failedPhoto" :src="account.profileImage" :alt="`Foto de ${accountName}`" referrerpolicy="no-referrer" @error="failedPhoto = true" />
+              <span v-else class="avatar-initials" aria-label="Foto de perfil indisponível">{{ initials }}</span>
+            </span>
+            <div class="account-identity">
+              <h3>{{ accountName }}</h3>
+              <p class="phone">{{ phone }}</p>
             </div>
           </div>
-          
-          <div class="profile-info-large">
-            <h2>{{ connections[0]?.username || connections[0]?.name || 'WhatsApp' }}</h2>
-            <p class="phone-display">{{ formatPhoneNumber(connections[0]?.number) }}</p>
-            
-            <div class="tags-row">
-              <div class="security-badge">
-                <ShieldCheck :size="14" />
-                E2E Encrypted
-              </div>
-              <div v-if="instanceInfo.isBusiness" class="business-badge">
-                <Briefcase :size="14" />
-                Conta Comercial
-              </div>
+          <dl class="account-details">
+            <div class="account-detail">
+              <dt>Tipo de conta</dt>
+              <dd class="account-type" :class="{ 'is-business': account.instance?.isBusiness === true }">
+                <BriefcaseBusiness v-if="account.instance?.isBusiness === true" :size="15" aria-hidden="true" />{{ accountType }}
+              </dd>
             </div>
-
-            <!-- Business Info Expansion -->
-            <div v-if="instanceInfo.isBusiness" class="business-details-list">
-              <div v-if="instanceInfo.email" class="detail-item">
-                <Mail :size="14" class="text-gray-400" />
-                <span>{{ instanceInfo.email }}</span>
-              </div>
-              <div v-if="instanceInfo.websites && instanceInfo.websites.length > 0" class="detail-item">
-                <Globe :size="14" class="text-gray-400" />
-                <a :href="instanceInfo.websites[0]" target="_blank" rel="noopener">{{ instanceInfo.websites[0] }}</a>
-              </div>
-              <div v-if="instanceInfo.description" class="detail-item description">
-                <span>"{{ instanceInfo.description }}"</span>
-              </div>
+            <div class="account-detail">
+              <dt>Vínculo com a clínica</dt>
+              <dd class="linked-date">{{ linkedSince }}<span v-if="linkedAge" class="linked-age">{{ linkedAge }}</span></dd>
+            </div>
+            <div class="account-detail biography-detail">
+              <dt>Biografia</dt>
+              <dd class="account-bio" :class="{ 'not-provided': !account.bio }">{{ account.bio || 'Biografia não informada' }}</dd>
+            </div>
+          </dl>
+          <div class="connected-note">
+            <CheckCircle2 :size="20" />
+            <div>
+              <h3>Conexão estabelecida</h3>
+              <p>
+                Os envios usam esta conta. Lembretes e automações dependem das configurações da
+                clínica.
+              </p>
             </div>
           </div>
-
-          <div class="profile-actions">
-            <button
-              @click="logoutConnection"
-              :disabled="isLoading"
-              class="btn-disconnect"
+          <div class="disconnect-row">
+            <p>
+              Ao desconectar, será necessário ler um novo QR Code para vincular a conta novamente.
+            </p>
+            <AppButton variant="outline" :loading="crm.isLoading" @click="crm.logoutConnection"
+              ><LogOut :size="16" />Desconectar</AppButton
             >
-              <LogOut :size="18" />
-              <span>{{ isLoading ? 'Desconectando...' : 'Desconectar Sessão' }}</span>
-            </button>
           </div>
         </div>
 
-        <!-- Conteúdo DESCONECTADO / CONECTANDO -->
-        <div v-else class="connection-content">
-          <!-- Botão Iniciar -->
-          <div v-if="status === 'api_error'" class="api-error-state">
-            <div class="api-error-icon">
-              <AlertTriangle :size="44" />
-            </div>
-            <h3>Tivemos um problema por aqui</h3>
-            <p>{{ connectionError || 'Nossa equipe ja foi avisada. Nenhuma informacao sera perdida; tente novamente em instantes.' }}</p>
-            <button @click="initiateConnection" :disabled="isLoading" class="btn-primary-large retry-button">
-              <RefreshCw :size="18" :class="{ 'animate-spin': isLoading }" />
-              <span>{{ isLoading ? 'Tentando novamente...' : 'Tentar novamente' }}</span>
-            </button>
+        <div v-else-if="pairing" class="connection-state pairing-state">
+          <div class="qr-frame">
+            <img
+              v-if="crm.qrCode && !crm.isLoadingQrImage"
+              :src="crm.qrCode"
+              alt="QR Code para conectar o WhatsApp da clínica"
+              width="224"
+              height="224"
+            />
+            <AppSkeleton v-else width="224px" height="224px" border-radius="8px" />
           </div>
+          <h3>{{ crm.qrCode ? 'Leia o QR Code com seu celular' : 'Preparando sua conexão' }}</h3>
+          <p>
+            {{
+              crm.qrCode
+                ? 'Em Aparelhos conectados, toque em Conectar aparelho e aponte a câmera para este código.'
+                : 'O código aparecerá aqui assim que estiver disponível.'
+            }}
+          </p>
+          <span class="qr-hint">{{
+            crm.qrCode
+              ? 'Se o código expirar, gere um novo para continuar.'
+              : 'Aguarde a confirmação do WhatsApp.'
+          }}</span>
+        </div>
 
-          <div v-if="status === 'disconnected'" class="action-area">
-            <div class="connect-icon-area">
-              <div class="connect-icon-bg">
-                <QrCode :size="48" class="text-blue-500" />
+        <div v-else class="connection-state disconnected-state">
+          <AppEmptyState
+            title="Vincule o WhatsApp da clínica"
+            text="Gere um QR Code e faça a leitura pelo aplicativo do WhatsApp no celular."
+          >
+            <template #illustration
+              ><div
+                class="connection-illustration"
+                aria-hidden="true"
+                v-html="connectionIllustration"
+            /></template>
+          </AppEmptyState>
+          <AppButton
+            variant="primary"
+            :loading="crm.isLoading"
+            @click="crm.initiateOrResetConnection"
+            ><QrCode :size="18" />Gerar QR Code</AppButton
+          >
+          <span class="qr-hint">Não é necessário informar senha ou código recebido por SMS.</span>
+        </div>
+      </section>
+
+      <aside class="guidance">
+        <section v-if="connected" class="panel privacy-panel">
+          <div class="compact-heading"><span class="section-icon"><MessageSquare :size="20" /></span><h2>Sobre suas mensagens</h2></div>
+          <p class="section-description">{{ messagesPrivacyText }}</p>
+        </section>
+        <section v-if="connected" class="panel privacy-panel">
+          <div class="compact-heading"><span class="section-icon"><MonitorOff :size="20" /></span><h2>Sem espelhamento do celular</h2></div>
+          <p class="section-description">A conexão não mostra a tela do seu aparelho nem o que acontece em outros aplicativos. Você pode encerrar o vínculo em Aparelhos conectados no WhatsApp.</p>
+        </section>
+        <section class="panel instructions-panel">
+          <div class="compact-heading"><span class="section-icon"><Smartphone :size="20" /></span>
+          <h2>{{ connected ? 'Gerencie também pelo celular' : 'Como conectar' }}</h2>
+          </div>
+          <p class="section-description">
+            {{
+              connected
+                ? 'No WhatsApp, acesse Aparelhos conectados para consultar os dispositivos vinculados.'
+                : 'Tenha o celular da clínica por perto e siga os passos abaixo.'
+            }}
+          </p>
+          <ol v-if="!connected" class="steps">
+            <li>
+              <span>1</span>
+              <div>
+                <h3>Abra o WhatsApp no celular</h3>
+                <p>No Android, toque no menu de três pontos. No iPhone, abra Configurações.</p>
               </div>
-            </div>
-            <button @click="initiateConnection" :disabled="isLoading" class="btn-primary-large">
-              <Smartphone :size="20" />
-              <span>{{ isLoading ? 'Iniciando...' : 'Gerar QR Code' }}</span>
-            </button>
-            <p class="help-text">Clique para iniciar o processo de conexão.</p>
-            
-            <!-- Benefits Section -->
-            <div class="benefits-section">
-              <h4 class="benefits-title">Por que conectar?</h4>
-              <ul class="benefits-list">
-                <li><CheckCircle :size="16" class="text-green-500" /> Automação de agendamentos 24/7</li>
-                <li><CheckCircle :size="16" class="text-green-500" /> Lembretes automáticos para pacientes</li>
-                <li><CheckCircle :size="16" class="text-green-500" /> Centralização do atendimento no CRM</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Displays de Status -->
-          <div v-if="status === 'creating_qr'" class="status-display creating-qr">
-            <Loader :size="24" class="animate-spin" />
-            <span>Criando sessão segura...</span>
-          </div>
-
-          <div v-if="status === 'initializing'" class="status-display initializing">
-            <Loader :size="24" class="animate-spin" />
-            <span>Inicializando serviços...</span>
-          </div>
-
-          <!-- Área do QR Code -->
-          <div v-if="status === 'qrcode_pending' || status === 'qrcode' || isTransitioning" class="qr-code-section">
-            <p class="qr-instruction" v-if="!isTransitioning">Abra o WhatsApp > Configurações > Aparelhos conectados > Conectar aparelho</p>
-            <div class="qr-code-border">
-              <div class="qr-code-wrapper">
-                <img
-                  v-if="qrCode || (isTransitioning && lastQrCode)"
-                  :src="qrCode || lastQrCode"
-                  alt="QR Code WhatsApp"
-                  :class="{ 'fade-out': isLoadingQrImage && qrCode, 'qr-blur': isTransitioning }" />
-                
-                <div v-if="isLoadingQrImage && !isTransitioning" class="qr-placeholder loading-overlay">
-                  <Loader :size="32" class="animate-spin text-blue-500" />
-                </div>
-                <div v-else-if="!qrCode && !isLoadingQrImage && !isTransitioning" class="qr-placeholder">
-                  <Loader :size="24" class="animate-spin" /> Gerando...
-                </div>
-
-                <!-- Overlay de Sucesso -->
-                <div v-if="isTransitioning" class="success-overlay">
-                  <div class="success-icon-wrapper">
-                    <CheckCircle :size="64" class="text-green-500" />
-                  </div>
-                  <span class="success-text">Conectado!</span>
-                </div>
+            </li>
+            <li>
+              <span>2</span>
+              <div>
+                <h3>Acesse Aparelhos conectados</h3>
+                <p>
+                  {{
+                    connected
+                      ? 'Veja os aparelhos com acesso à conta.'
+                      : 'Toque em Conectar aparelho e desbloqueie o celular, se solicitado.'
+                  }}
+                </p>
               </div>
-              <!-- Scan Line Animation -->
-              <div class="scan-line" v-if="!isTransitioning && qrCode"></div>
-            </div>
-            <p class="qr-expiry" v-if="!isTransitioning">O código expira em breve.</p>
+            </li>
+            <li v-if="!connected">
+              <span>3</span>
+              <div>
+                <h3>Leia o QR Code desta tela</h3>
+                <p>Aguarde a confirmação antes de sair desta página.</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+        <section class="panel help-panel">
+          <div class="compact-heading"><span class="section-icon"><Wifi :size="20" /></span>
+          <h2>{{ connected ? 'Mantenha a conexão disponível' : 'Não conseguiu conectar?' }}</h2>
           </div>
-
-          <!-- Security Footer -->
-          <div class="security-footer-inline">
-            <Lock :size="14" />
-            <span>Criptografia de ponta a ponta.</span>
+          <p>
+            {{
+              connected
+                ? 'Mantenha o vínculo em Aparelhos conectados. Se houver falha, confira a internet e atualize o status.'
+                : 'Confira a internet do celular e do computador. Use uma versão atualizada do WhatsApp e tente novamente se o QR Code expirar.'
+            }}
+          </p>
+          <div class="help-note">
+            <Info :size="16" />
+            <p>
+              A entrega de cada mensagem pode ser acompanhada no histórico de envios.
+            </p>
           </div>
-        </div>
-      </div>
-
-      <!-- Card Logs de Conexão -->
-      <div class="table-card">
-        <div class="card-header">
-          <div class="card-header-text">
-            <h3 class="card-title">Logs de Conexão</h3>
-            <p class="card-subtitle">Histórico recente de atividades da sessão.</p>
-          </div>
-          <button class="refresh-btn" title="Atualizar">
-            <RefreshCw :size="16" />
-          </button>
-        </div>
-        
-        <!-- Logs quando conectado -->
-        <div v-if="status === 'connected'" class="logs-list">
-          <div class="log-item">
-            <div class="log-icon success"><CheckCircle :size="14" /></div>
-            <div class="log-content">
-              <span class="log-msg">Sessão estabelecida com sucesso</span>
-              <span class="log-time">Agora</span>
-            </div>
-          </div>
-          <div class="log-item">
-            <div class="log-icon info"><Activity :size="14" /></div>
-            <div class="log-content">
-              <span class="log-msg">Perfil Business sincronizado</span>
-              <span class="log-time">há 1 min</span>
-            </div>
-          </div>
-          <div class="log-item">
-            <div class="log-icon info"><Activity :size="14" /></div>
-            <div class="log-content">
-              <span class="log-msg">Verificação de status automática</span>
-              <span class="log-time">há 5 min</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Placeholder quando desconectado -->
-        <div v-else class="logs-empty">
-          <div class="empty-state">
-            <Activity :size="32" class="text-gray-300" />
-            <p>Nenhum log disponível</p>
-            <span>Conecte seu WhatsApp para ver o histórico.</span>
-          </div>
-        </div>
-      </div>
+        </section>
+        <section v-if="!connected" class="panel privacy-panel">
+          <div class="compact-heading"><span class="section-icon"><MessageSquare :size="20" /></span><h2>Sobre suas mensagens</h2></div>
+          <p class="section-description">{{ messagesPrivacyText }}</p>
+        </section>
+      </aside>
     </div>
-
-    <!-- Technical Footer (apenas quando conectado) -->
-    <footer v-if="status === 'connected'" class="tech-footer">
-      <div class="tech-info">
-        <span>API Version: {{ apiVersion }}</span>
-        <span class="separator">•</span>
-        <span>Session ID: {{ sessionId }}</span>
-      </div>
-    </footer>
-
   </div>
 </template>
 
 <style scoped>
-.dashboard-container {
+.whatsapp-connection {
   font-family: var(--fonte-principal);
-  color: var(--preto);
+  color: var(--preto, #16243a);
   width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
-
-/* Header */
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-shrink: 0;
 }
-
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.1rem;
-  color: var(--preto);
-  line-height: 1.2;
+h1 {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+  line-height: 1.25;
 }
-
-.subtitle {
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
+.page-header p {
+  margin-top: 6px;
+  color: var(--cinza-texto, #64748b);
+  font-size: 14px;
+  line-height: 1.5;
 }
-
-.status-capsule {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 1rem;
-    border-radius: 99px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border: 1px solid transparent;
-}
-
-.status-online {
-    background-color: #dcfce7;
-    color: #16a34a;
-    border-color: #bbf7d0;
-}
-
-.status-offline {
-    background-color: #fee2e2;
-    color: #dc2626;
-    border-color: #fecaca;
-}
-
-.status-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: currentColor;
-}
-.status-online .status-indicator {
-    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.2);
-}
-
-/* --- GRIDS --- */
-.top-grid {
+.connection-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: minmax(0, 2.2fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+  flex: 1;
 }
-
-.main-content-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 1.5rem;
+.connection-panel { display: flex; flex-direction: column; min-width: 0; }
+.panel {
+  border: 1px solid var(--borda, #e5e7eb);
+  border-radius: 16px;
+  background: var(--branco, #fff);
+  overflow: hidden;
 }
-
-.disconnected-view {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 0;
-}
-
-/* --- CARDS --- */
-.kpi-card {
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  padding: 1.3rem;
+.panel-heading {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  height: 100%;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
-
-.kpi-header {
-  display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid #edf0f5;
 }
-
-.kpi-label {
-  color: var(--cinza-texto);
-  font-size: 0.875rem;
+h2 {
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.4;
 }
-
-.icon-bg {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.panel-heading p,
+.section-description {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--cinza-texto, #64748b);
+  margin-top: 5px;
 }
-
-.bg-green-50 { background-color: #f0fdf4; }
-.bg-blue-50 { background-color: #eff6ff; }
-.bg-emerald-50 { background-color: #ecfdf5; }
-.bg-purple-50 { background-color: #faf5ff; }
-
-.text-green-500 { color: #22c55e; }
-.text-blue-500 { color: #3b82f6; }
-.text-emerald-500 { color: #10b981; }
-.text-purple-500 { color: #a855f7; }
-.text-green-600 { color: #16a34a; }
-
-.kpi-body {
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #f1f5fb;
+  color: #526580;
+  border-radius: 99px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-badge.connected {
+  color: #11805a;
+  background: #edf9f3;
+}
+.status-badge.error {
+  color: #a14b1c;
+  background: #fff5eb;
+}
+.connection-state {
+  flex: 1;
+  min-height: 405px;
+  padding: 32px;
   display: flex;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
+  gap: 16px;
+  text-align: center;
 }
-
-.kpi-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--preto);
-  margin-bottom: 0.25rem;
+.connection-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
 }
-
-.phone-number {
-  letter-spacing: 0.2px;
+.connection-state > p {
+  max-width: 380px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--cinza-texto, #64748b);
 }
-
-.kpi-sub {
-  font-size: 0.8rem;
-  color: var(--cinza-texto);
+.connection-illustration {
+  width: 160px;
+  max-width: 100%;
 }
-
-/* --- TABLE CARD --- */
-.table-card {
-  background-color: var(--branco);
+.connection-illustration :deep(svg) {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.disconnected-state :deep(.state-cell) {
+  padding: 0;
+}
+.disconnected-state :deep(.empty-state-title) {
+  margin-top: 16px;
+  font-size: 18px;
+}
+.disconnected-state :deep(.empty-state-text) {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.qr-hint {
+  font-size: 12px;
+  color: var(--cinza-texto, #64748b);
+  line-height: 1.6;
+  max-width: 340px;
+}
+.qr-frame {
+  padding: 16px;
   border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  padding: 1.5rem;
+  border-radius: 16px;
+  background: #fff;
+  max-width: 100%;
+}
+.qr-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.state-icon,
+.section-icon,
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--azul-fraco, #edf4ff);
+  color: var(--azul-principal, #0057ff);
+  border-radius: 12px;
+}
+.state-icon {
+  padding: 16px;
+}
+.guidance {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.instructions-panel,
+.help-panel,
+.privacy-panel {
+  padding: 20px;
+}
+.section-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 14px;
+}
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: grid;
+  gap: 14px;
+}
+.steps li {
+  display: flex;
+  gap: 12px;
+}
+.steps li > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--azul-fraco, #edf4ff);
+  color: var(--azul-principal, #0057ff);
+  font-size: 12px;
+  font-weight: 500;
+}
+.steps h3,
+.connected-note h3 {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.steps p,
+.help-panel p,
+.connected-note p,
+.disconnect-row p {
+  font-size: 13px;
+  color: var(--cinza-texto, #64748b);
+  line-height: 1.7;
+  margin-top: 4px;
+}
+.help-panel > p {
+  margin-top: 8px;
+}
+.help-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-top: 1px solid #edf0f5;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.help-note svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: var(--azul-principal, #0057ff);
+}
+.help-note p {
+  margin: 0;
+  font-size: 12px;
+}
+.connected-content {
+  padding: 24px;
   display: flex;
   flex-direction: column;
+  gap: 24px;
+  flex: 1;
 }
-
-.card-header {
+.account-profile {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  gap: 16px;
 }
-
-.card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--preto);
+.avatar {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-initials { font-size: 24px; font-weight: 600; }
+.account-identity { min-width: 0; }
+.account-profile h3 {
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.phone {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--cinza-texto, #64748b);
+}
+.account-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--cinza-texto, #64748b);
+}
+.account-type.is-business { color: var(--azul-principal, #0057ff); }
+.account-details { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 24px; border: 1px solid #edf0f5; border-radius: 12px; }
+.biography-detail { grid-column: 1 / -1; }
+.linked-date { font-size: 14px; }
+.linked-age { display: block; margin-top: 4px; font-size: 12px; color: var(--cinza-texto, #64748b); }
+.account-detail { min-width: 0; }
+.account-detail dt { font-size: 12px; color: var(--cinza-texto, #64748b); margin-bottom: 6px; }
+.account-detail dd { margin: 0; line-height: 1.6; }
+.account-bio { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.not-provided { color: var(--cinza-texto, #64748b); }
+.connected-note {
+  display: flex;
+  gap: 12px;
+  background: #f5fbf8;
+  border-radius: 12px;
+  padding: 18px;
   margin: 0;
 }
-
-.card-subtitle {
-  font-size: 0.85rem;
-  color: var(--cinza-texto);
-  margin-top: 0.25rem;
+.connected-note svg {
+  color: #11805a;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
-
-.refresh-btn {
-    background: transparent;
-    border: 1px solid #e2e8f0;
-    padding: 0.4rem;
-    border-radius: 0.4rem;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.refresh-btn:hover {
-    color: #3b82f6;
-    background: #eff6ff;
-}
-
-/* --- PROFILE CARD CONTENT --- */
-.profile-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 1rem 0;
-}
-
-.profile-avatar-large {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    margin-bottom: 1rem;
-}
-
-.profile-image {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 4px solid #fff;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.profile-image-placeholder {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background-color: #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94a3b8;
-    border: 4px solid #fff;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.status-badge-profile {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    color: #22c55e;
-    background: #fff;
-    border-radius: 50%;
-    padding: 2px;
-}
-
-.profile-info-large h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.profile-info-large .phone-display {
-    color: #64748b;
-    margin: 0.25rem 0 1rem 0;
-}
-
-.tags-row {
+.disconnect-row {
+  border-top: 1px solid #edf0f5;
+  padding-top: 20px;
   display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  gap: 24px;
+  align-items: center;
+  margin-top: auto;
 }
-
-.security-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: #f0fdf4;
-    color: #16a34a;
-    padding: 0.3rem 0.8rem;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 600;
+.disconnect-row p {
+  margin: 0;
+  flex: 1;
 }
-
-.business-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: #eff6ff;
-    color: #3b82f6;
-    padding: 0.3rem 0.8rem;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-/* Business List */
-.business-details-list {
-    width: 100%;
-    max-width: 380px;
-    background: #f8fafc;
-    border-radius: 0.75rem;
-    padding: 1rem;
-    display: flex;
+.compact-heading { display: flex; align-items: center; gap: 10px; }
+.compact-heading .section-icon { margin: 0; flex-shrink: 0; }
+@media (max-width: 1100px) {
+  .connection-layout {
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+    gap: 16px;
+  }
+  .panel-heading {
     flex-direction: column;
-    gap: 0.75rem;
-    text-align: left;
+  }
 }
-
-.detail-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.85rem;
-    color: #475569;
-}
-
-.detail-item a {
-    color: #3b82f6;
-    text-decoration: none;
-}
-.detail-item a:hover {
-    text-decoration: underline;
-}
-
-.detail-item.description {
-    font-style: italic;
-    color: #64748b;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 0.75rem;
-    margin-top: 0.2rem;
-    text-align: center;
-    justify-content: center;
-}
-
-.profile-actions {
-    margin-top: 2rem;
-    width: 100%;
-    max-width: 300px;
-}
-
-.btn-disconnect {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background-color: #fff;
-    color: #ef4444;
-    border: 1px solid #fee2e2;
-    border-radius: 0.5rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-disconnect:hover:not(:disabled) {
-    background-color: #fef2f2;
-    transform: translateY(-1px);
-}
-
-/* --- LOGS --- */
-.logs-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.log-item {
-    display: flex;
-    gap: 0.75rem;
+@media (max-width: 760px) {
+  .page-header {
     align-items: flex-start;
-    padding: 0.75rem;
-    background: #f8fafc;
-    border-radius: 0.5rem;
-}
-
-.log-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.log-icon.success { background: #dcfce7; color: #16a34a; }
-.log-icon.info { background: #eff6ff; color: #3b82f6; }
-
-.log-content {
-    display: flex;
     flex-direction: column;
-    flex: 1;
-}
-
-.log-msg {
-    font-size: 0.85rem;
-    color: #334155;
-    font-weight: 500;
-}
-
-.log-time {
-    font-size: 0.75rem;
-    color: #94a3b8;
-}
-
-
-/* --- DISCONNECTED VIEW --- */
-.center-card {
-    align-items: center;
-    text-align: center;
-    max-width: 600px; /* Adjusted width for better proportion */
-    width: 100%;
-    padding: 3rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Deep shadow */
-    border: 1px solid #f1f5f9;
-}
-
-.benefits-section {
-    margin-top: 2.5rem;
-    padding-top: 2rem;
-    border-top: 1px dashed #e2e8f0;
-    width: 100%;
-}
-
-.benefits-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.benefits-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  .connection-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel-heading,
+  .instructions-panel,
+  .help-panel {
+    padding: 20px;
+  }
+  .connection-state {
+    min-height: 340px;
+    padding: 24px 20px;
+  }
+  .disconnect-row {
     flex-direction: column;
-    gap: 0.8rem;
-    align-items: flex-start; /* Align text to left naturally, even if container is centered */
-    display: inline-flex; /* Shrink to fit content so we can center the block */
-}
-
-.benefits-list li {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: #64748b;
-    font-size: 1rem;
-}
-.tech-footer {
-    border-top: 1px dashed #e2e8f0;
-    padding-top: 1rem;
-    display: flex;
-    justify-content: center;
-}
-
-.tech-info {
-    font-size: 0.75rem;
-    color: #cbd5e1; /* Bem clarinho/discreto */
-    font-family: monospace;
-    display: flex;
-    gap: 0.5rem;
-}
-
-.separator {
-    color: #e2e8f0;
-}
-
-.centered-header {
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 2.5rem;
-}
-
-.header-icon-large {
-    width: 80px;
-    height: 80px;
-    background: #eff6ff;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-}
-
-.card-title-large {
-    font-size: 2rem; /* Increased size */
-    font-weight: 800;
-    color: #1e293b;
-    margin-bottom: 0.5rem;
-}
-
-.card-subtitle-large {
-    font-size: 1.1rem; /* Increased size */
-    color: #64748b;
-    max-width: 500px;
-    line-height: 1.6;
-}
-
-.action-area {
-    margin-top: 1rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-}
-
-.connection-body {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.btn-primary-large {
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    padding: 1rem 2.5rem; /* Larger button padding */
-    border-radius: 0.75rem;
-    font-size: 1.1rem; /* Larger button font */
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
-    justify-content: center;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
-}
-
-.btn-primary-large:hover:not(:disabled) {
-    background: #2563eb;
-}
-
-.help-text {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    margin-top: 0.75rem;
-}
-
-.status-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    color: #64748b;
-    font-weight: 500;
-}
-
-/* QR Code Section */
-.qr-code-section {
-    margin-top: 1.5rem;
-    width: 100%;
-}
-
-.qr-instruction {
-    font-size: 0.85rem;
-    color: #475569;
-    margin-bottom: 1rem;
-    background: #f8fafc;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    border: 1px solid #e2e8f0;
-}
-
-.qr-code-border {
-    position: relative;
-    padding: 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 1rem;
-    display: inline-block;
-    background: white;
-}
-
-.qr-code-wrapper {
-    width: 200px;
-    height: 200px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.qr-code-wrapper img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.qr-placeholder {
-    color: #94a3b8;
-    font-size: 0.85rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.scan-line {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
-    height: 2px;
-    background: #3b82f6;
-    box-shadow: 0 0 4px #3b82f6;
-    animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    pointer-events: none;
-    opacity: 0.5;
-}
-
-@keyframes scan {
-    0% { transform: translateY(0); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(200px); opacity: 0; }
-}
-
-.qr-expiry {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-top: 0.75rem;
-}
-
-.success-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    animation: fadeIn 0.3s;
-}
-
-.success-text {
-    color: #16a34a;
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-/* Security Footer */
-.security-footer {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    max-width: 400px;
-    text-align: center;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-top: 2rem;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-    .top-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .main-content-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 640px) {
-    .top-grid {
-        grid-template-columns: 1fr;
-    }
-    .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .header-right {
-        display: none;
-    }
-}
-
-.animate-spin {
-    animation: spin 1s linear infinite;
-}
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.qr-blur {
-  filter: blur(4px);
-  opacity: 0.6;
-}
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Estados desconectados */
-.bg-gray-50 { background-color: #f9fafb; }
-.text-gray-400 { color: #9ca3af; }
-.text-gray-300 { color: #d1d5db; }
-
-/* Connection Content (dentro do card Detalhes da Conta) */
-.connection-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 2rem 1rem;
-}
-
-.connect-icon-area {
-    margin-bottom: 1.5rem;
-}
-
-.connect-icon-bg {
-    width: 80px;
-    height: 80px;
-    background: #eff6ff;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Empty State para Logs */
-.logs-empty {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem;
-    min-height: 180px;
-}
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    text-align: center;
-}
-
-.empty-state p {
-    color: #64748b;
-    font-weight: 600;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-.empty-state span {
-    color: #94a3b8;
-    font-size: 0.8rem;
-}
-
-/* Security Footer Inline (dentro do card) */
-.security-footer-inline {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px dashed #e2e8f0;
-}
-
-/* Ajuste para benefits dentro do card */
-.connection-content .benefits-section {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px dashed #e2e8f0;
-    width: 100%;
-}
-
-.connection-content .benefits-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.connection-content .benefits-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: inline-flex;
-    flex-direction: column;
-    gap: 0.6rem;
     align-items: flex-start;
-}
-
-.connection-content .benefits-list li {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #64748b;
-    font-size: 0.9rem;
-}
-
-/* Ajuste action-area dentro do connection-content */
-.connection-content .action-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 350px;
-}
-
-.connection-content .btn-primary-large {
-    width: 100%;
-}
-
-.api-error-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 380px;
-    padding: 1rem 0;
-}
-
-.api-error-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: #fffbeb;
-    color: #d97706;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-.api-error-state h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #92400e;
-    margin: 0 0 0.5rem;
-}
-
-.api-error-state p {
-    color: #64748b;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    margin: 0 0 1.5rem;
-}
-
-.retry-button {
-    max-width: 280px;
-    background-color: #d97706;
-    box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.25);
-}
-
-.retry-button:hover:not(:disabled) {
-    background: #b45309;
+  }
+  .avatar { width: 64px; height: 64px; }
+  .account-profile h3 { font-size: 18px; }
+  .connected-content {
+    padding: 24px 20px;
+  }
+  .account-details { grid-template-columns: minmax(0, 1fr); padding: 20px; gap: 20px; }
 }
 </style>

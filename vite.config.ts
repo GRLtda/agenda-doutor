@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
@@ -6,8 +7,26 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import { createHash } from 'node:crypto'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Match the production /health rewrite in dev and local build previews.
+const healthEndpoint = (): Plugin => {
+  const rewriteHealth = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const pathname = req.url?.split('?')[0]
+    if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/health' || pathname === '/health.json')) {
+      if (pathname === '/health') req.url = '/health.json'
+      res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate')
+    }
+    next()
+  }
+  return {
+    name: 'health-endpoint',
+    configureServer(server) { server.middlewares.use(rewriteHealth) },
+    configurePreviewServer(server) { server.middlewares.use(rewriteHealth) },
+  }
+}
+
 export default defineConfig({
   plugins: [
+    healthEndpoint(),
     vue({
       template: {
         compilerOptions: {},

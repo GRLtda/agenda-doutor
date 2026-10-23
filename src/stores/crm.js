@@ -20,6 +20,13 @@ function normalizeProviderStatus(providerStatus) {
   return 'disconnected'
 }
 
+function normalizePhone(value) {
+  const [local, domain] = String(value || '').split('@')
+  if (domain && !['s.whatsapp.net', 'c.us'].includes(domain)) return null
+  const digits = local.split(':')[0].replace(/[\s()+.-]/g, '')
+  return /^\d{8,15}$/.test(digits) ? digits : null
+}
+
 function normalizeResponse(payload) {
   const raw = payload?.success && payload?.data ? payload.data : payload || {}
   const qrFromObject = typeof raw.qr === 'object' ? raw.qr?.base64 : null
@@ -34,12 +41,11 @@ function normalizeResponse(payload) {
     raw.name ||
     'WhatsApp Principal'
 
-  const number =
-    profile?.jid ||
-    (profile?.phoneNumber ? `${profile.phoneNumber}@s.whatsapp.net` : null) ||
-    raw.number ||
-    raw.phoneNumber ||
-    'Desconhecido'
+  const number = [profile?.phoneNumber, raw.phoneNumber, profile?.jid, raw.number]
+    .map(normalizePhone)
+    .find(Boolean) || null
+  const businessFlag = [profile?.isBusiness, raw.isBusiness, raw.instance?.isBusiness]
+    .find(value => typeof value === 'boolean')
 
   return {
     status: internalStatus,
@@ -52,11 +58,13 @@ function normalizeResponse(payload) {
       username: displayName,
       number,
       profileImage: profile?.profilePictureUrl || raw.profileImage || null,
+      bio: typeof profile?.status?.message === 'string' ? profile.status.message.trim() : null,
+      linkedAt: raw.createdAt || null,
       status: internalStatus,
       instance: {
         provider: raw.provider || 'whatszu',
         status: raw.status || 'DISCONNECTED',
-        isBusiness: Boolean(business),
+        isBusiness: business ? true : businessFlag ?? null,
         platform: 'md',
         email: business?.email || null,
         websites: business?.websites || [],
@@ -134,7 +142,7 @@ export const useCrmStore = defineStore('crm', () => {
   function applyConnectionProcessingError(error) {
     connectionError.value = getApiErrorMessage(
       error,
-      'Tivemos um problema interno ao preparar sua conexão com o WhatsApp. Nenhuma informação será perdida.'
+      'Não foi possível consultar ou preparar a conexão com o WhatsApp. Tente novamente em instantes.'
     )
     status.value = 'api_error'
     clearQrCode()
@@ -326,17 +334,11 @@ export const useCrmStore = defineStore('crm', () => {
         return
       }
 
-      if (error.response?.status !== 404) {
-        console.log('Erro ao verificar status da conexao.')
+      if (error.response?.status === 404) {
+        applyDisconnectedState({ message: '' }, status.value, false)
+      } else {
+        applyConnectionProcessingError(error)
       }
-
-      if (status.value !== 'disconnected') {
-        status.value = 'disconnected'
-        clearQrCode()
-        connections.value = []
-      }
-
-      stopPolling()
     }
   }
 

@@ -5,5 +5,5 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [vue()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  test: { environment: 'jsdom', include: ['tests/stock-dashboard.spec.js'], clearMocks: true },
+  test: { environment: 'jsdom', include: ['tests/stock-*.spec.js'], clearMocks: true },
 })

@@ -12,7 +12,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "test:whatsapp": "vitest run --config vitest.whatsapp.config.js"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.9.0",

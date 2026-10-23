@@ -42,7 +42,8 @@ Imagens e anexos do atendimento já é a referência implementada. As demais tel
 | 3 | Financeiro: contas a receber/pagar; caixa | Documentos financeiros; extrato e moedas discretas | Pendente |
 | 3 | Financeiro: resumo | Gráfico e extrato; versão compacta nos cards | Pendente |
 | 3 | Estoque: painel | Caixa e ficha (`stock-dashboard-empty.svg`), via `StockDashboardEmpty` | Implementado; [Resumo do estoque](estoque.md) |
-| 3 | Estoque: produtos; kits; lotes; movimentações | Caixas, etiquetas e setas suaves | Pendente |
+| 3 | Estoque: produtos; lotes; movimentações | Caixa e ficha (`stock-dashboard-empty.svg`), via `StockTableList` | Implementado; [contrato](estoque.md#listagens-e-tabelas) |
+| 3 | Estoque: kits | Caixas e etiquetas suaves | Pendente |
 | 4 | Configurações: equipe; unidades | Cartões de pessoas; endereço e localização | Pendente |
 | 4 | Configurações: modelos de anamnese e termos | Prancheta; documento e assinatura | Pendente |
 | 4 | Marketing: modelos; mensagens automáticas; logs | Balões, relógio e histórico | Pendente |

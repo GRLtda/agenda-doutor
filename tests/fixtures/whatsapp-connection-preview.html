@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prévia de conexão WhatsApp</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f8fafc;
+      }
+      #app {
+        padding: 28px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 24px;
+        background: white;
+        font: 12px Arial;
+      }
+      nav a {
+        color: #0057ff;
+      }
+      iframe {
+        display: block;
+        width: 375px;
+        max-width: 100%;
+        height: 1250px;
+        margin: 16px auto;
+        border: 1px solid #e5e7eb;
+      }
+      @media (max-width: 600px) {
+        #app {
+          padding: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      Prévia com dados fictícios <a href="?state=disconnected">Desconectado</a
+      ><a href="?state=loading">Carregando</a><a href="?state=initializing">Preparação</a
+      ><a href="?state=qrcode_pending">QR</a><a href="?state=connected">Conectado</a
+      ><a href="?state=connected&missing=1">Dados ausentes</a><a href="?state=connected&long=1">Biografia longa</a><a href="?state=api_error">Erro</a><a href="?mobile=1&state=connected">Celular</a><a href="?desktop=1&state=connected">Desktop</a>
+    </nav>
+    <div id="app"></div>
+    <script type="module">
+      import '/src/assets/css/global.css'
+      import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
+      import { useCrmStore } from '/src/stores/crm.js'
+      import Connection from '/src/views/pages/marketing/pages/ConnectionTab.vue'
+      const query = new URLSearchParams(location.search)
+      if (query.has('mobile') || query.has('desktop')) {
+        document.getElementById('app').remove()
+        const frame = document.createElement('iframe')
+        const desktop = query.has('desktop')
+        query.delete('mobile')
+        query.delete('desktop')
+        query.set('embedded', '1')
+        frame.src = '?' + query.toString()
+        frame.title = desktop ? 'WhatsApp em desktop (1440×1000)' : 'WhatsApp no celular'
+        if (desktop) frame.style.cssText = 'width:1440px;max-width:none;height:1000px;margin:0;transform:scale(.26);transform-origin:top left;'
+        document.body.appendChild(frame)
+      } else {
+        if (query.has('embedded')) document.querySelector('nav').remove()
+        const app = createApp(Connection),
+          pinia = createPinia()
+        app.use(pinia)
+        const store = useCrmStore(pinia)
+        function apply(state) {
+          store.status = state
+          store.connections =
+            state === 'connected'
+              ? [
+                  {
+                    username: 'Clínica Exemplo',
+                    number: '5511999991234@s.whatsapp.net',
+                    profileImage: query.has('missing') ? null : '/src/assets/imgs/clinic1.webp',
+                    bio: query.has('missing') ? null : query.has('long') ? 'Atendimento com hora marcada. '.repeat(40) : 'Cuidando de você em cada detalhe.\nAtendimento de segunda a sexta, das 8h às 18h.',
+                    linkedAt: query.has('missing') ? null : new Date(Date.now() - 18 * 86400000).toISOString(),
+                    instance: {
+                      isBusiness: query.has('missing') ? null : true,
+                    },
+                  },
+                ]
+              : []
+          store.qrCode =
+            state === 'qrcode_pending'
+              ? 'data:image/svg+xml,' +
+                encodeURIComponent(
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="224" height="224"><rect width="224" height="224" fill="white"/><text x="20" y="110" font-family="Arial" font-size="16">QR de demonstração</text></svg>',
+                )
+              : null
+        }
+        store.getInitialStatus = async () => {
+          if (query.get('state') === 'loading') return new Promise(() => {})
+          apply(query.get('state') || 'disconnected')
+        }
+        store.initiateOrResetConnection = async () => apply('qrcode_pending')
+        store.logoutConnection = async () => apply('disconnected')
+        store.stopPolling = () => {}
+        app.mount('#app')
+      }
+    </script>
+  </body>
+</html>

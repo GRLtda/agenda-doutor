@@ -1,4 +1,5 @@
 <script setup>
+import StockTableList from '@/components/estoque/StockTableList.vue'
 import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 // ProdutosListView.vue — Listagem de produtos do catálogo de estoque
 import { ref, computed, onMounted } from 'vue'
@@ -20,6 +21,7 @@ const busca = ref('')
 const categoriaSel = ref('')
 const ativoSel = ref('')
 const page = ref(1)
+const listError = ref('')
 const showDrawer = ref(false)
 const isSaving = ref(false)
 const produtoForm = ref(novoProdutoVazio())
@@ -48,7 +50,9 @@ async function carregar() {
   if (busca.value)       params.busca     = busca.value
   if (categoriaSel.value) params.categoria = categoriaSel.value
   if (ativoSel.value !== '') params.ativo   = ativoSel.value
-  await store.fetchProdutos(params)
+  listError.value = ''
+  const result = await store.fetchProdutos(params)
+  if (!result.success) listError.value = result.error || 'Não foi possível carregar os registros.'
 }
 
 function abrirNovo() {
@@ -116,7 +120,6 @@ function limparFiltros() {
 }
 
 const temFiltrosAtivos = computed(() => busca.value || categoriaSel.value || ativoSel.value !== '')
-const totalPaginas = computed(() => store.produtosMeta?.totalPages || 1)
 
 function irParaPagina(p) {
   page.value = p
@@ -132,12 +135,13 @@ function irParaPagina(p) {
         <h1 class="title">Produtos</h1>
         <p class="subtitle">Catálogo de insumos cadastrados na clínica.</p>
       </div>
-      <AppButton variant="primary" @click="abrirNovo">
-        <Plus :size="16" /> Novo Produto
+      <AppButton variant="primary" class="new-product" aria-label="Novo produto" @click="abrirNovo">
+        <Plus :size="16" /><span>Novo Produto</span>
       </AppButton>
     </header>
 
-    <!-- Filtros -->
+    <StockTableList :loading="store.loadingProdutos" :error="listError" :empty="store.produtos.length === 0" empty-title="Nenhum produto encontrado" :empty-text="temFiltrosAtivos ? 'Tente ajustar os filtros.' : 'Comece cadastrando o primeiro insumo.'" :columns="6" :page="page" :meta="store.produtosMeta" :limit="20" @retry="carregar" @page-change="irParaPagina">
+      <template #filters>
     <div class="filtros-bar">
       <div class="search-wrapper">
         <Search :size="16" class="search-icon" />
@@ -146,33 +150,32 @@ function irParaPagina(p) {
           type="text"
           placeholder="Buscar produto..."
           v-model="busca"
+          aria-label="Buscar produto"
           @keyup.enter="aplicarFiltros"
         />
       </div>
 
-      <div style="width: 200px">
+      <div style="width: 270px">
         <StyledSelect
           v-model="categoriaSel"
           :options="categoriaOptions"
-          @update:modelValue="aplicarFiltros"
-        />
+          @update:modelValue="aplicarFiltros">
+          <template #prefix><span class="select-prefix"><Tag :size="14" />Categoria:</span></template>
+        </StyledSelect>
       </div>
 
-      <div style="width: 170px">
+      <div style="width: 220px">
         <StyledSelect
           v-model="ativoSel"
           :options="ativoOptions"
-          @update:modelValue="aplicarFiltros"
-        />
+          @update:modelValue="aplicarFiltros">
+          <template #prefix><span class="select-prefix"><Check :size="14" />Status:</span></template>
+        </StyledSelect>
       </div>
 
-      <button v-if="temFiltrosAtivos" class="btn-clear-filters" @click="limparFiltros">
-        <X :size="14" /> Limpar
-      </button>
+      <AppButton variant="outline" class="clear-filters" :disabled="!temFiltrosAtivos" @click="limparFiltros">Limpar</AppButton>
     </div>
-
-    <!-- Tabela -->
-    <div class="table-wrapper" :class="{ 'is-loading': store.loadingProdutos && store.produtos.length > 0 }">
+      </template>
       <!-- Desktop -->
       <div class="table-container desktop-only">
         <table>
@@ -187,36 +190,7 @@ function irParaPagina(p) {
             </tr>
           </thead>
           <tbody>
-            <!-- Skeleton -->
-            <template v-if="store.loadingProdutos && store.produtos.length === 0">
-              <tr v-for="n in 6" :key="`sk-${n}`" class="skeleton-row">
-                <td><div class="skeleton" style="width:60%"></div></td>
-                <td><div class="skeleton" style="width:40%"></div></td>
-                <td><div class="skeleton" style="width:50%"></div></td>
-                <td><div class="skeleton" style="width:30%"></div></td>
-                <td><div class="skeleton" style="width:40%"></div></td>
-                <td><div class="skeleton skeleton-btn"></div></td>
-              </tr>
-            </template>
 
-            <!-- Empty -->
-            <template v-else-if="!store.loadingProdutos && store.produtos.length === 0">
-              <tr>
-                <td colspan="6" class="empty-cell">
-                  <div class="empty-state">
-                    <div class="empty-icon"><Package :size="28" /></div>
-                    <h3>Nenhum produto encontrado</h3>
-                    <p>{{ temFiltrosAtivos ? 'Tente ajustar os filtros.' : 'Comece cadastrando o primeiro insumo.' }}</p>
-                    <button v-if="!temFiltrosAtivos" class="btn-primary-sm" @click="abrirNovo">
-                      <Plus :size="15" /> Novo Produto
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </template>
-
-            <!-- Dados -->
-            <template v-else>
               <tr v-for="p in store.produtos" :key="p._id" class="produto-row" @click="verDetalhes(p._id)">
                 <td>
                   <div class="nome-wrapper">
@@ -275,22 +249,14 @@ function irParaPagina(p) {
                   </AppDropdownActions>
                 </td>
               </tr>
-            </template>
+
           </tbody>
         </table>
       </div>
 
       <!-- Mobile List -->
       <div class="mobile-list">
-        <template v-if="store.loadingProdutos && store.produtos.length === 0">
-          <div class="mobile-grid">
-            <div v-for="n in 5" :key="`sm-${n}`" class="produto-card skeleton-card">
-              <div class="skeleton" style="width:50%;height:1rem;margin-bottom:0.4rem"></div>
-              <div class="skeleton" style="width:35%;height:0.8rem"></div>
-            </div>
-          </div>
-        </template>
-        <template v-else>
+
           <div class="mobile-grid">
             <div
               v-for="p in store.produtos" :key="p._id"
@@ -351,23 +317,10 @@ function irParaPagina(p) {
               </div>
             </div>
           </div>
-        </template>
-        <div v-if="!store.loadingProdutos && store.produtos.length === 0" class="empty-cell">
-          <div class="empty-state">
-            <div class="empty-icon"><Package :size="28" /></div>
-            <h3>Nenhum produto encontrado</h3>
-            <button class="btn-primary-sm" @click="abrirNovo"><Plus :size="15" /> Novo Produto</button>
-          </div>
-        </div>
+
       </div>
 
-      <!-- Paginação -->
-      <div v-if="totalPaginas > 1" class="paginacao">
-        <button class="btn-pag" :disabled="page <= 1" @click="irParaPagina(page - 1)">← Anterior</button>
-        <span class="pag-info">Página {{ page }} de {{ totalPaginas }}</span>
-        <button class="btn-pag" :disabled="page >= totalPaginas" @click="irParaPagina(page + 1)">Próxima →</button>
-      </div>
-    </div>
+    </StockTableList>
 
     <!-- Drawer de Formulário -->
     <SideDrawer v-if="showDrawer" @close="fecharDrawer">
@@ -401,15 +354,15 @@ function irParaPagina(p) {
 </template>
 
 <style scoped>
-.produtos-page { padding: 0; }
+.produtos-page { height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 
-.page-header {
+.page-header { flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom:1rem;
 }
 .title { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
 .subtitle { color: var(--cinza-texto); }
@@ -419,7 +372,7 @@ function irParaPagina(p) {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  margin-bottom:1rem;
 }
 .search-wrapper {
   position: relative;
@@ -455,30 +408,8 @@ function irParaPagina(p) {
   outline: none;
 }
 
-.btn-clear-filters {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.6rem 0.875rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  background: #fff;
-  color: #6b7280;
-}
-.btn-clear-filters:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
-
 /* Table */
-.table-wrapper {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  overflow: hidden;
-  position: relative;
-}
-.table-wrapper.is-loading { opacity:.55; pointer-events:none; }
+
 .table-container { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; }
@@ -563,11 +494,7 @@ th {
 .actions-cell { text-align: right; }
 
 /* Empty */
-.empty-cell { padding: 4rem; text-align: center; }
-.empty-state { display:flex; flex-direction:column; align-items:center; gap:.75rem; max-width: 320px; margin:0 auto; }
-.empty-icon { width:56px; height:56px; background:#eff6ff; color:var(--azul-principal); border-radius:50%; display:flex; align-items:center; justify-content:center; }
-.empty-state h3 { font-size:1.1rem; font-weight:700; color:#111827; margin:0; }
-.empty-state p { color:#9ca3af; font-size:.875rem; margin:0; text-align:center; }
+
 .btn-primary-sm {
   display: inline-flex; align-items: center; gap: .4rem;
   padding: .5rem 1.1rem; border-radius: .75rem; border: none;
@@ -608,21 +535,8 @@ th {
   padding-top: 0.75rem;
   border-top: 1px dashed #e5e7eb;
 }
-.skeleton-card { pointer-events: none; }
 
 /* Paginação */
-.paginacao {
-  display: flex; align-items: center; justify-content: center;
-  gap: 1rem; padding: 1rem;
-  border-top: 1px solid #f3f4f6;
-}
-.btn-pag {
-  padding: .45rem 1rem; border: 1.5px solid #e5e7eb; border-radius: .65rem;
-  font-size: .85rem; font-weight: 600; cursor: pointer; background: #fff; color: #374151;
-}
-.btn-pag:hover:not(:disabled) { background: #f9fafb; }
-.btn-pag:disabled { opacity: .4; cursor: not-allowed; }
-.pag-info { font-size: .85rem; color: #6b7280; font-weight: 500; }
 
 /* Drawer */
 .drawer-header { padding: 1.5rem; border-bottom: 1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:flex-start; }
@@ -635,8 +549,6 @@ th {
 /* Animations */
 .fade-enter-active, .fade-leave-active { transition: opacity .15s, transform .15s; }
 .fade-enter-from, .fade-leave-to { opacity:0; transform:translateY(-4px); }
-.skeleton { background:#e5e7eb; border-radius:.4rem; height:1rem; animation:pulse 1.5s ease infinite; }
-.skeleton-btn { width:32px; height:32px; border-radius:50%; }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 @keyframes spin  { to{transform:rotate(360deg)} }
@@ -646,8 +558,16 @@ th {
   .desktop-only { display: none; }
   .mobile-list { display: block; }
   .mobile-grid { padding: 0.5rem 0; }
-  .table-wrapper { background: transparent; border: none; box-shadow: none; overflow: visible; }
+
   .filtros-bar { flex-direction: column; }
   .search-wrapper { min-width: 100%; }
+}
+.clear-filters { width: 88px; min-width: 88px; }
+@media (max-width: 768px) {
+  .title { font-size: 1.5rem; }
+  .subtitle { font-size: .8125rem; }
+  .page-header { flex-wrap: nowrap; align-items: center; }
+  .new-product { width: 40px; padding: 0; flex-shrink: 0; }
+  .new-product span { display: none; }
 }
 </style>
