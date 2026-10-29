@@ -536,14 +536,19 @@ async function saveBaixa(payload) {
   load()
 }
 
+function canRemoveConta(conta) {
+  return Number(conta.paidAmountCents || 0) <= 0
+}
+
 async function removeConta(conta) {
-  if (!window.confirm('Deseja cancelar esta conta?')) return
+  if (!canRemoveConta(conta) || financeiroStore.loadingAcao) return
+  if (!window.confirm('Deseja excluir esta conta?')) return
   const result = await financeiroStore.deleteConta(conta._id)
   if (!result.success) {
     toast.error(result.error)
     return
   }
-  toast.success('Conta cancelada.')
+  toast.success('Conta excluída.')
   load()
 }
 
@@ -768,11 +773,12 @@ watch(() => route.query, () => {
                         <Pencil :size="14" /> Editar
                       </button>
                       <button
-                        v-if="conta.paidAmountCents <= 0 && conta.status !== 'CANCELED'"
+                        :disabled="!canRemoveConta(conta) || financeiroStore.loadingAcao"
+                        :title="!canRemoveConta(conta) ? 'Estorne as baixas no resumo da conta antes de excluir.' : 'Excluir conta'"
                         @click.stop="removeConta(conta); close()"
                         class="dropdown-item delete"
                       >
-                        <Trash2 :size="14" /> Excluir
+                        <Trash2 :size="14" /> {{ canRemoveConta(conta) ? 'Excluir' : 'Excluir (estorne as baixas)' }}
                       </button>
                     </template>
                   </AppDropdownActions>
@@ -810,8 +816,13 @@ watch(() => route.query, () => {
                     <button @click.stop="openEdit(conta); close()" class="dropdown-item">
                       <Pencil :size="14" /> Editar
                     </button>
-                    <button v-if="conta.paidAmountCents <= 0 && conta.status !== 'CANCELED'" @click.stop="removeConta(conta); close()" class="dropdown-item delete">
-                      <Trash2 :size="14" /> Excluir
+                    <button
+                      :disabled="!canRemoveConta(conta) || financeiroStore.loadingAcao"
+                      :title="!canRemoveConta(conta) ? 'Estorne as baixas no resumo da conta antes de excluir.' : 'Excluir conta'"
+                      @click.stop="removeConta(conta); close()"
+                      class="dropdown-item delete"
+                    >
+                      <Trash2 :size="14" /> {{ canRemoveConta(conta) ? 'Excluir' : 'Excluir (estorne as baixas)' }}
                     </button>
                   </template>
                 </AppDropdownActions>
