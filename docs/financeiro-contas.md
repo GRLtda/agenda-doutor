@@ -5,20 +5,25 @@ de ações (três pontos) oferece as mesmas opções na tabela do desktop e nos
 cards do celular: Baixar quando houver saldo e a conta não estiver cancelada,
 Editar e Excluir.
 
-Excluir permanece visível. Quando `paidAmountCents` é maior que zero, a ação
-fica desabilitada com a indicação “Estorne as baixas”. Abra o resumo da conta
-e estorne as baixas antes de excluí-la. Contas sem baixas, inclusive canceladas,
-podem ser excluídas; saldo pago ausente é tratado como zero. A API continua
-responsável pela validação final. Durante uma operação financeira, a exclusão
-fica bloqueada para evitar solicitações repetidas.
+Excluir fica disponível também para contas pagas, parciais e canceladas.
+A confirmação informa que todas as baixas vinculadas serão estornadas
+automaticamente, ajustando o saldo financeiro. Não é necessário abrir o resumo
+para estornar cada baixa. Essa operação registra estornos no sistema; não
+solicita reembolso em banco, cartão ou serviço de pagamento.
 
-A exclusão exige confirmação, chama a operação existente
-`DELETE /contas/:id` do módulo financeiro v2 e recarrega a listagem em caso de
-sucesso. A API mantém o registro com `status=CANCELED`, `canceledAt` e
-`deletedAt`; não há remoção física. A rota exige autenticação, assinatura e
-plano premium e restringe a consulta à clínica autenticada. Contas com baixas
-retornam `409 FINANCIAL_ACCOUNT_HAS_SETTLEMENTS`. Falhas gerais são exibidas
-por toast, sem anunciar sucesso nem remover a conta localmente.
+O frontend faz uma única solicitação `DELETE /v2/financeiro/contas/:id`.
+O backend identifica as baixas ainda não estornadas, registra seus estornos e
+exclui logicamente a conta, preservando o histórico e o autor.
+Permissões, configuração do MongoDB, resposta, idempotência e limitações estão
+em [Exclusão de contas financeiras](../../api-clinic/docs/FINANCEIRO_CONTAS.md).
+
+Durante uma operação financeira a exclusão fica bloqueada, evitando cliques
+repetidos. Cancelar a confirmação não chama a API. Em caso de sucesso, a lista é
+recarregada; em caso de falha, a conta permanece na lista e o erro é exibido por
+toast. Nenhum estorno é solicitado separadamente pelo navegador.
+No MongoDB standalone, se a API informar falha parcial, repetir Excluir conclui
+somente os estornos pendentes; os já gravados permanecem no histórico e não são
+duplicados. Nesse estado a conta não aceita novas baixas até finalizar a exclusão.
 
 ## Verificação
 
@@ -30,9 +35,9 @@ e `npm run build` para validar a compilação. A revisão visual deve cobrir:
 - Confirmar a exclusão e verificar a mensagem de sucesso e a atualização da lista.
 - Conferir Excluir para uma conta cancelada sem baixas e para uma conta sem
   `paidAmountCents` informado.
-- Em contas pagas ou parciais, conferir a ação desabilitada e a indicação de
-  estornar as baixas. Depois do estorno e da atualização da lista, conferir a
-  liberação da ação.
+- Em contas pagas ou parciais, conferir Excluir habilitado e a confirmação que
+  explica o estorno automático. Confirmar deve excluir sem estorno manual prévio.
+- Durante uma operação financeira, Excluir permanece desabilitado.
 - Simular falha da API e conferir que a mensagem de erro aparece sem sucesso.
 
 Padrões visuais: [Regras de layout](regras-layout.md) e

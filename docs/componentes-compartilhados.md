@@ -105,7 +105,7 @@ As fundações de bordas, cores, fontes e skeleton ficam no
   e handlers com `.stop`. As classes dos itens são `dropdown-item`, `delete`
   (ou `delete-item`), `success` e `primary`. As telas mantêm suas condições de
   visibilidade, permissões, confirmações e handlers de negócio.
-  No financeiro, a exclusão permanece visível e informa quando exige estorno;
+  No financeiro, a exclusão permanece visível e confirma o estorno automático;
   veja [Contas a receber e a pagar](financeiro-contas.md).
 - `StyledSelect`: seleção simples por `v-model`, com opções `{ value, label,
   image?, icon? }`. Usa o valor exato da opção, incluindo string vazia e zero.

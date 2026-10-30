@@ -53,16 +53,16 @@ it.each([
   actions.forEach(action => expect(action.element.disabled).toBe(false))
 })
 
-it.each(['PAID', 'PARTIAL'])('explica o bloqueio de conta %s nas duas apresentações', async status => {
+it.each(['PAID', 'PARTIAL'])('permite excluir conta %s com confirmação do estorno automático', async status => {
   Object.assign(mocks.store.contas[0], { status, paidAmountCents: 5000 })
   const actions = await render()
   actions.forEach(action => {
-    expect(action.element.disabled).toBe(true)
-    expect(action.text()).toContain('estorne as baixas')
+    expect(action.element.disabled).toBe(false)
+    expect(action.text()).toContain('Excluir')
   })
   await actions[0].trigger('click')
-  expect(window.confirm).not.toHaveBeenCalled()
-  expect(mocks.store.deleteConta).not.toHaveBeenCalled()
+  expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('estornadas automaticamente'))
+  expect(mocks.store.deleteConta).toHaveBeenCalledWith('conta')
 })
 
 it('cancelar a confirmação não exclui a conta', async () => {
@@ -83,11 +83,11 @@ it('confirmar exclui e recarrega a listagem', async () => {
 })
 
 it('falha da API informa erro sem anunciar sucesso', async () => {
-  mocks.store.deleteConta.mockResolvedValue({ success: false, error: 'Estorne as baixas primeiro.' })
+  mocks.store.deleteConta.mockResolvedValue({ success: false, error: 'Falha ao excluir conta.' })
   const actions = await render()
   await actions[1].trigger('click')
   await flushPromises()
-  expect(mocks.error).toHaveBeenCalledWith('Estorne as baixas primeiro.')
+  expect(mocks.error).toHaveBeenCalledWith('Falha ao excluir conta.')
   expect(mocks.success).not.toHaveBeenCalled()
 })
 

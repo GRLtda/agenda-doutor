@@ -536,13 +536,9 @@ async function saveBaixa(payload) {
   load()
 }
 
-function canRemoveConta(conta) {
-  return Number(conta.paidAmountCents || 0) <= 0
-}
-
 async function removeConta(conta) {
-  if (!canRemoveConta(conta) || financeiroStore.loadingAcao) return
-  if (!window.confirm('Deseja excluir esta conta?')) return
+  if (financeiroStore.loadingAcao) return
+  if (!window.confirm('Deseja excluir esta conta? Todas as baixas vinculadas serão estornadas automaticamente, ajustando o saldo financeiro. Essa ação não devolve dinheiro ao paciente ou fornecedor.')) return
   const result = await financeiroStore.deleteConta(conta._id)
   if (!result.success) {
     toast.error(result.error)
@@ -773,12 +769,12 @@ watch(() => route.query, () => {
                         <Pencil :size="14" /> Editar
                       </button>
                       <button
-                        :disabled="!canRemoveConta(conta) || financeiroStore.loadingAcao"
-                        :title="!canRemoveConta(conta) ? 'Estorne as baixas no resumo da conta antes de excluir.' : 'Excluir conta'"
+                        :disabled="financeiroStore.loadingAcao"
+                        title="Excluir conta e estornar automaticamente as baixas vinculadas"
                         @click.stop="removeConta(conta); close()"
                         class="dropdown-item delete"
                       >
-                        <Trash2 :size="14" /> {{ canRemoveConta(conta) ? 'Excluir' : 'Excluir (estorne as baixas)' }}
+                        <Trash2 :size="14" /> Excluir
                       </button>
                     </template>
                   </AppDropdownActions>
@@ -817,12 +813,12 @@ watch(() => route.query, () => {
                       <Pencil :size="14" /> Editar
                     </button>
                     <button
-                      :disabled="!canRemoveConta(conta) || financeiroStore.loadingAcao"
-                      :title="!canRemoveConta(conta) ? 'Estorne as baixas no resumo da conta antes de excluir.' : 'Excluir conta'"
+                      :disabled="financeiroStore.loadingAcao"
+                      title="Excluir conta e estornar automaticamente as baixas vinculadas"
                       @click.stop="removeConta(conta); close()"
                       class="dropdown-item delete"
                     >
-                      <Trash2 :size="14" /> {{ canRemoveConta(conta) ? 'Excluir' : 'Excluir (estorne as baixas)' }}
+                      <Trash2 :size="14" /> Excluir
                     </button>
                   </template>
                 </AppDropdownActions>
