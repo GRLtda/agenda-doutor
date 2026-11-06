@@ -32,6 +32,25 @@ function render(props = {}) {
 const image = (name = 'foto.png') => new File(['image'], name, { type: 'image/png' })
 const drop = (wrapper, files) => wrapper.get('.attachments-container').trigger('drop', { dataTransfer: { files } })
 
+it('miniatura com endereço preferido indisponível usa outro endereço do mesmo arquivo', async () => {
+  const attachment = {
+    _id: 'migrado',
+    createdAt: '2020-04-02T15:00:00.000Z',
+    thumbnailUrl: '/thumb-indisponivel.webp',
+    originalUrl: '/original-indisponivel.webp',
+    signedUrl: '/assinado.webp',
+    metadata: { originalName: 'registro.webp' },
+  }
+  const wrapper = render({ record: { _id: 'record', attachments: [attachment] } })
+  await flushPromises()
+  expect(wrapper.get('.thumbnail-image').attributes('src')).toBe('/thumb-indisponivel.webp')
+  await wrapper.get('.thumbnail-image').trigger('error')
+  await flushPromises()
+  expect(wrapper.get('.thumbnail-image').attributes('src')).toBe('/assinado.webp')
+  expect(wrapper.text()).not.toContain('Erro ao carregar')
+  expect(attachment.createdAt).toBe('2020-04-02T15:00:00.000Z')
+})
+
 it('soltar imagens envia direto, sem abrir preparação, com progresso real e espera pelo servidor', async () => {
   let resolve
   mocks.upload.mockImplementation((id, file, draft, options) => {

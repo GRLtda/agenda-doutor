@@ -124,6 +124,7 @@
               loading="lazy"
               decoding="async"
               fetchpriority="low"
+              @error="onThumbError(file, $event)"
             />
             <div v-else class="file-placeholder">
               <FileText :size="34" />
@@ -199,6 +200,7 @@ import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import MediaViewerModal from '@/views/pages/pacientes/components/MediaViewerModal.vue'
 import { isAutomaticGalleryTag, visibleGalleryTags } from '@/utils/galleryTags'
+import { galleryImageCandidates, recoverGalleryImage, revokeGalleryObjectUrl } from '@/utils/galleryImage'
 
 const router = useRouter()
 const store = useGalleryStore()
@@ -211,6 +213,9 @@ const tagMode = ref('or')
 const dateRange = ref(null)
 const isTagMenuOpen = ref(false)
 const selectedFile = ref(null)
+const thumbSrc = ref({})
+const thumbFailed = new Map()
+const thumbBusy = new Set()
 
 const categoryOptions = [
   { value: 'imagens', label: 'Imagens' },
@@ -370,7 +375,40 @@ function fileTypeLabel(type) {
 }
 
 function getThumbnailUrl(file) {
-  return file?.thumbnailUrl || file?.previewUrl || file?.signedUrl || ''
+  return thumbSrc.value[file?._id] || galleryImageCandidates(file, 'thumb')[0] || ''
+}
+async function onThumbError(file, event) {
+  if (!file?._id || thumbBusy.has(file._id)) return
+  const current = getThumbnailUrl(file)
+  const attribute = event?.target?.getAttribute?.('src')
+  if (attribute && attribute !== current) return
+  const failed = thumbFailed.get(file._id) || new Set()
+  thumbFailed.set(file._id, failed)
+  if (current) failed.add(current)
+  thumbBusy.add(file._id)
+  try {
+    const result = await recoverGalleryImage({
+      file,
+      failed,
+      prefer: 'thumb',
+      refresh: async () => {
+        const response = await store.fetchGalleryItem(file._id)
+        if (!response.success) throw new Error(response.error || 'Não foi possível carregar a imagem.')
+        return response.data
+      },
+    })
+    if (result?.file?.createdAt || file.createdAt) {
+      const createdAt = file.createdAt || result.file?.createdAt
+      if (result?.file) Object.assign(file, result.file, { createdAt })
+    }
+    if (result?.url) {
+      revokeGalleryObjectUrl(thumbSrc.value[file._id])
+      thumbSrc.value = { ...thumbSrc.value, [file._id]: result.url }
+      return
+    }
+  } finally {
+    thumbBusy.delete(file._id)
+  }
 }
 </script>
 

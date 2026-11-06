@@ -120,10 +120,15 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getGalleryItem, galleryError } from '@/api/gallery';
 import { useRouter } from 'vue-router';
 import { visibleGalleryTags } from '@/utils/galleryTags';
+import {
+  galleryImageCandidates,
+  recoverGalleryImage,
+  revokeGalleryObjectUrl,
+} from '@/utils/galleryImage';
 import { 
   ArrowUpRight,
   X, 
@@ -149,16 +154,21 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'previous', 'next']);
+const UNAVAILABLE = 'A imagem não está disponível. Tente novamente mais tarde.';
+const FAILED = 'Não foi possível carregar a imagem.';
 const router = useRouter();
 const isLoading = ref(true);
-const renewedUrl = ref('');
+const displayUrl = ref('');
+const delivery = ref(null);
 const imageError = ref('');
 const zoom = ref(1);
 const offset = ref({ x: 0, y: 0 });
 const dragging = ref(false);
 let start = { x: 0, y: 0 };
-let renewed = false;
-const imageUrl = computed(() => renewedUrl.value || props.file?.originalUrl || props.file?.signedUrl || '');
+let failed = new Set();
+let generation = 0;
+let advancing = false;
+const imageUrl = displayUrl;
 function setZoom(value) { zoom.value = Math.min(4, Math.max(1, value)); if (zoom.value === 1) offset.value = { x: 0, y: 0 }; }
 function startPan(event) { if (zoom.value <= 1) return; dragging.value = true; start = { x: event.clientX - offset.value.x, y: event.clientY - offset.value.y }; event.target.setPointerCapture?.(event.pointerId); }
 function pan(event) { if (dragging.value) offset.value = { x: event.clientX - start.x, y: event.clientY - start.y }; }
@@ -169,33 +179,86 @@ function keyboard(event) {
   if (event.key === 'ArrowRight' && props.hasNext) emit('next');
 }
 onMounted(() => window.addEventListener('keydown', keyboard));
-onBeforeUnmount(() => window.removeEventListener('keydown', keyboard));
+onBeforeUnmount(() => {
+  generation += 1;
+  revokeGalleryObjectUrl(displayUrl.value);
+  window.removeEventListener('keydown', keyboard);
+});
 
-// Reset loading when file changes or modal opens
-watch(() => props.file, () => {
-  if (props.file) {
-    isLoading.value = true;
-    renewedUrl.value = ''; imageError.value = ''; renewed = false; setZoom(1);
-  }
+watch(() => [props.show, props.file?._id], () => {
+  generation += 1;
+  revokeGalleryObjectUrl(displayUrl.value);
+  failed = new Set();
+  advancing = false;
+  delivery.value = null;
+  setZoom(1);
+  const first = props.file ? galleryImageCandidates(props.file, 'full')[0] || '' : '';
+  displayUrl.value = first;
+  imageError.value = props.file && !first ? UNAVAILABLE : '';
+  isLoading.value = Boolean(props.show && props.file && first);
 }, { immediate: true });
 
 function onImageLoad() {
   isLoading.value = false;
 }
 
-async function retryImage() {
+function currentFile() {
+  return delivery.value ? { ...props.file, ...delivery.value } : props.file;
+}
+
+async function advance() {
+  const token = generation;
   const id = props.file?._id;
   if (!id) return;
-  isLoading.value = true; imageError.value = '';
-  try {
-    const fresh = await getGalleryItem(id);
-    if (props.file?._id !== id || !props.show) return;
-    const url = fresh.originalUrl || fresh.signedUrl;
-    if (url === imageUrl.value) { isLoading.value = false; imageError.value = 'A imagem não está disponível. Tente novamente mais tarde.'; return; }
-    renewedUrl.value = url;
-  } catch (cause) { if (props.file?._id === id) { isLoading.value = false; imageError.value = galleryError(cause); } }
+  const result = await recoverGalleryImage({
+    file: currentFile(),
+    failed,
+    prefer: 'full',
+    refresh: () => getGalleryItem(id),
+  });
+  if (token !== generation || props.file?._id !== id || !props.show) {
+    revokeGalleryObjectUrl(result?.url);
+    return;
+  }
+  if (result?.file) {
+    delivery.value = {
+      thumbnailUrl: result.file.thumbnailUrl,
+      previewUrl: result.file.previewUrl,
+      originalUrl: result.file.originalUrl,
+      url: result.file.url,
+      signedUrl: result.file.signedUrl,
+    };
+  }
+  if (result?.url) {
+    revokeGalleryObjectUrl(displayUrl.value);
+    displayUrl.value = result.url;
+    imageError.value = '';
+    isLoading.value = true;
+    return;
+  }
+  isLoading.value = false;
+  imageError.value = result?.error ? galleryError(result.error) : result?.stable ? UNAVAILABLE : FAILED;
 }
-function onImageError() { if (!renewed) { renewed = true; retryImage(); } else { isLoading.value = false; imageError.value = 'Não foi possível carregar a imagem.'; } }
+
+async function retryImage() {
+  if (!props.file?._id || advancing) return;
+  failed.delete('__refreshed');
+  failed.delete('__sniffed');
+  imageError.value = '';
+  isLoading.value = true;
+  advancing = true;
+  try { await advance(); } finally { advancing = false; }
+}
+
+async function onImageError(event) {
+  const current = displayUrl.value;
+  const attribute = event?.target?.getAttribute?.('src');
+  if (!current || advancing || imageError.value) return;
+  if (attribute && attribute !== current) return;
+  failed.add(current);
+  advancing = true;
+  try { await advance(); } finally { advancing = false; }
+}
 
 function goToAppointment(appointmentId) {
   if (!appointmentId || !props.file?.patient?._id) return;
