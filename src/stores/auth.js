@@ -582,11 +582,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Funções de Assinatura ---
 
-  async function subscribe() {
+  async function subscribe(plan) {
     trackClarityEvent('subscribe_click')
 
     try {
-      const response = await createCheckoutSession()
+      const response = await createCheckoutSession(plan ? { plan } : {})
       const { url } = response.data
       if (url) {
         window.location.href = url

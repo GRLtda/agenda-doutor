@@ -165,6 +165,16 @@ export const useClinicStore = defineStore('clinic', () => {
     subscriptionStatus.value = null
   }
 
+  async function getSubscriptionPayments() {
+    try {
+      const response = await api.get('/subscriptions/payments')
+      return { success: true, data: response.data.payments || [] }
+    } catch (error) {
+      console.error('Erro ao buscar pagamentos:', error)
+      return { success: false, error: error.response?.data?.message || 'Erro ao buscar pagamentos' }
+    }
+  }
+
   async function getLatestInvoice() {
     try {
       const response = await api.get('/subscriptions/latest-invoice')
@@ -193,6 +203,7 @@ export const useClinicStore = defineStore('clinic', () => {
     cancelSubscription,
     createPortalSession,
     getLatestInvoice,
+    getSubscriptionPayments,
     clearSubscriptionStatus,
   }
 })
