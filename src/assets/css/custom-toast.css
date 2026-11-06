@@ -88,3 +88,7 @@
     width: 100% !important;
   }
 }
+/* Permite toasts com várias linhas (mensagens separadas por \n) */
+.Vue-Toastification__toast-body {
+  white-space: pre-line;
+}
