@@ -8,7 +8,7 @@ O envio aceita PNG, JPG e WEBP, com preparação de descrição/tags e destino. 
 
 Em Imagens e montagem, o atendimento mantém envio, arraste e montagens. O campo Pasta para novas fotos permite escolher/criar a pasta de destino. Escolher da galeria abre um seletor do mesmo paciente e anexa os IDs selecionados sem novo upload. As fotos já anexadas ficam desabilitadas; a quantidade selecionável considera as vagas restantes entre os 40 anexos. A API aplica esse limite atomicamente, inclusive em envios simultâneos.
 
-O visualizador da galeria inclui zoom, movimento da imagem ampliada, anterior/próxima entre as imagens da página e navegação pelas setas. Ele consulta detalhes atualizados e tenta renovar a URL quando o original falha. As miniaturas oferecem recarregamento após falha. O atendimento de origem aparece separado dos atendimentos que utilizam a foto.
+O visualizador da galeria inclui zoom, movimento da imagem ampliada, anterior/próxima entre as imagens da página e navegação pelas setas. Quando o endereço preferido falha, ele percorre os demais endereços já devolvidos para o mesmo arquivo (original, legado, assinado e miniatura), renova a consulta e só então declara indisponibilidade. No visualizador aberto, se a resposta contém bytes JPEG, PNG, GIF ou WebP com um tipo declarado diferente, a imagem é reapresentada com o tipo reconhecido, sem enviar a sessão para o armazenamento. Conteúdo que não é imagem continua com erro. A data histórica já exibida não é substituída. As miniaturas percorrem os mesmos endereços e oferecem recarregamento após falha; a releitura dos bytes fica restrita à imagem aberta. O atendimento de origem aparece separado dos atendimentos que utilizam a foto.
 
 ## Preservação e exclusão
 

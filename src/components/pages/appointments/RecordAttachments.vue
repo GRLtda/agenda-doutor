@@ -12,6 +12,8 @@ import GalleryFolderSelect from '@/components/pages/patients/GalleryFolderSelect
 import GalleryDialog from '@/components/global/GalleryDialog.vue'
 import PatientGalleryWorkspace from '@/views/pages/pacientes/components/PatientGalleryWorkspace.vue'
 import { compressImage, MAX_IMAGE_BYTES as MAX_FILE_SIZE_BYTES, IMAGE_ACCEPT, isSupportedPhoto } from '@/utils/imageUpload'
+import { getGalleryItem } from '@/api/gallery'
+import { applyGalleryDelivery, galleryImageCandidates, recoverGalleryImage, revokeGalleryObjectUrl } from '@/utils/galleryImage'
 
 const props = defineProps({
   record: {
@@ -41,6 +43,12 @@ const isImageLoading = ref(false)
 const showMontageEditor = ref(false)
 const isCompressing = ref(false)
 const imageLoadErrors = reactive(new Set())
+const thumbSrc = reactive({})
+const thumbFailed = new Map()
+const thumbBusy = new Set()
+const fullSrc = ref('')
+const fullFailed = new Set()
+let fullAdvancing = false
 const showPhotoViewer = ref(false)
 const pendingFiles = ref([])
 const dragDepth = ref(0)
@@ -227,23 +235,39 @@ const MAX_ATTACHMENTS = 40
 const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
 
 function getOriginalImageUrl(attachment) {
-  return attachment?.originalUrl || attachment?.url || attachment?.signedUrl || ''
+  return galleryImageCandidates(attachment, 'full')[0] || ''
 }
 
 function getThumbnailImageUrl(attachment) {
-  return attachment?.thumbnailUrl || getOriginalImageUrl(attachment)
+  return thumbSrc[attachment?._id] || galleryImageCandidates(attachment, 'thumb')[0] || ''
 }
 
-function handleThumbnailError(event, attachment) {
-  const originalUrl = getOriginalImageUrl(attachment)
-
-  if (originalUrl && event?.target?.dataset?.fallback !== 'original') {
-    event.target.dataset.fallback = 'original'
-    event.target.src = originalUrl
-    return
+async function handleThumbnailError(event, attachment) {
+  const current = getThumbnailImageUrl(attachment)
+  const attribute = event?.target?.getAttribute?.('src')
+  if (!attachment?._id || thumbBusy.has(attachment._id) || (attribute && attribute !== current)) return
+  const failed = thumbFailed.get(attachment._id) || new Set()
+  thumbFailed.set(attachment._id, failed)
+  if (current) failed.add(current)
+  thumbBusy.add(attachment._id)
+  try {
+    const result = await recoverGalleryImage({
+      file: attachment,
+      failed,
+      prefer: 'thumb',
+      refresh: () => getGalleryItem(attachment._id),
+    })
+    if (result?.file) applyGalleryDelivery(attachment, result.file, attachment.createdAt)
+    if (result?.url) {
+      revokeGalleryObjectUrl(thumbSrc[attachment._id])
+      thumbSrc[attachment._id] = result.url
+      imageLoadErrors.delete(attachment._id)
+      return
+    }
+    handleImageError(attachment._id)
+  } finally {
+    thumbBusy.delete(attachment._id)
   }
-
-  handleImageError(attachment._id)
 }
 
 function handleImageError(attachmentId) {
@@ -296,14 +320,51 @@ URL Expira em: ${attachment.expiresIn ? attachment.expiresIn + 's' : '—'}
 
 const MAX_FILE_SIZE_MB = 10
 function openImageViewer(attachment) {
-  // Inicia carregamento da imagem real
-  isImageLoading.value = true
+  revokeGalleryObjectUrl(fullSrc.value)
+  fullFailed.clear()
+  fullSrc.value = galleryImageCandidates(attachment, 'full')[0] || ''
+  isImageLoading.value = Boolean(fullSrc.value)
   selectedImage.value = attachment
 }
 
 function closeImageViewer() {
+  revokeGalleryObjectUrl(fullSrc.value)
+  fullSrc.value = ''
+  fullFailed.clear()
   selectedImage.value = null
   isImageLoading.value = false
+}
+
+async function onFullImageError(event) {
+  const current = fullSrc.value
+  const attribute = event?.target?.getAttribute?.('src')
+  if (!selectedImage.value || fullAdvancing || !current || (attribute && attribute !== current)) return
+  fullFailed.add(current)
+  const image = selectedImage.value
+  fullAdvancing = true
+  try {
+    const result = await recoverGalleryImage({
+      file: image,
+      failed: fullFailed,
+      prefer: 'full',
+      relabel: true,
+      refresh: () => getGalleryItem(image._id),
+    })
+    if (selectedImage.value !== image) {
+      revokeGalleryObjectUrl(result?.url)
+      return
+    }
+    if (result?.file) applyGalleryDelivery(image, result.file, image.createdAt)
+    if (result?.url) {
+      revokeGalleryObjectUrl(fullSrc.value)
+      fullSrc.value = result.url
+      isImageLoading.value = true
+      return
+    }
+    isImageLoading.value = false
+  } finally {
+    fullAdvancing = false
+  }
 }
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -779,10 +840,11 @@ async function handleMontageComplete(file) {
             </div>
             
             <img 
-              :src="getOriginalImageUrl(selectedImage)" 
+              :src="fullSrc || getOriginalImageUrl(selectedImage)" 
               alt="Visualização em tela cheia" 
               class="fullscreen-image"
               @load="isImageLoading = false"
+              @error="onFullImageError"
             />
           </div>
         </div>
