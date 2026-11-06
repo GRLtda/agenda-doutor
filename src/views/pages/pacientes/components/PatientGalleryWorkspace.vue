@@ -41,6 +41,7 @@ import {
 } from '@/api/gallery'
 import { visibleGalleryTags } from '@/utils/galleryTags'
 import {
+  applyGalleryDelivery,
   galleryImageCandidates,
   recoverGalleryImage,
   revokeGalleryObjectUrl,
@@ -454,10 +455,7 @@ async function thumbnailError(file, event) {
       revokeGalleryObjectUrl(result?.url)
       return
     }
-    if (result?.file) {
-      const createdAt = file.createdAt
-      Object.assign(file, result.file, { createdAt: createdAt || result.file.createdAt })
-    }
+    if (result?.file) applyGalleryDelivery(file, result.file, file.createdAt)
     if (result?.url) {
       revokeGalleryObjectUrl(thumbSrc.value[file._id])
       thumbSrc.value = { ...thumbSrc.value, [file._id]: result.url }

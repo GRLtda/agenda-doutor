@@ -215,6 +215,7 @@ async function advance() {
     failed,
     prefer: 'full',
     refresh: () => getGalleryItem(id),
+    relabel: true,
   });
   if (token !== generation || props.file?._id !== id || !props.show) {
     revokeGalleryObjectUrl(result?.url);

@@ -26,9 +26,9 @@ export function galleryImageCandidates(file, prefer = 'full') {
   const thumbFirst = [
     file?.thumbnailUrl,
     file?.previewUrl,
-    file?.signedUrl,
     file?.originalUrl,
     file?.url,
+    file?.signedUrl,
   ]
   const fullFirst = [
     file?.originalUrl,
@@ -151,6 +151,15 @@ export function revokeGalleryObjectUrl(url) {
   }
 }
 
+export function applyGalleryDelivery(target, source, createdAt) {
+  if (!target || !source) return target
+  for (const key of ['thumbnailUrl', 'previewUrl', 'originalUrl', 'url', 'signedUrl']) {
+    if (typeof source[key] === 'string' && source[key].trim()) target[key] = source[key]
+  }
+  if (createdAt) target.createdAt = createdAt
+  return target
+}
+
 export function preserveGalleryRecord(current, fresh) {
   const next = fresh && typeof fresh === 'object' ? fresh : {}
   return {
@@ -164,7 +173,14 @@ export function preserveGalleryRecord(current, fresh) {
   }
 }
 
-export async function recoverGalleryImage({ file, failed, prefer = 'full', refresh, fetchImpl } = {}) {
+export async function recoverGalleryImage({
+  file,
+  failed,
+  prefer = 'full',
+  refresh,
+  fetchImpl,
+  relabel = false,
+} = {}) {
   const tried = failed instanceof Set ? failed : new Set()
   const immediate = galleryImageCandidates(file, prefer).find((url) => !tried.has(url))
   if (immediate) return { url: immediate, file }
@@ -182,7 +198,7 @@ export async function recoverGalleryImage({ file, failed, prefer = 'full', refre
     if (renewed) return { url: renewed, file: latest }
   }
 
-  if (!tried.has(SNIFFED)) {
+  if (relabel && !tried.has(SNIFFED)) {
     tried.add(SNIFFED)
     for (const url of [...tried]) {
       const relabeled = await objectUrlForMislabeledImage(url, fetchImpl)

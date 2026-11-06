@@ -200,7 +200,7 @@ import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import MediaViewerModal from '@/views/pages/pacientes/components/MediaViewerModal.vue'
 import { isAutomaticGalleryTag, visibleGalleryTags } from '@/utils/galleryTags'
-import { galleryImageCandidates, recoverGalleryImage, revokeGalleryObjectUrl } from '@/utils/galleryImage'
+import { applyGalleryDelivery, galleryImageCandidates, recoverGalleryImage, revokeGalleryObjectUrl } from '@/utils/galleryImage'
 
 const router = useRouter()
 const store = useGalleryStore()
@@ -397,10 +397,7 @@ async function onThumbError(file, event) {
         return response.data
       },
     })
-    if (result?.file?.createdAt || file.createdAt) {
-      const createdAt = file.createdAt || result.file?.createdAt
-      if (result?.file) Object.assign(file, result.file, { createdAt })
-    }
+    if (result?.file) applyGalleryDelivery(file, result.file, file.createdAt)
     if (result?.url) {
       revokeGalleryObjectUrl(thumbSrc.value[file._id])
       thumbSrc.value = { ...thumbSrc.value, [file._id]: result.url }
