@@ -102,7 +102,7 @@ const openPaymentPortal = async () => {
 
 onMounted(async () => {
   loadDismissal()
-  await liaStore.initialize()
+  void liaStore.initialize()
   if (isOwner.value) {
     await clinicStore.getSubscriptionStatus()
   }

@@ -1,9 +1,9 @@
 <script setup>
-import { CheckCircle2, XCircle } from 'lucide-vue-next'
+import { CheckCircle2, XCircle, LoaderCircle } from 'lucide-vue-next'
 
 const props = defineProps({ confirmation: { type: Object, required: true }, disabled: Boolean })
 const emit = defineEmits(['confirm', 'cancel'])
-const format = (value) => value && new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const format = (value) => value && new Intl.DateTimeFormat('pt-BR', { timeZone: props.confirmation.timezone || 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const successLabel = { create_appointment: 'Agendamento confirmado', reschedule_appointment: 'Atendimento remarcado', cancel_appointment: 'Atendimento cancelado' }
 const title = () => props.confirmation.title || ({ create_appointment: 'Novo agendamento', reschedule_appointment: 'Remarcar atendimento', cancel_appointment: 'Cancelar atendimento' }[props.confirmation.type])
 </script>
@@ -16,9 +16,12 @@ const title = () => props.confirmation.title || ({ create_appointment: 'Novo age
       <template v-if="confirmation.type === 'reschedule_appointment'"><span>De: {{ format(confirmation.previousStartAt) }}</span><span>Para: {{ format(confirmation.startAt) }}</span></template>
       <span v-else>{{ format(confirmation.startAt) }}</span>
       <span>{{ confirmation.professionalName }}</span>
+      <span>Fuso: {{ confirmation.timezone || 'America/Sao_Paulo' }}</span>
       <div class="actions"><button type="button" :disabled="disabled" :class="{ danger: confirmation.destructive }" @click="emit('confirm')">{{ confirmation.primaryActionLabel || 'Confirmar agendamento' }}</button><button type="button" :disabled="disabled" class="secondary" @click="emit('cancel')">{{ confirmation.type === 'cancel_appointment' ? 'Voltar' : 'Cancelar' }}</button></div>
     </template>
     <template v-else-if="confirmation.status === 'success'"><div class="result success"><CheckCircle2 :size="17" />{{ successLabel[confirmation.type] || 'Ação confirmada' }}</div><strong>{{ confirmation.patientName }}</strong><span>{{ format(confirmation.startAt) }}</span><span>{{ confirmation.professionalName }}</span></template>
+    <template v-else-if="confirmation.status === 'processing'"><div class="result neutral" role="status"><LoaderCircle :size="17" />Ação em processamento. Aguarde a atualização.</div><div v-if="confirmation.recoverable" class="actions"><button type="button" :disabled="disabled" @click="emit('confirm')">Verificar e recuperar ação</button></div></template>
+    <template v-else-if="confirmation.status === 'failed'"><div class="result neutral" role="alert"><XCircle :size="17" />Não foi possível concluir a ação.</div><span>{{ confirmation.errorMessage || 'Consulte novamente e solicite um novo card de confirmação.' }}</span></template>
     <template v-else><div class="result neutral"><XCircle :size="17" />Ação cancelada</div></template>
   </section>
 </template>

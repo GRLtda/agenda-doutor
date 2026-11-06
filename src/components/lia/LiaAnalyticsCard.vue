@@ -1,7 +1,10 @@
 <script setup>
 import { BarChart3, TrendingDown, TrendingUp } from 'lucide-vue-next'
-defineProps({ card: { type: Object, required: true } })
+const props = defineProps({ card: { type: Object, required: true } })
 const formatNumber = (value) => new Intl.NumberFormat('pt-BR').format(Math.abs(value || 0))
+const formatValue = value => props.card.unit === 'BRL_CENTS' ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((value || 0) / 100) : new Intl.NumberFormat('pt-BR').format(value || 0)
+const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone: props.card.timezone || 'America/Sao_Paulo' }).format(new Date(value)) : ''
+const periodLabel = period => period?.label === 'all_time' ? 'Todo o histórico' : period?.from && period?.to ? `${formatDate(period.from)} a ${formatDate(period.to)}` : ''
 const percent = (value) => value === null || value === undefined ? 'Sem base no período anterior' : `${Math.abs(value)}%`
 const changeLabel = (comparison) => comparison.absoluteChange >= 0 ? 'a mais' : 'a menos'
 </script>
@@ -9,13 +12,15 @@ const changeLabel = (comparison) => comparison.absoluteChange >= 0 ? 'a mais' : 
 <template>
   <section class="analytics-card" :class="card.type">
     <header><BarChart3 :size="16" /><strong>{{ card.title }}</strong></header>
-    <template v-if="card.type === 'ranking'"><ol v-if="card.items?.length"><li v-for="item in card.items" :key="item.name"><span>{{ item.name }}</span><b>{{ item.value }}</b></li></ol><div v-else class="empty-result"><strong>0</strong><span>Sem dados no período selecionado.</span></div></template>
-    <template v-else-if="card.type === 'patient_list'"><strong class="metric-value">{{ card.value }}</strong><ul><li v-for="item in card.items" :key="`${item.name}-${item.birthday}`">{{ item.name }} <span>{{ item.birthday }}</span></li></ul></template>
+    <p v-if="card.period">{{ periodLabel(card.period) }}</p>
+    <p v-if="card.definition">{{ card.definition }}</p>
+    <template v-if="card.type === 'ranking'"><ol v-if="card.items?.length"><li v-for="item in card.items" :key="item.id || item.name"><span>{{ item.name }}</span><b>{{ formatValue(item.value) }}</b></li></ol><div v-else class="empty-result"><strong>{{ formatValue(0) }}</strong><span>Sem dados no período selecionado.</span></div><p v-if="card.total !== undefined">Total do período: {{ formatValue(card.total) }}</p></template>
+    <template v-else-if="card.type === 'patient_list'"><strong class="metric-value">{{ card.value }} pacientes</strong><ul><li v-for="item in card.items" :key="item.id || `${item.name}-${item.birthday}`">{{ item.name }} <span>{{ item.lastProcedureAt ? formatDate(item.lastProcedureAt) : item.birthday }}</span></li></ul><p v-if="card.hasMore">Mostrando {{ card.items?.length }} de {{ card.value }}. Peça os próximos resultados à Lia.</p></template>
     <template v-else>
       <div v-if="card.comparison" class="comparison-summary">
         <div class="comparison-values">
-          <div class="period-value"><span>Período consultado</span><strong>{{ card.comparison.current }}</strong></div>
-          <div class="period-value"><span>Período anterior</span><strong>{{ card.comparison.previous }}</strong></div>
+          <div class="period-value"><span>Período consultado</span><strong>{{ formatValue(card.comparison.current) }}</strong></div>
+          <div class="period-value"><span>Período anterior {{ periodLabel(card.comparison.period) }}</span><strong>{{ formatValue(card.comparison.previous) }}</strong></div>
         </div>
         <p :class="card.comparison.absoluteChange >= 0 ? 'positive' : 'negative'">
           <TrendingUp v-if="card.comparison.absoluteChange >= 0" :size="14" />
@@ -24,8 +29,9 @@ const changeLabel = (comparison) => comparison.absoluteChange >= 0 ? 'a mais' : 
           <span>· {{ percent(card.comparison.percentChange) }}</span>
         </p>
       </div>
-      <strong v-else class="metric-value">{{ card.value }}</strong>
+      <strong v-else class="metric-value">{{ formatValue(card.value) }}</strong>
     </template>
+    <p v-if="card.source">{{ card.source }}</p>
   </section>
 </template>
 

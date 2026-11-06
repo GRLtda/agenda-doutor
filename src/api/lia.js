@@ -8,8 +8,8 @@ export const listLiaConversations = ({ limit = 30, cursor } = {}) =>
 export const getLiaConversation = (conversationId) =>
   apiClient.get(`/lia/conversations/${conversationId}`)
 
-export const getLiaMessages = (conversationId) =>
-  apiClient.get(`/lia/conversations/${conversationId}/messages`)
+export const getLiaMessages = (conversationId, params = {}) =>
+  apiClient.get(`/lia/conversations/${conversationId}/messages`, { params })
 
 export const sendLiaMessage = (conversationId, message, options = {}) =>
   apiClient.post(`/lia/conversations/${conversationId}/messages`, { message, ...options })

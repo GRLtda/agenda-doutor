@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { Bot, CalendarDays, Clock3, History, LoaderCircle, MoreHorizontal, Plus, Search, Send, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
-import { marked } from 'marked'
+import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import LiaActionConfirmationCard from '@/components/lia/LiaActionConfirmationCard.vue'
@@ -21,11 +21,6 @@ const showHistory = ref(false)
 const openMenuId = ref(null)
 const suggestions = [{ label: 'Como está minha agenda hoje?', icon: CalendarDays }, { label: 'Buscar paciente', icon: Search }, { label: 'Agendar paciente', icon: Sparkles }, { label: 'Ver horários disponíveis', icon: Clock3 }]
 const canSend = computed(() => input.value.trim().length > 0 && !liaStore.isSending)
-const markdownRenderer = new marked.Renderer()
-markdownRenderer.html = () => ''
-markdownRenderer.image = ({ text }) => text
-markdownRenderer.link = function ({ tokens }) { return this.parser.parseInline(tokens) }
-const renderMarkdown = (content) => marked.parse(content || '', { async: false, breaks: true, gfm: true, renderer: markdownRenderer })
 const scrollToLatest = async () => { await nextTick(); if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight }
 const patientOptions = (message) => (message.metadata?.patientOptions || []).map((patient) => ({ value: patient.id, label: `${patient.name}${patient.phone ? ` · ${patient.phone}` : ''}` }))
 const messageConfirmations = (message) => message.metadata?.confirmations?.length ? message.metadata.confirmations : message.metadata?.confirmation ? [message.metadata.confirmation] : []
@@ -57,17 +52,25 @@ const choosePatient = async (message, patientId) => {
   message.selectedPatientId = patientId
   await submit(`Quero o paciente ${patient.name}.`, { selectedPatientId: patientId })
 }
-const chooseAlternativeTime = async (message, time) => {
+const chooseAlternativeTime = async (message, value) => {
   const alternatives = message.metadata?.availabilityAlternatives
+  const time = typeof value === 'string' ? value : value.time
+  const date = typeof value === 'string' ? alternatives?.date : value.date
   if (!alternatives?.date || !time) return
-  await submit(`Pode ser às ${time}.`, { ...(alternatives.patientId ? { selectedPatientId: alternatives.patientId } : {}), selectedAlternative: { date: alternatives.date, time, professionalId: alternatives.professionalId, durationMinutes: alternatives.durationMinutes } })
+  await submit(`Pode ser em ${date} às ${time}.`, { ...(alternatives.patientId ? { selectedPatientId: alternatives.patientId } : {}), selectedAlternative: { date, time, professionalId: alternatives.professionalId, durationMinutes: alternatives.durationMinutes } })
 }
-const retryMessage = (message) => liaStore.retryMessage(message, { ...(pageContext.value ? { pageContext: pageContext.value } : {}) })
+const alternativeLabel = (value) => typeof value === 'string' ? value : `${value.date.split('-').reverse().join('/')} às ${value.time}`
+const retryMessage = async (message) => { try { await liaStore.retryMessage(message, { ...(pageContext.value ? { pageContext: pageContext.value } : {}) }) } catch {} }
 const selectConversation = async (id) => { showHistory.value = false; openMenuId.value = null; try { await liaStore.selectConversation(id) } catch {} await scrollToLatest() }
 const newConversation = () => { liaStore.startNewConversation(); showHistory.value = false; openMenuId.value = null }
 const removeConversation = async (conversation) => { openMenuId.value = null; if (!window.confirm(`Excluir a conversa “${conversation.title}”?`)) return; await liaStore.deleteConversation(conversation.id); showHistory.value = false }
-watch(() => props.open, async (isOpen) => { if (!isOpen) return; await liaStore.initialize(); await scrollToLatest() }, { immediate: true })
+watch(() => props.open, async (isOpen) => { if (!isOpen) { input.value = ''; return }; await liaStore.initialize(); await scrollToLatest() }, { immediate: true })
 watch(() => liaStore.messages.length, scrollToLatest)
+watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(message).some(card => card.status === 'processing'))], ([open, processing], _previous, onCleanup) => {
+  if (!open || !processing) return
+  const timer = setInterval(() => { if (!liaStore.isSending) void liaStore.loadMessages().catch(() => {}) }, 5000)
+  onCleanup(() => clearInterval(timer))
+}, { immediate: true })
 </script>
 
 <template>
@@ -80,13 +83,16 @@ watch(() => liaStore.messages.length, scrollToLatest)
       </header>
     </template>
 
-    <section v-if="showHistory" class="history-list">
+    <section v-if="showHistory" class="history-list clarity-mask" data-clarity-mask="true" data-sentry-mask>
+      <p v-if="liaStore.error" role="alert">{{ liaStore.error }}</p>
       <div v-if="liaStore.isLoading && !liaStore.conversations.length" class="history-loading"><LoaderCircle :size="17" class="spin" /> Carregando conversas...</div>
       <template v-for="group in groupedConversations" :key="group.label"><h3>{{ group.label }}</h3><article v-for="conversation in group.items" :key="conversation.id" class="history-item" :class="{ active: liaStore.activeConversationId === conversation.id }"><button class="history-select" type="button" @click="selectConversation(conversation.id)"><strong>{{ conversation.title }}</strong><span>{{ conversation.lastMessagePreview || 'Sem mensagens' }}</span></button><button class="history-menu" type="button" aria-label="Opções" @click="openMenuId = openMenuId === conversation.id ? null : conversation.id"><MoreHorizontal :size="17" /></button><div v-if="openMenuId === conversation.id" class="history-menu-popover"><button type="button" @click="removeConversation(conversation)"><Trash2 :size="15" /> Excluir conversa</button></div></article></template>
       <button v-if="liaStore.nextCursor" class="load-more" type="button" :disabled="liaStore.isLoadingMore" @click="liaStore.loadMore()">{{ liaStore.isLoadingMore ? 'Carregando...' : 'Carregar mais' }}</button><p v-if="!liaStore.isLoading && !liaStore.conversations.length" class="history-empty">Nenhuma conversa anterior.</p>
     </section>
 
-    <section v-else ref="messageList" class="messages" aria-live="polite">
+    <section v-else ref="messageList" class="messages clarity-mask" data-clarity-mask="true" data-sentry-mask aria-live="polite">
+      <p v-if="liaStore.error" role="alert">{{ liaStore.error }}</p>
+      <button v-if="liaStore.messagesCursor" type="button" class="load-more" :disabled="liaStore.isLoading" @click="liaStore.loadOlderMessages()">Carregar mensagens anteriores</button>
       <div v-if="!liaStore.messages.length" class="welcome"><div class="welcome-mark"><Sparkles :size="21" /></div><h3>Olá, sou a Lia.</h3><p>Como posso ajudar hoje?</p><div class="suggestions"><button v-for="suggestion in suggestions" :key="suggestion.label" type="button" :disabled="liaStore.isSending" @click="submit(suggestion.label)"><component :is="suggestion.icon" :size="15" />{{ suggestion.label }}</button></div></div>
       <article v-for="message in liaStore.messages" :key="message.id" class="message" :class="message.role">
         <div class="message-icon"><img v-if="message.role === 'user' && authStore.user?.profilePhotoUrl" class="message-avatar" :src="authStore.user.profilePhotoUrl" alt="" /><UserRound v-else-if="message.role === 'user'" :size="14" /><Bot v-else :size="15" /></div>
@@ -94,13 +100,13 @@ watch(() => liaStore.messages.length, scrollToLatest)
           <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />
           <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" />
           <div v-if="message.role === 'assistant' && message.metadata?.patientOptions?.length > 1" class="patient-picker" :class="{ 'is-selected': liaStore.isSending || !!message.selectedPatientId }"><StyledSelect :model-value="message.selectedPatientId || ''" :options="patientOptions(message)" label="Quem é o paciente?" required placeholder="Selecione" @update:model-value="choosePatient(message, $event)" /></div></div>
-          <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><div><Clock3 :size="15" /><strong>Horários disponíveis</strong></div><div class="time-options"><button v-for="time in message.metadata.availabilityAlternatives.times" :key="time" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ time }}</button></div></section>
+          <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><div><Clock3 :size="15" /><strong>Horários disponíveis</strong></div><div class="time-options"><button v-for="time in message.metadata.availabilityAlternatives.times" :key="typeof time === 'string' ? time : time.startAt" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ alternativeLabel(time) }}</button></div></section>
         </div>
       </article>
       <div v-if="liaStore.isSending" class="lia-activity"><div class="message-icon"><Bot :size="15" /></div><div><LoaderCircle :size="15" class="spin" /> Lia está pensando...</div></div>
     </section>
 
-    <template v-if="!showHistory" #footer><div class="lia-footer"><form class="composer" @submit.prevent="submit()"><textarea v-model="input" :disabled="liaStore.isSending" maxlength="4000" rows="1" placeholder="Pergunte alguma coisa para a Lia..." @keydown.enter.exact.prevent="submit()"></textarea><button type="submit" :disabled="!canSend" aria-label="Enviar mensagem"><Send :size="17" /></button></form><p class="privacy-note">A Lia pode cometer erros. Por isso, lembre-se de conferir informações relevantes.</p></div></template>
+    <template v-if="!showHistory" #footer><div class="lia-footer"><form class="composer" @submit.prevent="submit()"><textarea data-clarity-mask="true" data-sentry-mask v-model="input" :disabled="liaStore.isSending" maxlength="4000" rows="1" placeholder="Pergunte alguma coisa para a Lia..." @keydown.enter.exact.prevent="submit()"></textarea><button type="submit" :disabled="!canSend" aria-label="Enviar mensagem"><Send :size="17" /></button></form><p class="privacy-note">A Lia pode cometer erros. Por isso, lembre-se de conferir informações relevantes.</p></div></template>
   </SideDrawer>
 </template>
 
