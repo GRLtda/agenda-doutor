@@ -787,9 +787,9 @@ watch(
     </template>
 
     <template #footer>
-      <div class="drawer-footer">
+      <div class="drawer-footer step-navigation-footer">
         <div class="footer-actions-right">
-          <AppButton v-if="activeStep > 1" variant="default" class="footer-btn-back" @click="previousStep" :disabled="isLoading">
+          <AppButton variant="default" class="footer-btn-back" @click="activeStep > 1 ? previousStep() : $emit('close')" :disabled="isLoading">
             <ArrowLeft :size="18" />
             <span class="footer-btn-label">Voltar</span>
           </AppButton>
@@ -1067,27 +1067,6 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.drawer-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  border-top: 1px solid #f3f4f6;
-  background: #fff;
-}
-
-.footer-actions-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.footer-actions-right > * {
-  flex: 1 1 0;
-  min-width: 0;
 }
 
 .footer-btn-return {
@@ -1826,16 +1805,6 @@ input[type='number'] {
     flex: 0 0 180px;
     min-height: 56px;
     scroll-snap-align: start;
-  }
-
-  .footer-actions-right {
-    flex-direction: row;
-    gap: 0.5rem;
-  }
-
-  .footer-actions-right > * {
-    width: auto;
-    min-width: 0;
   }
 
   .footer-btn-return {

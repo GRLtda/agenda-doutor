@@ -483,4 +483,10 @@ th { background:#f9fafb; font-size:.72rem; font-weight:600; color:#6b7280; text-
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 @keyframes spin { to{transform:rotate(360deg)} }
 .spin { animation:spin .8s linear infinite; }
+
+/* Mesmo padrão visual da tabela de pacientes. */
+table th, table td { padding: 1rem 1.25rem; border-bottom-color: #e5e7eb; font-size: .875rem; }
+table th { height: 44px; padding-top: 0; padding-bottom: 0; background: #f5f6f8; color: #64748b; font-size: .75rem; font-weight: 500; text-transform: none; letter-spacing: .01em; }
+.table-wrapper { overflow-x: auto; }
+table { min-width: 540px; }
 </style>

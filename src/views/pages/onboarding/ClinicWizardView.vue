@@ -108,12 +108,28 @@ function goToDashboard() {
   router.push('/')
 }
 
-function preparePlans() {
+async function finishOnboarding() {
   isPreparingPlans.value = true
-  prepareTimeout = window.setTimeout(() => {
-    currentStep.value = 4
-    isPreparingPlans.value = false
-  }, 2000)
+
+  try {
+    await authStore.fetchUser()
+    subscriptionStatus.value = authStore.user?.clinic?.subscriptionStatus || null
+
+    if (hasActiveSubscription.value) {
+      await router.push('/')
+      return
+    }
+
+    prepareTimeout = window.setTimeout(() => {
+      currentStep.value = 4
+      isPreparingPlans.value = false
+    }, 2000)
+  } catch {
+    prepareTimeout = window.setTimeout(() => {
+      currentStep.value = 4
+      isPreparingPlans.value = false
+    }, 2000)
+  }
 }
 
 const currentQuoteIndex = ref(0)
@@ -220,7 +236,7 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
                   acesso ao painel com o plano ideal para sua equipe.
                 </p>
 
-                <button @click="preparePlans" class="auth-button">Ir para painel</button>
+                <button @click="finishOnboarding" class="auth-button">Ir para painel</button>
               </div>
 
               <div v-else key="preparing" class="preparing-card">

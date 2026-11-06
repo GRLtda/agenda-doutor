@@ -20,7 +20,14 @@
 
     <div v-else class="list-wrapper">
       <div class="list-content">
-        <slot></slot>
+        <slot
+          :selectable="selectable"
+          :is-selected="isSelected"
+          :select-row="selectRow"
+          :select-all="selectAll"
+          :all-selected="allSelected"
+          :some-selected="someSelected"
+        ></slot>
       </div>
 
       <AppPagination
@@ -37,8 +44,13 @@
 
 <script setup>
 import AppPagination from '@/components/global/AppPagination.vue'
+import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
+  selectable: { type: Boolean, default: false },
+  items: { type: Array, default: () => [] },
+  itemKey: { type: String, default: '_id' },
+  selectedKeys: { type: Array, default: () => [] },
   loading: {
     type: Boolean,
     default: false,
@@ -65,7 +77,26 @@ defineProps({
   },
 })
 
-defineEmits(['page-change'])
+const emit = defineEmits(['page-change', 'update:selectedKeys'])
+const isSelected = (item) => props.selectedKeys.includes(item[props.itemKey])
+const allSelected = computed(() => props.items.length > 0 && props.items.every(isSelected))
+const someSelected = computed(() => props.items.some(isSelected) && !allSelected.value)
+function selectRow(item, checked) {
+  if (!props.selectable) return
+  const keys = new Set(props.selectedKeys)
+  if (checked) keys.add(item[props.itemKey])
+  else keys.delete(item[props.itemKey])
+  emit('update:selectedKeys', [...keys])
+}
+function selectAll(checked) {
+  if (!props.selectable) return
+  const keys = new Set(props.selectedKeys)
+  for (const item of props.items) {
+    if (checked) keys.add(item[props.itemKey])
+    else keys.delete(item[props.itemKey])
+  }
+  emit('update:selectedKeys', [...keys])
+}
 </script>
 
 <style scoped>

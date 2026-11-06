@@ -1,19 +1,27 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
-import { LogOut, User, CreditCard, LifeBuoy } from 'lucide-vue-next'
+import { LogOut, User, CreditCard, LifeBuoy, MessageCircle } from 'lucide-vue-next'
+import StorageUsage from './StorageUsage.vue'
 
 const props = defineProps({
   direction: {
     type: String,
     default: 'up', // 'up' or 'down'
-    validator: (value) => ['up', 'down'].includes(value)
-  }
+    validator: (value) => ['up', 'down'].includes(value),
+  },
+  variant: {
+    type: String,
+    default: 'default',
+    validator: (value) => ['default', 'onboarding'].includes(value),
+  },
 })
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const isOnboarding = computed(() => props.variant === 'onboarding')
 
 function openProfileModal() {
   router.replace({
@@ -38,40 +46,65 @@ function openSubscriptionTab() {
   })
 }
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+function openStorageTab() {
+  router.replace({
+    query: {
+      ...route.query,
+      profile: '1',
+      profileTab: 'storage',
+      settings: undefined,
+      tab: undefined,
+    },
+  })
+}
+
+function handleSupport() {
+  const message = encodeURIComponent('Olá! Preciso de ajuda para escolher meu plano.')
+  window.open(`https://wa.me/5511921923978?text=${message}`, '_blank', 'noopener,noreferrer')
+}
+
+async function handleLogout() {
+  await authStore.logout()
 }
 </script>
 
 <template>
-  <div class="dropdown-menu" :class="`direction-${direction}`">
+  <div class="dropdown-menu" :class="`direction-${direction}`" role="menu">
     <ul>
-      <li>
-        <button class="dropdown-item" @click="openProfileModal">
+      <li v-if="!isOnboarding">
+        <button class="dropdown-item" role="menuitem" @click="openProfileModal">
           <User :size="16" />
           <span>Perfil</span>
         </button>
       </li>
-      <li v-if="authStore.user?.role === 'owner'">
-        <button class="dropdown-item" @click="openSubscriptionTab">
+      <li v-if="!isOnboarding && authStore.user?.role === 'owner'">
+        <button class="dropdown-item" role="menuitem" @click="openSubscriptionTab">
           <CreditCard :size="16" />
           <span>Assinatura</span>
         </button>
       </li>
 
-      <li class="separator"></li>
+      <li v-if="!isOnboarding" class="storage-section">
+        <StorageUsage @details="openStorageTab" />
+      </li>
+
+      <li v-if="!isOnboarding" class="separator"></li>
 
       <li>
-        <button class="dropdown-item" @click="router.push('/ajuda')">
-          <LifeBuoy :size="16" />
-          <span>Central de Ajuda</span>
+        <button
+          class="dropdown-item"
+          role="menuitem"
+          @click="isOnboarding ? handleSupport() : router.push('/ajuda')"
+        >
+          <MessageCircle v-if="isOnboarding" :size="16" />
+          <LifeBuoy v-else :size="16" />
+          <span>{{ isOnboarding ? 'Suporte pelo WhatsApp' : 'Central de Ajuda' }}</span>
         </button>
       </li>
       <li>
-        <button @click="handleLogout()" class="dropdown-item text-red">
+        <button class="dropdown-item text-red" role="menuitem" @click="handleLogout()">
           <LogOut :size="16" />
-          <span>Deslogar</span>
+          <span>{{ isOnboarding ? 'Sair' : 'Deslogar' }}</span>
         </button>
       </li>
     </ul>
@@ -86,7 +119,7 @@ function handleLogout() {
   border-radius: 0.75rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
-  width: 220px;
+  width: min(280px, calc(100vw - 24px));
   z-index: 100;
   animation: fade-in 0.2s ease-out;
 }
@@ -98,7 +131,6 @@ function handleLogout() {
 .dropdown-menu.direction-down {
   top: 120%;
 }
-
 
 @keyframes fade-in {
   from {
@@ -142,6 +174,7 @@ ul {
   background-color: #e5e7eb;
   margin: 0.5rem 0;
 }
+.storage-section { border-top: 1px solid #e5e7eb; margin-top: .35rem; }
 
 .text-red {
   color: #ef4444;

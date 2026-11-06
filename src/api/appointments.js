@@ -1,5 +1,7 @@
 import apiClient from './index'
 
+export const getAttendance = (appointmentId) => apiClient.get(`/appointments/${appointmentId}/attendance`)
+
 /**
  * Busca agendamentos dentro de um período de datas.
  * @param {object} params - Parâmetros de data.

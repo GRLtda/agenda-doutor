@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue' // 1. Importar onUnmounted
+import { ref, computed, watch, nextTick, onUnmounted, useId } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -9,23 +9,28 @@ const props = defineProps({
   required: { type: Boolean, default: false },
   error: { type: [Boolean, String], default: false },
   placeholder: { type: String, default: 'Selecione' },
+  disabled: { type: Boolean, default: false },
+  dark: { type: Boolean, default: false },
+  dropdownMinWidth: { type: Number, default: 0 },
   dropdownDirection: {
     type: String,
     default: 'auto',
     validator: (value) => ['auto', 'up', 'down'].includes(value)
   },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'open'])
 
 const isOpen = ref(false)
 const selectButtonRef = ref(null)
 const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
+const dropdownTarget = ref('body')
 const isDropdownUpward = ref(false)
 const isPositioned = ref(false)
+const listId = useId()
+const activeIndex = ref(-1)
 
 const selectedOption = computed(() => {
-  if (!props.modelValue) return null
   return props.options.find((opt) => opt.value === props.modelValue)
 })
 
@@ -76,11 +81,13 @@ async function updateDropdownPosition() {
     ? Math.max(8, rect.top - dropdownHeight - 4)
     : Math.min(viewportHeight - dropdownHeight - 8, rect.bottom + 4)
 
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+  const width = Math.min(Math.max(rect.width, props.dropdownMinWidth), viewportWidth - 16)
   dropdownStyle.value = {
     position: 'fixed',
     top: `${calculatedTop}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    left: `${Math.max(8, Math.min(rect.left, viewportWidth - width - 8))}px`,
+    width: `${width}px`,
     transformOrigin: shouldOpenUp ? 'bottom center' : 'top center',
   }
   isPositioned.value = true
@@ -101,6 +108,9 @@ const handleClickOutside = (event) => {
 // 4. Atualizar o watch para adicionar e remover o listener de clique
 watch(isOpen, (newValue) => {
   if (newValue) {
+    dropdownTarget.value = selectButtonRef.value?.closest('dialog') || 'body'
+    emit('open')
+    activeIndex.value = props.options.findIndex(option => option.value === props.modelValue)
     isPositioned.value = false
     dropdownStyle.value = {}
     updateDropdownPosition()
@@ -121,6 +131,8 @@ watch(isOpen, (newValue) => {
 })
 
 // 5. Garantir a remoção do listener quando o componente for destruído
+watch(() => props.disabled, disabled => { if (disabled) isOpen.value = false })
+watch(() => props.options, () => { if (isOpen.value) updateDropdownPosition() })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('scroll', updateDropdownPosition, true)
@@ -128,8 +140,37 @@ onUnmounted(() => {
 })
 
 function selectOption(option) {
+  if (props.disabled) return
   emit('update:modelValue', option.value)
   isOpen.value = false
+}
+
+function handleKeydown(event) {
+  if (props.disabled) return
+  if (event.key === 'Escape') {
+    isOpen.value = false
+    return
+  }
+  if (event.key === 'Tab') {
+    isOpen.value = false
+    return
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return
+  event.preventDefault()
+  if (!isOpen.value) {
+    isOpen.value = true
+    return
+  }
+  if (event.key === 'Enter' || event.key === ' ') {
+    if (props.options[activeIndex.value]) selectOption(props.options[activeIndex.value])
+    return
+  }
+  const count = props.options.length
+  if (!count) return
+  activeIndex.value = activeIndex.value < 0
+    ? (event.key === 'ArrowDown' ? 0 : count - 1)
+    : (activeIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count
+  nextTick(() => optionsListRef.value?.querySelector(`#${listId}-option-${activeIndex.value}`)?.scrollIntoView({ block: 'nearest' }))
 }
 
 defineExpose({
@@ -139,7 +180,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="form-group">
+  <div class="form-group" :class="{ 'is-dark': dark }">
     <label v-if="label" class="form-label">
       <slot name="label-prefix"></slot>
       {{ label }}
@@ -150,8 +191,16 @@ defineExpose({
         ref="selectButtonRef"
         type="button"
         class="select-button"
+        role="combobox"
+        aria-haspopup="listbox"
+        :aria-label="label || placeholder"
+        :aria-expanded="isOpen"
+        :disabled="disabled"
+        :aria-controls="isOpen ? listId : undefined"
+        :aria-activedescendant="isOpen && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined"
         :class="{ 'has-error': !!error }"
         @click="isOpen = !isOpen"
+        @keydown="handleKeydown"
       >
         <div class="flex items-center overflow-hidden w-full gap-2">
           <slot name="prefix"></slot>
@@ -163,18 +212,23 @@ defineExpose({
           </div>
           <component v-if="selectedIcon" :is="selectedIcon" :size="16" class="option-icon" />
           <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
-          <span class="truncate">{{ selectedLabel }}</span>
+          <slot name="selected-label" :option="selectedOption" :label="selectedLabel">
+            <span class="truncate">{{ selectedLabel }}</span>
+          </slot>
         </div>
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
       </button>
 
-      <Teleport to="body">
+      <Teleport :to="dropdownTarget">
         <Transition name="fade">
           <ul
             v-if="isOpen"
             ref="optionsListRef"
+            :id="listId"
+            role="listbox"
+            :aria-label="label || placeholder"
             class="options-list"
-            :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned }"
+            :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned, 'is-dark': dark }"
             :style="dropdownStyle"
           >
             <li v-if="options.length === 0" class="no-options">
@@ -184,8 +238,12 @@ defineExpose({
             </li>
             <li
               v-else
-              v-for="option in options"
+              v-for="(option, index) in options"
               :key="option.value"
+              :id="`${listId}-option-${index}`"
+              role="option"
+              :aria-selected="option.value === modelValue"
+              :class="{ 'is-active': index === activeIndex }"
               @mousedown.prevent="selectOption(option)"
               class="option-item flex items-center gap-2"
             >
@@ -197,7 +255,9 @@ defineExpose({
               </div>
               <component v-if="option.icon" :is="option.icon" :size="16" class="option-icon" />
               <span v-else-if="hasIcons" class="option-icon option-icon-placeholder"></span>
-              <span class="option-label">{{ option.label }}</span>
+              <slot name="option-label" :option="option">
+                <span class="option-label">{{ option.label }}</span>
+              </slot>
               <slot name="option-action" :option="option"></slot>
             </li>
             <li v-if="$slots.footer" class="options-footer" @mousedown.stop>
@@ -214,6 +274,12 @@ defineExpose({
 </template>
 
 <style scoped>
+.select-button:disabled { opacity: .5; cursor: not-allowed; }
+.is-dark .form-label { color: #b7bec9; }
+.is-dark .select-button, .options-list.is-dark { background: #202124; border-color: #414349; color: #f1f5f9; }
+.options-list.is-dark .option-item:hover, .options-list.is-dark .option-item.is-active { background: #32353a; }
+.is-dark .arrow-icon { color: #b7bec9; }
+.option-item.is-active { background-color: #f3f4f6; }
 .form-group {
   text-align: left;
 }
@@ -309,6 +375,10 @@ defineExpose({
   font-size: 0.875rem;
 }
 .options-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #fff;
   margin-top: 0.25rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e5e7eb;

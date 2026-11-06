@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   FilePlus2,
   LoaderCircle,
@@ -13,6 +14,7 @@ import TemplateEditor from '@/components/pages/marketing/TemplateEditor.vue'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
 
 const templatesStore = useCrmTemplatesStore()
+const route = useRoute(), router = useRouter()
 
 const showEditor = ref(false)
 const editingTemplateId = ref(null)
@@ -90,6 +92,14 @@ function openCreateEditor() {
   editingTemplateId.value = null
   showEditor.value = true
 }
+
+watch(() => route.query.novo, value => {
+  if (value !== '1') return
+  openCreateEditor()
+  const query = { ...route.query }
+  delete query.novo
+  router.replace({ query })
+}, { immediate: true })
 
 function openEditEditor(templateId) {
   editingTemplateId.value = templateId

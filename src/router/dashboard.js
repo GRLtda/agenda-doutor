@@ -190,6 +190,12 @@ const dashboardRoutes = [
         meta: { title: 'Workflows' },
       },
       {
+        path: 'workflows/execucoes',
+        name: 'workflow-runs',
+        component: () => import('../views/pages/workflows/WorkflowRunsView.vue'),
+        meta: { title: 'Execuções de workflows' },
+      },
+      {
         path: 'workflows/:id',
         name: 'workflow-editor',
         component: () => import('../views/pages/workflows/WorkflowEditor.vue'),
@@ -199,19 +205,19 @@ const dashboardRoutes = [
         path: 'anamneses',
         name: 'anamneses-list',
         component: AnamnesesListView,
-        meta: { title: 'Anamneses', layout: { noPadding: true } },
+        meta: { title: 'Anamneses' },
       },
       {
         path: 'termos',
         name: 'termos-list',
         component: () => import('../views/pages/termos/ConsentTermsListView.vue'),
-        meta: { title: 'Termos', layout: { noPadding: true } },
+        meta: { title: 'Termos' },
       },
       {
         path: 'galeria',
         name: 'galeria-clinica',
         component: () => import('../views/pages/galeria/ClinicGalleryView.vue'),
-        meta: { title: 'Galeria', layout: { noPadding: true } },
+        meta: { title: 'Galeria' },
       },
       {
         path: 'aniversariantes',

@@ -1,4 +1,5 @@
 <script setup>
+import AppPagination from '@/components/global/AppPagination.vue'
 import { onMounted, computed } from 'vue'
 import { useAnamnesisStore } from '@/stores/anamnesis'
 import { useRouter } from 'vue-router'
@@ -6,20 +7,7 @@ import { storeToRefs } from 'pinia'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useToast } from 'vue-toastification'
-import {
-  ArrowLeft,
-  ClipboardList,
-  Calendar,
-  Phone,
-  Link as LinkIcon,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  LoaderCircle,
-  AlertCircle
-} from 'lucide-vue-next'
+import { ArrowLeft, ClipboardList, Phone, Link as LinkIcon, CheckCircle, XCircle, Clock, LoaderCircle, AlertCircle } from 'lucide-vue-next'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 
 const router = useRouter()
@@ -203,29 +191,14 @@ const showPagination = computed(() => pendingPages.value > 1)
     </div>
 
     <!-- Pagination -->
-    <div v-if="showPagination && !isLoading" class="pagination">
-      <button
-        class="pagination-btn"
-        :disabled="pendingPage === 1"
-        @click="changePage(pendingPage - 1)"
-      >
-        <ChevronLeft :size="18" />
-        <span>Anterior</span>
-      </button>
-
-      <div class="pagination-info">
-        <span class="page-number">Página {{ pendingPage }} de {{ pendingPages }}</span>
-      </div>
-
-      <button
-        class="pagination-btn"
-        :disabled="pendingPage === pendingPages"
-        @click="changePage(pendingPage + 1)"
-      >
-        <span>Próxima</span>
-        <ChevronRight :size="18" />
-      </button>
-    </div>
+    <AppPagination
+      v-if="showPagination && !isLoading"
+      :current-page="pendingPage"
+      :total-pages="pendingPages"
+      :total-items="pendingTotal"
+      :limit="pendingLimit"
+      @page-change="changePage"
+    />
   </div>
 </template>
 
@@ -549,54 +522,6 @@ const showPagination = computed(() => pendingPages.value > 1)
 }
 
 /* Pagination */
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background: var(--branco);
-  border-radius: 1rem;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.pagination-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--branco);
-  border: 1px solid #e2e8f0;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: var(--azul-principal);
-  color: white;
-  border-color: var(--azul-principal);
-}
-
-.pagination-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pagination-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.page-number {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #334155;
-}
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -621,16 +546,6 @@ const showPagination = computed(() => pendingPages.value > 1)
 
   .info-label {
     min-width: auto;
-  }
-
-  .pagination {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .pagination-btn {
-    width: 100%;
-    justify-content: center;
   }
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { IMAGE_ACCEPT, isSupportedPhoto } from '@/utils/imageUpload'
 import { X, ChevronLeft, ChevronRight, Upload, Trash2, Tag, FileText, Check, Plus } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -17,7 +18,7 @@ const props = defineProps({
   },
   maxAttachments: {
     type: Number,
-    default: 20,
+    default: 40,
   },
 })
 
@@ -50,6 +51,7 @@ const availableTags = [
 // Tags customizadas da sessão
 const customTags = ref([])
 const newTagInput = ref('')
+const validationError = ref('')
 
 // Combinar tags padrão com customizadas
 const displayedTags = computed(() => {
@@ -62,7 +64,8 @@ const currentPhoto = computed(() => photosData.value[selectedIndex.value] || nul
 // Converter arquivos para objetos com preview e metadados
 watch(() => props.files, (newFiles) => {
   if (newFiles.length > 0) {
-    photosData.value = newFiles.map((file, index) => ({
+    const remainingSlots = Math.max(0, props.maxAttachments - props.existingCount)
+    photosData.value = newFiles.slice(0, remainingSlots).map((file, index) => ({
       id: `photo-${Date.now()}-${index}`,
       file,
       preview: URL.createObjectURL(file),
@@ -165,6 +168,8 @@ function triggerAddFiles() {
 
 function handleAddFiles(event) {
   const newFiles = Array.from(event.target.files)
+  validationError.value = ''
+  if (newFiles.some(file => !isSupportedPhoto(file))) { validationError.value = 'Use fotos PNG, JPG ou WEBP.'; event.target.value = ''; return }
   if (!newFiles.length) return
 
   // Verifica quantos ainda podem ser adicionados
@@ -240,6 +245,10 @@ watch(() => props.visible, (isVisible) => {
     window.removeEventListener('keydown', handleKeydown)
   }
 })
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  photosData.value.forEach(photo => { if (photo.preview) URL.revokeObjectURL(photo.preview) })
+})
 </script>
 
 <template>
@@ -306,7 +315,7 @@ watch(() => props.visible, (isVisible) => {
             type="file"
             ref="addInput"
             @change="handleAddFiles"
-            accept="image/*"
+            :accept="IMAGE_ACCEPT"
             multiple
             hidden
           />
@@ -316,6 +325,8 @@ watch(() => props.visible, (isVisible) => {
         <div class="viewer-content">
           <!-- Sidebar Esquerda - Metadados -->
           <aside class="sidebar-left">
+            <slot name="destination" />
+            <p v-if="validationError" role="alert" style="color: #fca5a5; font-size: 13px; padding: 12px">{{ validationError }}</p>
             <div class="sidebar-section">
               <label class="section-label">
                 <FileText :size="16" />

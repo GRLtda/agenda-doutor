@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CreditCard, Monitor, Shield, User } from 'lucide-vue-next'
+import { CreditCard, Monitor, Shield, User, HardDrive } from 'lucide-vue-next'
 import { version } from '../../../../package.json'
 import { useAuthStore } from '@/stores/auth'
 import OptionsModalShell from '@/components/global/OptionsModalShell.vue'
@@ -34,6 +34,12 @@ const profileTabs = computed(() => {
       label: 'Dispositivos Conectados',
       description: 'Gerencie as sessões ativas da sua conta.',
       icon: Monitor,
+    },
+    {
+      value: 'storage',
+      label: 'Armazenamento',
+      description: 'Uso da capacidade compartilhada da clínica.',
+      icon: HardDrive,
     },
   ]
 

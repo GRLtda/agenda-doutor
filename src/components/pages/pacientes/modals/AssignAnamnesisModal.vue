@@ -45,7 +45,7 @@ function markLinkAsCopied() {
 onMounted(async () => {
   await Promise.all([
     anamnesisStore.fetchTemplates(),
-    crmStore.getInitialStatus(),
+    crmStore.getInitialStatus({ showToast: false }),
   ]);
   if (!canSendWhatsappNotification.value) {
     sendNotification.value = false;

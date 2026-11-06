@@ -1,4 +1,5 @@
 <script setup>
+import AppPagination from '@/components/global/AppPagination.vue'
 // KitsListView.vue — Listagem e gestão de kits de procedimento
 import { ref, computed, onMounted } from 'vue'
 import { useEstoqueStore } from '@/stores/estoque'
@@ -190,11 +191,7 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
     </div>
 
     <!-- Paginação -->
-    <div v-if="totalPaginas > 1" class="paginacao">
-      <button class="btn-pag" :disabled="page <= 1" @click="irParaPagina(page - 1)">← Anterior</button>
-      <span class="pag-info">{{ page }} / {{ totalPaginas }}</span>
-      <button class="btn-pag" :disabled="page >= totalPaginas" @click="irParaPagina(page + 1)">Próxima →</button>
-    </div>
+    <AppPagination v-if="totalPaginas > 1" :current-page="page" :total-pages="totalPaginas" :total-items="store.kitsMeta.total" :limit="20" @page-change="irParaPagina" />
 
     <!-- Drawer -->
     <SideDrawer v-if="showDrawer" @close="fecharDrawer">
@@ -405,4 +402,10 @@ function irParaPagina(p) { page.value = p; store.fetchKits({ page: p, limit: 20 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 @keyframes spin { to{transform:rotate(360deg)} }
 .spin { animation:spin .8s linear infinite; }
+
+/* Mesmo padrão visual da tabela de pacientes. */
+.itens-table th, .itens-table td { padding: 1rem 1.25rem; border-bottom-color: #e5e7eb; font-size: .875rem; }
+.itens-table th { height: 44px; padding-top: 0; padding-bottom: 0; background: #f5f6f8; color: #64748b; font-size: .75rem; font-weight: 500; text-transform: none; letter-spacing: .01em; }
+.kit-itens { overflow-x: auto; }
+.itens-table { min-width: 540px; }
 </style>

@@ -45,11 +45,12 @@
         </template>
       </StyledSelect>
 
-      <div class="date-range">
-        <input v-model="fromDate" type="date" class="date-input" @change="reloadFirstPage" />
-        <span class="date-separator">até</span>
-        <input v-model="toDate" type="date" class="date-input" @change="reloadFirstPage" />
-      </div>
+      <AppDateRangePicker
+        class="period-picker"
+        :model-value="dateRange"
+        clearable
+        @update:model-value="onDateRangeChange"
+      />
 
       <div class="tag-filter" v-click-outside="() => (isTagMenuOpen = false)">
         <button
@@ -77,7 +78,7 @@
 
           <div class="tag-list">
             <label
-              v-for="tag in availableTags"
+              v-for="tag in visibleFilterTags"
               :key="tag.name"
               class="tag-option"
               :class="{ selected: selectedTags.includes(tag.name) }"
@@ -87,7 +88,7 @@
               <small>{{ tag.count }}</small>
             </label>
 
-            <div v-if="availableTags.length === 0" class="empty-tags">
+            <div v-if="visibleFilterTags.length === 0" class="empty-tags">
               Nenhuma tag encontrada
             </div>
           </div>
@@ -143,8 +144,8 @@
           <div class="media-info">
             <div class="patient-row">
               <div class="avatar">{{ file.patient?.name?.charAt(0)?.toUpperCase() || 'P' }}</div>
-              <div>
-                <button type="button" class="patient-name" @click.stop="goToPatient(file.patient?._id)">
+              <div class="patient-details">
+                <button type="button" class="patient-name" :title="file.patient?.name || 'Paciente'" @click.stop="goToPatient(file.patient?._id)">
                   {{ file.patient?.name || 'Paciente' }}
                 </button>
                 <span class="appointment-date">
@@ -157,9 +158,9 @@
               {{ file.metadata.description }}
             </p>
 
-            <div v-if="file.metadata?.tags?.length" class="tag-row">
+            <div v-if="visibleGalleryTags(file.metadata?.tags).length" class="tag-row">
               <button
-                v-for="tag in file.metadata.tags.slice(0, 3)"
+                v-for="tag in visibleGalleryTags(file.metadata?.tags).slice(0, 3)"
                 :key="tag"
                 type="button"
                 class="mini-tag"
@@ -167,8 +168,8 @@
               >
                 {{ tag }}
               </button>
-              <span v-if="file.metadata.tags.length > 3" class="more-tags">
-                +{{ file.metadata.tags.length - 3 }}
+              <span v-if="visibleGalleryTags(file.metadata?.tags).length > 3" class="more-tags">
+                +{{ visibleGalleryTags(file.metadata?.tags).length - 3 }}
               </span>
             </div>
           </div>
@@ -176,45 +177,28 @@
       </div>
     </main>
 
-    <footer v-if="pagination.totalPages > 1" class="pagination-bar">
-      <span class="pagination-info">
-        Página {{ pagination.page }} de {{ pagination.totalPages }}
-      </span>
-      <div class="pagination-actions">
-        <button class="page-button" :disabled="pagination.page <= 1" @click="changePage(pagination.page - 1)">
-          <ChevronLeft :size="18" /> Anterior
-        </button>
-        <button class="page-button" :disabled="pagination.page >= pagination.totalPages" @click="changePage(pagination.page + 1)">
-          Próxima <ChevronRight :size="18" />
-        </button>
-      </div>
-    </footer>
+    <AppPagination
+      v-if="pagination.totalPages > 1"
+      :current-page="pagination.page"
+      :total-pages="pagination.totalPages"
+      :total-items="pagination.total"
+      :limit="pagination.limit"
+      @page-change="changePage"
+    />
   </div>
 </template>
 
 <script setup>
+import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
+import AppPagination from '@/components/global/AppPagination.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import {
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileImage,
-  FileText,
-  Filter,
-  FolderOpen,
-  ImageOff,
-  Images,
-  LoaderCircle,
-  Maximize2,
-  Search,
-  X,
-} from 'lucide-vue-next'
+import { Calendar, ChevronDown, FileImage, FileText, Filter, FolderOpen, ImageOff, Images, LoaderCircle, Maximize2, Search, X } from 'lucide-vue-next'
 import { useGalleryStore } from '@/stores/gallery'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import MediaViewerModal from '@/views/pages/pacientes/components/MediaViewerModal.vue'
+import { isAutomaticGalleryTag, visibleGalleryTags } from '@/utils/galleryTags'
 
 const router = useRouter()
 const store = useGalleryStore()
@@ -224,8 +208,7 @@ const selectedCategory = ref('imagens')
 const selectedFileType = ref('image')
 const selectedTags = ref([])
 const tagMode = ref('or')
-const fromDate = ref('')
-const toDate = ref('')
+const dateRange = ref(null)
 const isTagMenuOpen = ref(false)
 const selectedFile = ref(null)
 
@@ -244,12 +227,26 @@ const fileTypeOptions = [
 
 const files = computed(() => store.clinicGallery.files || [])
 const availableTags = computed(() => store.clinicGallery.tags || [])
+const visibleFilterTags = computed(() => availableTags.value.filter((tag) => !isAutomaticGalleryTag(tag.name)))
 const pagination = computed(() => store.clinicGallery.pagination || {
   total: 0,
   page: 1,
   limit: 30,
   totalPages: 1,
 })
+
+function formatFilterDate(date) {
+  if (!date) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function onDateRangeChange(value) {
+  dateRange.value = value
+  if (!value || (value[0] && value[1])) loadGallery(1)
+}
 
 function currentParams(page = pagination.value.page || 1) {
   return {
@@ -260,8 +257,8 @@ function currentParams(page = pagination.value.page || 1) {
     tagMode: tagMode.value,
     category: selectedCategory.value,
     fileType: selectedFileType.value,
-    from: fromDate.value,
-    to: toDate.value,
+    from: dateRange.value?.[1] ? formatFilterDate(dateRange.value[0]) : '',
+    to: dateRange.value?.[0] ? formatFilterDate(dateRange.value?.[1]) : '',
   }
 }
 
@@ -379,11 +376,7 @@ function getThumbnailUrl(file) {
 
 <style scoped>
 .clinic-gallery-page {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
-  min-height: 0;
-  background: #f8fafc;
+  min-width: 0;
 }
 
 .gallery-header {
@@ -391,9 +384,7 @@ function getThumbnailUrl(file) {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.5rem 2rem 1rem;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
 }
 
 .page-title {
@@ -407,7 +398,7 @@ function getThumbnailUrl(file) {
 .page-subtitle {
   margin: 0.25rem 0 0;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .result-summary {
@@ -428,15 +419,18 @@ function getThumbnailUrl(file) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 2rem;
+  padding: 1rem;
   background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  flex-wrap: wrap;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  flex-wrap: nowrap;
+  margin-bottom: 1.5rem;
 }
 
 .search-box {
   position: relative;
   flex: 1 1 300px;
+  min-width: 180px;
   max-width: 460px;
 }
 
@@ -459,8 +453,7 @@ function getThumbnailUrl(file) {
   font-size: 0.875rem;
 }
 
-.search-input:focus,
-.date-input:focus {
+.search-input:focus {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 131, 246, 0.1);
@@ -484,6 +477,12 @@ function getThumbnailUrl(file) {
 
 .compact-select {
   width: 150px;
+  flex: 0 0 150px;
+}
+
+.period-picker {
+  width: max-content;
+  flex: 0 0 auto;
 }
 
 .select-prefix {
@@ -491,30 +490,9 @@ function getThumbnailUrl(file) {
   margin-right: 0.25rem;
 }
 
-.date-range {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.date-input {
-  min-height: 40px;
-  width: 142px;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  color: #334155;
-  font-size: 0.875rem;
-  padding: 0 0.65rem;
-}
-
-.date-separator {
-  color: #64748b;
-  font-size: 0.8125rem;
-}
-
 .tag-filter {
   position: relative;
+  flex: 0 0 auto;
 }
 
 .tag-filter-button {
@@ -635,9 +613,42 @@ function getThumbnailUrl(file) {
   background: #f8fafc;
 }
 
-.tag-option input {
+.tag-option input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
+  margin: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tag-option input[type='checkbox']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+}
+
+.tag-option input[type='checkbox']:checked {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.tag-option input[type='checkbox']:checked::before {
+  transform: scale(1);
+}
+
+.tag-option input[type='checkbox']:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .tag-option small {
@@ -652,10 +663,7 @@ function getThumbnailUrl(file) {
 }
 
 .gallery-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1.5rem 2rem;
+  min-height: 320px;
 }
 
 .state-block {
@@ -702,7 +710,7 @@ function getThumbnailUrl(file) {
 
 .media-card {
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 1rem;
   background: #ffffff;
   overflow: hidden;
   cursor: pointer;
@@ -785,9 +793,13 @@ function getThumbnailUrl(file) {
 
 .patient-row {
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   gap: 0.65rem;
+}
+
+.patient-details {
+  min-width: 0;
 }
 
 .avatar {
@@ -870,79 +882,27 @@ function getThumbnailUrl(file) {
   background: #eff6ff;
 }
 
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 2rem;
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
-}
-
-.pagination-info {
-  color: #64748b;
-  font-size: 0.875rem;
-}
-
-.pagination-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.page-button {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  color: #475569;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.page-button:hover:not(:disabled) {
-  color: var(--azul-principal);
-  border-color: #cbd5e1;
-  background: #f8fafc;
-}
-
-.page-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 @media (max-width: 900px) {
-  .gallery-header,
-  .filter-bar,
-  .gallery-content,
-  .pagination-bar {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .filter-bar {
+    flex-wrap: wrap;
   }
 
-  .gallery-header,
-  .pagination-bar {
+  .gallery-header {
     align-items: stretch;
     flex-direction: column;
   }
 
   .search-box,
   .compact-select,
-  .date-input,
+  .period-picker,
   .tag-filter,
   .tag-filter-button {
     width: 100%;
     max-width: none;
   }
 
-  .date-range {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+  .compact-select {
+    flex-basis: 100%;
   }
 
   .media-grid {
@@ -954,11 +914,6 @@ function getThumbnailUrl(file) {
 @media (max-width: 520px) {
   .media-grid {
     grid-template-columns: 1fr;
-  }
-
-  .pagination-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

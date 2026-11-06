@@ -1,4 +1,5 @@
 <script setup>
+import AppPagination from '@/components/global/AppPagination.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { format } from 'date-fns'
@@ -6,23 +7,7 @@ import { ptBR } from 'date-fns/locale'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useDebounceFn } from '@vueuse/core'
-import {
-  AlertCircle,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Download,
-  Eye,
-  FileSignature,
-  Filter,
-  Link as LinkIcon,
-  LoaderCircle,
-  Phone,
-  Search,
-  Send,
-  XCircle,
-} from 'lucide-vue-next'
+import { AlertCircle, CheckCircle, Download, Eye, FileSignature, Filter, Link as LinkIcon, LoaderCircle, Phone, Search, Send, XCircle } from 'lucide-vue-next'
 import { useConsentTermsStore } from '@/stores/consent-terms'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -335,36 +320,27 @@ function clearSearch() {
       </div>
     </div>
 
-    <div v-if="showPagination && !isLoading" class="pagination-container">
-      <div class="pagination-info">
-        Exibindo {{ (allPage - 1) * allLimit + 1 }} - {{ Math.min(allPage * allLimit, allTotal) }} de {{ allTotal }} termos
-      </div>
-
-      <div class="pagination-controls">
-        <button class="page-btn" :disabled="allPage === 1" @click="changePage(allPage - 1)">
-          <ChevronLeft :size="18" /> Anterior
-        </button>
-        <span class="page-number">Página {{ allPage }} de {{ allPages }}</span>
-        <button class="page-btn" :disabled="allPage === allPages" @click="changePage(allPage + 1)">
-          Próxima <ChevronRight :size="18" />
-        </button>
-      </div>
-    </div>
+    <AppPagination
+      v-if="showPagination && !isLoading"
+      :current-page="allPage"
+      :total-pages="allPages"
+      :total-items="allTotal"
+      :limit="allLimit"
+      @page-change="changePage"
+    />
   </div>
 </template>
 
 <style scoped>
 .terms-list-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
+  min-width: 0;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
   gap: 1rem;
   flex-wrap: wrap;
 }
@@ -378,7 +354,7 @@ function clearSearch() {
 }
 
 .page-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #64748b;
   margin: 0.25rem 0 0;
 }
@@ -447,9 +423,7 @@ function clearSearch() {
 }
 
 .list-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem 2rem;
+  min-height: 320px;
 }
 
 .state-container {
@@ -483,7 +457,7 @@ function clearSearch() {
 .term-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 1rem;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -708,67 +682,11 @@ function clearSearch() {
   }
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
-}
-
-.pagination-info {
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.page-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #f8fafc;
-  color: var(--azul-principal);
-  border-color: #cbd5e1;
-}
-
-.page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.page-number {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #334155;
-}
-
 @media (max-width: 768px) {
-  .pagination-info {
-    display: none;
-  }
 
   .page-header {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem;
   }
 
   .header-actions {
@@ -779,16 +697,6 @@ function clearSearch() {
   .status-filter,
   .search-bar {
     width: 100%;
-  }
-
-  .list-wrapper,
-  .pagination-container {
-    padding: 1rem;
-  }
-
-  .pagination-container {
-    flex-direction: column;
-    gap: 1rem;
   }
 
   .terms-grid {

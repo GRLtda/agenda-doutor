@@ -631,7 +631,7 @@ watch(globalDiscountPercentage, (val) => {
     </div>
 
     <template #footer>
-      <div class="drawer-footer space-between">
+      <div class="drawer-footer space-between step-navigation-footer">
         <!-- Botão Esquerdo (Cancelar ou Voltar) -->
         <AppButton
           variant="default"
@@ -1092,12 +1092,6 @@ input[type=number] {
   align-items: center;
 }
 
-.drawer-footer.space-between {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-}
-
 .payment-method-item {
   display: flex;
   gap: 0.5rem;
@@ -1110,15 +1104,6 @@ input[type=number] {
 
 .installments-input {
   width: 100px;
-}
-
-.drawer-footer {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  border-top: 1px solid #f3f4f6;
-  background-color: #fff; /* Ensure background is white for sticky footer if needed */
 }
 
 /* Fix values-preview to be sticky at the bottom of the container if needed */

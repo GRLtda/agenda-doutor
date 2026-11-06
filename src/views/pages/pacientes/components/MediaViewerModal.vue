@@ -22,17 +22,29 @@
               <label class="meta-label">Paciente</label>
               <div class="meta-value date-value">
                 <User :size="14" />
-                <span>{{ file.patient.name }}</span>
+                <span class="truncate-value" :title="file.patient.name">{{ file.patient.name }}</span>
               </div>
             </div>
 
-            <div v-if="file.appointment" class="metadata-group">
-              <label class="meta-label">Atendimento</label>
+            <div v-if="file.appointment || file.metadata?.appointmentOrigin" class="metadata-group">
+              <label class="meta-label">Atendimento de origem</label>
               <div class="meta-value date-value">
                 <Stethoscope :size="14" />
-                <span>{{ formatAppointment(file.appointment) }}</span>
+                <span class="truncate-value" :title="formatAppointment(file.appointment || file.metadata?.appointmentOrigin)">{{ formatAppointment(file.appointment || file.metadata?.appointmentOrigin) }}</span>
               </div>
+              <button
+                v-if="file.appointment?._id && file.patient?._id"
+                type="button"
+                class="appointment-link"
+                @click="goToAppointment(file.appointment._id)"
+              >
+                Ir para o atendimento
+                <ArrowUpRight :size="16" />
+              </button>
+              <span v-if="!file.appointment && file.metadata?.appointmentOrigin" class="empty-value">Atendimento removido; imagem preservada.</span>
             </div>
+
+            <div v-if="file.linkedAppointments?.length" class="metadata-group"><label class="meta-label">Utilizada nos atendimentos</label><button v-for="appointment in file.linkedAppointments" :key="appointment._id" type="button" class="appointment-link" @click="goToAppointment(appointment._id)">{{ formatAppointment(appointment) }}<ArrowUpRight :size="16" /></button></div>
 
             <!-- Descrição -->
             <div class="metadata-group">
@@ -49,9 +61,9 @@
             <!-- Tags -->
             <div class="metadata-group">
               <label class="meta-label">Tags</label>
-              <div v-if="file.metadata?.tags?.length" class="tags-list">
+              <div v-if="visibleGalleryTags(file.metadata?.tags).length" class="tags-list">
                 <span 
-                  v-for="tag in file.metadata.tags" 
+                  v-for="tag in visibleGalleryTags(file.metadata?.tags)"
                   :key="tag"
                   class="meta-tag"
                 >
@@ -65,7 +77,7 @@
              <div class="metadata-group">
                 <label class="meta-label">Arquivo</label>
                 <div class="meta-value description-value" style="flex-direction: column; gap: 4px; align-items: flex-start;">
-                    <span style="font-size: 0.8em; opacity: 0.7">{{ file.metadata?.originalName }}</span>
+                    <span class="truncate-value" style="font-size: 0.8em; opacity: 0.7" :title="file.metadata?.originalName">{{ file.metadata?.originalName }}</span>
                      <span style="font-size: 0.8em; opacity: 0.7">{{ file.metadata?.sizeBytes ? (file.metadata.sizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '' }}</span>
                 </div>
              </div>
@@ -75,7 +87,7 @@
 
         <!-- Main Image Area -->
         <div class="viewer-main" @click.self="$emit('close')">
-          <button @click="$emit('close')" class="close-button">
+          <button @click="$emit('close')" class="close-button" aria-label="Fechar visualização">
             <X :size="32" />
           </button>
 
@@ -84,12 +96,20 @@
             <Loader2 :size="48" class="spinner" />
             <span>Carregando imagem...</span>
           </div>
+          <div v-if="imageError" class="viewer-error" role="alert"><span>{{ imageError }}</span><button type="button" @click="retryImage">Tentar novamente</button></div>
+          <div class="viewer-controls"><button v-if="hasPrevious" type="button" aria-label="Imagem anterior" @click="$emit('previous')"><ChevronLeft :size="22" /></button><button type="button" aria-label="Diminuir zoom" :disabled="zoom <= 1" @click="setZoom(zoom - .5)"><ZoomOut :size="20" /></button><button type="button" aria-label="Restaurar zoom" @click="setZoom(1)">{{ Math.round(zoom * 100) }}%</button><button type="button" aria-label="Aumentar zoom" :disabled="zoom >= 4" @click="setZoom(zoom + .5)"><ZoomIn :size="20" /></button><button v-if="hasNext" type="button" aria-label="Próxima imagem" @click="$emit('next')"><ChevronRight :size="22" /></button></div>
           
           <img 
             :src="imageUrl"
             alt="Visualização em tela cheia" 
             class="fullscreen-image"
             :class="{ 'loaded': !isLoading }"
+            :style="{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`, cursor: zoom > 1 ? 'grab' : 'default' }"
+            @dragstart.prevent
+            @pointerdown="startPan"
+            @pointermove="pan"
+            @pointerup="dragging = false"
+            @pointercancel="dragging = false"
             @load="onImageLoad"
             @error="onImageError"
           />
@@ -100,17 +120,24 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { getGalleryItem, galleryError } from '@/api/gallery';
+import { useRouter } from 'vue-router';
+import { visibleGalleryTags } from '@/utils/galleryTags';
 import { 
+  ArrowUpRight,
   X, 
   Calendar, 
   FileText, 
   Loader2,
   Stethoscope,
   User,
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
 } from 'lucide-vue-next';
 
 const props = defineProps({
+  hasPrevious: Boolean,
+  hasNext: Boolean,
   show: {
     type: Boolean,
     default: false
@@ -121,14 +148,34 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'previous', 'next']);
+const router = useRouter();
 const isLoading = ref(true);
-const imageUrl = computed(() => props.file?.originalUrl || props.file?.signedUrl || '');
+const renewedUrl = ref('');
+const imageError = ref('');
+const zoom = ref(1);
+const offset = ref({ x: 0, y: 0 });
+const dragging = ref(false);
+let start = { x: 0, y: 0 };
+let renewed = false;
+const imageUrl = computed(() => renewedUrl.value || props.file?.originalUrl || props.file?.signedUrl || '');
+function setZoom(value) { zoom.value = Math.min(4, Math.max(1, value)); if (zoom.value === 1) offset.value = { x: 0, y: 0 }; }
+function startPan(event) { if (zoom.value <= 1) return; dragging.value = true; start = { x: event.clientX - offset.value.x, y: event.clientY - offset.value.y }; event.target.setPointerCapture?.(event.pointerId); }
+function pan(event) { if (dragging.value) offset.value = { x: event.clientX - start.x, y: event.clientY - start.y }; }
+function keyboard(event) {
+  if (!props.show || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+  if (event.key === 'Escape') emit('close');
+  if (event.key === 'ArrowLeft' && props.hasPrevious) emit('previous');
+  if (event.key === 'ArrowRight' && props.hasNext) emit('next');
+}
+onMounted(() => window.addEventListener('keydown', keyboard));
+onBeforeUnmount(() => window.removeEventListener('keydown', keyboard));
 
 // Reset loading when file changes or modal opens
 watch(() => props.file, () => {
   if (props.file) {
     isLoading.value = true;
+    renewedUrl.value = ''; imageError.value = ''; renewed = false; setZoom(1);
   }
 }, { immediate: true });
 
@@ -136,9 +183,30 @@ function onImageLoad() {
   isLoading.value = false;
 }
 
-function onImageError() {
-  isLoading.value = false;
-  // Could emit error or handle it UI wise
+async function retryImage() {
+  const id = props.file?._id;
+  if (!id) return;
+  isLoading.value = true; imageError.value = '';
+  try {
+    const fresh = await getGalleryItem(id);
+    if (props.file?._id !== id || !props.show) return;
+    const url = fresh.originalUrl || fresh.signedUrl;
+    if (url === imageUrl.value) { isLoading.value = false; imageError.value = 'A imagem não está disponível. Tente novamente mais tarde.'; return; }
+    renewedUrl.value = url;
+  } catch (cause) { if (props.file?._id === id) { isLoading.value = false; imageError.value = galleryError(cause); } }
+}
+function onImageError() { if (!renewed) { renewed = true; retryImage(); } else { isLoading.value = false; imageError.value = 'Não foi possível carregar a imagem.'; } }
+
+function goToAppointment(appointmentId) {
+  if (!appointmentId || !props.file?.patient?._id) return;
+  emit('close');
+  router.push({
+    name: 'atendimento-em-andamento',
+    params: {
+      appointmentId,
+      patientId: props.file.patient._id,
+    },
+  });
 }
 
 function formatDate(dateString) {
@@ -161,6 +229,11 @@ function formatAppointment(appointment) {
 </script>
 
 <style scoped>
+.viewer-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 7px; border: 1px solid #ffffff30; background: #0f172ae8; border-radius: 12px; z-index: 60; }
+.viewer-controls button { display: grid; place-items: center; min-width: 36px; height: 34px; border: 0; border-radius: 6px; background: transparent; color: white; cursor: pointer; font-size: 12px; }
+.viewer-controls button:hover { background: #ffffff20; } .viewer-controls button:disabled { opacity: .4; }
+.viewer-error { position: absolute; display: grid; gap: 12px; justify-items: center; max-width: 300px; padding: 20px; background: #0f172a; border-radius: 10px; color: white; z-index: 20; text-align: center; font-size: 14px; }
+.viewer-error button { color: #93c5fd; background: none; border: 0; cursor: pointer; text-decoration: underline; } .fullscreen-image { touch-action: none; }
 .image-viewer-overlay {
   position: fixed;
   inset: 0;
@@ -230,6 +303,7 @@ function formatAppointment(appointment) {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .meta-label {
@@ -249,6 +323,40 @@ function formatAppointment(appointment) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.date-value svg {
+  flex-shrink: 0;
+}
+
+.truncate-value {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-link:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .description-value {

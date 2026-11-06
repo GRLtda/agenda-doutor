@@ -19,25 +19,27 @@ import './assets/css/global.css'
 const app = createApp(App)
 initClarity()
 
-Sentry.init({
-  app,
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.MODE,
-  integrations: [
-    Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration({
-      maskAllText: false,
-      blockAllMedia: false,
-      networkDetailAllowUrls: [
-        window.location.origin,
-        import.meta.env.VITE_API_URL || '',
-      ],
-    }),
-  ],
-  tracesSampleRate: 1.0,
-  replaysSessionSampleRate: 1.0,
-  replaysOnErrorSampleRate: 1.0,
-})
+if (!import.meta.env.DEV && !['dev', 'development', 'test'].includes(import.meta.env.MODE)) {
+  Sentry.init({
+    app,
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    integrations: [
+      Sentry.browserTracingIntegration({ router }),
+      Sentry.replayIntegration({
+        maskAllText: false,
+        blockAllMedia: false,
+        networkDetailAllowUrls: [
+          window.location.origin,
+          import.meta.env.VITE_API_URL || '',
+        ],
+      }),
+    ],
+    tracesSampleRate: 1.0,
+    replaysSessionSampleRate: 1.0,
+    replaysOnErrorSampleRate: 1.0,
+  })
+}
 
 // --- DIRETIVAS ---
 app.directive('click-outside', clickOutside)

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" aria-hidden="true" focusable="false">
+  <ellipse cx="120" cy="148" rx="88" ry="17" fill="var(--empty-backdrop, #f0f4fc)"/>
+  <rect x="57" y="35" width="112" height="110" rx="12" fill="var(--empty-shadow, #d5e0f5)" transform="rotate(-9 113 90)"/>
+  <rect x="72" y="30" width="112" height="116" rx="12" fill="var(--empty-layer, #dce6fa)" transform="rotate(7 128 88)"/>
+  <rect x="64" y="29" width="112" height="120" rx="12" fill="var(--empty-paper, #fff)"/>
+  <circle cx="120" cy="67" r="20" fill="var(--empty-backdrop, #f0f4fc)"/>
+  <circle cx="120" cy="62" r="7" fill="var(--empty-accent, #6b95ed)"/>
+  <path d="M107 80c0-16 26-16 26 0" fill="var(--empty-accent, #6b95ed)"/>
+  <rect x="87" y="99" width="66" height="7" rx="3.5" fill="var(--empty-layer, #dce6fa)"/>
+  <rect x="95" y="115" width="50" height="6" rx="3" fill="var(--empty-backdrop, #f0f4fc)"/>
+  <circle cx="174" cy="133" r="18" fill="var(--empty-accent, #6b95ed)"/>
+  <path d="M174 125v16m-8-8h16" stroke="var(--empty-paper, #fff)" stroke-width="3" stroke-linecap="round"/>
+</svg>

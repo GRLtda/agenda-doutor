@@ -660,7 +660,7 @@ onMounted(() => {
     </form>
 
     <template #footer>
-      <div class="drawer-footer space-between">
+      <div class="drawer-footer space-between step-navigation-footer">
         <AppButton variant="default" @click="currentStep === 1 ? $emit('close') : prevStep()">
           <component :is="currentStep === 1 ? X : ArrowLeft" :size="17" />
           {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}
@@ -1089,20 +1089,6 @@ onMounted(() => {
   display: none;
 }
 
-.drawer-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  border-top: 1px solid #f3f4f6;
-  background: #fff;
-}
-
-.drawer-footer.space-between {
-  justify-content: space-between;
-  width: 100%;
-}
-
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -1161,10 +1147,6 @@ input[type=number] {
 
   .recurrence-toggle {
     justify-content: flex-start;
-  }
-
-  .drawer-footer {
-    padding: 1rem;
   }
 }
 </style>

@@ -19,6 +19,7 @@ import {
     submitConsentTermSignature as apiSubmitSignature,
 } from '@/api/consent-terms'
 import { useToast } from 'vue-toastification'
+  import { consentSignatureError } from '@/utils/consent-signature-error'
 
 export const useConsentTermsStore = defineStore('consentTerms', () => {
     const toast = useToast()
@@ -329,9 +330,7 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
             return { success: true }
         } catch (error) {
             console.error('Erro ao submeter assinatura:', error)
-            const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido'
-            toast.error(`Erro ao assinar termo: ${errorMessage}`)
-            return { success: false, error }
+              return { success: false, error, message: consentSignatureError(error) }
         } finally {
             isLoading.value = false
         }

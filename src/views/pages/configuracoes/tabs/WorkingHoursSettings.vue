@@ -1,9 +1,10 @@
 <script setup>
+import { weekDays, getWeeklyHours } from '@/utils/workingHours'
+import WorkingHoursFields from '@/components/shared/WorkingHoursFields.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
-import { Check, Settings } from 'lucide-vue-next'
-import CustomSelect from '@/components/global/CustomSelect.vue'
+
 import Switch from '@/components/global/Switch.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import { useToast } from 'vue-toastification'
@@ -13,14 +14,7 @@ const toast = useToast()
 const clinicStore = useClinicStore()
 const successMessage = ref('')
 
-const dayEnum = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
-const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
-  const hours = Math.floor(i / 2)
-    .toString()
-    .padStart(2, '0')
-  const minutes = i % 2 === 0 ? '00' : '30'
-  return `${hours}:${minutes}`
-})
+const dayEnum = weekDays
 
 const workingHours = ref([])
 const allowAppointmentsOutsideWorkingHours = ref(false)
@@ -46,16 +40,7 @@ onMounted(() => {
 
 const totalOpenDays = computed(() => workingHours.value.filter((day) => day.isOpen).length)
 
-const totalWeeklyHours = computed(() => {
-  return workingHours.value
-    .filter((day) => day.isOpen)
-    .reduce((total, day) => {
-      const start = parseFloat(day.startTime.replace(':', '.'))
-      const end = parseFloat(day.endTime.replace(':', '.'))
-      const dailyHours = end > start ? end - start : 0
-      return total + dailyHours
-    }, 0)
-})
+const totalWeeklyHours = computed(() => getWeeklyHours(workingHours.value))
 
 async function handleUpdateHours() {
   successMessage.value = ''
@@ -77,30 +62,7 @@ async function handleUpdateHours() {
 
 <template>
   <form @submit.prevent="handleUpdateHours" class="hours-form">
-    <div class="days-grid">
-      <div
-        v-for="day in workingHours"
-        :key="day.day"
-        class="day-card"
-        :class="{ closed: !day.isOpen }"
-      >
-        <div class="card-header">
-          <label class="checkbox-wrapper">
-            <input type="checkbox" v-model="day.isOpen" />
-            <span class="checkmark"><Check :size="12" stroke-width="3" /></span>
-          </label>
-          <span class="day-name">{{ day.day }}</span>
-        </div>
-        <div class="card-body">
-          <div class="time-inputs" v-if="day.isOpen">
-            <CustomSelect v-model="day.startTime" :options="timeOptions" empty-label="Selecione" />
-            <span class="separator">às</span>
-            <CustomSelect v-model="day.endTime" :options="timeOptions" empty-label="Selecione" />
-          </div>
-          <div v-else class="closed-text">Fechado</div>
-        </div>
-      </div>
-    </div>
+    <WorkingHoursFields v-model="workingHours" />
 
     <div class="summary-and-action">
       <div class="hours-summary">
@@ -130,92 +92,6 @@ async function handleUpdateHours() {
 </template>
 
 <style scoped>
-.days-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-}
-.day-card {
-  padding: 1rem;
-  border-radius: 1rem;
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
-}
-.day-card.closed {
-  background-color: #f9fafb;
-  opacity: 0.7;
-}
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-.day-name {
-  font-weight: 600;
-  color: #374151;
-}
-.card-body {
-  padding-left: 38px;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-}
-.time-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-}
-.time-inputs :deep(.custom-select) {
-  flex-grow: 1;
-  width: auto;
-  min-width: 80px;
-}
-.separator {
-  color: var(--cinza-texto);
-}
-.closed-text {
-  font-weight: 500;
-  color: var(--cinza-texto);
-  width: 100%;
-}
-.checkbox-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-}
-.checkbox-wrapper input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.checkmark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 22px;
-  width: 22px;
-  background-color: var(--branco);
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--branco);
-  transition: all 0.2s ease;
-}
-.checkbox-wrapper:hover .checkmark {
-  border-color: #9ca3af;
-}
-.checkbox-wrapper input:checked ~ .checkmark {
-  background-color: var(--azul-principal);
-  border-color: var(--azul-principal);
-}
-
 .summary-and-action {
   display: flex;
   justify-content: space-between;
@@ -272,7 +148,6 @@ async function handleUpdateHours() {
 .extra-options-section :deep(.switch-label) {
   padding-top: 0;
 }
-
 
 .extra-options-section :deep(.switch-label) {
   color: #1e3a8a;

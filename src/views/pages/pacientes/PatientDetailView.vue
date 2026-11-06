@@ -17,6 +17,7 @@ import {
   FileDown,
   ArrowLeft,
   Edit,
+  X,
   Clipboard,
   FileText,
   CheckSquare,
@@ -47,6 +48,7 @@ import {
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import PatientPhoneDisplay from '@/components/global/PatientPhoneDisplay.vue'
 import PhoneInputWithDDI from '@/components/global/PhoneInputWithDDI.vue'
 import { fetchAddressByCEP } from '@/api/external'
@@ -112,6 +114,22 @@ const activeTab = computed({
     })
   }
 })
+
+async function startEditing() {
+  if (activeTab.value !== 'details') {
+    await router.push({
+      name: 'detalhes-paciente',
+      params: { id: patient.value?._id || route.params.id },
+      query: route.query,
+    })
+  }
+
+  editablePatient.value = JSON.parse(JSON.stringify({
+    ...patient.value,
+    address: patient.value.address || {},
+  }))
+  isEditing.value = true
+}
 const viewingAnamnesis = ref(null)
 const isCreateAppointmentModalOpen = ref(false)
 const pdfPreview = ref({ url: null, name: null })
@@ -531,8 +549,43 @@ async function deleteAppointment(appointment) {
       @close="closeAppointmentModal"
     />
 
-    <div v-if="patientsStore.isLoading && !patient" class="loading-state">
-      Carregando dados do paciente...
+    <div v-if="patientsStore.isLoading && !patient" class="patient-loading" role="status" aria-label="Carregando paciente" aria-busy="true">
+      <div aria-hidden="true">
+        <div class="patient-header">
+          <div class="patient-info patient-loading-info">
+            <AppSkeleton width="64px" height="64px" border-radius="50%" class="patient-loading-avatar" />
+            <div class="patient-title-wrapper patient-loading-lines">
+              <AppSkeleton width="80%" height="2rem" />
+              <AppSkeleton width="60%" height="1rem" />
+            </div>
+          </div>
+          <div class="header-actions">
+            <AppSkeleton height="38px" width="170px" />
+            <AppSkeleton height="38px" width="100px" />
+          </div>
+        </div>
+        <div class="patient-tab-layout">
+          <div class="patient-tab-sidebar">
+            <div v-for="tab in patientTabs" :key="tab.value" class="patient-tab-button">
+              <AppSkeleton width="18px" height="18px" />
+              <AppSkeleton width="100px" height="1rem" />
+            </div>
+          </div>
+          <div class="tab-content unified-card">
+            <div class="unified-card-content patient-details-readonly">
+              <section v-for="section in 3" :key="section" class="card-section">
+                <AppSkeleton width="45%" height="1.25rem" class="section-title" />
+                <div class="section-content grid-2-cols">
+                  <div v-for="field in 4" :key="field" class="patient-loading-lines">
+                    <AppSkeleton width="35%" height="0.75rem" />
+                    <AppSkeleton width="75%" height="1.125rem" />
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="patient">
@@ -569,9 +622,10 @@ async function deleteAppointment(appointment) {
             <Clipboard :size="16" />
             Aplicar Anamnese
           </AppButton>
-          <AppButton v-if="!isEditing" @click="isEditing = true" variant="primary">
-            <Edit :size="16" />
-            Editar
+          <AppButton @click="isEditing ? cancelEditing() : startEditing()" :variant="isEditing ? 'outline' : 'primary'">
+            <X v-if="isEditing" :size="16" />
+            <Edit v-else :size="16" />
+            {{ isEditing ? 'Cancelar' : 'Editar' }}
           </AppButton>
         </div>
       </header>
@@ -599,7 +653,7 @@ async function deleteAppointment(appointment) {
             </div>
             <div v-if="activeTab === 'details'">
               <div v-if="isEditing && editablePatient">
-                <form @submit.prevent="handleSaveChanges">
+                <form class="patient-edit-form" @submit.prevent="handleSaveChanges">
                   <section class="card-section">
                     <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                     <div class="section-content grid-2-cols">
@@ -701,7 +755,7 @@ async function deleteAppointment(appointment) {
                   </footer>
                 </form>
               </div>
-              <div v-else>
+              <div v-else class="patient-details-readonly">
                 <section class="card-section">
                   <h3 class="section-title"><ClipboardList class="title-icon" :size="18" /> Dados Pessoais</h3>
                   <div class="section-content grid-2-cols">
@@ -1088,7 +1142,6 @@ async function deleteAppointment(appointment) {
   max-width: min(1680px, calc(100vw - 48px));
   width: 100%;
   margin: 0 auto;
-  overflow-y: overlay;
 }
 
 /*
@@ -1212,7 +1265,35 @@ async function deleteAppointment(appointment) {
     height: 300px;
     font-size: 1.2rem;
     color: var(--cinza-texto, #6b7280);
-    /* Se quiser um esqueleto, adicione aqui o HTML/CSS. Por enquanto, é texto. */
+}
+
+.patient-loading-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-loading-avatar {
+  flex-shrink: 0;
+}
+
+.patient-loading-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.patient-loading .patient-tab-button {
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .patient-loading-info {
+    flex-basis: 100%;
+  }
+  .patient-loading .header-actions .skeleton {
+    width: 100% !important;
+  }
 }
 
 /* Estilos existentes */
@@ -1228,6 +1309,8 @@ async function deleteAppointment(appointment) {
   box-shadow: 0 1px 2px rgba(25, 45, 84, 0.04);
   flex-wrap: wrap;
   gap: 1rem;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .patient-info {
   display: flex;
@@ -1280,9 +1363,16 @@ async function deleteAppointment(appointment) {
 @media (max-width: 768px) {
   .header-actions {
     width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 0.5rem;
   }
   .header-actions .app-button {
-    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
     justify-content: center;
   }
 }
@@ -2185,6 +2275,50 @@ async function deleteAppointment(appointment) {
   .card-section {
     padding: 0rem;
   }
+  .patient-details-readonly .card-section,
+  .patient-edit-form .card-section {
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.875rem;
+  }
+  .patient-details-readonly .divider,
+  .patient-edit-form .divider {
+    display: none;
+  }
+  .patient-details-readonly .section-title,
+  .patient-edit-form .section-title {
+    margin-bottom: 1.25rem;
+  }
+  .patient-details-readonly .section-content.grid-2-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+  .patient-edit-form .section-content.grid-2-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .patient-edit-form .section-content :deep(.form-group),
+  .patient-edit-form .form-group {
+    margin-bottom: 0;
+  }
+  .patient-edit-form .edit-form-footer {
+    gap: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.875rem;
+    background: #ffffff;
+  }
+  .patient-details-readonly .detail-item,
+  .patient-details-readonly .last-appointment-item {
+    gap: 0.375rem;
+    min-width: 0;
+  }
+  .patient-details-readonly .value {
+    overflow-wrap: anywhere;
+  }
   .unified-card {
     background-color: transparent;
     border: none;
@@ -2194,6 +2328,11 @@ async function deleteAppointment(appointment) {
     width: 100%;
     min-height: 0;
     overflow: visible;
+  }
+  .unified-card-content,
+  .full-width-section {
+    height: auto;
+    min-height: 0;
   }
   .history-section,
   .history-grid,

@@ -1,4 +1,7 @@
 import { toast as sonnerToast } from 'vue-sonner'
+import { reactive } from 'vue'
+import { UploadCloud } from 'lucide-vue-next'
+import AppUploadToast from '@/components/global/AppUploadToast.vue'
 
 const DEFAULT_DURATION = 4000
 
@@ -72,6 +75,40 @@ function createToastApi() {
     duration: Infinity,
   })
   api.dismiss = (id) => sonnerToast.dismiss(id)
+  api.upload = ({ title = 'Subindo arquivo', description = 'Aguarde enquanto enviamos seu arquivo.', progress = 0 } = {}) => {
+    const upload = reactive({ title, description, fileName: '', progress, status: 'uploading' })
+    let dismissed = false
+    const options = {
+      componentProps: { upload },
+      // Loading pauses Sonner's timer while retaining a finite remaining lifetime.
+      // Changing an Infinity duration in place does not reset it in vue-sonner.
+      duration: DEFAULT_DURATION,
+      class: 'app-upload-toast',
+      icon: UploadCloud,
+      onDismiss: () => { dismissed = true },
+    }
+    const id = sonnerToast.loading(AppUploadToast, options)
+    upload.onClose = () => { dismissed = true; sonnerToast.dismiss(id) }
+    const finish = (status, title, description = '') => {
+      if (!dismissed) {
+        // A fresh native toast resets both the measured height and close timer.
+        // Reusing the loading instance retains its old height on hover.
+        sonnerToast.dismiss(id)
+        sonnerToast[status](title, {
+          description,
+          class: 'app-upload-toast',
+          duration: DEFAULT_DURATION,
+        })
+      }
+    }
+    return {
+      id,
+      update: (values) => Object.assign(upload, values),
+      success: (title, description) => finish('success', title, description),
+      error: (title, description) => finish('error', title, description),
+      dismiss: () => { dismissed = true; sonnerToast.dismiss(id) },
+    }
+  }
   api.clear = () => sonnerToast.dismiss()
   api.update = (id, options = {}) => {
     const type = options.type || null

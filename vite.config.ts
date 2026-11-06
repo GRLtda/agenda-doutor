@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
@@ -6,8 +7,26 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import { createHash } from 'node:crypto'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Match the production /health rewrite in dev and local build previews.
+const healthEndpoint = (): Plugin => {
+  const rewriteHealth = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const pathname = req.url?.split('?')[0]
+    if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/health' || pathname === '/health.json')) {
+      if (pathname === '/health') req.url = '/health.json'
+      res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate')
+    }
+    next()
+  }
+  return {
+    name: 'health-endpoint',
+    configureServer(server) { server.middlewares.use(rewriteHealth) },
+    configurePreviewServer(server) { server.middlewares.use(rewriteHealth) },
+  }
+}
+
 export default defineConfig({
   plugins: [
+    healthEndpoint(),
     vue({
       template: {
         compilerOptions: {},
@@ -56,6 +75,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: [],
+        navigateFallback: null,
         clientsClaim: true,
         skipWaiting: true,
       },
@@ -68,38 +88,6 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('jspdf')) {
-              return 'vendor-pdf'
-            }
-            if (id.includes('@tiptap') || id.includes('tiptap') || id.includes('prosemirror')) {
-              return 'vendor-editor'
-            }
-            if (id.includes('chart.js') || id.includes('vue-chartjs')) {
-              return 'vendor-charts'
-            }
-            if (id.includes('@sentry')) {
-              return 'vendor-sentry'
-            }
-            if (id.includes('vue-cal')) {
-              return 'vendor-calendar'
-            }
-            if (id.includes('@vue-flow') || id.includes('dagre')) {
-              return 'vendor-flow'
-            }
-            if (id.includes('html2canvas')) {
-              return 'vendor-html2canvas'
-            }
-            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
-              return 'vendor-vue'
-            }
-          }
-        },
-      },
-    },
     chunkSizeWarningLimit: 1000,
   },
 })

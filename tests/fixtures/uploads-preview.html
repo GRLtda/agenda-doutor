@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prévia local do toast de upload</title>
+    <style>
+      body { margin: 0; padding: 24px; background: #f8fafc; font: 14px Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      :root { --azul-principal: #2563eb; --popover: #fff; --popover-foreground: #1f2937; --border: #e5e7eb; --radius: 12px; --muted: #e5e7eb; --muted-foreground: #6b7280; }
+      main { max-width: 840px; margin: auto; }
+      .samples { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 24px; }
+      .sample { width: 344px; max-width: 100%; }
+      .narrow { width: 288px; }
+      button { padding: 8px 12px; cursor: pointer; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+      @media (max-width: 400px) { body { padding: 16px; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h } from 'vue'
+      import AppToaster from '/src/components/global/AppToaster.vue'
+      import { useToast } from '/src/lib/sonnerToastification.js'
+      const toast = useToast()
+      let upload
+      const start = (fileName = 'a.png') => {
+        upload?.dismiss()
+        upload = toast.upload({ title: 'Subindo arquivo', description: 'Aguarde enquanto enviamos seu arquivo.', progress: 60 })
+        upload.update({ fileName })
+      }
+      createApp({
+        render: () => h('main', [
+          h('h1', 'Toast de upload'),
+          h('p', 'Prévia local com dados fictícios. Nenhum arquivo é enviado.'),
+          h('div', { class: 'controls' }, [
+            h('button', { onClick: () => start() }, 'Nome curto'),
+            h('button', { onClick: () => start('imagem-com-nome-muito-longo-do-atendimento.png') }, 'Nome longo'),
+            h('button', { onClick: () => toast.success('Outra notificação') }, 'Outra notificação'),
+            h('button', { onClick: () => upload?.success('Imagem anexada', 'Arquivo enviado com sucesso.') }, 'Concluir'),
+          ]),
+          h('p', 'Confira o mesmo tamanho com nomes curtos/longos, passe o mouse sobre a notificação e conclua: o sucesso deve desaparecer após quatro segundos sem interação.'),
+          h(AppToaster),
+        ]),
+      }).mount('#app')
+      start()
+    </script>
+  </body>
+</html>

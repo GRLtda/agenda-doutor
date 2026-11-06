@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prévia das tabelas de estoque</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f8fafc; }
+    nav { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 24px; font: 12px Arial; }
+    #app { height: calc(100dvh - 84px); padding: 24px; }
+    @media(max-width: 768px) { #app { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="?view=produtos">Produtos</a><a href="?view=lotes">Lotes</a><a href="?view=movimentacoes">Movimentações</a>
+    <button data-state="populated">Com dados</button><button data-state="empty">Vazio</button><button data-state="loading">Carregando</button><button data-state="error">Erro</button>
+  </nav>
+  <div id="app"></div>
+  <script type="module">
+    import '/src/assets/css/global.css'
+    import { createApp } from 'vue'
+    import { createPinia } from 'pinia'
+    import { createRouter, createMemoryHistory } from 'vue-router'
+    import Toast from 'vue-toastification'
+    import { useEstoqueStore } from '/src/stores/estoque.js'
+    import Produtos from '/src/views/pages/estoque/ProdutosListView.vue'
+    import Lotes from '/src/views/pages/estoque/LotesListView.vue'
+    import Movimentacoes from '/src/views/pages/estoque/MovimentacoesView.vue'
+    const query = new URLSearchParams(location.search)
+    if (query.has('desktop')) {
+      document.querySelector('nav').remove()
+      document.getElementById('app').remove()
+      const frame = document.createElement('iframe')
+      frame.title = 'Tabelas em desktop, 1440 por 900'
+      query.delete('desktop')
+      frame.src = '?' + query.toString()
+      frame.style.cssText = 'width:1440px;height:900px;border:0;transform:scale(.26);transform-origin:top left;'
+      document.body.appendChild(frame)
+    } else {
+    document.querySelectorAll('[data-state]').forEach(button => button.onclick = () => { query.set('state', button.dataset.state); location.search = query.toString() })
+    const view = query.get('view') || 'produtos'
+    const app = createApp({ produtos: Produtos, lotes: Lotes, movimentacoes: Movimentacoes }[view])
+    const pinia = createPinia()
+    app.use(pinia).use(Toast).use(createRouter({ history: createMemoryHistory(), routes: [
+      { path: '/', component: Produtos },
+      { path: '/produto/:id', name: 'estoque-produto-detalhe', component: { template: '<p>Destino de exemplo</p>' } },
+    ] }))
+    const store = useEstoqueStore(pinia)
+    for (const [entity, title] of [['produtos', 'Produtos'], ['lotes', 'Lotes'], ['movimentacoes', 'Movimentacoes']]) {
+      store[`fetch${title}`] = async (params = {}) => {
+        store[`loading${title}`] = true
+        if (query.get('state') === 'loading') return new Promise(() => {})
+        const error = query.get('state') === 'error'
+        store[entity] = error || query.get('state') === 'empty' ? [] : Array.from({ length: 20 }, (_, i) => ({
+          _id: `sample-${i}`, nome: `Produto de exemplo ${i + 1}`, fabricante: 'Fabricante de exemplo', unidadeMedida: 'UN', categoria: 'Descartáveis', quantidadeMinima: 10, ativo: true,
+          produto: { _id: `sample-${i}`, nome: `Produto de exemplo ${i + 1}` }, numeroLote: `LT-2026-${i}`, dataValidade: '2027-06-10', saldoAtual: 20, fornecedor: 'Fornecedor de exemplo', notaFiscal: '12345', status: 'ATIVO',
+          tipo: 'ENTRADA', quantidade: 5, usuario: { name: 'Maria Silva' }, createdAt: '2026-10-19T12:00:00Z', lote: { numeroLote: `LT-2026-${i}` },
+        }))
+        store[`${entity}Meta`] = { page: params.page || 1, total: 60, totalPages: store[entity].length ? 3 : 1 }
+        store[`loading${title}`] = false
+        return error ? { success: false, error: 'Falha de conexão simulada.' } : { success: true }
+      }
+    }
+    app.mount('#app')
+    }
+  </script>
+</body>
+</html>

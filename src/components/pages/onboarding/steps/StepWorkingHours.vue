@@ -1,22 +1,14 @@
 <script setup>
+import { weekDays, getWeeklyHours } from '@/utils/workingHours'
+import WorkingHoursFields from '@/components/shared/WorkingHoursFields.vue'
 import { ref, computed } from 'vue' // 1. Importar o 'computed'
 import { useClinicStore } from '@/stores/clinic'
-import { Check } from 'lucide-vue-next'
-import CustomSelect from '@/components/global/CustomSelect.vue'
 
 const emit = defineEmits(['success'])
 const clinicStore = useClinicStore()
 const errorMessage = ref(null)
 
-const dayEnum = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
-
-const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
-  const hours = Math.floor(i / 2)
-    .toString()
-    .padStart(2, '0')
-  const minutes = i % 2 === 0 ? '00' : '30'
-  return `${hours}:${minutes}`
-})
+const dayEnum = weekDays
 
 const workingHours = ref(
   dayEnum.map((day) => ({
@@ -32,18 +24,7 @@ const totalOpenDays = computed(() => {
   return workingHours.value.filter((day) => day.isOpen).length
 })
 
-const totalWeeklyHours = computed(() => {
-  return workingHours.value
-    .filter((day) => day.isOpen)
-    .reduce((total, day) => {
-      const [startHours, startMinutes] = day.startTime.split(':').map(Number)
-      const [endHours, endMinutes] = day.endTime.split(':').map(Number)
-      const start = startHours * 60 + startMinutes
-      const end = endHours * 60 + endMinutes
-      const dailyHours = end > start ? (end - start) / 60 : 0
-      return total + dailyHours
-    }, 0)
-})
+const totalWeeklyHours = computed(() => getWeeklyHours(workingHours.value))
 
 async function handleSaveHours() {
   errorMessage.value = null
@@ -65,35 +46,7 @@ async function handleSaveHours() {
       <p>Defina os dias e horários em que a clínica estará aberta para atendimentos.</p>
     </div>
 
-    <div class="days-grid">
-      <div
-        v-for="day in workingHours"
-        :key="day.day"
-        class="day-card"
-        :class="{ closed: !day.isOpen }"
-      >
-        <div class="card-header">
-          <label class="checkbox-wrapper">
-            <input type="checkbox" v-model="day.isOpen" />
-            <span class="checkmark"><Check :size="12" stroke-width="3" /></span>
-          </label>
-          <span class="day-name">{{ day.day }}</span>
-        </div>
-        <div class="card-body">
-          <div class="time-inputs" v-if="day.isOpen">
-            <label class="time-field">
-              <span>Abre</span>
-              <CustomSelect v-model="day.startTime" :options="timeOptions" />
-            </label>
-            <label class="time-field">
-              <span>Fecha</span>
-              <CustomSelect v-model="day.endTime" :options="timeOptions" />
-            </label>
-          </div>
-          <div v-else class="closed-text">Fechado</div>
-        </div>
-      </div>
-    </div>
+    <WorkingHoursFields v-model="workingHours" />
 
     <div class="hours-summary">
       <div class="summary-item">
@@ -127,76 +80,6 @@ p {
   margin: 0;
 }
 
-.days-grid {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.day-card {
-  display: grid;
-  grid-template-columns: minmax(118px, 0.45fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem;
-  border-radius: 8px;
-  background-color: var(--branco);
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
-}
-
-.day-card.closed {
-  background-color: #f9fafb;
-  opacity: 0.7;
-}
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0;
-}
-.day-name {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-.card-body {
-  min-width: 0;
-}
-
-.closed-text {
-  font-weight: 500;
-  color: var(--cinza-texto);
-  width: 100%;
-}
-.time-inputs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
-  min-width: 0;
-}
-.time-field {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.time-field span {
-  color: var(--cinza-texto);
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.time-field :deep(.custom-select) {
-  width: 100%;
-  min-width: 0;
-}
-
-.time-field :deep(.select-button) {
-  min-height: 38px;
-  padding: 0.5rem 0.65rem;
-}
-
 /* Sumário */
 .hours-summary {
   display: flex;
@@ -223,40 +106,6 @@ p {
 }
 
 /* Estilos de checkbox (sem alterações) */
-.checkbox-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-}
-.checkbox-wrapper input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.checkmark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 22px;
-  width: 22px;
-  background-color: var(--branco);
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--branco);
-  transition: all 0.2s ease;
-}
-.checkbox-wrapper:hover .checkmark {
-  border-color: #9ca3af;
-}
-.checkbox-wrapper input:checked ~ .checkmark {
-  background-color: var(--azul-principal);
-  border-color: var(--azul-principal);
-}
 
 /* Botão e erros (sem alterações) */
 .error-message {
@@ -283,14 +132,6 @@ p {
 }
 
 @media (max-width: 640px) {
-  .day-card {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-  }
-
-  .card-header {
-    justify-content: flex-start;
-  }
 
   .hours-summary {
     gap: 0.75rem;
@@ -298,9 +139,6 @@ p {
 }
 
 @media (max-width: 420px) {
-  .time-inputs {
-    grid-template-columns: 1fr;
-  }
 
   .hours-summary {
     display: grid;

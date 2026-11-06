@@ -120,7 +120,7 @@ function hasActiveAccess(user) {
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  const isAuthenticated = authStore.isAuthenticated
+  let isAuthenticated = authStore.isAuthenticated
   let hasClinic = authStore.hasClinic
   const isSamePageQueryChange = to.path === from.path && to.name === from.name
 
@@ -137,10 +137,17 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !to.meta.public) {
-    if (isAuthenticated && hasClinic && !isSamePageQueryChange) {
+    if (isAuthenticated && !isSamePageQueryChange) {
       await authStore.fetchUser()
+      isAuthenticated = authStore.isAuthenticated
       hasClinic = authStore.hasClinic
     }
+
+    if (!isAuthenticated) return next({ name: 'login', query: { redirect: to.fullPath } })
+
+    // Sem perfil em cache não é possível decidir onboarding/plano durante uma falha.
+    // App.vue mostra a recuperação sem montar conteúdo protegido até obter a identidade.
+    if (!authStore.user && authStore.sessionValidationUnavailable) return next()
 
     if (isAuthenticated && !hasClinic) {
       if (to.name !== 'clinic-wizard') {

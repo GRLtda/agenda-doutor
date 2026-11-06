@@ -17,6 +17,10 @@ import {
 export const usePatientsStore = defineStore('patients', () => {
   // STATE
   const allPatients = ref([]) // ✨ INICIALIZADO COMO ARRAY VAZIO (CRUCIAL)
+  const professionalCount = ref(0)
+  const professionalOptions = ref([])
+  let listRequestSeq = 0
+  let listFilters = {}
   const searchResults = ref([])
   const selectedPatient = ref(null)
   const isLoading = ref(false)
@@ -37,15 +41,20 @@ export const usePatientsStore = defineStore('patients', () => {
   /**
    * ✨ 3. NOVA ACTION: Busca a lista paginada de pacientes.
    */
-  async function fetchAllPatients(page = 1, limit = 10) {
+  async function fetchAllPatients(page = 1, limit = 10, filters = listFilters) {
+    listFilters = { ...filters }
+    const requestSeq = ++listRequestSeq
     isLoading.value = true
     error.value = null
     try {
-      const response = await apiGetAllPatients({ page, limit })
+      const response = await apiGetAllPatients({ ...filters, page, limit })
+      if (requestSeq !== listRequestSeq) return { success: false, stale: true }
 
       // ✨ AQUI ESTÁ A CORREÇÃO PRINCIPAL ✨
       // Atribuímos o array de pacientes (response.data.data) ao nosso estado.
       allPatients.value = response.data.data
+      professionalCount.value = response.data.professionalCount || 0
+      professionalOptions.value = response.data.professionalOptions || []
 
       // E guardamos as informações de paginação.
       pagination.value = {
@@ -56,12 +65,13 @@ export const usePatientsStore = defineStore('patients', () => {
       }
       return { success: true }
     } catch (err) {
+      if (requestSeq !== listRequestSeq) return { success: false, stale: true }
       error.value = 'Erro ao carregar pacientes.'
       allPatients.value = [] // Em caso de erro, garante que seja um array vazio
       console.error('Falha em fetchAllPatients:', err)
       return { success: false, error: error.value }
     } finally {
-      isLoading.value = false
+      if (requestSeq === listRequestSeq) isLoading.value = false
     }
   }
 
@@ -251,6 +261,8 @@ export const usePatientsStore = defineStore('patients', () => {
   // RETURN
   return {
     allPatients,
+    professionalCount,
+    professionalOptions,
     searchResults,
     selectedPatient,
     pagination, // ✨ 4. Expor o estado da paginação

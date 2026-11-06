@@ -1,10 +1,11 @@
 <script setup>
+import StockTableList from '@/components/estoque/StockTableList.vue'
 // LotesListView.vue — Listagem de lotes com filtros e ações de descarte
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
-import { Layers, Search, X, Plus, Trash2, Eye } from 'lucide-vue-next'
+import { Trash2, Eye, CircleCheck, Calendar } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import EstoqueBadgeStatus from '@/components/estoque/EstoqueBadgeStatus.vue'
@@ -16,6 +17,7 @@ const toast = useToast()
 const status = ref('')
 const vencendo = ref('')
 const page = ref(1)
+const listError = ref('')
 
 const statusOptions = [
   { label: 'Todos os status', value: '' },
@@ -38,7 +40,9 @@ async function carregar() {
   const params = { page: page.value, limit: 25 }
   if (status.value) params.status = status.value
   if (vencendo.value) params.vencendoEmDias = vencendo.value
-  await store.fetchLotes(params)
+  listError.value = ''
+  const result = await store.fetchLotes(params)
+  if (!result.success) listError.value = result.error || 'Não foi possível carregar os registros.'
 }
 
 function limparFiltros() {
@@ -71,7 +75,8 @@ function diasAteVencer(iso) {
 }
 
 const temFiltros = computed(() => status.value || vencendo.value)
-const totalPaginas = computed(() => store.lotesMeta?.totalPages || 1)
+
+function aplicarFiltros() { page.value = 1; carregar() }
 
 function irParaPagina(p) { page.value = p; carregar() }
 </script>
@@ -85,29 +90,30 @@ function irParaPagina(p) { page.value = p; carregar() }
       </div>
     </header>
 
-    <!-- Filtros -->
+    <StockTableList :loading="store.loadingLotes" :error="listError" :empty="store.lotes.length === 0" empty-title="Nenhum lote encontrado" :empty-text="temFiltros ? 'Tente ajustar os filtros.' : 'Registre a primeira entrada de produto.'" :columns="8" :page="page" :meta="store.lotesMeta" :limit="25" @retry="carregar" @page-change="irParaPagina">
+      <template #filters>
     <div class="filtros-bar">
-      <div style="width: 180px">
+      <div style="width: 220px">
         <StyledSelect
           v-model="status"
           :options="statusOptions"
-          @update:modelValue="carregar()"
-        />
+          @update:modelValue="aplicarFiltros">
+          <template #prefix><span class="select-prefix"><CircleCheck :size="14" />Status:</span></template>
+        </StyledSelect>
       </div>
 
-      <div style="width: 200px">
+      <div style="width: 270px">
         <StyledSelect
           v-model="vencendo"
           :options="vencendoOptions"
-          @update:modelValue="carregar()"
-        />
+          @update:modelValue="aplicarFiltros">
+          <template #prefix><span class="select-prefix"><Calendar :size="14" />Validade:</span></template>
+        </StyledSelect>
       </div>
 
-      <button v-if="temFiltros" class="btn-clear" @click="limparFiltros"><X :size="14" /> Limpar</button>
+      <AppButton variant="outline" class="clear-filters" :disabled="!temFiltros" @click="limparFiltros">Limpar</AppButton>
     </div>
-
-    <!-- Tabela -->
-    <div class="table-wrapper" :class="{ 'is-loading': store.loadingLotes && store.lotes.length > 0 }">
+      </template>
       <!-- Desktop -->
       <div class="desktop-only table-container">
         <table>
@@ -120,27 +126,11 @@ function irParaPagina(p) { page.value = p; carregar() }
               <th>Fornecedor</th>
               <th>NF</th>
               <th>Status</th>
-              <th>Ações</th>
+              <th class="actions-header">Ações</th>
             </tr>
           </thead>
           <tbody>
-            <template v-if="store.loadingLotes && store.lotes.length === 0">
-              <tr v-for="n in 7" :key="n" class="skeleton-row">
-                <td v-for="c in 8" :key="c"><div class="skeleton" :style="`width:${40+c*7}%`"></div></td>
-              </tr>
-            </template>
 
-            <template v-else-if="!store.loadingLotes && store.lotes.length === 0">
-              <tr><td colspan="8" class="empty-cell">
-                <div class="empty-state">
-                  <div class="empty-icon"><Layers :size="28"/></div>
-                  <h3>Nenhum lote encontrado</h3>
-                  <p>{{ temFiltros ? 'Tente ajustar os filtros.' : 'Registre a primeira entrada de produto.' }}</p>
-                </div>
-              </td></tr>
-            </template>
-
-            <template v-else>
               <tr
                 v-for="lote in store.lotes" :key="lote._id"
                 class="lote-row"
@@ -173,20 +163,14 @@ function irParaPagina(p) { page.value = p; carregar() }
                   </div>
                 </td>
               </tr>
-            </template>
+
           </tbody>
         </table>
       </div>
 
       <!-- Mobile -->
       <div class="mobile-list">
-        <template v-if="store.loadingLotes && store.lotes.length === 0">
-          <div v-for="n in 5" :key="n" class="lote-card skeleton-card">
-            <div class="skeleton" style="width:55%;height:.9rem;margin-bottom:.35rem"></div>
-            <div class="skeleton" style="width:35%;height:.75rem"></div>
-          </div>
-        </template>
-        <template v-else>
+
           <div v-for="lote in store.lotes" :key="lote._id" class="lote-card">
             <div class="lote-card-body">
               <span class="nome">{{ lote.produto?.nome || '—' }}</span>
@@ -201,32 +185,22 @@ function irParaPagina(p) { page.value = p; carregar() }
               <Trash2 :size="16" />
             </button>
           </div>
-        </template>
+
       </div>
 
-      <!-- Paginação -->
-      <div v-if="totalPaginas > 1" class="paginacao">
-        <button class="btn-pag" :disabled="page <= 1" @click="irParaPagina(page - 1)">← Anterior</button>
-        <span class="pag-info">{{ page }} / {{ totalPaginas }}</span>
-        <button class="btn-pag" :disabled="page >= totalPaginas" @click="irParaPagina(page + 1)">Próxima →</button>
-      </div>
-    </div>
+    </StockTableList>
   </div>
 </template>
 
 <style scoped>
-.lotes-page { padding: 0; }
-.page-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
+.lotes-page { height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.page-header { flex-shrink: 0; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; }
 .title { font-size:2rem; font-weight:700; margin-bottom:.25rem; }
 .subtitle { color:var(--cinza-texto); }
 
-.filtros-bar { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+.filtros-bar { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
 .filter-select { padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem; font-size:.875rem; color:#374151; background:#fff; cursor:pointer; outline:none; }
-.btn-clear { display:inline-flex; align-items:center; gap:.35rem; padding:.6rem .875rem; border:1.5px solid #e5e7eb; border-radius:.75rem; font-size:.85rem; font-weight:600; cursor:pointer; background:#fff; color:#6b7280; }
-.btn-clear:hover { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
 
-.table-wrapper { background:#fff; border:1px solid #e5e7eb; border-radius:1rem; overflow:hidden; position:relative; }
-.table-wrapper.is-loading { opacity:.55; pointer-events:none; }
 .table-container { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; }
 th, td { padding:.875rem 1.25rem; text-align:left; border-bottom:1px solid #e5e7eb; vertical-align:middle; font-size:.875rem; }
@@ -257,21 +231,6 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
 .btn-link { background:none; border:none; cursor:pointer; color:var(--azul-principal); font-weight:600; font-size:.875rem; text-align:left; padding:0; }
 .btn-link:hover { text-decoration:underline; }
 
-.empty-cell { padding:4rem; text-align:center; }
-.empty-state { display:flex; flex-direction:column; align-items:center; gap:.75rem; max-width:320px; margin:0 auto; }
-.empty-icon { width:56px; height:56px; background:#eff6ff; color:var(--azul-principal); border-radius:50%; display:flex; align-items:center; justify-content:center; }
-.empty-state h3 { font-size:1.1rem; font-weight:700; color:#111827; margin:0; }
-.empty-state p { color:#9ca3af; font-size:.875rem; margin:0; text-align:center; }
-
-.paginacao { display:flex; align-items:center; justify-content:center; gap:1rem; padding:1rem; border-top:1px solid #f3f4f6; }
-.btn-pag { padding:.45rem 1rem; border:1.5px solid #e5e7eb; border-radius:.65rem; font-size:.85rem; font-weight:600; cursor:pointer; background:#fff; color:#374151; }
-.btn-pag:hover:not(:disabled) { background:#f9fafb; }
-.btn-pag:disabled { opacity:.4; cursor:not-allowed; }
-.pag-info { font-size:.85rem; color:#6b7280; }
-
-.skeleton { background:#e5e7eb; border-radius:.4rem; height:.9rem; animation:pulse 1.5s ease infinite; }
-.skeleton-row td { padding:.5rem 1.25rem; }
-
 .mobile-list { display:none; }
 .lote-card { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid #f3f4f6; gap:.75rem; }
 .lote-card:last-child { border:none; }
@@ -286,4 +245,6 @@ th { background:#f9fafb; color:#6b7280; font-size:.72rem; font-weight:600; text-
   .mobile-list { display:block; }
   .filtros-bar { flex-direction:column; }
 }
+.clear-filters { width: 88px; min-width: 88px; }
+@media (max-width: 768px) { .title { font-size: 1.5rem; } .subtitle { font-size: .8125rem; } }
 </style>

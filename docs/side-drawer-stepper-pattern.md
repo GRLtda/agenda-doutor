@@ -11,6 +11,24 @@ Use este modelo quando criar fluxos de cadastro ou edicao em sidebar modal, como
   - Esquerda: `Cancelar` na primeira etapa, `Voltar` nas demais.
   - Direita: `Proximo` ate a ultima etapa, acao final na ultima.
 
+O rodapé usa a classe `step-navigation-footer`, estilizada uma única vez em
+`SideDrawer.vue`, seguindo Editar Procedimento: ações nas extremidades, espaço
+livre entre elas, gap mínimo de 0,75rem e padding de 1,5rem (1rem no celular).
+Botões mantêm a largura do conteúdo; em telas estreitas podem quebrar linha.
+A seta `ArrowRight` do botão primário é branca. Use ícones X/ArrowLeft à esquerda
+e ArrowRight junto de Próximo. Não recrie regras locais de rodapé ou force os
+botões a preencher toda a largura.
+
+Aplicado a Procedimentos, Novo/Editar/Remarcar/Reagendar Agendamento,
+Novo/Editar Orçamento, contas a receber/pagar e Finalização do atendimento.
+Na finalização, Agendar retorno permanece como ação adicional à direita.
+No agendamento, a primeira etapa disponível exibe Cancelar, inclusive na edição.
+As validações, bloqueios de carregamento e ações finais continuam nos consumidores.
+
+Verificação manual: abrir cada fluxo em desktop e celular, avançar e voltar,
+conferir Cancelar na primeira etapa, seta branca, espaço entre ações e ausência
+de transbordamento. Conferir também Agendar retorno e estados de carregamento.
+
 ## Estado do stepper
 
 ```js
@@ -110,7 +128,7 @@ function submit() {
   </div>
 
   <template #footer>
-    <div class="drawer-footer space-between">
+    <div class="step-navigation-footer">
       <AppButton variant="default" @click="currentStep === 1 ? $emit('close') : prevStep()">
         <component :is="currentStep === 1 ? X : ArrowLeft" :size="17" />
         {{ currentStep === 1 ? 'Cancelar' : 'Voltar' }}

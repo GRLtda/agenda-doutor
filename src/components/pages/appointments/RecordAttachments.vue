@@ -1,10 +1,17 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import AppEmptyState from '@/components/global/AppEmptyState.vue'
+import AttachmentsEmptyIllustration from './AttachmentsEmptyIllustration.vue'
+import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { Plus, Image as ImageIcon, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, Filter, CheckSquare, Square, Download, Check, ChevronDown } from 'lucide-vue-next'
+import { Images, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 import PhotoViewerUpload from './PhotoViewerUpload.vue'
+import GalleryFolderSelect from '@/components/pages/patients/GalleryFolderSelect.vue'
+import GalleryDialog from '@/components/global/GalleryDialog.vue'
+import PatientGalleryWorkspace from '@/views/pages/pacientes/components/PatientGalleryWorkspace.vue'
+import { compressImage, MAX_IMAGE_BYTES as MAX_FILE_SIZE_BYTES, IMAGE_ACCEPT, isSupportedPhoto } from '@/utils/imageUpload'
 
 const props = defineProps({
   record: {
@@ -36,6 +43,25 @@ const isCompressing = ref(false)
 const imageLoadErrors = reactive(new Set())
 const showPhotoViewer = ref(false)
 const pendingFiles = ref([])
+const dragDepth = ref(0)
+const uploadValidationError = ref('')
+const showGalleryPicker = ref(false)
+const galleryFolder = ref('')
+const isLinking = ref(false)
+const failedUploads = ref([])
+const canUpload = computed(() => !props.disabled && !isUploading.value && !isLinking.value && !showGalleryPicker.value && !showPhotoViewer.value && !showMontageEditor.value)
+watch(() => props.patientId, () => { galleryFolder.value = ''; failedUploads.value = []; showGalleryPicker.value = false; showPhotoViewer.value = false; pendingFiles.value = [] })
+
+async function attachExisting(uploadIds) {
+  if (props.disabled || isLinking.value || !uploadIds.length) return
+  isLinking.value = true
+  try {
+    const result = await recordsStore.attachGalleryPhotos(props.record?._id, uploadIds, { patientId: props.patientId, appointmentId: props.appointmentId })
+    if (result.success) { showGalleryPicker.value = false; toast.success('Fotos anexadas ao atendimento.') }
+    else toast.error(result.error)
+  } catch (error) { toast.error(error.message || 'Não foi possível anexar as fotos.') }
+  finally { isLinking.value = false }
+}
 
 // Filtering & Selection State
 const searchQuery = ref('')
@@ -57,9 +83,7 @@ const availableTags = computed(() => {
 
 // Computed: Fotos filtradas
 const filterTags = ref([]) // ✨ Filtro de tags (Array para v-model)
-const isFilterDropdownOpen = ref(false) // ✨ Estado do dropdown
 // toggleTagFilter removida (usando v-model)
-
 
 const filteredAttachments = computed(() => {
   let attachments = props.record?.attachments || []
@@ -114,7 +138,7 @@ async function handleBulkDelete() {
   const count = selectedAttachmentIds.value.size
   if (count === 0) return
 
-  if (!window.confirm(`Tem certeza que deseja excluir ${count} foto(s)?`)) {
+  if (!window.confirm(`Desvincular ${count} foto(s) deste atendimento? Elas continuarão disponíveis na galeria do paciente.`)) {
     return
   }
 
@@ -129,9 +153,9 @@ async function handleBulkDelete() {
   const { success, error } = await recordsStore.deleteAttachmentsBulk(ids)
 
   if (success) {
-    toast.success(`${count} foto(s) excluída(s).`)
+    toast.success(`${count} foto(s) desvinculada(s).`)
   } else {
-    toast.error(error || `Falha ao excluir foto(s).`)
+    toast.error(error || `Falha ao desvincular foto(s).`)
   }
 
   isUploading.value = false
@@ -181,6 +205,7 @@ async function handleBulkDownload() {
 }
 
 function handleBulkMontage() {
+  if (props.disabled || isUploading.value) return
   if (selectedAttachmentIds.value.size > 4) {
     toast.warning('Selecione no máximo 4 fotos para a montagem.')
     return
@@ -198,7 +223,7 @@ const selectedImagesForMontage = computed(() => {
     .map(a => ({ src: getOriginalImageUrl(a) }))
 })
 
-const MAX_ATTACHMENTS = 20
+const MAX_ATTACHMENTS = 40
 const hasReachedLimit = computed(() => (props.record?.attachments?.length || 0) >= MAX_ATTACHMENTS)
 
 function getOriginalImageUrl(attachment) {
@@ -270,75 +295,6 @@ URL Expira em: ${attachment.expiresIn ? attachment.expiresIn + 's' : '—'}
 }
 
 const MAX_FILE_SIZE_MB = 10
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-
-/**
- * Comprime uma imagem para no máximo 10MB usando Canvas API
- * Reduz qualidade progressivamente até atingir o tamanho alvo
- */
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const reader = new FileReader()
-
-    reader.onload = (e) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-
-        let { width, height } = img
-        const maxDimension = 4096
-        
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width)
-            width = maxDimension
-          } else {
-            width = Math.round((width * maxDimension) / height)
-            height = maxDimension
-          }
-        }
-
-        canvas.width = width
-        canvas.height = height
-        ctx.drawImage(img, 0, 0, width, height)
-
-        const tryCompress = (quality) => {
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('Falha ao comprimir imagem'))
-                return
-              }
-
-              if (blob.size <= MAX_FILE_SIZE_BYTES || quality <= 0.3) {
-                const compressedFile = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                })
-                resolve(compressedFile)
-              } else {
-                tryCompress(quality - 0.05)
-              }
-            },
-            'image/jpeg',
-            quality
-          )
-        }
-
-        tryCompress(0.95)
-      }
-
-      img.onerror = () => reject(new Error('Falha ao carregar imagem'))
-      img.src = e.target.result
-    }
-
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
-    reader.readAsDataURL(file)
-  })
-}
-
-
 function openImageViewer(attachment) {
   // Inicia carregamento da imagem real
   isImageLoading.value = true
@@ -357,83 +313,150 @@ function formatDate(dateString) {
   })
 }
 function triggerFileUpload() {
-  if (props.disabled) return
+  if (!canUpload.value || hasReachedLimit.value) return
+  uploadValidationError.value = ''
   fileInput.value.click()
 }
+function validateFiles(files) {
+  uploadValidationError.value = ''
+  if (files.some(file => !isSupportedPhoto(file))) {
+    uploadValidationError.value = 'Selecione apenas arquivos de imagem PNG, JPG ou WEBP.'
+    return false
+  }
+  if ((props.record?.attachments?.length || 0) + files.length > MAX_ATTACHMENTS) {
+    uploadValidationError.value = `Este atendimento permite no máximo ${MAX_ATTACHMENTS} imagens. Reduza a quantidade de arquivos.`
+    return false
+  }
+  return files.length > 0
+}
+function handleDragEnter(event) {
+  if (canUpload.value && !hasReachedLimit.value && Array.from(event.dataTransfer?.types || []).includes('Files')) {
+    dragDepth.value++
+  }
+}
+function handleDragLeave() {
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+function handleDragOver(event) {
+  if (event.dataTransfer) event.dataTransfer.dropEffect = canUpload.value && !hasReachedLimit.value ? 'copy' : 'none'
+}
+async function handleDrop(event) {
+  dragDepth.value = 0
+  if (!canUpload.value) return
+  const files = Array.from(event.dataTransfer?.files || [])
+  if (!validateFiles(files)) return
+  await handlePhotoViewerUpload(files.map(file => ({ file, description: '', tags: [] })))
+}
 async function handleFileUpload(event) {
-  if (props.disabled) return
+  if (!canUpload.value) return
   const files = Array.from(event.target.files)
-  if (!files.length) return
+  event.target.value = ''
+  if (!validateFiles(files)) return
 
   // Abre o PhotoViewer para preparar as fotos antes do upload
   pendingFiles.value = files
   showPhotoViewer.value = true
   
-  // Limpa o input para permitir selecionar os mesmos arquivos novamente
-  event.target.value = ''
 }
 
 // Processa o upload das fotos vindas do PhotoViewer
 async function handlePhotoViewerUpload(photosWithMetadata) {
+  if (props.disabled || isUploading.value) return
   showPhotoViewer.value = false
   pendingFiles.value = []
   
-  if (!photosWithMetadata || photosWithMetadata.length === 0) return
+  if (!photosWithMetadata?.length || !validateFiles(photosWithMetadata.map(photo => photo.file))) return
 
   isUploading.value = true
 
   let successCount = 0
   let errorCount = 0
   let compressedCount = 0
+  let lastError = ''
+  let recordId = props.record?._id
+  const notification = toast.upload({ title: 'Subindo arquivo', progress: 0 })
+  const destinationFolder = galleryFolder.value
+  const patientId = props.patientId
+  const appointmentId = props.appointmentId
+  const failures = []
 
-  // Upload sequential to avoid overwhelming the server/browser
-  for (let photoData of photosWithMetadata) {
-    let { file, description, tags } = photoData
-    let wasCompressed = false
+  try {
+    // Upload sequential to avoid overwhelming the server/browser
+    for (const [index, photoData] of photosWithMetadata.entries()) {
+      let { file, description, tags, isMontage = false } = photoData
+      let wasCompressed = false
+      const label = photosWithMetadata.length > 1 ? `${index + 1} de ${photosWithMetadata.length}` : 'Aguarde enquanto enviamos seu arquivo.'
+      notification.update({ title: 'Subindo arquivo', fileName: file.name, description: label, progress: index / photosWithMetadata.length * 100 })
     
-    // Comprimir imagens maiores que 10MB
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      try {
-        isCompressing.value = true
-        const originalSize = (file.size / (1024 * 1024)).toFixed(2)
-        file = await compressImage(file)
-        const newSize = (file.size / (1024 * 1024)).toFixed(2)
-        console.log(`[RecordAttachments] Imagem comprimida de ${originalSize}MB para ${newSize}MB`)
-        compressedCount++
-        wasCompressed = true
-      } catch (err) {
-        console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
-        toast.error(`Falha ao comprimir imagem: ${file.name}`)
+      // Comprimir imagens maiores que 10MB
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        try {
+          isCompressing.value = true
+          notification.update({ description: 'Comprimindo imagem…', progress: null })
+          const originalSize = (file.size / (1024 * 1024)).toFixed(2)
+          file = await compressImage(file)
+          const newSize = (file.size / (1024 * 1024)).toFixed(2)
+          console.log(`[RecordAttachments] Imagem comprimida de ${originalSize}MB para ${newSize}MB`)
+          compressedCount++
+          wasCompressed = true
+        } catch (err) {
+          console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
+          lastError = `Falha ao comprimir imagem: ${file.name}`
+          errorCount++
+          failures.push(photoData)
+          continue
+        } finally {
+          isCompressing.value = false
+        }
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        lastError = `A imagem ${file.name} continua maior que ${MAX_FILE_SIZE_MB} MB após a compressão.`
         errorCount++
+        failures.push(photoData)
         continue
-      } finally {
-        isCompressing.value = false
+      }
+      notification.update({ description: label, progress: index / photosWithMetadata.length * 100 })
+      const { success, error: uploadError, data } = await recordsStore.uploadAttachmentImage(
+        recordId,
+        file,
+        { patientId, appointmentId },
+        {
+          wasCompressed, description, tags, isMontage,
+          galleryFolder: destinationFolder,
+          onUploadProgress: (event) => {
+            const fraction = event.total > 0 ? event.loaded / event.total : event.progress
+            notification.update({
+              progress: Number.isFinite(fraction) ? Math.min(99, (index + fraction) / photosWithMetadata.length * 100) : null,
+              description: fraction >= 1 ? 'Salvando arquivo…' : label,
+            })
+          },
+        },
+      )
+
+      if (success) {
+        successCount++
+        recordId = data?.record?._id || recordId
+      } else {
+        errorCount++
+        failures.push(photoData)
+        lastError = uploadError || 'Erro no upload do anexo.'
       }
     }
 
-    const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
-      props.record?._id,
-      file,
-      { patientId: props.patientId, appointmentId: props.appointmentId },
-      { wasCompressed, description, tags },
-    )
-
-    if (success) {
-      successCount++
-    } else {
-      errorCount++
-      if (uploadError) {
-        toast.error(uploadError)
-      }
+    if (errorCount > 0) {
+      notification.error('Falha no envio', `${successCount} enviada(s), ${errorCount} com falha. ${lastError}`)
+    } else if (successCount > 0) {
+      const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
+      notification.success(successCount === 1 ? 'Imagem anexada' : 'Imagens anexadas', `${successCount === 1 ? 'Arquivo enviado' : `${successCount} arquivos enviados`} com sucesso.${compressedMsg}`)
     }
+  } catch (error) {
+    notification.error('Falha ao enviar imagem', error?.message || 'Tente novamente.')
+  } finally {
+    if (patientId === props.patientId && appointmentId === props.appointmentId) failedUploads.value = failures
+    isUploading.value = false
+    isCompressing.value = false
   }
-
-  if (successCount > 0) {
-    const compressedMsg = compressedCount > 0 ? ` (${compressedCount} comprimida(s))` : ''
-    toast.success(`${successCount} imagem(ns) anexada(s) com sucesso!${compressedMsg}`)
-  }
-
-  isUploading.value = false
 }
 
 function handlePhotoViewerClose() {
@@ -443,62 +466,41 @@ function handlePhotoViewerClose() {
 
 async function handleDeleteAttachment(uploadId) {
   if (props.disabled) return
-  if (!window.confirm('Tem certeza que deseja excluir esta imagem?')) {
+  if (!window.confirm('Desvincular esta imagem do atendimento? Ela continuará disponível na galeria do paciente.')) {
     return
   }
 
   const { success, error } = await recordsStore.deleteAttachment(uploadId)
 
   if (success) {
-    toast.success('Imagem excluída com sucesso!')
+    toast.success('Imagem desvinculada. Ela continua na galeria do paciente.')
   } else {
-    toast.error(error || 'Não foi possível excluir a imagem.')
+    toast.error(error || 'Não foi possível desvincular a imagem.')
   }
 }
 
 async function handleMontageComplete(file) {
-  if (props.disabled) return
-  
-  isUploading.value = true
-  let wasCompressed = false
-
-  // Comprimir montagem se maior que 10MB
-  let fileToUpload = file
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    try {
-      isCompressing.value = true
-      fileToUpload = await compressImage(file)
-      console.log(`[RecordAttachments] Montagem comprimida de ${(file.size / (1024 * 1024)).toFixed(2)}MB para ${(fileToUpload.size / (1024 * 1024)).toFixed(2)}MB`)
-      wasCompressed = true
-    } catch (err) {
-      console.error('[RecordAttachments] Erro ao comprimir montagem:', err)
-      toast.error('Falha ao comprimir a montagem.')
-      isUploading.value = false
-      return
-    } finally {
-      isCompressing.value = false
-    }
-  }
-  
-  const { success, error: uploadError } = await recordsStore.uploadAttachmentImage(
-    props.record?._id,
-    fileToUpload,
-    { patientId: props.patientId, appointmentId: props.appointmentId },
-    { wasCompressed },
-  )
-
-  if (success) {
-    toast.success('Montagem salva com sucesso!')
-  } else {
-    toast.error(uploadError || 'Falha ao salvar a montagem.')
-  }
-
-  isUploading.value = false
+  showMontageEditor.value = false
+  await handlePhotoViewerUpload([{ file, isMontage: true, description: '', tags: [] }])
 }
 </script>
 
 <template>
-  <div class="attachments-container">
+  <div
+    class="attachments-container"
+    :class="{ 'is-dragging': dragDepth > 0 && canUpload && !hasReachedLimit }"
+    @dragenter.prevent="handleDragEnter"
+    @dragover.prevent="handleDragOver"
+    @dragleave.prevent="handleDragLeave"
+    @drop.prevent.stop="handleDrop"
+  >
+    <div v-if="dragDepth > 0 && canUpload && !hasReachedLimit" class="attachments-drop-overlay" role="status">
+      <UploadCloud :size="32" aria-hidden="true" />
+      <span>Solte as imagens para enviar</span>
+    </div>
+    <p v-if="uploadValidationError" class="upload-validation-error" role="alert">{{ uploadValidationError }}</p>
+    <div v-if="!disabled" class="attachment-folder-field"><GalleryFolderSelect v-model="galleryFolder" :patient-id="patientId" :disabled="!canUpload" label="Pasta para novas fotos" /></div>
+    <div v-if="failedUploads.length" class="upload-validation-error" role="alert">{{ failedUploads.length }} foto(s) com falha. <button :disabled="!canUpload" @click="handlePhotoViewerUpload(failedUploads)">Reenviar com falha</button></div>
     <!-- Toolbar de Filtro e Seleção -->
     <div class="gallery-toolbar" v-if="!disabled && (record?.attachments?.length > 0 || searchQuery)">
       <div class="toolbar-main-row">
@@ -516,44 +518,13 @@ async function handleMontageComplete(file) {
         </div>
 
         <!-- Dropdown de Tags (Ao lado da busca) -->
-        <div class="filter-dropdown-container" v-if="availableTags.length > 0">
-          <button 
-            class="toolbar-btn" 
-            :class="{ 'has-filters': filterTags.length > 0 }"
-            @click="isFilterDropdownOpen = !isFilterDropdownOpen"
-            title="Filtrar por Tags"
-          >
-            <Filter :size="16" />
-            <span class="btn-label-desktop">Tags</span>
-            <span v-if="filterTags.length > 0" class="filter-count-badge">{{ filterTags.length }}</span>
-            <ChevronDown :size="14" class="chevron-icon" :class="{ rotated: isFilterDropdownOpen }" />
-          </button>
-
-          <!-- Menu Dropdown -->
-          <div v-if="isFilterDropdownOpen" class="filter-dropdown-menu">
-            <div class="dropdown-header">
-              <span>Filtrar Tags</span>
-              <button v-if="filterTags.length > 0" @click="filterTags = []" class="clear-filter-btn">
-                Limpar
-              </button>
-            </div>
-            <div class="dropdown-list">
-              <label 
-                v-for="tag in availableTags" 
-                :key="tag" 
-                class="dropdown-item"
-                :class="{ selected: filterTags.includes(tag) }"
-              >
-                <input 
-                  type="checkbox" 
-                  :value="tag"
-                  v-model="filterTags"
-                />
-                <span class="tag-label">{{ tag }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
+        <StyledMultiSelect
+          v-if="availableTags.length > 0"
+          v-model="filterTags"
+          class="tag-filter"
+          :options="availableTags.map((tag) => ({ value: tag, label: tag }))"
+          placeholder="Filtrar tags"
+        />
         
         <div class="toolbar-actions">
           <button 
@@ -591,19 +562,19 @@ async function handleMontageComplete(file) {
             <LayoutGrid :size="18" />
           </button>
           <div class="bulk-divider"></div>
-          <button @click="handleBulkDelete" class="bulk-btn delete" title="Excluir selecionadas">
+          <button @click="handleBulkDelete" class="bulk-btn delete" title="Desvincular selecionadas">
             <Trash2 :size="18" />
           </button>
         </div>
       </div>
     </Transition>
 
-    <div class="attachments-grid">
+    <div v-if="!disabled || record?.attachments?.length" class="attachments-grid">
       <!-- Botão Adicionar -->
       <div
         v-if="!disabled"
         class="action-card"
-        :class="{ disabled: disabled || hasReachedLimit }"
+        :class="{ disabled: !canUpload || hasReachedLimit }"
         @click="!hasReachedLimit && triggerFileUpload()"
       >
         <div v-if="hasReachedLimit" class="action-content limit-reached">
@@ -621,16 +592,18 @@ async function handleMontageComplete(file) {
         <div v-else class="action-content">
           <UploadCloud :size="24" />
           <span class="action-label">Adicionar Foto</span>
-          <span class="upload-limits">Máx: 20 Fotos</span>
+          <span class="upload-limits">Máx: {{ MAX_ATTACHMENTS }} Fotos</span>
         </div>
       </div>
+
+      <button v-if="!disabled" type="button" class="action-card gallery-picker-card" :disabled="!canUpload || hasReachedLimit" @click="showGalleryPicker = true"><div class="action-content"><Images :size="24" /><span>Escolher da galeria</span><span class="upload-limits">Usar fotos já adicionadas</span></div></button>
 
       <!-- Botão de Montagem -->
       <div
         v-if="!disabled"
         class="action-card"
-        :class="{ disabled: hasReachedLimit }"
-        @click="!hasReachedLimit && (showMontageEditor = true)"
+        :class="{ disabled: !canUpload || hasReachedLimit }"
+        @click="canUpload && !hasReachedLimit && (showMontageEditor = true)"
       >
         <div v-if="hasReachedLimit" class="action-content limit-reached">
           <AlertTriangle :size="22" />
@@ -688,12 +661,13 @@ async function handleMontageComplete(file) {
                 <Calendar :size="10" />
                 <span>{{ formatDate(attachment.createdAt) }}</span>
             </div>
+            <span class="attachment-origin">{{ String(attachment.appointment?._id || attachment.appointment || '') === appointmentId ? 'Deste atendimento' : 'Da galeria do paciente' }}</span>
           </div>
           <button
             v-if="!disabled"
             class="delete-button"
             @click.stop="handleDeleteAttachment(attachment._id)"
-            title="Excluir imagem"
+            title="Desvincular imagem do atendimento"
           >
             <Trash2 :size="16" />
           </button>
@@ -701,23 +675,27 @@ async function handleMontageComplete(file) {
       </div>
     </div>
 
-    <div
-      v-if="(!record?.attachments?.length || record?.attachments?.length === 0) && !isUploading"
-      class="empty-attachments"
+    <AppEmptyState
+      v-if="!record?.attachments?.length && !isUploading && !isCompressing"
+      class="attachments-empty-state"
+      title="Nenhuma imagem neste atendimento"
+      :text="disabled
+        ? 'Este atendimento ainda não possui fotos ou montagens anexadas.'
+        : 'Adicione fotos para registrar a evolução do paciente ou crie uma montagem.'"
     >
-      <ImageIcon :size="48" class="empty-icon" />
-      <h3 class="empty-title">Nenhum anexo ainda</h3>
-      <p v-if="!disabled" class="empty-text">Clique em "Adicionar Imagem" para começar.</p>
-    </div>
+      <template #illustration>
+        <AttachmentsEmptyIllustration />
+      </template>
+    </AppEmptyState>
 
     <input
       type="file"
       ref="fileInput"
       @change="handleFileUpload"
-      accept="image/*"
+      :accept="IMAGE_ACCEPT"
       multiple
       hidden
-      :disabled="disabled"
+      :disabled="!canUpload || hasReachedLimit"
     />
 
     <!-- Editor de Montagem -->
@@ -736,7 +714,9 @@ async function handleMontageComplete(file) {
       :max-attachments="MAX_ATTACHMENTS"
       @close="handlePhotoViewerClose"
       @upload="handlePhotoViewerUpload"
-    />
+    ><template #destination><div class="attachment-upload-destination"><GalleryFolderSelect v-model="galleryFolder" :patient-id="patientId" dark /></div></template></PhotoViewerUpload>
+
+    <GalleryDialog :open="showGalleryPicker" title="Escolher fotos da galeria" wide :busy="isLinking" @close="showGalleryPicker = false"><PatientGalleryWorkspace v-if="showGalleryPicker" :patient-id="patientId" picker :max-selection="MAX_ATTACHMENTS - (record?.attachments?.length || 0)" :excluded-ids="(record?.attachments || []).map(file => file._id)" :submitting="isLinking" @choose="attachExisting" @cancel="showGalleryPicker = false" /></GalleryDialog>
 
     <Transition name="fade">
       <div v-if="selectedImage" class="image-viewer-overlay" @click.self="closeImageViewer">
@@ -812,6 +792,49 @@ async function handleMontageComplete(file) {
 </template>
 
 <style scoped>
+.attachment-folder-field { width: min(380px, 100%); margin-bottom: 16px; }
+.attachment-upload-destination { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #ffffff1a; }
+.gallery-picker-card { background: transparent; font: inherit; width: 100%; }
+.attachment-origin { font-size: 9px; opacity: .85; }
+
+.attachments-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.attachments-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 150px;
+  border: 2px dashed var(--azul-principal, #6366f1);
+  border-radius: 12px;
+  background: rgb(239 246 255 / 95%);
+  color: var(--azul-principal, #6366f1);
+  font-weight: 600;
+  pointer-events: none;
+}
+.upload-validation-error { margin: 0 0 12px; color: #b91c1c; font-size: 13px; }
+
+.attachments-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: clamp(24px, 5vw, 56px) 16px;
+}
+
+.tag-filter { width: 240px; max-width: 100%; flex-shrink: 0; margin-bottom: 0; }
+@media (max-width: 640px) { .tag-filter { width: 100%; flex-shrink: 1; } }
 .attachments-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -846,12 +869,6 @@ async function handleMontageComplete(file) {
 .action-card.disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.empty-icon {
-  width: 100%;
-  display: flex;
-  justify-content: center;
 }
 
 .action-card.disabled:hover {
@@ -1077,21 +1094,6 @@ async function handleMontageComplete(file) {
 }
 .delete-button:hover {
   background-color: rgb(239, 68, 68);
-}
-
-.empty-attachments {
-  text-align: center;
-  padding: 3rem;
-  color: #9ca3af;
-}
-.empty-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 1rem 0 0.5rem;
-  color: #4b5563;
-}
-.empty-text {
-  font-size: 0.9rem;
 }
 
 .image-viewer-overlay {
@@ -1349,6 +1351,7 @@ async function handleMontageComplete(file) {
 
 .toolbar-main-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start; /* ✨ Mudado de space-between para flex-start */
   align-items: center;
   gap: 0.5rem; /* Menor gap entre search e tags */
@@ -1361,71 +1364,11 @@ async function handleMontageComplete(file) {
 
 .gallery-toolbar .search-box {
   width: 320px; /* Largura fixa ou flex-basis */
+  max-width: 100%;
   flex-shrink: 0;
 }
 
-/* Dropdown de Tags */
-.filter-dropdown-container {
-  position: relative;
-}
-
-.filter-count-badge {
-  background: #3b82f6;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  min-width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chevron-icon {
-  transition: transform 0.2s ease;
-  color: #9ca3af;
-}
-.chevron-icon.rotated {
-  transform: rotate(180deg);
-}
-
 /* Toolbar Button com Filtros Ativos (Sutil) */
-.toolbar-btn.has-filters {
-  color: #2563eb;
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.filter-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0; /* Alinha à esquerda pois agora está no começo da linha */
-  margin-top: 0.5rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 220px;
-  z-index: 50;
-  overflow: hidden;
-  animation: fadeIn 0.1s ease-out;
-}
-
-.dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: #f9fafb;
-}
 
 .upload-limits {
   font-size: 0.6rem;
@@ -1435,89 +1378,6 @@ async function handleMontageComplete(file) {
   width: 100%;
   line-height: 1.1;
   font-weight: 400;
-}
-
-.clear-filter-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-.clear-filter-btn:hover {
-  text-decoration: underline;
-}
-
-.dropdown-list {
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 0.5rem 0;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background 0.1s;
-  user-select: none;
-}
-
-.dropdown-item:hover {
-  background: #f3f4f6;
-}
-
-.dropdown-item.selected {
-  background: #eff6ff; /* Light Blue BG */
-}
-
-.dropdown-item.selected .tag-label {
-  color: #2563eb; /* Blue Text */
-  font-weight: 500;
-}
-
-.dropdown-item input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 0.25rem;
-  border: 1px solid #d1d5db; /* Gray-300 */
-  background-color: white;
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-  margin: 0;
-}
-
-.dropdown-item input[type="checkbox"]::before {
-  content: "";
-  width: 0.65rem;
-  height: 0.65rem;
-  transform: scale(0);
-  transition: 0.1s transform ease-in-out;
-  box-shadow: inset 1rem 1rem white; /* Icon color */
-  transform-origin: center;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-  background-color: white; /* Fallback */
-}
-
-.dropdown-item input[type="checkbox"]:checked {
-  background-color: #2563eb; /* Blue-600 */
-  border-color: #2563eb;
-}
-
-.dropdown-item input[type="checkbox"]:checked::before {
-  transform: scale(1);
-}
-
-.tag-label {
-  font-size: 0.875rem;
-  color: #374151;
-  text-transform: capitalize; /* ✨ Capitaliza as tags */
 }
 
 .toolbar-divider {
@@ -1530,15 +1390,6 @@ async function handleMontageComplete(file) {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scrollbar do dropdown */
-.dropdown-list::-webkit-scrollbar {
-  width: 4px;
-}
-.dropdown-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
 }
 
 .search-box {

@@ -33,11 +33,11 @@ export const assignAnamnesis = (patientId, payload) => {
 
 // Busca o formulário público usando o token do paciente
 export const getPublicAnamnesis = (token) => {
-  return apiClient.get(`/anamnesis/public/${token}`)
+  return apiClient.get(`/anamnesis/public/${token}`, { skipAuth: true })
 }
 
 export const submitPublicAnamnesis = (token, payload) => {
-  return apiClient.put(`/anamnesis/public/${token}`, payload)
+  return apiClient.put(`/anamnesis/public/${token}`, payload, { skipAuth: true })
 }
 
 // Busca todas as respostas de anamnese de um paciente
