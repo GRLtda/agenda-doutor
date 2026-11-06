@@ -3,10 +3,12 @@ import { mount, flushPromises } from '@vue/test-utils'
 import RecordAttachments from '@/components/pages/appointments/RecordAttachments.vue'
 
 const mocks = vi.hoisted(() => ({
-  upload: vi.fn(), start: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(),
+  upload: vi.fn(), attach: vi.fn(), start: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(),
 }))
-vi.mock('@/stores/records', () => ({ useRecordsStore: () => ({ uploadAttachmentImage: mocks.upload }) }))
-vi.mock('vue-toastification', () => ({ useToast: () => ({ upload: mocks.start }) }))
+vi.mock('@/stores/records', () => ({ useRecordsStore: () => ({ uploadAttachmentImage: mocks.upload, attachGalleryPhotos: mocks.attach }) }))
+vi.mock('vue-toastification', () => ({ useToast: () => ({ upload: mocks.start, success: mocks.success, error: mocks.error }) }))
+vi.mock('@/components/pages/patients/GalleryFolderSelect.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/views/pages/pacientes/components/PatientGalleryWorkspace.vue', () => ({ default: { props: ['maxSelection', 'excludedIds'], emits: ['choose'], template: '<div class="existing-photos" />' } }))
 vi.mock('@/components/pages/appointments/MontageEditor.vue', () => ({ default: { name: 'MontageEditor', emits: ['save'], template: '<div />' } }))
 vi.mock('@/components/pages/appointments/PhotoViewerUpload.vue', () => ({ default: {
   props: ['visible'], emits: ['upload'], template: '<div class="photo-viewer" :data-visible="visible" />',
@@ -17,6 +19,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.start.mockReturnValue({ update: mocks.update, success: mocks.success, error: mocks.error })
   mocks.upload.mockResolvedValue({ success: true })
+  mocks.attach.mockResolvedValue({ success: true })
 })
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
 function render(props = {}) {
@@ -119,4 +122,17 @@ it('fotos preparadas preservam metadados e montagens usam o mesmo progresso', as
   await flushPromises()
   expect(mocks.upload.mock.calls[1][3]).toMatchObject({ isMontage: true, onUploadProgress: expect.any(Function) })
   expect(mocks.start).toHaveBeenCalledTimes(2)
+})
+
+it('seletor da galeria respeita vagas e vincula as fotos existentes sem upload', async () => {
+  const wrapper = render({ record: { _id: 'record', attachments: [{ _id: 'attached' }] } })
+  await wrapper.get('.gallery-picker-card').trigger('click')
+  const picker = wrapper.getComponent('.existing-photos')
+  expect(picker.props('maxSelection')).toBe(39)
+  expect(picker.props('excludedIds')).toEqual(['attached'])
+  picker.vm.$emit('choose', ['existing'])
+  await flushPromises()
+  expect(mocks.attach).toHaveBeenCalledWith('record', ['existing'], { patientId: 'patient', appointmentId: 'appointment' })
+  expect(mocks.upload).not.toHaveBeenCalled()
+  expect(wrapper.find('.existing-photos').exists()).toBe(false)
 })

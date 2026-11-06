@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Prévia local da galeria</title><style>
+* { box-sizing: border-box; } body { margin: 0; background: #f1f5f9; color: #1e293b; font: 14px Inter, Arial, sans-serif; } :root { --azul-principal: #2563eb; --popover: white; --popover-foreground: #334155; --border: #e2e8f0; --muted: #f1f5f9; --radius: 10px; --muted-foreground: #64748b; } button, input, select, textarea { font-family: inherit; } .demo-controls { max-width: 1120px; margin: 20px auto; padding: 0 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; } .demo-controls button { padding: 9px 12px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; } .demo-controls p { color: #64748b; font-size: 12px; margin: 0; } .preview-host { max-width: 1120px; margin: 18px auto; padding: 0 18px; } .preview-host > div { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: white; } .mobile-preview { display: block; width: 390px; max-width: 100%; height: 780px; margin: auto; border: 1px solid #cbd5e1; border-radius: 16px; background: white; } .embedded .preview-host { margin: 0; padding: 0; } .embedded .demo-controls { display: none; } .embedded .preview-host > div { border: 0; border-radius: 0; }
+</style></head>
+<body><div id="app"></div><script type="module">
+import { createApp, h, ref } from 'vue'
+import { createPinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import api from '/src/api/index.js'
+import Gallery from '/src/views/pages/pacientes/components/PatientGalleryWorkspace.vue'
+import RecordAttachments from '/src/components/pages/appointments/RecordAttachments.vue'
+import { useRecordsStore } from '/src/stores/records.js'
+import AppToaster from '/src/components/global/AppToaster.vue'
+const embedded = new URLSearchParams(location.search).has('embedded')
+if (embedded) document.body.classList.add('embedded')
+const oid = number => number.toString(16).padStart(24, '0')
+const patientId = oid(1), appointmentId = oid(2)
+let folders = [{ _id: oid(10), name: 'Tratamento facial' }, { _id: oid(11), name: 'Antes e depois' }, { _id: oid(12), name: 'Evolução 2026' }]
+const art = (label, color, index) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="500" viewBox="0 0 600 500"><rect width="600" height="500" fill="${color}"/><circle cx="300" cy="210" r="110" fill="#fff" opacity=".6"/><path d="M180 380q120-140 240 0" fill="#fff" opacity=".6"/><circle cx="270" cy="200" r="7" fill="#7e8fa8"/><circle cx="330" cy="200" r="7" fill="#7e8fa8"/><path d="M280 250q20 15 40 0" fill="none" stroke="#7e8fa8" stroke-width="5"/><text x="30" y="464" font-family="Arial" font-size="20" fill="#475569">${label} · ${index + 1}</text></svg>`)}`
+let files = Array.from({ length: 27 }, (_, n) => ({ _id: oid(100 + n), fileType: 'image', galleryFolder: n % 4 === 3 ? null : folders[n % 3]._id, appointment: n % 2 === 0 ? { _id: appointmentId, type: 'Consulta de Avaliação', startTime: '2026-11-06T12:00:00Z' } : null, patient: { _id: patientId, name: 'Paciente de demonstração' }, createdAt: new Date(2026, 10, 6 - n).toISOString(), metadata: { originalName: `foto-evolucao-${n + 1}.webp`, description: ['Avaliação inicial', 'Evolução do tratamento', 'Registro de retorno'][n % 3], tags: n % 2 ? ['depois', 'frontal'] : ['antes', 'lateral'], sizeBytes: 158000 }, thumbnailUrl: art(['Antes', 'Evolução', 'Retorno'][n % 3], ['#dbeafe', '#e0e7ff', '#d1fae5'][n % 3], n), originalUrl: art('Prévia fictícia', '#e2e8f0', n) }))
+const pinia = createPinia()
+const store = useRecordsStore(pinia)
+store.currentRecord = { _id: 'record', patient: patientId, appointment: appointmentId, attachments: [files[0], files[1]] }
+api.interceptors.request.clear(); api.interceptors.response.clear()
+api.defaults.adapter = async config => {
+  const url = config.url, method = config.method, params = config.params || {}
+  const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+  let data
+  if (url.endsWith('/custom-folders') && method === 'get') data = { folders: folders.map(folder => ({ ...folder, fileCount: files.filter(file => file.galleryFolder === folder._id).length, cover: files.find(file => file.galleryFolder === folder._id) })) }
+  else if (url.endsWith('/custom-folders') && method === 'post') { const folder = { _id: oid(Date.now()), name: body.name }; folders.push(folder); data = { folder } }
+  else if (url.includes('/custom-folders/') && method === 'patch') { const folder = folders.find(folder => folder._id === url.split('/').pop()); folder.name = body.name; data = { folder } }
+  else if (url.includes('/custom-folders/') && method === 'delete') { const id = url.split('/').pop(); folders = folders.filter(folder => folder._id !== id); files.filter(file => file.galleryFolder === id).forEach(file => file.galleryFolder = null); data = {} }
+  else if (url.endsWith('/folders')) data = [{ folderId: 'all', folderName: 'Todas as mídias', fileCount: files.length }, { folderId: appointmentId, folderName: 'Consulta de Avaliação - 06/11/2026', appointmentStatus: 'Iniciado', fileCount: 14 }]
+  else if (url.endsWith('/tags')) data = { tags: ['antes', 'depois', 'frontal', 'lateral'].map(name => ({ name, count: 10 })) }
+  else if (url.endsWith('/files/folder')) { files.filter(file => body.uploadIds.includes(file._id)).forEach(file => file.galleryFolder = body.folderId); data = {} }
+  else if (url.endsWith('/files')) { let filtered = files.filter(file => (!params.folderId || (params.folderId === 'unfiled' ? !file.galleryFolder : file.galleryFolder === params.folderId)) && (!params.appointmentId || file.appointment?._id === params.appointmentId) && (!params.search || JSON.stringify(file.metadata).toLowerCase().includes(params.search.toLowerCase())) && (!params.tags || params.tags.split(',').some(tag => file.metadata.tags.includes(tag))) && (!params.from || file.createdAt >= params.from) && (!params.to || file.createdAt < params.to)); const page = params.page || 1, limit = params.limit || 20; data = { files: filtered.slice((page - 1) * limit, page * limit), pagination: { total: filtered.length, page, limit, totalPages: Math.ceil(filtered.length / limit) || 1 } } }
+  else if (url.startsWith('/gallery/item/')) { const file = files.find(file => file._id === url.split('/').pop()); data = { ...file, signedUrl: file.originalUrl, linkedAppointments: file.appointment ? [file.appointment] : [] } }
+  else if (url === '/uploads/image') { const file = body.get('image'), imageUrl = URL.createObjectURL(file); const saved = { _id: oid(Date.now()), fileType: 'image', galleryFolder: body.get('galleryFolder'), createdAt: new Date().toISOString(), patient: { _id: patientId, name: 'Paciente de demonstração' }, metadata: { originalName: file.name, tags: JSON.parse(body.get('tags') || '[]'), description: body.get('description') }, thumbnailUrl: imageUrl, originalUrl: imageUrl }; files.unshift(saved); config.onUploadProgress?.({ loaded: 1, total: 1 }); data = { uploadId: saved._id } }
+  else if (url === '/records/record/attachments') { const selected = files.filter(file => body.uploadIds.includes(file._id) && !store.currentRecord.attachments.some(att => att._id === file._id)); data = { ...store.currentRecord, attachments: [...store.currentRecord.attachments, ...selected] } }
+  else if (url.startsWith('/uploads/') && method === 'delete') { const id = url.split('/').pop(); if (store.currentRecord.attachments.some(file => file._id === id)) throw { response: { data: { message: 'Desvincule o arquivo dos atendimentos antes de excluí-lo.' } } }; files = files.filter(file => file._id !== id); data = {} }
+  else throw new Error(`Operação não simulada: ${method} ${url}`)
+  return { data, status: 200, statusText: 'OK', headers: {}, config }
+}
+const mode = ref('gallery')
+const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }, { path: '/atendimento/:appointmentId/:patientId', name: 'atendimento-em-andamento', component: { template: '<div>Atendimento de demonstração</div>' } }] })
+await router.push('/')
+createApp({ render: () => h('main', [!embedded && h('div', { class: 'demo-controls' }, [h('button', { onClick: () => mode.value = 'gallery' }, 'Galeria do paciente'), h('button', { onClick: () => mode.value = 'attendance' }, 'Atendimento'), h('button', { onClick: () => mode.value = 'mobile' }, 'Celular'), h('p', 'Prévia local com dados fictícios. Nenhum serviço externo é alterado.')]), mode.value === 'mobile' ? h('iframe', { class: 'mobile-preview', src: './gallery-preview.html?embedded=1', title: 'Prévia em celular de 390 pixels' }) : h('div', { class: 'preview-host' }, [h('div', {}, [mode.value === 'gallery' ? h(Gallery, { patientId }) : h(RecordAttachments, { patientId, appointmentId, record: store.currentRecord })])]), h(AppToaster)]) }).use(pinia).use(router).mount('#app')
+</script></body></html>

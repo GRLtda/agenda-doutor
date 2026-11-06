@@ -1,5 +1,5 @@
 <script setup>
-import { useId } from 'vue'
+import { onMounted, ref, useId } from 'vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { CalendarDays, X } from 'lucide-vue-next'
@@ -13,6 +13,9 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 const errorId = useId()
+const root = ref(null)
+const dropdownTarget = ref('body')
+onMounted(() => { dropdownTarget.value = root.value?.closest('dialog') || 'body' })
 
 function formatDate(date) {
   return date instanceof Date && !Number.isNaN(date.getTime())
@@ -30,7 +33,7 @@ function updateRange(value) {
 </script>
 
 <template>
-  <div class="app-date-range">
+  <div ref="root" class="app-date-range">
     <span v-if="label" class="range-label">{{ label }}</span>
     <div class="range-controls">
       <VueDatePicker
@@ -41,7 +44,7 @@ function updateRange(value) {
         locale="pt-BR"
         format="dd/MM/yyyy"
         auto-apply
-        teleport="body"
+        :teleport="dropdownTarget"
         :z-index="12000"
         :clearable="false"
         :disabled="disabled"

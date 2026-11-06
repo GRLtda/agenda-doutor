@@ -12,12 +12,15 @@ import { MoreHorizontal } from 'lucide-vue-next'
 const props = defineProps({
   disabled: { type: Boolean, default: false },
   menuWidth: { type: String, default: '180px' },
+  contextMenu: { type: Boolean, default: false },
 })
 const menuId = Symbol('actions-menu')
 const isOpen = computed(() => activeMenu.value === menuId)
 const trigger = ref(null)
 const panel = ref(null)
 const panelStyle = ref({})
+const contextPoint = ref(null)
+let contextTrigger = null
 
 function close() {
   if (isOpen.value) activeMenu.value = null
@@ -27,9 +30,37 @@ function toggle() {
   if (!props.disabled) activeMenu.value = isOpen.value ? null : menuId
 }
 
+function openContextMenu(event) {
+  if (!props.contextMenu || props.disabled) return
+  event.preventDefault()
+  contextTrigger = event.target.closest('button') || event.currentTarget.querySelector('button')
+  const keyboard = event.type === 'keydown'
+  const rect = contextTrigger?.getBoundingClientRect()
+  contextPoint.value = keyboard
+    ? { x: rect?.left || 0, y: rect?.bottom || 0 }
+    : { x: event.clientX, y: event.clientY }
+  activeMenu.value = menuId
+  updatePosition()
+  nextTick(() => panel.value?.querySelector('button:not(:disabled), a[href]')?.focus())
+}
+
+function handleContextKey(event) {
+  if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openContextMenu(event)
+}
+
 async function updatePosition() {
   await nextTick()
-  if (!isOpen.value || !trigger.value || !panel.value) return
+  if (!isOpen.value || !panel.value) return
+  if (contextPoint.value) {
+    const { width, height } = panel.value.getBoundingClientRect()
+    panelStyle.value = {
+      left: `${Math.max(8, Math.min(contextPoint.value.x, window.innerWidth - width - 8))}px`,
+      top: `${Math.max(8, Math.min(contextPoint.value.y, window.innerHeight - height - 8))}px`,
+      visibility: 'visible',
+    }
+    return
+  }
+  if (!trigger.value) return
   const rect = trigger.value.getBoundingClientRect()
   if (!rect.width || rect.bottom < 0 || rect.top > window.innerHeight) return close()
   const { width, height } = panel.value.getBoundingClientRect()
@@ -49,15 +80,35 @@ function handleOutside(event) {
 function handleKey(event) {
   if (event.key === 'Escape') {
     close()
-    trigger.value?.focus()
+    ;(contextTrigger || trigger.value)?.focus()
   }
+  if (props.contextMenu && event.key === 'Tab') close()
+  if (props.contextMenu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault()
+    const items = [...(panel.value?.querySelectorAll('button:not(:disabled), a[href]') || [])]
+    if (!items.length) return
+    const current = items.indexOf(document.activeElement)
+    const next =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+    items[next]?.focus()
+  }
+}
+
+function handleViewportChange() {
+  if (props.contextMenu) close()
+  else updatePosition()
 }
 
 function removeListeners() {
   document.removeEventListener('click', handleOutside, true)
+  document.removeEventListener('contextmenu', handleOutside, true)
   document.removeEventListener('keydown', handleKey)
-  window.removeEventListener('scroll', updatePosition, true)
-  window.removeEventListener('resize', updatePosition)
+  window.removeEventListener('scroll', handleViewportChange, true)
+  window.removeEventListener('resize', handleViewportChange)
 }
 
 watch(isOpen, (open) => {
@@ -66,9 +117,10 @@ watch(isOpen, (open) => {
   panelStyle.value = { visibility: 'hidden' }
   updatePosition()
   document.addEventListener('click', handleOutside, true)
+  document.addEventListener('contextmenu', handleOutside, true)
   document.addEventListener('keydown', handleKey)
-  window.addEventListener('scroll', updatePosition, true)
-  window.addEventListener('resize', updatePosition)
+  window.addEventListener('scroll', handleViewportChange, true)
+  window.addEventListener('resize', handleViewportChange)
 })
 watch(
   () => props.disabled,
@@ -83,24 +135,33 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="actions-wrapper" @click.stop>
-    <button
-      ref="trigger"
-      type="button"
-      class="btn-icon"
-      aria-label="Abrir ações"
-      :aria-expanded="isOpen"
-      :disabled="disabled"
-      @click.stop="toggle"
-    >
-      <MoreHorizontal :size="20" />
-    </button>
+  <div
+    class="actions-wrapper"
+    @click.stop
+    @contextmenu="openContextMenu"
+    @keydown="handleContextKey"
+  >
+    <slot name="trigger">
+      <button
+        v-if="!contextMenu"
+        ref="trigger"
+        type="button"
+        class="btn-icon"
+        aria-label="Abrir ações"
+        :aria-expanded="isOpen"
+        :disabled="disabled"
+        @click.stop="toggle"
+      >
+        <MoreHorizontal :size="20" />
+      </button>
+    </slot>
     <Teleport to="body">
       <Transition name="fade">
         <div
           v-if="isOpen"
           ref="panel"
           class="actions-dropdown"
+          :role="contextMenu ? 'menu' : undefined"
           :style="{ width: menuWidth, ...panelStyle }"
           @click.stop
         >

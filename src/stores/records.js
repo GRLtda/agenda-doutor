@@ -12,6 +12,7 @@ import {
   removeProcedureFromRecord as apiRemoveProcedureFromRecord,
 } from '@/api/records'
 import apiClient from '@/api'
+import { galleryError } from '@/api/gallery'
 
 export const useRecordsStore = defineStore('records', () => {
   const currentRecord = ref(null)
@@ -97,18 +98,33 @@ export const useRecordsStore = defineStore('records', () => {
     if (options.tags && options.tags.length > 0) {
       formData.append('tags', JSON.stringify(options.tags))
     }
+    if (options.galleryFolder) formData.append('galleryFolder', options.galleryFolder)
 
     try {
       const response = await apiClient.post(`/records/${currentRecordId}/attachments/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: options.onUploadProgress,
       })
-      currentRecord.value = response.data.record
+      if (!currentRecord.value || currentRecord.value._id === currentRecordId) currentRecord.value = response.data.record
       return { success: true, data: response.data }
     } catch (err) {
-      const errorMessage = storageUploadError(err) || err.response?.data?.message || 'Erro no upload do anexo.'
+      const errorMessage = storageUploadError(err) || galleryError(err)
       return { success: false, error: errorMessage }
     }
+  }
+
+  async function attachGalleryPhotos(recordId, uploadIds, draftData) {
+    let id = recordId
+    if (!id) {
+      const result = await createRecord({ ...draftData, content: '<p>Rascunho inicial.</p>' })
+      if (!result.success) return result
+      id = result.data._id
+    }
+    try {
+      const { data } = await apiClient.post(`/records/${id}/attachments`, { uploadIds })
+      if (!currentRecord.value || currentRecord.value._id === id) currentRecord.value = data
+      return { success: true, data }
+    } catch (cause) { return { success: false, error: galleryError(cause) } }
   }
 
   // ✨ 2. Action corrigida para usar a função e os argumentos corretos
@@ -125,7 +141,7 @@ export const useRecordsStore = defineStore('records', () => {
       )
       return { success: true }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Erro ao excluir o anexo.'
+      const errorMessage = galleryError(err)
       return { success: false, error: errorMessage }
     }
   }
@@ -182,7 +198,7 @@ export const useRecordsStore = defineStore('records', () => {
     } catch (err) {
       // 2. Fallback: Restaura estado original em caso de erro
       currentRecord.value.attachments = originalAttachments
-      const errorMessage = err.response?.data?.message || 'Erro ao excluir anexos.'
+      const errorMessage = galleryError(err)
       return { success: false, error: errorMessage }
     }
   }
@@ -227,6 +243,7 @@ export const useRecordsStore = defineStore('records', () => {
     fetchRecordByAppointmentId,
     updateRecord,
     uploadAttachmentImage,
+    attachGalleryPhotos,
     deleteAttachment,
     deleteAttachmentsBulk,
     addProcedureToRecord,

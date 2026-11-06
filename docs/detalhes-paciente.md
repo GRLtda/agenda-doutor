@@ -1,5 +1,7 @@
 # Detalhes do paciente
 
+A aba Galeria agora permite upload direto, pastas personalizadas e integração com os anexos dos atendimentos. Contratos, regras de preservação e verificação em [Galeria dos pacientes](galeria-pacientes.md).
+
 Enquanto o paciente é consultado e ainda não há dados, a tela usa `AppSkeleton`
 no lugar do texto de carregamento: avatar, nome, contato, ações, navegação de abas
 e campos das seções. O skeleton reutiliza o layout final, com navegação lateral em

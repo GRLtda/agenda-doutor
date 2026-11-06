@@ -7,6 +7,7 @@ const props = defineProps({
   totalPages: { type: Number, required: true },
   totalItems: { type: Number, required: true },
   limit: { type: Number, default: 10 },
+  showPageJump: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['page-change'])
@@ -82,14 +83,15 @@ const summaryText = computed(() => {
           <button v-else type="button" class="btn-page" :class="{ active: page === currentPage }" :aria-label="`Página ${page}`" :aria-current="page === currentPage ? 'page' : undefined" @click="changePage(page)">{{ page }}</button>
         </template>
       </div>
-      <form class="page-jump mobile-jump" @submit.prevent="submitPage">
+      <form v-if="showPageJump" class="page-jump mobile-jump" @submit.prevent="submitPage">
         <input v-model="pageDraft" type="text" inputmode="numeric" aria-label="Número da página" @input="pageDraft = pageDraft.replace(/\D/g, '')" @blur="submitPage" @keydown.enter.prevent="$event.target.blur()" />
         <span>/ {{ totalPages }}</span>
       </form>
+      <span v-if="!showPageJump" class="mobile-page" aria-label="Página atual">{{ currentPage }} / {{ totalPages }}</span>
       <button type="button" class="btn-nav" :disabled="isLastPage" aria-label="Próxima página" title="Próxima página" @click="changePage(currentPage + 1)"><ChevronRight :size="16" /></button>
       <button type="button" class="btn-nav" :disabled="isLastPage" aria-label="Última página" title="Última página" @click="changePage(totalPages)"><ChevronsRight :size="16" /></button>
     </div>
-    <form class="page-jump desktop-jump" @submit.prevent="submitPage"><span>Página</span><input v-model="pageDraft" type="text" inputmode="numeric" aria-label="Número da página" @input="pageDraft = pageDraft.replace(/\D/g, '')" @blur="submitPage" @keydown.enter.prevent="$event.target.blur()" /><span>de {{ totalPages }}</span></form>
+    <form v-if="showPageJump" class="page-jump desktop-jump" @submit.prevent="submitPage"><span>Página</span><input v-model="pageDraft" type="text" inputmode="numeric" aria-label="Número da página" @input="pageDraft = pageDraft.replace(/\D/g, '')" @blur="submitPage" @keydown.enter.prevent="$event.target.blur()" /><span>de {{ totalPages }}</span></form>
   </nav>
 </template>
 

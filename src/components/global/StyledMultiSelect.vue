@@ -19,6 +19,7 @@ const selectButtonRef = ref(null)
 const optionsListRef = ref(null)
 const searchInputRef = ref(null)
 const dropdownStyle = ref({})
+const dropdownTarget = ref('body')
 
 const selectedItems = computed(() => {
   if (!props.modelValue || props.modelValue.length === 0) return []
@@ -74,6 +75,7 @@ const handleClickOutside = (event) => {
 
 watch(isOpen, (newValue) => {
   if (newValue) {
+    dropdownTarget.value = selectButtonRef.value?.closest('dialog') || 'body'
     updateDropdownPosition()
     window.addEventListener('scroll', updateDropdownPosition, true)
     window.addEventListener('resize', updateDropdownPosition)
@@ -175,7 +177,7 @@ function clearAll(event) {
         </div>
       </button>
 
-      <Teleport to="body">
+      <Teleport :to="dropdownTarget">
         <Transition name="fade">
           <div v-if="isOpen" ref="optionsListRef" class="options-dropdown" :style="dropdownStyle" @keydown.esc.prevent="isOpen = false; selectButtonRef?.focus()">
             <!-- Search input -->

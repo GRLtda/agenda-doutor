@@ -2,12 +2,16 @@
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import AttachmentsEmptyIllustration from './AttachmentsEmptyIllustration.vue'
 import StyledMultiSelect from '@/components/global/StyledMultiSelect.vue'
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRecordsStore } from '@/stores/records'
-import { ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
+import { Images, ImageOff, UploadCloud, X, Calendar, Trash2, LayoutGrid, Loader2, Copy, AlertTriangle, FileText, Search, CheckSquare, Download, Check } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import MontageEditor from './MontageEditor.vue'
 import PhotoViewerUpload from './PhotoViewerUpload.vue'
+import GalleryFolderSelect from '@/components/pages/patients/GalleryFolderSelect.vue'
+import GalleryDialog from '@/components/global/GalleryDialog.vue'
+import PatientGalleryWorkspace from '@/views/pages/pacientes/components/PatientGalleryWorkspace.vue'
+import { compressImage, MAX_IMAGE_BYTES as MAX_FILE_SIZE_BYTES, IMAGE_ACCEPT, isSupportedPhoto } from '@/utils/imageUpload'
 
 const props = defineProps({
   record: {
@@ -41,7 +45,23 @@ const showPhotoViewer = ref(false)
 const pendingFiles = ref([])
 const dragDepth = ref(0)
 const uploadValidationError = ref('')
-const canUpload = computed(() => !props.disabled && !isUploading.value && !showPhotoViewer.value && !showMontageEditor.value)
+const showGalleryPicker = ref(false)
+const galleryFolder = ref('')
+const isLinking = ref(false)
+const failedUploads = ref([])
+const canUpload = computed(() => !props.disabled && !isUploading.value && !isLinking.value && !showGalleryPicker.value && !showPhotoViewer.value && !showMontageEditor.value)
+watch(() => props.patientId, () => { galleryFolder.value = ''; failedUploads.value = []; showGalleryPicker.value = false; showPhotoViewer.value = false; pendingFiles.value = [] })
+
+async function attachExisting(uploadIds) {
+  if (props.disabled || isLinking.value || !uploadIds.length) return
+  isLinking.value = true
+  try {
+    const result = await recordsStore.attachGalleryPhotos(props.record?._id, uploadIds, { patientId: props.patientId, appointmentId: props.appointmentId })
+    if (result.success) { showGalleryPicker.value = false; toast.success('Fotos anexadas ao atendimento.') }
+    else toast.error(result.error)
+  } catch (error) { toast.error(error.message || 'Não foi possível anexar as fotos.') }
+  finally { isLinking.value = false }
+}
 
 // Filtering & Selection State
 const searchQuery = ref('')
@@ -118,7 +138,7 @@ async function handleBulkDelete() {
   const count = selectedAttachmentIds.value.size
   if (count === 0) return
 
-  if (!window.confirm(`Tem certeza que deseja excluir ${count} foto(s)?`)) {
+  if (!window.confirm(`Desvincular ${count} foto(s) deste atendimento? Elas continuarão disponíveis na galeria do paciente.`)) {
     return
   }
 
@@ -133,9 +153,9 @@ async function handleBulkDelete() {
   const { success, error } = await recordsStore.deleteAttachmentsBulk(ids)
 
   if (success) {
-    toast.success(`${count} foto(s) excluída(s).`)
+    toast.success(`${count} foto(s) desvinculada(s).`)
   } else {
-    toast.error(error || `Falha ao excluir foto(s).`)
+    toast.error(error || `Falha ao desvincular foto(s).`)
   }
 
   isUploading.value = false
@@ -275,74 +295,6 @@ URL Expira em: ${attachment.expiresIn ? attachment.expiresIn + 's' : '—'}
 }
 
 const MAX_FILE_SIZE_MB = 10
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-
-/**
- * Comprime uma imagem para no máximo 10MB usando Canvas API
- * Reduz qualidade progressivamente até atingir o tamanho alvo
- */
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const reader = new FileReader()
-
-    reader.onload = (e) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-
-        let { width, height } = img
-        const maxDimension = 4096
-        
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width)
-            width = maxDimension
-          } else {
-            width = Math.round((width * maxDimension) / height)
-            height = maxDimension
-          }
-        }
-
-        canvas.width = width
-        canvas.height = height
-        ctx.drawImage(img, 0, 0, width, height)
-
-        const tryCompress = (quality) => {
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('Falha ao comprimir imagem'))
-                return
-              }
-
-              if (blob.size <= MAX_FILE_SIZE_BYTES || quality <= 0.3) {
-                const compressedFile = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                })
-                resolve(compressedFile)
-              } else {
-                tryCompress(quality - 0.05)
-              }
-            },
-            'image/jpeg',
-            quality
-          )
-        }
-
-        tryCompress(0.95)
-      }
-
-      img.onerror = () => reject(new Error('Falha ao carregar imagem'))
-      img.src = e.target.result
-    }
-
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
-    reader.readAsDataURL(file)
-  })
-}
-
 function openImageViewer(attachment) {
   // Inicia carregamento da imagem real
   isImageLoading.value = true
@@ -367,8 +319,8 @@ function triggerFileUpload() {
 }
 function validateFiles(files) {
   uploadValidationError.value = ''
-  if (files.some(file => !file.type.startsWith('image/'))) {
-    uploadValidationError.value = 'Selecione apenas arquivos de imagem.'
+  if (files.some(file => !isSupportedPhoto(file))) {
+    uploadValidationError.value = 'Selecione apenas arquivos de imagem PNG, JPG ou WEBP.'
     return false
   }
   if ((props.record?.attachments?.length || 0) + files.length > MAX_ATTACHMENTS) {
@@ -423,6 +375,10 @@ async function handlePhotoViewerUpload(photosWithMetadata) {
   let lastError = ''
   let recordId = props.record?._id
   const notification = toast.upload({ title: 'Subindo arquivo', progress: 0 })
+  const destinationFolder = galleryFolder.value
+  const patientId = props.patientId
+  const appointmentId = props.appointmentId
+  const failures = []
 
   try {
     // Upload sequential to avoid overwhelming the server/browser
@@ -447,6 +403,7 @@ async function handlePhotoViewerUpload(photosWithMetadata) {
           console.error('[RecordAttachments] Erro ao comprimir imagem:', err)
           lastError = `Falha ao comprimir imagem: ${file.name}`
           errorCount++
+          failures.push(photoData)
           continue
         } finally {
           isCompressing.value = false
@@ -456,16 +413,17 @@ async function handlePhotoViewerUpload(photosWithMetadata) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
         lastError = `A imagem ${file.name} continua maior que ${MAX_FILE_SIZE_MB} MB após a compressão.`
         errorCount++
+        failures.push(photoData)
         continue
       }
       notification.update({ description: label, progress: index / photosWithMetadata.length * 100 })
-      recordId = props.record?._id || recordId
       const { success, error: uploadError, data } = await recordsStore.uploadAttachmentImage(
         recordId,
         file,
-        { patientId: props.patientId, appointmentId: props.appointmentId },
+        { patientId, appointmentId },
         {
           wasCompressed, description, tags, isMontage,
+          galleryFolder: destinationFolder,
           onUploadProgress: (event) => {
             const fraction = event.total > 0 ? event.loaded / event.total : event.progress
             notification.update({
@@ -481,6 +439,7 @@ async function handlePhotoViewerUpload(photosWithMetadata) {
         recordId = data?.record?._id || recordId
       } else {
         errorCount++
+        failures.push(photoData)
         lastError = uploadError || 'Erro no upload do anexo.'
       }
     }
@@ -494,6 +453,7 @@ async function handlePhotoViewerUpload(photosWithMetadata) {
   } catch (error) {
     notification.error('Falha ao enviar imagem', error?.message || 'Tente novamente.')
   } finally {
+    if (patientId === props.patientId && appointmentId === props.appointmentId) failedUploads.value = failures
     isUploading.value = false
     isCompressing.value = false
   }
@@ -506,16 +466,16 @@ function handlePhotoViewerClose() {
 
 async function handleDeleteAttachment(uploadId) {
   if (props.disabled) return
-  if (!window.confirm('Tem certeza que deseja excluir esta imagem?')) {
+  if (!window.confirm('Desvincular esta imagem do atendimento? Ela continuará disponível na galeria do paciente.')) {
     return
   }
 
   const { success, error } = await recordsStore.deleteAttachment(uploadId)
 
   if (success) {
-    toast.success('Imagem excluída com sucesso!')
+    toast.success('Imagem desvinculada. Ela continua na galeria do paciente.')
   } else {
-    toast.error(error || 'Não foi possível excluir a imagem.')
+    toast.error(error || 'Não foi possível desvincular a imagem.')
   }
 }
 
@@ -539,6 +499,8 @@ async function handleMontageComplete(file) {
       <span>Solte as imagens para enviar</span>
     </div>
     <p v-if="uploadValidationError" class="upload-validation-error" role="alert">{{ uploadValidationError }}</p>
+    <div v-if="!disabled" class="attachment-folder-field"><GalleryFolderSelect v-model="galleryFolder" :patient-id="patientId" :disabled="!canUpload" label="Pasta para novas fotos" /></div>
+    <div v-if="failedUploads.length" class="upload-validation-error" role="alert">{{ failedUploads.length }} foto(s) com falha. <button :disabled="!canUpload" @click="handlePhotoViewerUpload(failedUploads)">Reenviar com falha</button></div>
     <!-- Toolbar de Filtro e Seleção -->
     <div class="gallery-toolbar" v-if="!disabled && (record?.attachments?.length > 0 || searchQuery)">
       <div class="toolbar-main-row">
@@ -600,7 +562,7 @@ async function handleMontageComplete(file) {
             <LayoutGrid :size="18" />
           </button>
           <div class="bulk-divider"></div>
-          <button @click="handleBulkDelete" class="bulk-btn delete" title="Excluir selecionadas">
+          <button @click="handleBulkDelete" class="bulk-btn delete" title="Desvincular selecionadas">
             <Trash2 :size="18" />
           </button>
         </div>
@@ -633,6 +595,8 @@ async function handleMontageComplete(file) {
           <span class="upload-limits">Máx: {{ MAX_ATTACHMENTS }} Fotos</span>
         </div>
       </div>
+
+      <button v-if="!disabled" type="button" class="action-card gallery-picker-card" :disabled="!canUpload || hasReachedLimit" @click="showGalleryPicker = true"><div class="action-content"><Images :size="24" /><span>Escolher da galeria</span><span class="upload-limits">Usar fotos já adicionadas</span></div></button>
 
       <!-- Botão de Montagem -->
       <div
@@ -697,12 +661,13 @@ async function handleMontageComplete(file) {
                 <Calendar :size="10" />
                 <span>{{ formatDate(attachment.createdAt) }}</span>
             </div>
+            <span class="attachment-origin">{{ String(attachment.appointment?._id || attachment.appointment || '') === appointmentId ? 'Deste atendimento' : 'Da galeria do paciente' }}</span>
           </div>
           <button
             v-if="!disabled"
             class="delete-button"
             @click.stop="handleDeleteAttachment(attachment._id)"
-            title="Excluir imagem"
+            title="Desvincular imagem do atendimento"
           >
             <Trash2 :size="16" />
           </button>
@@ -727,7 +692,7 @@ async function handleMontageComplete(file) {
       type="file"
       ref="fileInput"
       @change="handleFileUpload"
-      accept="image/*"
+      :accept="IMAGE_ACCEPT"
       multiple
       hidden
       :disabled="!canUpload || hasReachedLimit"
@@ -749,7 +714,9 @@ async function handleMontageComplete(file) {
       :max-attachments="MAX_ATTACHMENTS"
       @close="handlePhotoViewerClose"
       @upload="handlePhotoViewerUpload"
-    />
+    ><template #destination><div class="attachment-upload-destination"><GalleryFolderSelect v-model="galleryFolder" :patient-id="patientId" dark /></div></template></PhotoViewerUpload>
+
+    <GalleryDialog :open="showGalleryPicker" title="Escolher fotos da galeria" wide :busy="isLinking" @close="showGalleryPicker = false"><PatientGalleryWorkspace v-if="showGalleryPicker" :patient-id="patientId" picker :max-selection="MAX_ATTACHMENTS - (record?.attachments?.length || 0)" :excluded-ids="(record?.attachments || []).map(file => file._id)" :submitting="isLinking" @choose="attachExisting" @cancel="showGalleryPicker = false" /></GalleryDialog>
 
     <Transition name="fade">
       <div v-if="selectedImage" class="image-viewer-overlay" @click.self="closeImageViewer">
@@ -825,6 +792,11 @@ async function handleMontageComplete(file) {
 </template>
 
 <style scoped>
+.attachment-folder-field { width: min(380px, 100%); margin-bottom: 16px; }
+.attachment-upload-destination { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #ffffff1a; }
+.gallery-picker-card { background: transparent; font: inherit; width: 100%; }
+.attachment-origin { font-size: 9px; opacity: .85; }
+
 .attachments-container {
   position: relative;
   display: flex;

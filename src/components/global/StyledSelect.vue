@@ -9,6 +9,8 @@ const props = defineProps({
   required: { type: Boolean, default: false },
   error: { type: [Boolean, String], default: false },
   placeholder: { type: String, default: 'Selecione' },
+  disabled: { type: Boolean, default: false },
+  dark: { type: Boolean, default: false },
   dropdownMinWidth: { type: Number, default: 0 },
   dropdownDirection: {
     type: String,
@@ -16,12 +18,13 @@ const props = defineProps({
     validator: (value) => ['auto', 'up', 'down'].includes(value)
   },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'open'])
 
 const isOpen = ref(false)
 const selectButtonRef = ref(null)
 const optionsListRef = ref(null) // 2. Criar ref para a lista de opções
 const dropdownStyle = ref({})
+const dropdownTarget = ref('body')
 const isDropdownUpward = ref(false)
 const isPositioned = ref(false)
 const listId = useId()
@@ -105,6 +108,8 @@ const handleClickOutside = (event) => {
 // 4. Atualizar o watch para adicionar e remover o listener de clique
 watch(isOpen, (newValue) => {
   if (newValue) {
+    dropdownTarget.value = selectButtonRef.value?.closest('dialog') || 'body'
+    emit('open')
     activeIndex.value = props.options.findIndex(option => option.value === props.modelValue)
     isPositioned.value = false
     dropdownStyle.value = {}
@@ -126,6 +131,8 @@ watch(isOpen, (newValue) => {
 })
 
 // 5. Garantir a remoção do listener quando o componente for destruído
+watch(() => props.disabled, disabled => { if (disabled) isOpen.value = false })
+watch(() => props.options, () => { if (isOpen.value) updateDropdownPosition() })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('scroll', updateDropdownPosition, true)
@@ -133,11 +140,13 @@ onUnmounted(() => {
 })
 
 function selectOption(option) {
+  if (props.disabled) return
   emit('update:modelValue', option.value)
   isOpen.value = false
 }
 
 function handleKeydown(event) {
+  if (props.disabled) return
   if (event.key === 'Escape') {
     isOpen.value = false
     return
@@ -171,7 +180,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="form-group">
+  <div class="form-group" :class="{ 'is-dark': dark }">
     <label v-if="label" class="form-label">
       <slot name="label-prefix"></slot>
       {{ label }}
@@ -186,6 +195,7 @@ defineExpose({
         aria-haspopup="listbox"
         :aria-label="label || placeholder"
         :aria-expanded="isOpen"
+        :disabled="disabled"
         :aria-controls="isOpen ? listId : undefined"
         :aria-activedescendant="isOpen && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined"
         :class="{ 'has-error': !!error }"
@@ -209,7 +219,7 @@ defineExpose({
         <ChevronDown :size="16" class="arrow-icon" :class="{ 'is-open': isOpen }" />
       </button>
 
-      <Teleport to="body">
+      <Teleport :to="dropdownTarget">
         <Transition name="fade">
           <ul
             v-if="isOpen"
@@ -218,7 +228,7 @@ defineExpose({
             role="listbox"
             :aria-label="label || placeholder"
             class="options-list"
-            :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned }"
+            :class="{ 'opens-upward': isDropdownUpward, 'is-positioned': isPositioned, 'is-dark': dark }"
             :style="dropdownStyle"
           >
             <li v-if="options.length === 0" class="no-options">
@@ -264,6 +274,11 @@ defineExpose({
 </template>
 
 <style scoped>
+.select-button:disabled { opacity: .5; cursor: not-allowed; }
+.is-dark .form-label { color: #b7bec9; }
+.is-dark .select-button, .options-list.is-dark { background: #202124; border-color: #414349; color: #f1f5f9; }
+.options-list.is-dark .option-item:hover, .options-list.is-dark .option-item.is-active { background: #32353a; }
+.is-dark .arrow-icon { color: #b7bec9; }
 .option-item.is-active { background-color: #f3f4f6; }
 .form-group {
   text-align: left;
