@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, History, Maximize2, Minimize2, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
@@ -31,6 +31,15 @@ const nearBottom = ref(true)
 const copiedId = ref(null)
 const copyError = ref('')
 const openedAt = ref(Date.now())
+const reaction = ref('attentive')
+let reactionTimer
+let previousActions = new Map()
+const avatarState = computed(() => {
+  if (liaStore.isSending) return liaStore.streamText || ['writing', 'done'].includes(liaStore.streamStatus?.phase) ? 'responding' : 'thinking'
+  const last = liaStore.messages.at(-1)
+  if (liaStore.error || last?.status === 'failed' || last && messageConfirmations(last).some(card => card.status === 'failed')) return 'error'
+  return reaction.value
+})
 const canSend = computed(() => input.value.trim().length > 0 && !liaStore.isSending && liaStore.isAvailable)
 const firstName = computed(() => authStore.user?.name?.trim().split(/\s+/)[0] || '')
 const greeting = computed(() => {
@@ -49,6 +58,20 @@ const suggestions = computed(() => [
 ])
 const patientOptions = message => (message.metadata?.patientOptions || []).map(patient => ({ value: patient.id, label: `${patient.name}${patient.phone ? ` · ${patient.phone}` : ''}` }))
 const messageConfirmations = message => message.metadata?.confirmations?.length ? message.metadata.confirmations : message.metadata?.confirmation ? [message.metadata.confirmation] : []
+watch(() => liaStore.isSending, (sending, wasSending) => {
+  clearTimeout(reactionTimer)
+  reaction.value = 'attentive'
+  if (sending) { previousActions = new Map(liaStore.messages.flatMap(messageConfirmations).map(card => [card.id, card.status])); return }
+  if (!wasSending || !props.open || liaStore.error) return
+  const changed = liaStore.messages.flatMap(messageConfirmations).filter(card => previousActions.get(card.id) !== card.status)
+  if (changed.some(card => card.status === 'failed')) reaction.value = 'error'
+  else if (changed.some(card => card.status === 'success')) reaction.value = 'success'
+  else if (liaStore.messages.at(-1)?.metadata?.patientOptions?.length > 1) reaction.value = 'surprised'
+  else if (liaStore.messages.at(-1)?.role === 'assistant') reaction.value = 'responding'
+  reactionTimer = setTimeout(() => { reaction.value = 'attentive' }, reaction.value === 'success' ? 3200 : reaction.value === 'surprised' ? 2600 : 4200)
+})
+watch(() => props.open, open => { if (!open) { clearTimeout(reactionTimer); reaction.value = 'attentive' } })
+onBeforeUnmount(() => clearTimeout(reactionTimer))
 const messageTime = value => value && !Number.isNaN(new Date(value).getTime()) ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : ''
 async function scrollToLatest(force = false) {
   await nextTick()
@@ -134,7 +157,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
 <template>
   <LiaChatShell :open="open" :expanded="expanded" @close="emit('close')">
     <header class="lia-header">
-      <div class="lia-identity"><LiaAvatar class="header-character" :active="open" :thinking="liaStore.isSending" /><div><h1>Lia <span>Agenda Doutor</span></h1><p><i :class="{ thinking: liaStore.isSending }"></i>{{ liaStore.isSending ? 'Preparando uma resposta' : 'Um cuidado a mais com sua rotina' }}</p></div></div>
+      <div class="lia-identity"><LiaAvatar class="header-character" :active="open" :state="avatarState" /><div><h1>Lia <span>Agenda Doutor</span></h1><p><i :class="{ thinking: liaStore.isSending }"></i>{{ liaStore.isSending ? 'Preparando uma resposta' : 'Um cuidado a mais com sua rotina' }}</p></div></div>
       <nav class="header-actions" aria-label="Controles da Lia">
         <button type="button" aria-label="Nova conversa" title="Nova conversa" @click="newConversation"><Plus :size="18" /></button>
         <button v-if="!historySidebar" type="button" aria-label="Histórico de conversas" title="Histórico de conversas" :aria-pressed="showHistory" @click="showHistory = !showHistory"><History :size="17" /></button>
@@ -151,7 +174,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
           <button v-if="liaStore.messagesCursor" type="button" class="load-more" :disabled="liaStore.isLoading" @click="loadOlder">Carregar mensagens anteriores</button>
           <div v-if="liaStore.isLoading && !liaStore.messages.length" class="loading-conversation" role="status"><span class="loading-dot"></span> Abrindo sua conversa…</div>
           <section v-else-if="!liaStore.messages.length" class="welcome" aria-label="Começar uma conversa">
-            <div class="welcome-art"><LiaAvatar class="welcome-character" intro :active="open && chatVisible" /></div>
+            <div class="welcome-art"><LiaAvatar class="welcome-character" intro :state="avatarState" :active="open && chatVisible" /></div>
             <p class="greeting">{{ greeting }}</p><h2>O que vamos<br /><span>cuidar hoje?</span></h2>
             <p class="welcome-description">Sua agenda, seus pacientes e os números<br /> da clínica. Vamos por partes.</p>
             <div class="suggestions"><button v-for="suggestion in suggestions" :key="suggestion.title" type="button" :disabled="liaStore.isSending" @click="useSuggestion(suggestion)"><span class="suggestion-icon"><component :is="suggestion.icon" :size="17" /></span><span><strong>{{ suggestion.title }}</strong><small>{{ suggestion.description }}</small></span><ArrowUpRight :size="14" class="suggestion-arrow" /></button></div>
@@ -169,7 +192,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
             </article>
           </div>
           <article v-if="liaStore.isSending && liaStore.streamText" class="streamed-answer" aria-label="Resposta em andamento" aria-busy="true"><div class="message-label"><LiaAvatar class="message-character" :active="false" /><span>Lia</span></div><div class="message-content"><div class="markdown" v-html="renderMarkdown(liaStore.streamText)"></div></div></article>
-          <div v-if="liaStore.isSending && liaStore.streamStatus?.phase !== 'done'" class="lia-activity" role="status" aria-live="polite"><LiaAvatar class="thinking-character" thinking :active="open" /><div><strong>{{ liaStore.streamText ? 'Respondendo' : 'Um instante' }}</strong><span>{{ liaStore.streamStatus?.label || 'Preparando a resposta' }}</span></div></div>
+          <div v-if="liaStore.isSending && liaStore.streamStatus?.phase !== 'done'" class="lia-activity" role="status" aria-live="polite"><LiaAvatar class="thinking-character" :state="avatarState" :active="open" /><div><strong>{{ liaStore.streamText ? 'Respondendo' : 'Um instante' }}</strong><span>{{ liaStore.streamStatus?.label || 'Preparando a resposta' }}</span></div></div>
           <p v-if="copyError" role="status" class="copy-error">{{ copyError }}</p>
         </div>
         <button v-if="!nearBottom && liaStore.messages.length" type="button" class="scroll-latest" aria-label="Ir para a última mensagem" @click="nearBottom = true; scrollToLatest(true)"><ArrowDown :size="15" /> Últimas mensagens</button>

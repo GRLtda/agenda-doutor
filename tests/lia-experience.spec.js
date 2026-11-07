@@ -133,7 +133,7 @@ it('avatares não compartilham IDs e respeitam redução de movimento sem loops'
   const wrapper = mount({ components: { LiaAvatar }, template: '<div><LiaAvatar /><LiaAvatar thinking /></div>' }); wrappers.push(wrapper)
   const ids = wrapper.findAll('[id]').map(node => node.attributes('id'))
   expect(new Set(ids).size).toBe(ids.length); expect(raf).not.toHaveBeenCalled()
-  expect(wrapper.findAll('[data-part="lia"]')[0].attributes('opacity')).toBe('1')
+  expect(Number(wrapper.findAll('[data-part="lia"]')[0].attributes('opacity'))).toBe(1)
   wrapper.unmount(); wrappers = []; expect(removed).toHaveBeenCalledTimes(2)
 })
 it('modal expandido bloqueia rolagem, fecha com Escape e devolve foco ao botão de origem', async () => {
@@ -160,4 +160,41 @@ it('alternar redução de movimento não acumula bolinhas ou listeners da anima�
   const count = wrapper.findAll('circle').length
   change(); change()
   expect(wrapper.findAll('circle')).toHaveLength(count)
+})
+
+it('olhos acompanham o mouse fora da mascote dentro do chat e voltam ao sair', async () => {
+  let frame
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frame = callback; return 1 })
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame')
+  const wrapper = mount({ components: { LiaAvatar }, template: '<section class="lia-window"><LiaAvatar /></section>' }); wrappers.push(wrapper)
+  const area = wrapper.get('.lia-window'), avatar = wrapper.get('.lia-character')
+  vi.spyOn(area.element, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 600, height: 600 })
+  vi.spyOn(avatar.element, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 100, width: 40, height: 40 })
+  const eye = () => Number(wrapper.get('[data-l="eye-l"]').attributes('transform').match(/translate\(([-\d.]+)/)[1])
+  const initial = eye()
+  await area.trigger('pointermove', { clientX: 550, clientY: 550 }); frame(1000)
+  expect(eye()).toBeGreaterThan(initial)
+  const looking = eye(); await area.trigger('pointerleave'); frame(1016)
+  expect(eye()).toBeLessThan(looking)
+  wrapper.unmount(); wrappers = []; expect(cancel).toHaveBeenCalled()
+})
+
+it('estados de erro e sucesso exibem as expressões v3 sem movimento reduzido virar um loop', async () => {
+  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  const wrapper = mount(LiaAvatar, { props: { state: 'error' } }); wrappers.push(wrapper)
+  expect(Number(wrapper.get('[data-l="x-eyes"]').attributes('opacity'))).toBe(1)
+  await wrapper.setProps({ state: 'success' })
+  expect(Number(wrapper.get('[data-l="arc-eyes"]').attributes('opacity'))).toBe(1)
+  await wrapper.setProps({ state: 'responding' })
+  expect(Number(wrapper.get('[data-l="x-eyes"]').attributes('opacity'))).toBe(0)
+})
+
+it('mascote do chat muda de pensar para responder e sinaliza falha real', async () => {
+  const wrapper = chat(); await flushPromises()
+  mocks.store.isSending = true; await flushPromises()
+  expect(wrapper.get('.header-character').attributes('state')).toBe('thinking')
+  mocks.store.streamText = 'Resposta sendo transmitida'; await flushPromises()
+  expect(wrapper.get('.header-character').attributes('state')).toBe('responding')
+  mocks.store.isSending = false; mocks.store.error = 'Falha no envio'; await flushPromises()
+  expect(wrapper.get('.header-character').attributes('state')).toBe('error')
 })

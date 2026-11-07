@@ -1,5 +1,7 @@
 # Experiência da Lia
 
+A mascote usa a arte e o motor v3 enviados em `lia-animada-v3`, com intro por peças, halo reduzido e novas coreografias. No chat, o mouse é acompanhado em toda a `.lia-window`, calculando a direção a partir do centro da mascote; sair da janela centraliza o olhar. Não há monitoramento do cursor fora do chat. Pensando acompanha a espera, Respondendo acompanha o stream, Erro acompanha falhas, Sucesso acompanha confirmações concluídas e Surpresa acompanha uma escolha entre pacientes. Reações curtas voltam ao estado atento. O modo automático da demonstração não é acionado no produto. Animações pausam com a aba oculta e respeitam redução de movimento, que usa poses estáticas sem loop.
+
 O chat agora consome SSE pelo mesmo endpoint de mensagens, mantendo os interceptores de autenticação, renovação do token e assinatura. A mensagem em geração é transitória e só recebe controles de copiar/avaliar/denunciar após o evento final persistido. Falha ou EOF incompleto descartam os trechos, consultam o estado salvo e mantêm a opção de repetir com o mesmo identificador. Troca de conversa ou identidade aborta a conexão e ignora eventos atrasados.
 
 O indicador de atividade mostra a etapa real informada pelo servidor, sem os três pontinhos finais e sem revelar raciocínio interno do modelo. Os prefixos são exibidos somente após validação no backend. Os cards aparecem completos no fim.
