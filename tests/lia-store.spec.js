@@ -149,3 +149,38 @@ it('carrega mensagens anteriores sem duplicar as já exibidas', async () => {
   await store.loadOlderMessages()
   expect(store.messages.map(item => item.id)).toEqual(['older', 'new']); expect(mocks.messages.mock.calls[0][1].before).toBe('cursor')
 })
+
+it('stream atualiza estado e texto provisório e substitui pelo resultado persistido sem duplicar', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'
+  const pending = deferred()
+  mocks.send.mockImplementation((_id, _message, _options, transport) => {
+    transport.onEvent({ type: 'status', phase: 'tool', label: 'Consultando atendimentos' })
+    transport.onEvent({ type: 'text', content: 'Trecho validado' })
+    return pending.promise
+  })
+  const send = store.sendMessage('Ver agenda'); await Promise.resolve()
+  expect(store.streamStatus.label).toBe('Escrevendo a resposta'); expect(store.streamText).toBe('Trecho validado')
+  expect(store.messages.filter(message => message.role === 'assistant')).toHaveLength(0)
+  pending.resolve(modelAnswer('Resposta final')); await send
+  expect(store.streamText).toBe(''); expect(store.streamStatus).toBeNull()
+  expect(store.messages.filter(message => message.role === 'assistant')).toHaveLength(1)
+})
+it('trocar conversa aborta a requisição e ignora eventos tardios do stream', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'; const pending = deferred(); let transport
+  mocks.send.mockImplementation((_id, _message, _options, value) => { transport = value; return pending.promise })
+  const send = store.sendMessage('Ver agenda'); await Promise.resolve()
+  store.startNewConversation(); expect(transport.signal.aborted).toBe(true)
+  transport.onEvent({ type: 'text', content: 'Resposta de outra conversa' })
+  pending.resolve(modelAnswer()); await send
+  expect(store.streamText).toBe(''); expect(store.messages).toEqual([])
+})
+it('texto provisório some assim que chega o final, mesmo com histórico ainda carregando', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'; const listing = deferred()
+  mocks.list.mockReturnValue(listing.promise)
+  mocks.send.mockImplementation(async (_id, _message, _options, transport) => { transport.onEvent({ type: 'text', content: 'Trecho validado' }); return modelAnswer('Resposta final') })
+  const send = store.sendMessage('Ver agenda')
+  await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled())
+  expect(store.streamText).toBe(''); expect(store.streamStatus.phase).toBe('done')
+  expect(store.messages.filter(message => message.role === 'assistant')).toHaveLength(1)
+  listing.resolve({ data: { conversations: [] } }); await send
+})

@@ -9,6 +9,7 @@ import LiaAvatar from './LiaAvatar.vue'
 import LiaConversationHistory from './LiaConversationHistory.vue'
 import LiaActionConfirmationCard from './LiaActionConfirmationCard.vue'
 import LiaAnalyticsCard from './LiaAnalyticsCard.vue'
+import LiaResponseFeedback from './LiaResponseFeedback.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
 import { useLiaPageContext } from '@/composables/useLiaPageContext'
@@ -120,6 +121,7 @@ async function copyMessage(message) {
 watch(input, resizeInput)
 watch(() => props.open, async open => { if (open) { openedAt.value = Date.now(); await liaStore.initialize(); await scrollToLatest(true) } }, { immediate: true })
 watch(() => liaStore.messages.length, () => scrollToLatest())
+watch(() => liaStore.streamText, () => scrollToLatest())
 watch(chatVisible, () => { resizeInput(); scrollToLatest() })
 watch(expanded, () => { resizeInput(); scrollToLatest() })
 watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(message).some(card => card.status === 'processing'))], ([open, processing], _previous, onCleanup) => {
@@ -163,10 +165,11 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
               <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" />
               <div v-if="message.role === 'assistant' && message.metadata?.patientOptions?.length > 1" class="patient-picker" :class="{ 'is-selected': liaStore.isSending || !!message.selectedPatientId }"><StyledSelect :model-value="message.selectedPatientId || ''" :options="patientOptions(message)" label="Quem é o paciente?" required placeholder="Selecione um paciente" @update:model-value="choosePatient(message, $event)" /></div>
               <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><h3><Clock3 :size="14" /> Horários disponíveis</h3><div><button v-for="time in message.metadata.availabilityAlternatives.times" :key="typeof time === 'string' ? time : time.startAt" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ alternativeLabel(time) }}</button></div></section>
-              <button v-if="message.role === 'assistant' && message.content" type="button" class="copy-message" :aria-label="copiedId === message.id ? 'Resposta copiada' : 'Copiar resposta'" @click="copyMessage(message)"><Check v-if="copiedId === message.id" :size="12" /><Copy v-else :size="12" />{{ copiedId === message.id ? 'Copiado' : 'Copiar' }}</button>
+              <LiaResponseFeedback v-if="message.role === 'assistant' && message.content" :message="message" :conversation-id="liaStore.activeConversationId"><button type="button" class="copy-message" :aria-label="copiedId === message.id ? 'Resposta copiada' : 'Copiar resposta'" @click="copyMessage(message)"><Check v-if="copiedId === message.id" :size="12" /><Copy v-else :size="12" />{{ copiedId === message.id ? 'Copiado' : 'Copiar' }}</button></LiaResponseFeedback>
             </article>
           </div>
-          <div v-if="liaStore.isSending" class="lia-activity" role="status"><LiaAvatar class="thinking-character" thinking :active="open" /><div><strong>Um instante…</strong><span>Estou preparando sua resposta<span class="thinking-dots"><i></i><i></i><i></i></span></span></div></div>
+          <article v-if="liaStore.isSending && liaStore.streamText" class="streamed-answer" aria-label="Resposta em andamento" aria-busy="true"><div class="message-label"><LiaAvatar class="message-character" :active="false" /><span>Lia</span></div><div class="message-content"><div class="markdown" v-html="renderMarkdown(liaStore.streamText)"></div></div></article>
+          <div v-if="liaStore.isSending && liaStore.streamStatus?.phase !== 'done'" class="lia-activity" role="status" aria-live="polite"><LiaAvatar class="thinking-character" thinking :active="open" /><div><strong>{{ liaStore.streamText ? 'Respondendo' : 'Um instante' }}</strong><span>{{ liaStore.streamStatus?.label || 'Preparando a resposta' }}</span></div></div>
           <p v-if="copyError" role="status" class="copy-error">{{ copyError }}</p>
         </div>
         <button v-if="!nearBottom && liaStore.messages.length" type="button" class="scroll-latest" aria-label="Ir para a última mensagem" @click="nearBottom = true; scrollToLatest(true)"><ArrowDown :size="15" /> Últimas mensagens</button>

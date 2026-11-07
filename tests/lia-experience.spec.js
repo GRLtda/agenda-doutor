@@ -87,7 +87,7 @@ it('envio em andamento bloqueia duplicação e permite expansão sem perder a pe
   expect(wrapper.get('textarea').element.disabled).toBe(true)
   expect(wrapper.get('[aria-label="Enviar mensagem"]').element.disabled).toBe(true)
   await wrapper.get('[aria-label="Expandir conversa"]').trigger('click')
-  expect(wrapper.text()).toContain('Pergunta sintética'); expect(wrapper.text()).toContain('Estou preparando sua resposta')
+  expect(wrapper.text()).toContain('Pergunta sintética'); expect(wrapper.text()).toContain('Preparando a resposta')
   expect(mocks.store.sendMessage).not.toHaveBeenCalled()
 })
 it('sugestão financeira respeita permissões explícitas do usuário', async () => {

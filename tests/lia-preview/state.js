@@ -27,6 +27,7 @@ export const state = reactive({ isAvailable: true, isOpen: true, isSending: fals
 export const useAuthStore = () => auth
 export const useLiaStore = () => state
 export const useLiaPageContext = () => context
+export const submitLiaFeedback = async (_conversationId, _messageId, feedback) => ({ data: { feedback: { kind: feedback.kind, vote: feedback.vote, status: 'new' } } })
 export function scenario(name) {
   state.startNewConversation(); state.conversations = history(); state.isOpen = true
   if (name === 'empty-history') { state.conversations = []; return }

@@ -1,5 +1,13 @@
 # Experiência da Lia
 
+O chat agora consome SSE pelo mesmo endpoint de mensagens, mantendo os interceptores de autenticação, renovação do token e assinatura. A mensagem em geração é transitória e só recebe controles de copiar/avaliar/denunciar após o evento final persistido. Falha ou EOF incompleto descartam os trechos, consultam o estado salvo e mantêm a opção de repetir com o mesmo identificador. Troca de conversa ou identidade aborta a conexão e ignora eventos atrasados.
+
+O indicador de atividade mostra a etapa real informada pelo servidor, sem os três pontinhos finais e sem revelar raciocínio interno do modelo. Os prefixos são exibidos somente após validação no backend. Os cards aparecem completos no fim.
+
+Cada resposta final tem Gostei, Não gostei e Denunciar, além de Copiar. A avaliação é opcional; abrir ou cancelar o formulário não envia nada. A avaliação negativa oferece quatro motivos e Outro, que exige comentário. A denúncia é uma submissão separada. O texto de pergunta/resposta não é anexado por padrão: o usuário deve escolher compartilhá-lo para análise administrativa. Erros de envio preservam o comentário. Uma avaliação e uma denúncia por resposta são mantidas no servidor e reaparecem no histórico. Feedbacks não são incluídos no contexto enviado ao modelo.
+
+A prévia isolada continua usando somente dados fictícios e simula o envio de feedback, sem inicializar o cliente real da API. O painel administrativo está no repositório próprio `GRLtda/crm-clinic-admin`.
+
 A interface tem dois modos que compartilham a mesma conversa: janela compacta flutuante e modal central expandido. Expandir, recolher, consultar o histórico e fechar/reabrir preservam o rascunho da sessão. Selecionar outra conversa ou iniciar uma nova limpa o campo para evitar enviar um pedido para o contexto anterior.
 
 O histórico tem busca local nos itens carregados, grupos por data, paginação, confirmação de exclusão e estados de carregamento, busca vazia e primeira conversa. No modo expandido de desktop, ele aparece como painel lateral. No celular, ocupa o painel com uma ação para voltar ao chat.

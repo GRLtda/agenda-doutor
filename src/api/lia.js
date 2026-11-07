@@ -1,4 +1,5 @@
 import apiClient from './index'
+import { sendLiaMessageStream } from './liaStream'
 
 export const getLiaAccess = () => apiClient.get('/lia/access')
 
@@ -13,8 +14,11 @@ export const getLiaConversation = (conversationId) =>
 export const getLiaMessages = (conversationId, params = {}) =>
   apiClient.get(`/lia/conversations/${conversationId}/messages`, { params })
 
-export const sendLiaMessage = (conversationId, message, options = {}) =>
-  apiClient.post(`/lia/conversations/${conversationId}/messages`, { message, ...options })
+export const sendLiaMessage = (conversationId, message, options = {}, transport = {}) =>
+  sendLiaMessageStream(conversationId, message, options, transport)
+
+export const submitLiaFeedback = (conversationId, messageId, feedback) =>
+  apiClient.post(`/lia/conversations/${conversationId}/messages/${messageId}/feedback`, feedback)
 
 export const confirmLiaAction = (conversationId, actionId) =>
   apiClient.post(`/lia/conversations/${conversationId}/actions/${actionId}/confirm`)

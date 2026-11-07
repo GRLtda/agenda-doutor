@@ -8,6 +8,7 @@ export default defineConfig({
   root: at('./tests/lia-preview/'),
   plugins: [vue()],
   resolve: { alias: [
+    { find: '@/api/lia', replacement: at('./tests/lia-preview/state.js') },
     { find: '@/stores/lia', replacement: at('./tests/lia-preview/state.js') },
     { find: '@/stores/auth', replacement: at('./tests/lia-preview/state.js') },
     { find: '@/composables/useLiaPageContext', replacement: at('./tests/lia-preview/state.js') },
