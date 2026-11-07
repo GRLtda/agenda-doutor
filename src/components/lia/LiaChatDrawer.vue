@@ -1,12 +1,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import LiaChatShell from './LiaChatShell.vue'
 import LiaAvatar from './LiaAvatar.vue'
 import LiaConversationHistory from './LiaConversationHistory.vue'
+import LiaConversationSearch from './LiaConversationSearch.vue'
 import LiaActionConfirmationCard from './LiaActionConfirmationCard.vue'
 import LiaAnalyticsCard from './LiaAnalyticsCard.vue'
 import LiaResponseFeedback from './LiaResponseFeedback.vue'
@@ -22,9 +23,11 @@ const pageContext = useLiaPageContext()
 const input = ref('')
 const textarea = ref(null)
 const messageList = ref(null)
+const historyButton = ref(null)
 const showHistory = ref(false)
+const searchOpen = ref(false)
 const expanded = ref(false)
-const mobile = useMediaQuery('(max-width: 760px)')
+const mobile = useMediaQuery('(max-width: 760px), (max-height: 500px) and (pointer: coarse)')
 const historySidebar = computed(() => expanded.value && !mobile.value)
 const chatVisible = computed(() => historySidebar.value || !showHistory.value)
 const conversationTitle = computed(() => liaStore.conversations.find(item => item.id === liaStore.activeConversationId)?.title || '')
@@ -72,7 +75,7 @@ watch(() => liaStore.isSending, (sending, wasSending) => {
   else if (liaStore.messages.at(-1)?.role === 'assistant') reaction.value = 'responding'
   reactionTimer = setTimeout(() => { reaction.value = 'attentive' }, reaction.value === 'success' ? 3200 : reaction.value === 'surprised' ? 2600 : 4200)
 })
-watch(() => props.open, open => { if (!open) { clearTimeout(reactionTimer); reaction.value = 'attentive' } })
+watch(() => props.open, open => { if (!open) { clearTimeout(reactionTimer); reaction.value = 'attentive'; searchOpen.value = false } })
 onBeforeUnmount(() => clearTimeout(reactionTimer))
 const messageTime = value => value && !Number.isNaN(new Date(value).getTime()) ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : ''
 async function scrollToLatest(force = false) {
@@ -130,11 +133,14 @@ async function chooseAlternativeTime(message, value) {
 const alternativeLabel = value => typeof value === 'string' ? value : `${value.date.split('-').reverse().join('/')} às ${value.time}`
 async function retryMessage(message) { try { await liaStore.retryMessage(message, { ...(pageContext.value ? { pageContext: pageContext.value } : {}) }) } catch { /* Store preserves retry state. */ } }
 async function selectConversation(id) {
+  searchOpen.value = false
   if (id !== liaStore.activeConversationId) input.value = ''
   showHistory.value = false; nearBottom.value = true; copyError.value = ''
   try { await liaStore.selectConversation(id) } catch { /* Store presents the error. */ }
   await scrollToLatest(true)
+  if (props.open) textarea.value?.focus()
 }
+async function closeHistory() { showHistory.value = false; await nextTick(); historyButton.value?.focus() }
 async function newConversation() {
   liaStore.startNewConversation(); showHistory.value = false; input.value = ''; copiedId.value = null; copyError.value = ''
   await nextTick(); textarea.value?.focus()
@@ -159,14 +165,14 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
 <template>
   <LiaChatShell :open="open" :expanded="expanded" @close="emit('close')">
     <header class="lia-header">
-      <span class="conversation-title clarity-mask" data-clarity-mask="true" data-sentry-mask>{{ conversationTitle }}</span>
+      <div class="header-leading"><button ref="historyButton" type="button" class="open-history" :aria-label="showHistory ? 'Fechar histórico' : 'Abrir histórico'" title="Conversas" :aria-expanded="showHistory" @click="showHistory = !showHistory"><PanelLeftOpen :size="18" /></button><span class="conversation-title clarity-mask" data-clarity-mask="true" data-sentry-mask>{{ conversationTitle }}</span></div>
       <nav class="header-actions" aria-label="Controles da Lia">
-        <button type="button" class="view-mode" :aria-label="expanded ? 'Recolher conversa' : 'Expandir conversa'" :title="expanded ? 'Voltar à janela compacta' : 'Abrir em janela ampliada'" :aria-pressed="expanded" @click="expanded = !expanded"><Minimize2 v-if="expanded" :size="14" /><Maximize2 v-else :size="14" /><span>{{ expanded ? 'Reduzir' : 'Ampliar' }}</span></button>
+        <button v-if="!mobile" type="button" class="view-mode" :aria-label="expanded ? 'Recolher conversa' : 'Expandir conversa'" :title="expanded ? 'Voltar à janela compacta' : 'Abrir em janela ampliada'" :aria-pressed="expanded" @click="expanded = !expanded"><Minimize2 v-if="expanded" :size="14" /><Maximize2 v-else :size="14" /><span>{{ expanded ? 'Reduzir' : 'Ampliar' }}</span></button>
         <button type="button" aria-label="Fechar Lia" title="Fechar Lia" @click="emit('close')"><X :size="18" /></button>
       </nav>
     </header>
     <div class="lia-body" :class="{ 'with-sidebar': historySidebar }">
-      <LiaConversationHistory :sidebar="historySidebar" :collapsed="!showHistory" @toggle="showHistory = !showHistory" @new="newConversation" @select="selectConversation" @back="showHistory = false" />
+      <LiaConversationHistory v-if="showHistory" :sidebar="historySidebar" @new="newConversation" @select="selectConversation" @back="closeHistory" @search="searchOpen = true" />
       <main v-show="chatVisible" class="lia-chat" :class="{ 'is-welcome': !liaStore.messages.length }">
         <div v-if="pageContext" class="page-context"><span></span> Ficha do paciente em contexto</div>
         <div v-if="liaStore.error" class="chat-error" role="alert"><span>{{ liaStore.error }}</span><button type="button" aria-label="Tentar carregar a Lia novamente" @click="liaStore.initialize()"><RotateCcw :size="14" /></button></div>
@@ -203,6 +209,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
         </footer>
       </main>
     </div>
+    <LiaConversationSearch v-if="searchOpen" @close="searchOpen = false" @select="selectConversation" />
   </LiaChatShell>
 </template>
 

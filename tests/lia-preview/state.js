@@ -11,6 +11,8 @@ const auth = reactive({ user: { _id: 'preview', name: 'Guilherme Exemplo', role:
 const context = ref(null)
 export const state = reactive({ isAvailable: true, isOpen: true, isSending: false, isLoading: false, isLoadingMore: false, error: null, messages: [], conversations: history(), activeConversationId: null, nextCursor: null, messagesCursor: null,
   async initialize() {},
+  async searchConversations(search = '') { return { conversations: state.conversations.filter(item => item.title.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))), nextCursor: null } },
+  async updateConversation(id, changes) { const item = state.conversations.find(item => item.id === id); if (item) { Object.assign(item, changes.title ? { title: changes.title } : { pinnedAt: changes.pinned ? now() : null }); state.conversations.sort((a, b) => Number(!!b.pinnedAt) - Number(!!a.pinnedAt)); } return item },
   startNewConversation() { state.messages = []; state.activeConversationId = null; state.error = null },
   async selectConversation(id) { state.activeConversationId = id; state.messages = [question('Como está a minha agenda hoje?'), answer('Vamos organizar seu dia. Posso consultar sua agenda, buscar pacientes e ajudar com os resultados da clínica.\n\nEsta é uma **prévia com dados fictícios**.')] },
   async deleteConversation(id) { state.conversations = state.conversations.filter(item => item.id !== id); if (state.activeConversationId === id) state.startNewConversation() },

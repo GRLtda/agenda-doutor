@@ -5,8 +5,11 @@ export const getLiaAccess = () => apiClient.get('/lia/access')
 
 export const createLiaConversation = () => apiClient.post('/lia/conversations')
 
-export const listLiaConversations = ({ limit = 30, cursor } = {}) =>
-  apiClient.get('/lia/conversations', { params: { limit, ...(cursor ? { cursor } : {}) } })
+export const listLiaConversations = ({ limit = 30, cursor, search } = {}, { signal } = {}) =>
+  apiClient.get('/lia/conversations', { params: { limit, ...(cursor ? { cursor } : {}), ...(search !== undefined ? { search } : {}) }, ...(signal ? { signal } : {}) })
+
+export const updateLiaConversation = (conversationId, changes) =>
+  apiClient.patch(`/lia/conversations/${conversationId}`, changes)
 
 export const getLiaConversation = (conversationId) =>
   apiClient.get(`/lia/conversations/${conversationId}`)

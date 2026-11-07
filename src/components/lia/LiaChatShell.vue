@@ -1,11 +1,23 @@
 <script setup>
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useMediaQuery, useScrollLock } from '@vueuse/core'
 
 const props = defineProps({ open: Boolean, expanded: Boolean })
 const emit = defineEmits(['close'])
 const panel = ref(null)
-const mobile = useMediaQuery('(max-width: 640px)')
+const mobile = useMediaQuery('(max-width: 760px), (max-height: 500px) and (pointer: coarse)')
+const viewportHeight = ref(window.visualViewport?.height || window.innerHeight)
+const viewportTop = ref(window.visualViewport?.offsetTop || 0)
+function updateViewport() {
+  if (window.visualViewport && window.visualViewport.scale !== 1) return
+  viewportHeight.value = window.visualViewport?.height || window.innerHeight
+  viewportTop.value = window.visualViewport?.offsetTop || 0
+}
+onMounted(() => {
+  window.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('scroll', updateViewport)
+})
 const locked = useScrollLock(document.body)
 let opener
 watch(() => [props.open, props.expanded, mobile.value], async ([open, expanded, isMobile], previous) => {
@@ -25,14 +37,19 @@ function onKey(event) {
   if (event.shiftKey && (event.target === first || event.target === panel.value)) { event.preventDefault(); last?.focus() }
   else if (!event.shiftKey && (event.target === last || event.target === panel.value)) { event.preventDefault(); first?.focus() }
 }
-onBeforeUnmount(() => { locked.value = false; opener?.focus?.() })
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('scroll', updateViewport)
+  locked.value = false; opener?.focus?.()
+})
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="lia-window">
-      <div v-if="open" class="lia-workspace" :class="{ expanded }">
-        <div v-if="expanded" class="lia-backdrop" @click.self="emit('close')"></div>
+      <div v-if="open" class="lia-workspace" :class="{ expanded: expanded || mobile, mobile }" :style="mobile ? { '--lia-viewport-height': `${viewportHeight}px`, height: `${viewportHeight}px`, top: `${viewportTop}px` } : undefined">
+        <div v-if="expanded && !mobile" class="lia-backdrop" @click.self="emit('close')"></div>
         <section ref="panel" class="lia-window" role="dialog" :aria-modal="expanded || mobile ? 'true' : 'false'" aria-label="Lia, assistente da clínica" tabindex="-1" @keydown="onKey">
           <slot></slot>
         </section>
@@ -49,6 +66,6 @@ onBeforeUnmount(() => { locked.value = false; opener?.focus?.() })
 .expanded .lia-window { width: min(1120px, 100%); height: min(84dvh, 850px); box-shadow: 0 30px 90px #0f172a40; }
 .lia-window-enter-active, .lia-window-leave-active { transition: opacity .18s ease, transform .22s ease; }
 .lia-window-enter-from, .lia-window-leave-to { opacity: 0; transform: translateY(12px) scale(.98); }
-@media(max-width: 640px) { .lia-workspace { inset: 8px; width: auto; height: auto; padding: 0; } .lia-window, .expanded .lia-window { height: 100%; border-radius: 20px; } .expanded .lia-backdrop { position: fixed; } }
+@media(max-width: 760px), (max-height: 500px) and (pointer: coarse) { .lia-workspace { inset: 0; width: 100%; height: 100dvh; padding: 0; } .lia-window, .expanded .lia-window { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; } :deep(.lia-header) { padding-top: calc(7px + env(safe-area-inset-top)); padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); } :deep(input),:deep(textarea),:deep(select),:deep([contenteditable=true]) { font-size: 16px !important; } }
 @media(prefers-reduced-motion: reduce) { .lia-window-enter-active, .lia-window-leave-active { transition: none; } }
 </style>

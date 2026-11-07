@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import {
   cancelLiaAction, confirmLiaAction, createLiaConversation, deleteLiaConversation,
-  getLiaAccess, getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage,
+  getLiaAccess, getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage, updateLiaConversation,
 } from '@/api/lia'
 
 const STORAGE_PREFIX = 'lia.activeConversationId'
@@ -102,6 +102,41 @@ export const useLiaStore = defineStore('lia', () => {
     if (index >= 0) messages.value.splice(index, 1, message)
     else messages.value.push(message)
   }
+  function sortConversations() {
+    conversations.value.sort((a, b) => (new Date(b.pinnedAt || 0) - new Date(a.pinnedAt || 0)) || (new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)) || String(b.id).localeCompare(String(a.id)))
+  }
+  async function updateConversation(id, changes) {
+    ensureIdentity()
+    if (!isAvailable.value || !identityKey()) return null
+    const ticket = identityTicket()
+    try {
+      const { data } = await updateLiaConversation(id, changes)
+      if (!sameIdentity(ticket)) return null
+      const current = conversations.value.find(item => item.id === id)
+      if (current) Object.assign(current, data)
+      sortConversations()
+      // A pin can change page boundaries. Restart pagination on the next load.
+      await loadConversations().catch(() => {})
+      return data
+    } catch (requestError) {
+      if (!sameIdentity(ticket)) return null
+      handleAccessDenied(requestError)
+      throw requestError
+    }
+  }
+  async function searchConversations(search = '', cursor, signal) {
+    ensureIdentity()
+    if (!isAvailable.value || !identityKey()) return null
+    const ticket = identityTicket()
+    try {
+      const { data } = await listLiaConversations({ search, limit: 30, ...(cursor ? { cursor } : {}) }, { signal })
+      return sameIdentity(ticket) ? data : null
+    } catch (requestError) {
+      if (!sameIdentity(ticket)) return null
+      handleAccessDenied(requestError)
+      throw requestError
+    }
+  }
   async function loadConversations({ append = false } = {}) {
     ensureIdentity()
     if (!isAvailable.value || !identityKey() || (append && isLoadingMore.value)) return []
@@ -112,7 +147,8 @@ export const useLiaStore = defineStore('lia', () => {
     try {
       const { data } = await listLiaConversations({ limit: 30, cursor: append ? nextCursor.value : undefined })
       if (!sameIdentity(ticket) || version !== listVersion) return []
-      conversations.value = append ? [...conversations.value, ...data.conversations] : data.conversations
+      conversations.value = append ? [...conversations.value, ...data.conversations.filter(item => !conversations.value.some(current => current.id === item.id))] : data.conversations
+      sortConversations()
       nextCursor.value = data.nextCursor || null
       return data.conversations
     } catch (requestError) {
@@ -350,6 +386,6 @@ export const useLiaStore = defineStore('lia', () => {
     nextCursor, messagesCursor, error, hasActiveConversation, initialize, loadConversations,
     loadMore: () => loadConversations({ append: true }).catch(() => { error.value = 'Não foi possível carregar mais conversas.' }), loadMessages,
     loadOlderMessages: () => messagesCursor.value && loadMessages(activeConversationId.value, { older: true }).catch(() => []),
-    selectConversation, startNewConversation, sendMessage, retryMessage, confirmAction, cancelAction, deleteConversation, reset,
+    selectConversation, startNewConversation, sendMessage, retryMessage, confirmAction, cancelAction, deleteConversation, updateConversation, searchConversations, reset,
   }
 })

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { reactive } from 'vue'
 import { useLiaStore } from '@/stores/lia'
-const mocks = vi.hoisted(() => ({ auth: null, access: vi.fn(), list: vi.fn(), send: vi.fn(), messages: vi.fn(), create: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), get: vi.fn(), remove: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: null, access: vi.fn(), list: vi.fn(), send: vi.fn(), messages: vi.fn(), create: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), get: vi.fn(), remove: vi.fn(), update: vi.fn() }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => mocks.auth }))
-vi.mock('@/api/lia', () => ({ getLiaAccess: mocks.access, listLiaConversations: mocks.list, sendLiaMessage: mocks.send, getLiaMessages: mocks.messages, createLiaConversation: mocks.create, deleteLiaConversation: mocks.remove, getLiaConversation: mocks.get, confirmLiaAction: mocks.confirm, cancelLiaAction: mocks.cancel }))
+vi.mock('@/api/lia', () => ({ getLiaAccess: mocks.access, listLiaConversations: mocks.list, sendLiaMessage: mocks.send, getLiaMessages: mocks.messages, createLiaConversation: mocks.create, deleteLiaConversation: mocks.remove, getLiaConversation: mocks.get, confirmLiaAction: mocks.confirm, cancelLiaAction: mocks.cancel, updateLiaConversation: mocks.update }))
 let pinia
 const deferred = () => { let resolve, reject; const promise = new Promise((done, fail) => { resolve = done; reject = fail }); return { promise, resolve, reject } }
 const modelAnswer = (name = 'Resposta') => ({ data: { userMessage: { id: 'saved', role: 'user', content: 'Ver agenda' }, message: { id: 'assistant', role: 'assistant', content: name } } })
@@ -17,6 +17,42 @@ beforeEach(() => {
   useLiaStore().isAvailable = true
 })
 afterEach(() => disposePinia(pinia))
+
+it('renomear e fixar usam o servidor e reordenam sem alterar a conversa aberta', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'one'
+  const pinned = { id: 'one', title: 'Novo nome', pinnedAt: '2026-11-07', updatedAt: '2025-01-01' }
+  mocks.update.mockResolvedValue({ data: pinned })
+  mocks.list.mockResolvedValue({ data: { conversations: [{ id: 'two', title: 'Outra', updatedAt: '2026-01-01' }, pinned], nextCursor: 'next' } })
+  await store.updateConversation('one', { title: 'Novo nome', pinned: true })
+  expect(mocks.update).toHaveBeenCalledExactlyOnceWith('one', { title: 'Novo nome', pinned: true })
+  expect(store.conversations.map(item => item.id)).toEqual(['one', 'two'])
+  expect(store.activeConversationId).toBe('one')
+})
+it('falha ao alterar conversa não modifica o título local', async () => {
+  const store = useLiaStore(); store.conversations = [{ id: 'one', title: 'Original' }]
+  mocks.update.mockRejectedValue(new Error('offline'))
+  await expect(store.updateConversation('one', { title: 'Novo' })).rejects.toBeTruthy()
+  expect(store.conversations[0].title).toBe('Original')
+})
+it('busca e alteração atrasadas não retornam dados após troca de identidade', async () => {
+  const store = useLiaStore(), search = deferred(), update = deferred()
+  mocks.list.mockReturnValueOnce(search.promise); mocks.update.mockReturnValueOnce(update.promise)
+  const searching = store.searchConversations('antiga'), updating = store.updateConversation('old', { pinned: true })
+  mocks.auth.user = { _id: 'new', clinic: 'new', role: 'owner' }
+  search.resolve({ data: { conversations: [{ id: 'private' }] } }); update.resolve({ data: { id: 'private', title: 'Privado' } })
+  expect(await searching).toBeNull(); expect(await updating).toBeNull()
+  expect(store.conversations).toEqual([])
+  await store.searchConversations('blocked'); await store.updateConversation('blocked', { pinned: true })
+  expect(mocks.list).toHaveBeenCalledTimes(1); expect(mocks.update).toHaveBeenCalledTimes(1)
+})
+it('busca paginada passa filtro e cancelamento sem substituir histórico principal', async () => {
+  const store = useLiaStore(); store.conversations = [{ id: 'original' }]
+  const controller = new AbortController()
+  mocks.list.mockResolvedValue({ data: { conversations: [{ id: 'found' }], nextCursor: 'more' } })
+  expect((await store.searchConversations('Retornos', 'page', controller.signal)).nextCursor).toBe('more')
+  expect(mocks.list).toHaveBeenCalledWith({ search: 'Retornos', cursor: 'page', limit: 30 }, { signal: controller.signal })
+  expect(store.conversations).toEqual([{ id: 'original' }])
+})
 
 it('piloto só carrega histórico após autorização explícita do servidor', async () => {
   const store = useLiaStore(); store.reset(); const pending = deferred(); mocks.access.mockReturnValueOnce(pending.promise)
