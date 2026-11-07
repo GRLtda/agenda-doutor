@@ -40,6 +40,12 @@ import {
   galleryError,
 } from '@/api/gallery'
 import { visibleGalleryTags } from '@/utils/galleryTags'
+import {
+  applyGalleryDelivery,
+  galleryImageCandidates,
+  recoverGalleryImage,
+  revokeGalleryObjectUrl,
+} from '@/utils/galleryImage'
 import { compressImage, MAX_IMAGE_BYTES, IMAGE_ACCEPT, isSupportedPhoto } from '@/utils/imageUpload'
 
 const props = defineProps({
@@ -100,6 +106,9 @@ const moveDialog = ref(false)
 const moveTarget = ref('')
 const confirmDialog = ref(null)
 const imageErrors = ref(new Set())
+const thumbSrc = ref({})
+const thumbFailed = new Map()
+const thumbBusy = new Set()
 let controller
 let requestId = 0
 let metadataId = 0
@@ -125,6 +134,10 @@ async function load(page = 1) {
   error.value = ''
   files.value = []
   imageErrors.value = new Set()
+  for (const url of Object.values(thumbSrc.value)) revokeGalleryObjectUrl(url)
+  thumbSrc.value = {}
+  thumbFailed.clear()
+  thumbBusy.clear()
   try {
     const result = await listGalleryFiles(
       patientId,
@@ -207,6 +220,7 @@ onBeforeUnmount(() => {
   requestId++
   metadataId++
   previewId++
+  for (const url of Object.values(thumbSrc.value)) revokeGalleryObjectUrl(url)
 })
 
 function navigate(nextView, folder = '') {
@@ -412,22 +426,63 @@ async function upload(photos, destination = uploadFolder.value) {
     busy.value = false
   }
 }
-function thumbnailError(file, event) {
-  if (event.target.dataset.original !== 'true' && file.originalUrl) {
-    event.target.dataset.original = 'true'
-    event.target.src = file.originalUrl
-  } else imageErrors.value.add(file._id)
+function thumbnailSrc(file) {
+  return thumbSrc.value[file._id] || galleryImageCandidates(file, 'thumb')[0] || ''
+}
+function replaceImageErrors(mutator) {
+  const next = new Set(imageErrors.value)
+  mutator(next)
+  imageErrors.value = next
+}
+async function thumbnailError(file, event) {
+  if (!file?._id || thumbBusy.has(file._id)) return
+  const current = thumbnailSrc(file)
+  const attribute = event?.target?.getAttribute?.('src')
+  if (attribute && attribute !== current) return
+  const failed = thumbFailed.get(file._id) || new Set()
+  thumbFailed.set(file._id, failed)
+  if (current) failed.add(current)
+  const patientId = props.patientId
+  thumbBusy.add(file._id)
+  try {
+    const result = await recoverGalleryImage({
+      file,
+      failed,
+      prefer: 'thumb',
+      refresh: () => getGalleryItem(file._id),
+    })
+    if (disposed || patientId !== props.patientId) {
+      revokeGalleryObjectUrl(result?.url)
+      return
+    }
+    if (result?.file) applyGalleryDelivery(file, result.file, file.createdAt)
+    if (result?.url) {
+      revokeGalleryObjectUrl(thumbSrc.value[file._id])
+      thumbSrc.value = { ...thumbSrc.value, [file._id]: result.url }
+      replaceImageErrors((next) => next.delete(file._id))
+      return
+    }
+    if (result?.error) error.value = galleryError(result.error)
+    replaceImageErrors((next) => next.add(file._id))
+  } finally {
+    thumbBusy.delete(file._id)
+  }
 }
 async function renewThumbnail(file) {
   const patientId = props.patientId
+  thumbFailed.set(file._id, new Set())
   try {
     const fresh = await getGalleryItem(file._id)
-    if (patientId === props.patientId) {
-      Object.assign(file, fresh)
-      imageErrors.value.delete(file._id)
-    }
+    if (patientId !== props.patientId || disposed) return
+    const createdAt = file.createdAt
+    Object.assign(file, fresh, { createdAt: createdAt || fresh?.createdAt })
+    revokeGalleryObjectUrl(thumbSrc.value[file._id])
+    const next = { ...thumbSrc.value }
+    delete next[file._id]
+    thumbSrc.value = next
+    replaceImageErrors((errors) => errors.delete(file._id))
   } catch (cause) {
-    error.value = galleryError(cause)
+    if (patientId === props.patientId) error.value = galleryError(cause)
   }
 }
 </script>
@@ -714,7 +769,7 @@ async function renewThumbnail(file) {
               ><template v-if="file.fileType === 'image'"
                 ><img
                   v-if="!imageErrors.has(file._id)"
-                  :src="file.thumbnailUrl || file.previewUrl || file.signedUrl"
+                  :src="thumbnailSrc(file)"
                   :alt="
                     file.metadata?.description || file.metadata?.originalName || 'Foto do paciente'
                   "

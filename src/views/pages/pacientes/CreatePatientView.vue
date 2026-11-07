@@ -173,14 +173,31 @@ async function submitForm() {
       payload.countryCode = payload.countryCode.replace(/\D/g, '')
     }
 
-    const { success, error } = await patientsStore.createPatient(payload)
+    const { success, error, fieldErrors } = await patientsStore.createPatient(payload)
 
     if (success) {
       toast.success('Paciente cadastrado com sucesso!')
       router.push('/pacientes')
     } else {
-      const errorMessage = error || 'Erro ao cadastrar paciente.'
-      toast.error(errorMessage)
+      // Erros ligados a campos da etapa 1 aparecem no próprio input
+      const step1Errors = {}
+      for (const field of step1FieldOrder) {
+        if (fieldErrors?.[field]) step1Errors[field] = fieldErrors[field]
+      }
+
+      // Toast lista todas as mensagens (campos + falha geral), sem o texto genérico
+      const messages = [...new Set(Object.values(fieldErrors || {}).filter(Boolean))]
+      if (messages.length === 0) messages.push(error || 'Erro ao cadastrar paciente.')
+      toast.error(messages.map((message) => `• ${message}`).join('\n'))
+
+      if (Object.keys(step1Errors).length > 0) {
+        errors.value = step1Errors
+        if (currentStep.value !== 1) {
+          transitionName.value = 'slide-prev'
+          currentStep.value = 1
+        }
+        await focusFirstInvalidField(step1Errors)
+      }
     }
   } catch (e) {
     toast.error('Ocorreu um erro inesperado. Tente novamente.')

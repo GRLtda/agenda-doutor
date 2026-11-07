@@ -114,9 +114,11 @@ export const usePatientsStore = defineStore('patients', () => {
       await fetchAllPatients(1, pagination.value.limit)
       return { success: true, data: response.data }
     } catch (err) {
-      this.error = err.response?.data?.message || 'Erro ao criar o paciente.'
+      const data = err.response?.data
+      // Prefere a mensagem específica do backend (`error`) à genérica (`message`)
+      this.error = data?.error || data?.message || 'Erro ao criar o paciente.'
       console.error('Falha em createPatient:', err)
-      return { success: false, error: this.error }
+      return { success: false, error: this.error, fieldErrors: data?.errors || {} }
     } finally {
       this.isLoading = false
     }

@@ -5,16 +5,20 @@ import { useClinicStore } from '@/stores/clinic'
 import { useAuthStore } from '@/stores/auth'
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle,
   Clock,
   CreditCard,
   Edit3,
+  ExternalLink,
   FileText,
   Info,
   MessageCircle,
   Package,
   RefreshCw,
   Shield,
+  ShoppingCart,
+  Users,
 } from 'lucide-vue-next'
 import { trackClarityEvent } from '@/services/clarity'
 
@@ -26,102 +30,120 @@ const loading = ref(true)
 const subscription = ref(null)
 const error = ref(null)
 const actionLoading = ref(false)
+const checkoutPlan = ref(null)
 
-const isTrialActive = computed(() => {
-  const trial = authStore.user?.planStatus?.trial
-  const subscriptionStatus = authStore.user?.clinic?.subscriptionStatus
-  return Boolean(
-    trial?.isActive &&
-    Number(trial.daysRemaining || 0) > 0 &&
-    !['active', 'lifetime'].includes(subscriptionStatus)
-  )
-})
-const trialDaysRemaining = computed(() => authStore.user?.planStatus?.trial?.daysRemaining)
+const payments = ref([])
+const paymentsLoading = ref(true)
+const paymentsError = ref(false)
 
 const statusMap = {
   active: { label: 'Ativa', tone: 'success', icon: CheckCircle },
   past_due: { label: 'Pagamento pendente', tone: 'warning', icon: AlertTriangle },
+  unpaid: { label: 'Não paga', tone: 'warning', icon: AlertTriangle },
   canceled: { label: 'Cancelada', tone: 'neutral', icon: AlertTriangle },
   trialing: { label: 'Período de teste', tone: 'info', icon: Clock },
-  free: { label: 'Gratuito', tone: 'neutral', icon: Package },
+  trial: { label: 'Período de teste', tone: 'info', icon: Clock },
+  free: { label: 'Sem assinatura', tone: 'neutral', icon: Package },
   enterprise: { label: 'Enterprise', tone: 'brand', icon: Shield },
   enterprise_plus: { label: 'Enterprise Plus', tone: 'brand', icon: Shield },
   lifetime: { label: 'Vitalício', tone: 'brand', icon: CheckCircle },
 }
 
+const paymentStatusMap = {
+  paid: { label: 'Pago', tone: 'success' },
+  open: { label: 'Em aberto', tone: 'warning' },
+  uncollectible: { label: 'Não cobrada', tone: 'danger' },
+  void: { label: 'Anulada', tone: 'neutral' },
+}
+
+const actions = computed(() => subscription.value?.actions || {})
+const accessWarning = computed(() => subscription.value?.accessWarning || null)
+const plans = computed(() => subscription.value?.plans || [])
+const currentPlan = computed(() => plans.value.find((plan) => plan.isCurrent) || null)
+
 const currentStatus = computed(() => {
-  if (subscription.value?.planType === 'enterprise') return statusMap.enterprise
-  if (subscription.value?.planType === 'enterprise_plus') return statusMap.enterprise_plus
-
-  const status = subscription.value?.status || 'free'
-  return statusMap[status] || statusMap.free
-})
-
-const isCanceled = computed(() => {
-  if (['enterprise', 'enterprise_plus'].includes(subscription.value?.planType)) return false
-  return subscription.value?.status === 'canceled' || Boolean(subscription.value?.cancelAt)
-})
-
-const planName = computed(() => {
-  const planType = subscription.value?.planType
-  const labels = {
-    basic: 'Básico',
-    premium: 'Premium',
-    enterprise: 'Enterprise',
-    enterprise_plus: 'Enterprise Plus',
-  }
-
-  if (labels[planType]) return labels[planType]
-  if (planType) return `${planType.charAt(0).toUpperCase()}${planType.slice(1)}`
-  return 'Básico'
-})
-
-const price = computed(() => {
   const data = subscription.value
-
-  if (data?.status === 'lifetime') {
-    return { currency: 'R$', amount: '297,00', interval: 'mês' }
+  if (!data) return statusMap.free
+  if (['enterprise', 'enterprise_plus'].includes(data.planType) && data.status === 'active') {
+    return statusMap[data.planType]
   }
+  if (data.isTrial) return statusMap.trial
+  return statusMap[data.status] || statusMap.free
+})
 
-  const fixedPrices = {
-    enterprise: '199,00',
-    enterprise_plus: '359,00',
-    premium: '159,00',
-  }
+const warningCopy = computed(() => {
+  const warning = accessWarning.value
+  if (!warning) return null
 
-  if (fixedPrices[data?.planType]) {
-    return { currency: 'R$', amount: fixedPrices[data.planType], interval: 'mês' }
-  }
+  const days = warning.daysRemaining
+  const dayLabel = `${days} ${days === 1 ? 'dia' : 'dias'}`
+  const endDate = formatDate(warning.accessEndsAt)
 
-  if (data?.planType === 'basic' && data?.status !== 'free') {
-    return { currency: 'R$', amount: '99,90', interval: 'mês' }
-  }
-
-  if (data?.plan && typeof data.plan === 'object') {
+  if (warning.type === 'payment_overdue') {
+    if (warning.expired) {
+      return {
+        title: 'Seu acesso foi suspenso por falta de pagamento',
+        text: 'Regularize o pagamento para voltar a usar o sistema.',
+        cta: 'Regularizar pagamento',
+        action: 'portal',
+      }
+    }
     return {
-      currency: data.plan.currency.toUpperCase(),
-      amount: formatCurrency(data.plan.amount, data.plan.currency).replace('R$', '').trim(),
-      interval: data.plan.interval === 'month' ? 'mês' : 'ano',
+      title: `Você perderá o acesso em ${dayLabel} se o pagamento não for regularizado`,
+      text: `Não conseguimos processar a cobrança. O acesso é suspenso em ${endDate}.`,
+      cta: 'Regularizar pagamento',
+      action: 'portal',
     }
   }
 
-  return { currency: '', amount: 'Grátis', interval: '' }
+  if (warning.type === 'trial') {
+    return {
+      title: `Seu teste gratuito termina em ${dayLabel}`,
+      text: `Após ${endDate} será necessário assinar um plano para continuar usando o sistema.`,
+      cta: null,
+      action: null,
+    }
+  }
+
+  return {
+    title: `Sua assinatura termina em ${dayLabel}`,
+    text: `O acesso será encerrado em ${endDate}. Você pode reativar a qualquer momento.`,
+    cta: actions.value.canManageBilling ? 'Reativar assinatura' : null,
+    action: 'portal',
+  }
 })
 
-const formatDate = (dateString, fullDate = true) => {
-  if (!dateString) return 'N/A'
-  const options = fullDate
-    ? { day: '2-digit', month: 'long', year: 'numeric' }
-    : { day: 'numeric' }
+function planButton(plan) {
+  if (actions.value.canCheckout && plan.purchasable) {
+    const loadingThis = checkoutPlan.value === plan.key
+    return { label: loadingThis ? 'Abrindo checkout...' : 'Escolher plano', disabled: Boolean(checkoutPlan.value), checkout: true }
+  }
+  if (plan.isCurrent) return { label: 'Plano atual', disabled: true }
 
-  return new Date(dateString).toLocaleDateString('pt-BR', options)
+  const currentAmount = currentPlan.value?.monthlyAmount
+  if (currentAmount != null && plan.monthlyAmount != null) {
+    return plan.monthlyAmount > currentAmount
+      ? { label: 'Fazer upgrade', disabled: true }
+      : { label: 'Fazer downgrade', disabled: true }
+  }
+  return { label: 'Indisponível', disabled: true }
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+function formatShortDate(value) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('pt-BR')
 }
 
 function formatCurrency(amount, currency = 'BRL') {
-  if (!amount && amount !== 0) return ''
+  if (amount == null) return ''
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: currency.toUpperCase(),
+    currency: String(currency).toUpperCase(),
   }).format(amount / 100)
 }
 
@@ -150,6 +172,19 @@ async function fetchSubscription() {
   }
 }
 
+async function fetchPayments() {
+  paymentsLoading.value = true
+  paymentsError.value = false
+
+  const response = await clinicStore.getSubscriptionPayments()
+  if (response.success) {
+    payments.value = response.data
+  } else {
+    paymentsError.value = true
+  }
+  paymentsLoading.value = false
+}
+
 async function openPaymentPortal(eventName, fallbackMessage) {
   trackClarityEvent(eventName)
   actionLoading.value = true
@@ -171,49 +206,40 @@ async function openPaymentPortal(eventName, fallbackMessage) {
   }
 }
 
-function handleUpdatePayment() {
-  if (isTrialActive.value) {
-    toast.info('O gerenciamento fica disponível após o período de teste.')
-    return
-  }
-
+function handleManageBilling() {
   openPaymentPortal('subscription_manage_click', 'Erro ao acessar portal de pagamento. Tente novamente.')
+}
+
+function handleWarningAction() {
+  if (warningCopy.value?.action === 'portal') {
+    openPaymentPortal('subscription_warning_click', 'Erro ao acessar portal de pagamento. Tente novamente.')
+  }
+}
+
+async function handleCheckout(planKey) {
+  checkoutPlan.value = planKey || subscription.value?.planType
+  try {
+    const result = await authStore.subscribe(planKey)
+    if (!result.success) {
+      toast.error(result.error?.response?.data?.message || result.error || 'Erro ao iniciar assinatura.')
+    }
+  } catch (err) {
+    console.error('Erro ao iniciar checkout:', err)
+    toast.error('Erro ao iniciar assinatura. Tente novamente.')
+  } finally {
+    checkoutPlan.value = null
+  }
 }
 
 function handleNeedHelp() {
   trackClarityEvent('subscription_help_click')
-  const message = encodeURIComponent('Olá! Preciso de ajuda com minha assinatura.')
-  const whatsappNumber = '5511921923978'
-  window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank')
-}
-
-function handleReactivateSubscription() {
-  openPaymentPortal('subscription_reactivate_click', 'Erro ao reativar assinatura. Tente novamente.')
-}
-
-async function handleViewInvoice() {
-  trackClarityEvent('subscription_view_invoice_click')
-  actionLoading.value = true
-
-  try {
-    const response = await clinicStore.getLatestInvoice()
-
-    if (response.success && response.data.invoiceUrl) {
-      window.open(response.data.invoiceUrl, '_blank')
-      return
-    }
-
-    toast.error(response.error || 'Erro ao buscar comprovante.')
-  } catch (err) {
-    console.error('Erro ao buscar comprovante:', err)
-    toast.error('Erro ao buscar comprovante. Tente novamente.')
-  } finally {
-    actionLoading.value = false
-  }
+  const url = subscription.value?.support?.whatsappUrl
+  if (url) window.open(url, '_blank', 'noopener')
 }
 
 onMounted(() => {
   fetchSubscription()
+  fetchPayments()
 })
 </script>
 
@@ -239,130 +265,161 @@ onMounted(() => {
     </div>
 
     <template v-else>
-      <section class="plan-overview">
-        <div class="plan-header">
-          <span class="icon-box brand">
-            <Package :size="19" />
-          </span>
-          <div>
-            <span class="section-eyebrow">Plano atual</span>
-            <h2>{{ planName }}</h2>
-          </div>
+      <div v-if="warningCopy" class="notice access-warning" :class="accessWarning.severity" role="alert">
+        <AlertTriangle v-if="accessWarning.severity !== 'info'" :size="18" />
+        <Info v-else :size="18" />
+        <div class="notice-body">
+          <strong>{{ warningCopy.title }}</strong>
+          <p>{{ warningCopy.text }}</p>
         </div>
+        <button
+          v-if="warningCopy.cta"
+          type="button"
+          class="compact-button warning-cta"
+          :disabled="actionLoading"
+          @click="handleWarningAction"
+        >
+          {{ actionLoading ? 'Abrindo...' : warningCopy.cta }}
+        </button>
+      </div>
 
-        <div class="plan-price">
-          <span v-if="price.currency" class="price-currency">{{ price.currency }}</span>
-          <strong>{{ price.amount }}</strong>
-          <span v-if="price.interval">/ {{ price.interval }}</span>
-        </div>
-
-        <div class="plan-status-line">
+      <div class="subscription-toolbar">
+        <div class="toolbar-info">
           <span class="status-pill" :class="currentStatus.tone">
-            <component :is="currentStatus.icon" :size="14" />
+            <component :is="currentStatus.icon" :size="13" />
             {{ currentStatus.label }}
           </span>
-          <span v-if="subscription?.startDate" class="inline-muted">
+          <span v-if="subscription.startDate" class="inline-muted">
             Assinante desde {{ formatDate(subscription.startDate) }}
           </span>
-          <span v-if="isCanceled && subscription?.cancelAt" class="inline-muted">
-            Termina em {{ formatDate(subscription.cancelAt) }}
+          <span v-if="actions.checkoutBlockedReason === 'TRIAL_ACTIVE'" class="inline-muted">
+            A assinatura fica disponível quando o teste gratuito terminar.
           </span>
         </div>
 
-        <ul class="features-list">
-          <li>
-            <CheckCircle :size="15" />
-            <span>Acesso total ao sistema</span>
-          </li>
-          <li>
-            <CheckCircle :size="15" />
-            <span>Suporte via WhatsApp</span>
-          </li>
-          <li>
-            <CheckCircle :size="15" />
-            <span>Backup automático</span>
-          </li>
-        </ul>
-      </section>
-
-      <div class="billing-layout">
-        <section class="billing-card manage-panel">
-          <div class="panel-copy">
-            <span class="section-eyebrow">Cobrança</span>
-            <h3>Assinatura e pagamento</h3>
-            <p>Atualize o cartão, veja faturas e altere o plano com segurança pelo portal.</p>
-          </div>
-
+        <div class="plan-actions">
           <button
+            v-if="actions.canManageBilling"
             type="button"
             class="compact-button primary"
-            :disabled="actionLoading || isTrialActive"
-            :title="isTrialActive ? 'Gerenciamento desabilitado durante o período de teste' : ''"
-            @click="handleUpdatePayment"
+            :disabled="actionLoading"
+            @click="handleManageBilling"
           >
             <Edit3 :size="16" />
             <span>{{ actionLoading ? 'Abrindo...' : 'Gerenciar assinatura' }}</span>
           </button>
 
-          <div class="secondary-actions">
-            <button type="button" class="compact-button outline" @click="handleNeedHelp">
-              <MessageCircle :size="16" />
-              <span>Suporte</span>
-            </button>
+          <button type="button" class="compact-button outline" @click="handleNeedHelp">
+            <MessageCircle :size="16" />
+            <span>Falar com o suporte</span>
+          </button>
+        </div>
+      </div>
+
+      <section v-if="plans.length" class="plans-section" aria-label="Planos disponíveis">
+        <div class="plans-grid">
+          <article
+            v-for="plan in plans"
+            :key="plan.key"
+            class="plan-card"
+            :class="{ current: plan.isCurrent, highlighted: plan.recommended }"
+          >
+            <div class="plan-card-top">
+              <div class="plan-icon"><Users :size="18" /></div>
+              <span v-if="plan.isCurrent" class="plan-tag current-tag">Plano atual</span>
+              <span v-else-if="plan.recommended" class="plan-tag">Mais escolhido</span>
+            </div>
+
+            <div class="plan-copy">
+              <span class="plan-doctors">{{ plan.doctorsLabel }}</span>
+              <h2>{{ plan.name }}</h2>
+              <p>{{ plan.tagline }}</p>
+            </div>
+
+            <div class="option-price">
+              <strong>{{ formatCurrency(plan.monthlyAmount, plan.currency) }}</strong>
+              <span>/mês</span>
+            </div>
 
             <button
-              v-if="subscription?.status === 'active'"
               type="button"
-              class="compact-button outline"
-              :disabled="actionLoading"
-              @click="handleViewInvoice"
+              class="option-button"
+              :disabled="planButton(plan).disabled"
+              :title="planButton(plan).checkout ? '' : 'Alteração de plano disponível em breve'"
+              @click="planButton(plan).checkout && handleCheckout(plan.key)"
             >
-              <FileText :size="16" />
-              <span>Comprovante</span>
+              <span>{{ planButton(plan).label }}</span>
+              <ArrowRight :size="17" />
             </button>
-          </div>
 
-          <div v-if="isTrialActive" class="notice info">
-            <Info :size="16" />
-            <p>
-              Período de teste ativo. Faltam <strong>{{ trialDaysRemaining }} dias</strong>
-              para o fim do teste.
-            </p>
-          </div>
+            <ul class="option-features">
+              <li v-for="benefit in plan.benefits" :key="benefit">
+                <CheckCircle :size="15" />
+                <span>{{ benefit }}</span>
+              </li>
+            </ul>
+          </article>
+        </div>
+      </section>
 
-          <div v-if="isCanceled" class="notice neutral">
-            <AlertTriangle :size="16" />
+      <div class="billing-layout">
+        <section class="billing-card">
+          <div class="billing-card-header">
+            <span class="icon-box neutral"><FileText :size="18" /></span>
             <div>
-              <p>Sua assinatura está cancelada e pode ser reativada a qualquer momento.</p>
-              <button
-                type="button"
-                class="inline-action"
-                :disabled="actionLoading"
-                @click="handleReactivateSubscription"
-              >
-                {{ actionLoading ? 'Abrindo portal...' : 'Reativar assinatura' }}
-              </button>
+              <span class="card-label">Histórico</span>
+              <h3>Últimos pagamentos</h3>
             </div>
           </div>
 
-          <div v-if="subscription?.cancelAtPeriodEnd" class="notice warning compact">
-            <AlertTriangle :size="16" />
-            <p>Cancelamento agendado para o fim do período.</p>
+          <div v-if="paymentsLoading" class="list-state"><div class="spinner small"></div></div>
+
+          <div v-else-if="paymentsError" class="list-state">
+            <span>Não foi possível carregar os pagamentos.</span>
+            <button type="button" class="inline-action" @click="fetchPayments">Tentar novamente</button>
           </div>
+
+          <div v-else-if="!payments.length" class="empty-payment">
+            <FileText :size="18" />
+            <div>
+              <strong>Nenhum pagamento ainda</strong>
+              <span>Suas cobranças aparecerão aqui depois da primeira fatura.</span>
+            </div>
+          </div>
+
+          <ul v-else class="payments-list">
+            <li v-for="payment in payments" :key="payment.id">
+              <div class="payment-main">
+                <strong>{{ formatCurrency(payment.amount, payment.currency) }}</strong>
+                <span>{{ formatShortDate(payment.date) }}<template v-if="payment.description"> · {{ payment.description }}</template></span>
+              </div>
+              <span class="status-pill" :class="(paymentStatusMap[payment.status] || paymentStatusMap.void).tone">
+                {{ (paymentStatusMap[payment.status] || { label: payment.status }).label }}
+              </span>
+              <a
+                v-if="payment.hostedUrl"
+                :href="payment.hostedUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="receipt-link"
+                aria-label="Abrir comprovante"
+              >
+                <ExternalLink :size="15" />
+              </a>
+            </li>
+          </ul>
         </section>
 
-        <section class="billing-card payment-card-section">
+        <section class="billing-card">
           <div class="billing-card-header">
-            <span class="icon-box neutral">
-              <CreditCard :size="18" />
-            </span>
+            <span class="icon-box neutral"><CreditCard :size="18" /></span>
             <div>
               <span class="card-label">Pagamento</span>
               <h3>Forma de pagamento</h3>
             </div>
           </div>
 
-          <div v-if="subscription?.card" class="payment-card">
+          <div v-if="subscription.card" class="payment-card">
             <div class="brand-card">
               <img
                 v-if="getCardIconUrl(subscription.card.brand)"
@@ -383,15 +440,15 @@ onMounted(() => {
             <CreditCard :size="18" />
             <div>
               <strong>Nenhum cartão vinculado</strong>
-              <span>Adicione um cartão pelo portal de assinatura.</span>
+              <span>O cartão é cadastrado ao finalizar o checkout.</span>
             </div>
           </div>
 
-          <div v-if="subscription?.lastPaymentFailure?.reason" class="notice danger">
+          <div v-if="subscription.paymentError?.message" class="notice danger">
             <AlertTriangle :size="16" />
-            <div>
+            <div class="notice-body">
               <strong>Falha no pagamento</strong>
-              <p>{{ subscription.lastPaymentFailure.reason }}</p>
+              <p>{{ subscription.paymentError.message }}</p>
             </div>
           </div>
         </section>
@@ -409,28 +466,6 @@ onMounted(() => {
   color: #1e293b;
 }
 
-.subscription-actions-card,
-.summary-card,
-.state-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-.subscription-actions-card {
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.actions-copy {
-  min-width: 0;
-}
-
-.plan-overview,
-.manage-panel,
 .billing-card,
 .state-card {
   background: #ffffff;
@@ -438,16 +473,27 @@ onMounted(() => {
   border-radius: 8px;
 }
 
-.plan-overview {
-  min-width: 0;
-  padding: 1.35rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem 1.5rem;
-  align-items: start;
+.subscription-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.plan-header,
+.toolbar-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .billing-card-header {
   display: flex;
   align-items: flex-start;
@@ -455,8 +501,6 @@ onMounted(() => {
   min-width: 0;
 }
 
-.plan-header h2,
-.manage-panel h3,
 .billing-card h3 {
   margin: 0.1rem 0 0;
   color: #111827;
@@ -465,73 +509,11 @@ onMounted(() => {
   line-height: 1.2;
 }
 
-.plan-price {
-  justify-self: end;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  color: #64748b;
-  text-align: right;
-}
-
-.plan-price strong {
-  color: #111827;
-  font-size: clamp(1.85rem, 2.6vw, 2.35rem);
-  line-height: 0.95;
-  font-weight: 650;
-}
-
-.plan-status-line {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-}
-
-.plan-overview .features-list {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.65rem;
-  padding: 0;
-  border-top: 0;
-}
-
-.plan-overview .features-list li {
-  min-height: 40px;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid #edf2f7;
-  border-radius: 8px;
-  background: #fbfdff;
-}
-
-.manage-panel {
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.panel-copy p {
-  margin: 0.35rem 0 0;
-  color: #64748b;
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
-.secondary-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-}
-
 .billing-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .billing-card {
@@ -542,58 +524,14 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.empty-payment div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-}
-
-.empty-payment strong {
-  font-size: 0.86rem;
-  color: inherit;
-}
-
-.empty-payment span {
-  color: #64748b;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
 .section-eyebrow,
-.card-label,
-.detail-label {
+.card-label {
   display: block;
   color: #94a3b8;
   font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.actions-copy h2,
-.summary-card h3,
-.state-card h3 {
-  margin: 0.1rem 0 0;
-  color: #111827;
-  font-size: 1.02rem;
-  font-weight: 600;
-}
-
-.actions-copy p,
-.state-card p {
-  margin: 0.25rem 0 0;
-  color: #6b7280;
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
-.actions-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.55rem;
-  flex-wrap: wrap;
 }
 
 .compact-button {
@@ -629,39 +567,13 @@ onMounted(() => {
   border-color: var(--azul-escuro);
 }
 
-.compact-button.outline {
-  background: #ffffff;
-}
-
 .compact-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: stretch;
-}
-
-.summary-card {
-  min-width: 0;
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.summary-card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
 .icon-box,
-.state-icon,
-.detail-icon {
+.state-icon {
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -672,9 +584,7 @@ onMounted(() => {
 }
 
 .icon-box.success,
-.status-pill.success,
-.notice.success,
-.state-icon.success {
+.status-pill.success {
   background: #ecfdf5;
   color: #047857;
   border-color: #a7f3d0;
@@ -704,26 +614,18 @@ onMounted(() => {
 }
 
 .icon-box.neutral,
-.status-pill.neutral,
-.notice.neutral {
+.status-pill.neutral {
   background: #f8fafc;
   color: #475569;
   border-color: #e2e8f0;
 }
 
 .notice.danger,
+.status-pill.danger,
 .state-icon.error {
   background: #fef2f2;
   color: #b91c1c;
   border-color: #fee2e2;
-}
-
-.status-line {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-  margin-top: 0.25rem;
 }
 
 .status-pill {
@@ -736,6 +638,7 @@ onMounted(() => {
   padding: 0.22rem 0.65rem;
   font-size: 0.74rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .inline-muted {
@@ -747,30 +650,44 @@ onMounted(() => {
 .notice {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.65rem;
   border: 1px solid;
   border-radius: 8px;
-  padding: 0.8rem;
-  font-size: 0.82rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.84rem;
   line-height: 1.45;
 }
 
-.notice.compact {
-  align-items: center;
-  padding: 0.65rem 0.75rem;
+.notice-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.notice p,
-.notice small {
-  margin: 0;
+.notice p {
+  margin: 0.15rem 0 0;
 }
 
 .notice strong {
   font-weight: 700;
 }
 
+.access-warning {
+  align-items: center;
+}
+
+.access-warning.danger .warning-cta {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #ffffff;
+}
+
+.access-warning.warning .warning-cta {
+  background: #b45309;
+  border-color: #b45309;
+  color: #ffffff;
+}
+
 .inline-action {
-  margin-top: 0.55rem;
   border: none;
   background: transparent;
   color: var(--azul-principal);
@@ -780,74 +697,243 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.detail-list {
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+  padding-top: 10px;
+}
+
+.plan-card {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  padding: 1.1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
 }
 
-.detail-row {
+.plan-card.current {
+  border-color: var(--azul-principal);
+}
+
+.plan-card.highlighted {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.plan-card.highlighted.current {
+  border-color: #2563eb;
+}
+
+.plan-card-top {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  justify-content: space-between;
+  min-height: 36px;
 }
 
-.detail-icon {
-  width: 32px;
-  height: 32px;
-  background: #f8fafc;
-  color: #94a3b8;
+.plan-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--azul-principal);
 }
 
-.detail-row strong {
-  display: block;
-  color: #111827;
-  font-size: 0.92rem;
-  font-weight: 600;
-  margin-top: 0.1rem;
+.highlighted .plan-icon {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
-.price-line {
+.plan-tag {
+  background: #2563eb;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.28rem 0.62rem;
+}
+
+.plan-tag.current-tag {
+  background: #eef2ff;
+  color: var(--azul-principal);
+}
+
+.plan-copy {
+  margin-top: 1rem;
+}
+
+.plan-doctors {
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.plan-copy h2 {
+  margin: 0.35rem 0;
+  font-size: 1.3rem;
+}
+
+.plan-copy p {
+  margin: 0;
+  min-height: 58px;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.highlighted .plan-doctors,
+.highlighted .plan-copy p,
+.highlighted .option-price span {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.option-price {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.28rem;
-  color: #64748b;
+  gap: 0.25rem;
+  margin: 1.2rem 0 1rem;
 }
 
-.price-line strong {
-  color: #111827;
-  font-size: 1.8rem;
+.option-price strong {
+  color: var(--azul-principal);
+  font-size: 2rem;
   line-height: 1;
 }
 
-.price-currency {
-  color: #64748b;
-  font-size: 0.9rem;
-  font-weight: 600;
+.highlighted .option-price strong {
+  color: #ffffff;
 }
 
-.features-list {
-  list-style: none;
+.option-price span {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 0.85rem 0.95rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--azul-principal);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.highlighted .option-button {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.option-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.option-features {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  margin: 0;
-  padding: 0.9rem 0 0;
-  border-top: 1px solid #f1f5f9;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid #e5e7eb;
 }
 
-.features-list li {
+.highlighted .option-features {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.option-features li {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  color: #475569;
-  font-size: 0.86rem;
+  gap: 0.5rem;
+  color: #374151;
+  font-size: 0.88rem;
 }
 
-.features-list svg {
-  color: #10b981;
+.highlighted .option-features li {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.option-features svg {
+  color: #16a34a;
   flex-shrink: 0;
+}
+
+.payments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.payments-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.payments-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.payment-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.payment-main strong {
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.payment-main span {
+  color: #64748b;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-link {
+  display: inline-flex;
+  color: #64748b;
+}
+
+.receipt-link:hover {
+  color: var(--azul-principal);
+}
+
+.list-state {
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.84rem;
 }
 
 .payment-card {
@@ -873,10 +959,6 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.brand-card img {
-  display: block;
-}
-
 .payment-info {
   min-width: 0;
   display: flex;
@@ -899,15 +981,30 @@ onMounted(() => {
   min-height: 68px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   gap: 0.65rem;
   border: 1px dashed #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;
   color: #94a3b8;
-  font-size: 0.84rem;
-  font-weight: 600;
   padding: 0.85rem;
+}
+
+.empty-payment div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.empty-payment strong {
+  font-size: 0.86rem;
+  color: #475569;
+}
+
+.empty-payment span {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .state-card {
@@ -921,8 +1018,17 @@ onMounted(() => {
   text-align: center;
 }
 
-.state-card.error-state {
-  align-items: center;
+.state-card h3 {
+  margin: 0.1rem 0 0;
+  color: #111827;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.state-card p {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.84rem;
 }
 
 .state-icon {
@@ -938,6 +1044,12 @@ onMounted(() => {
   animation: spin 0.8s linear infinite;
 }
 
+.spinner.small {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -945,70 +1057,26 @@ onMounted(() => {
 }
 
 @media (max-width: 1180px) {
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-
   .billing-layout {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 720px) {
-  .plan-overview {
-    grid-template-columns: 1fr;
-  }
 
-  .plan-price {
-    justify-self: start;
-    text-align: left;
-  }
-
-  .plan-overview .features-list {
-    grid-template-columns: 1fr;
-  }
-
-  .subscription-actions-card {
-    align-items: stretch;
+  .access-warning {
     flex-direction: column;
-  }
-
-  .actions-row {
-    justify-content: stretch;
-  }
-
-  .compact-button {
-    flex: 1;
+    align-items: stretch;
   }
 }
 
 @media (max-width: 480px) {
-  .subscription-actions-card,
-  .summary-card,
-  .plan-overview,
-  .manage-panel,
   .billing-card {
     padding: 1rem;
   }
 
-  .actions-row {
-    flex-direction: column;
-  }
-
-  .secondary-actions {
-    grid-template-columns: 1fr;
-  }
-
   .compact-button {
     width: 100%;
-  }
-
-  .summary-card-header {
-    align-items: flex-start;
-  }
-
-  .price-line strong {
-    font-size: 1.55rem;
   }
 }
 </style>
