@@ -20,6 +20,12 @@ it('card usa o fuso da clínica, e não o do navegador', () => {
   const wrapper = mount(LiaActionConfirmationCard, { props: { confirmation: { type: 'create_appointment', status: 'pending', startAt: '2030-01-15T17:00:00Z', timezone: 'America/Sao_Paulo' } } })
   expect(wrapper.text()).toContain('14:00'); expect(wrapper.text()).toContain('America/Sao_Paulo')
 })
+it('proposta mostra término, duração e política efetiva sem confirmar automaticamente', () => {
+  const wrapper = mount(LiaActionConfirmationCard, { props: { confirmation: { type: 'create_appointment', status: 'pending', startAt: '2030-01-15T12:00:00Z', endAt: '2030-01-15T12:30:00Z', durationMinutes: 30, timezone: 'America/Sao_Paulo', notificationPolicy: { label: 'Lembretes desativados. Automações podem enviar mensagens após a confirmação.' } } } })
+  expect(wrapper.text()).toContain('09:00'); expect(wrapper.text()).toContain('Até 09:30 · 30 minutos')
+  expect(wrapper.text()).toContain('Lembretes desativados'); expect(wrapper.emitted('confirm')).toBeUndefined()
+  wrapper.unmount()
+})
 it('permite verificar uma ação cujo processamento expirou', async () => {
   const wrapper = mount(LiaActionConfirmationCard, { props: { confirmation: { status: 'processing', recoverable: true } } })
   await wrapper.get('button').trigger('click'); expect(wrapper.emitted('confirm')).toHaveLength(1)
