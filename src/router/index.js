@@ -159,7 +159,9 @@ router.beforeEach(async (to, from, next) => {
       const hasActiveSubscription = hasActiveAccess(authStore.user)
 
       if (to.name === 'clinic-wizard') {
-        if (hasActiveSubscription) {
+        // Retorno do checkout (?payment=success): mostra a tela de sucesso do
+        // onboarding mesmo com a assinatura já ativa/em teste.
+        if (hasActiveSubscription && to.query.payment !== 'success') {
           return next({ name: 'resumo-dashboard' })
         }
         return next()

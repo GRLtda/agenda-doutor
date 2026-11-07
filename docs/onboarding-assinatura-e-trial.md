@@ -15,6 +15,9 @@ Contrato e checklist: [Componentes compartilhados](componentes-compartilhados.md
 
 ## Teste gratuito sem cartão
 
+Esta seção trata do teste do convite administrativo. O teste da feira, com
+cartão, está em [Campanha da feira](#campanha-da-feira-teste-com-cartão).
+
 O período de teste é definido no convite administrativo por meio de `trialDays`. Ao criar a clínica, a API grava `isTrialAccount` e `trialEndsAt`.
 
 Quando o onboarding termina, o frontend atualiza os dados autenticados antes de decidir o próximo passo:
@@ -38,6 +41,63 @@ O teste não cria cliente, sessão ou assinatura na Stripe. Enquanto ele estiver
 5. Confirme o redirecionamento para a seleção de planos e, ao escolher um plano, para o checkout da Stripe.
 
 Convites com `trialDays` igual a zero continuam exigindo assinatura antes de liberar o painel.
+
+## Campanha da feira: teste com cartão
+
+A landing page do evento (`agendadoutor.com/evento/<código>`) leva para
+`/register?campanha=<código>`. As campanhas são criadas no admin. É um fluxo diferente do teste do convite: o cartão
+é obrigatório e o teste fica na Stripe.
+
+- `RegisterView` lê `?campanha=`, guarda o código em `sessionStorage`
+  (`signupCampaignCode`, para sobreviver a um recarregamento), consulta
+  `GET /api/auth/signup-campaigns/:code` e, se a campanha for válida, mostra a
+  faixa "30 dias grátis · {nome da feira}". O código vai no cadastro como
+  `campaignCode`, só quando não há convite. Campanha inválida ou expirada é
+  ignorada sem mensagem e o cadastro segue normal.
+- Em `StepSubscription`, quando `/v2/auth/me` traz `signupCampaignOffer`
+  (`{ label, trialDays }`), a tela mostra a faixa do teste, os botões
+  "Começar 30 dias grátis", **Total hoje R$ 0,00**, a **Taxa de instalação**
+  (só o valor, sem data) e "Primeira cobrança em {data}" com o valor da
+  primeira cobrança (mensalidade + taxa de instalação, se pendente).
+- O checkout da Stripe cria a assinatura em `trialing`, que já libera o painel.
+  `signupCampaignOffer` volta `null` depois que o teste é resgatado.
+
+## Tela de retorno do pagamento
+
+`/onboarding/clinic?payment=success` mostra `components/pages/onboarding/PaymentSuccess.vue`
+(etapa 5 do `ClinicWizardView`). É o `success_url` do checkout de onboarding,
+montado pela API com `FRONTEND_URL`. A guarda global do router manda
+`/onboarding/clinic` para o painel quando a assinatura já está ativa, **exceto**
+com `payment=success`, para a tela de sucesso aparecer mesmo depois que o webhook
+já confirmou.
+
+Em desenvolvimento, a confirmação depende do webhook da Stripe chegar na API
+local (por exemplo `stripe listen --forward-to localhost:3001/subscriptions/webhook`).
+Sem ele, a tela fica em "Confirmando" e depois oferece **Verificar novamente**.
+
+- **Confirmando:** enquanto o webhook da Stripe não atualiza a clínica, mostra as
+  etapas "Recebemos seu retorno", "Confirmando com a Stripe" e "Liberando sua
+  clínica". A cada 3 s pede `refreshPaymentStatus` (só `fetchUser`, sem voltar ao
+  skeleton), até 10 vezes. Depois oferece **Verificar novamente**.
+- **Confirmado** (`active`, `trialing`, `lifetime` ou `past_due`): o check é desenhado, há
+  confete nas cores da marca e o título usa o primeiro nome. Com o teste da
+  campanha (`/v2/auth/me` → `signupCampaignTrial: { label, trialDays, startedAt, endsAt }`),
+  mostra "Fulano, seu 1 mês grátis está ativo!", "Use o Agenda Doutor à vontade até
+  {data}. Nada foi cobrado hoje." e o selo da campanha. A data é aproximada
+  (resgate + dias); a data exata fica na Stripe. Sem campanha, mostra a
+  confirmação da assinatura.
+- **Aproveite agora:** atalhos para o calendário (`calendario`), novo paciente
+  (`novo-paciente`) e conexão do WhatsApp (`marketing-conexao`), disponíveis em
+  todos os planos, e o botão **Ir para o painel**.
+- Com movimento reduzido, não há confete nem animações.
+
+Regras da API, taxa de instalação e auditoria:
+[Assinatura e teste gratuito](../../api-clinic/docs/ASSINATURA_E_TRIAL.md#campanha-de-autocadastro-com-teste-na-stripe).
+
+Para verificar: criar uma campanha no admin, abrir `/register?campanha=<código>`, conferir a faixa, cadastrar,
+concluir a clínica e conferir na seleção de planos o total de hoje zerado e a
+data da primeira cobrança. Pagar com o cartão de teste `4242 4242 4242 4242` e
+confirmar a entrada no painel. `/register` sem parâmetro não mostra nada disso.
 
 ## Cabeçalho da seleção de planos
 

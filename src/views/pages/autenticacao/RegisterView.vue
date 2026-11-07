@@ -4,12 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 // Importar as duas APIs de convite
 import { getInvitationDetails } from '@/api/employees' // Convite de funcionário
-import { verifyInvitationToken } from '@/api/auth' // Convite de registro
+import { verifyInvitationToken, getSignupCampaign } from '@/api/auth' // Convite de registro e campanha
 import { useToast } from 'vue-toastification'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import PasswordInput from '@/components/global/PasswordInput.vue'
-import { CheckCircle2, Building2, Check } from 'lucide-vue-next' // ✨ Importei o Building2 e Check
+import { CheckCircle2, Building2, Check, Gift } from 'lucide-vue-next'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import confetti from 'canvas-confetti'
@@ -39,6 +39,37 @@ const invitationToken = ref(null)
 const emailIsDisabled = ref(false)
 const phoneIsDisabled = ref(false)
 const nameIsDisabled = ref(false)
+
+// Campanha de autocadastro (?campanha=<código>). Ver docs/onboarding-assinatura-e-trial.md.
+const CAMPAIGN_STORAGE_KEY = 'signupCampaignCode'
+const campaignCode = ref(null)
+const campaign = ref(null)
+
+async function loadSignupCampaign() {
+  const fromQuery = typeof route.query.campanha === 'string' ? route.query.campanha.trim() : ''
+  let code = fromQuery
+  try {
+    if (fromQuery) sessionStorage.setItem(CAMPAIGN_STORAGE_KEY, fromQuery)
+    else code = sessionStorage.getItem(CAMPAIGN_STORAGE_KEY) || ''
+  } catch {
+    // sessionStorage indisponível: usa apenas a URL
+  }
+  if (!code) return
+
+  try {
+    const response = await getSignupCampaign(code)
+    const data = response.data?.data || response.data
+    if (data?.valid) {
+      campaignCode.value = code
+      campaign.value = { label: data.label, trialDays: data.trialDays }
+      return
+    }
+  } catch (error) {
+    console.error('Erro ao consultar campanha de cadastro:', error)
+  }
+  // Campanha inválida ou expirada: cadastro segue normalmente, sem benefício.
+  try { sessionStorage.removeItem(CAMPAIGN_STORAGE_KEY) } catch { /* noop */ }
+}
 
 const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
 
@@ -116,6 +147,8 @@ onMounted(async () => {
       invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
+  } else {
+    await loadSignupCampaign()
   }
 })
 
@@ -155,12 +188,15 @@ async function handleRegister() {
   // Envia o token apenas quando o cadastro veio de convite.
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
+  } else if (campaignCode.value) {
+    payload.campaignCode = campaignCode.value
   }
 
   const { success, error } = await authStore.register(payload)
   isLoading.value = false
 
   if (success) {
+    try { sessionStorage.removeItem(CAMPAIGN_STORAGE_KEY) } catch { /* noop */ }
     registrationSuccess.value = true
   } else {
     const registrationError =
@@ -253,6 +289,18 @@ function handleRegistrationComplete() {
         </div>
         <p class="plan-description">
           Seu cadastro será concluído com os benefícios do plano selecionado.
+        </p>
+      </div>
+      <div v-else-if="campaign" class="plan-info" role="status">
+        <div class="plan-title-wrapper">
+          <Gift class="plan-icon" :size="20" />
+          <h4 class="plan-title">
+            {{ campaign.trialDays }} dias grátis · <span class="plan-name">{{ campaign.label }}</span>
+          </h4>
+        </div>
+        <p class="plan-description">
+          Ao assinar no fim do cadastro, você informa o cartão e só é cobrado depois de
+          {{ campaign.trialDays }} dias. Cancele quando quiser antes disso.
         </p>
       </div>
       <form @submit.prevent="handleRegister">

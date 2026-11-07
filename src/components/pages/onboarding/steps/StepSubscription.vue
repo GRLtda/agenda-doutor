@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Users } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Gift, Users } from 'lucide-vue-next'
 import { createCheckoutSession } from '@/api/subscriptions/subscriptions.service'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
@@ -81,8 +81,22 @@ const profilePhotoUrl = computed(() => {
 })
 const installationFeeAmount = 10000
 const shouldChargeInstallation = computed(() => !props.installationFeeCharged)
-const totalToday = computed(() => {
+
+// Campanha de autocadastro (ex.: feira): teste na Stripe com cartão obrigatório.
+// Nada é cobrado hoje; mensalidade e taxa entram na primeira fatura após o teste.
+const campaignOffer = computed(() => authStore.user?.signupCampaignOffer || null)
+const firstChargeDate = computed(() => {
+  if (!campaignOffer.value) return null
+  const date = new Date()
+  date.setDate(date.getDate() + campaignOffer.value.trialDays)
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+})
+const firstChargeAmount = computed(() => {
   return selectedPlanData.value.price + (shouldChargeInstallation.value ? installationFeeAmount : 0)
+})
+const totalToday = computed(() => {
+  if (campaignOffer.value) return 0
+  return firstChargeAmount.value
 })
 
 function formatCurrency(value) {
@@ -173,6 +187,15 @@ async function handleSubscribe(planId = selectedPlan.value) {
         </p>
       </div>
 
+      <div v-if="campaignOffer" class="campaign-banner" role="status">
+        <Gift :size="18" aria-hidden="true" />
+        <p>
+          <strong>{{ campaignOffer.trialDays }} dias grátis · {{ campaignOffer.label }}.</strong>
+          Cadastre o cartão agora e a primeira cobrança acontece só em {{ firstChargeDate }}.
+          Cancele quando quiser antes disso.
+        </p>
+      </div>
+
       <div class="plans-grid">
         <article
           v-for="plan in plans"
@@ -200,7 +223,13 @@ async function handleSubscribe(planId = selectedPlan.value) {
           </div>
 
           <button class="plan-button" type="button" @click.stop="handleSubscribe(plan.id)">
-            <span>{{ loadingPlan === plan.id ? 'Abrindo checkout...' : 'Escolher plano' }}</span>
+            <span>{{
+              loadingPlan === plan.id
+                ? 'Abrindo checkout...'
+                : campaignOffer
+                  ? `Começar ${campaignOffer.trialDays} dias grátis`
+                  : 'Escolher plano'
+            }}</span>
             <ArrowRight :size="17" />
           </button>
 
@@ -213,7 +242,11 @@ async function handleSubscribe(planId = selectedPlan.value) {
         </article>
       </div>
 
-      <section class="checkout-summary" aria-label="Resumo de cobrança">
+      <section
+        class="checkout-summary"
+        :class="{ 'has-campaign': campaignOffer }"
+        aria-label="Resumo de cobrança"
+      >
         <div>
           <span>Plano selecionado</span>
           <strong>{{ selectedPlanData.doctors }} · {{ selectedPlanData.displayPrice }}/mês</strong>
@@ -228,7 +261,11 @@ async function handleSubscribe(planId = selectedPlan.value) {
         </div>
         <div>
           <span>Total hoje</span>
-          <strong>{{ formatCurrency(totalToday) }}</strong>
+          <strong :class="{ 'success-text': campaignOffer }">{{ formatCurrency(totalToday) }}</strong>
+        </div>
+        <div v-if="campaignOffer">
+          <span>Primeira cobrança em {{ firstChargeDate }}</span>
+          <strong>{{ formatCurrency(firstChargeAmount) }}</strong>
         </div>
       </section>
 
@@ -370,6 +407,30 @@ async function handleSubscribe(planId = selectedPlan.value) {
   color: #6b7280;
   font-size: 1rem;
   line-height: 1.55;
+  margin: 0;
+}
+
+.campaign-banner {
+  align-items: flex-start;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  color: #166534;
+  display: flex;
+  gap: 0.6rem;
+  margin: 0 auto 1.4rem;
+  max-width: 860px;
+  padding: 0.85rem 1rem;
+}
+
+.campaign-banner svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.campaign-banner p {
+  font-size: 0.92rem;
+  line-height: 1.5;
   margin: 0;
 }
 
@@ -575,6 +636,10 @@ async function handleSubscribe(planId = selectedPlan.value) {
   padding: 0.9rem 1rem;
 }
 
+.checkout-summary.has-campaign {
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+}
+
 @keyframes plansReveal {
   from {
     opacity: 0;
@@ -670,7 +735,8 @@ async function handleSubscribe(planId = selectedPlan.value) {
   }
 
   .plans-grid,
-  .checkout-summary {
+  .checkout-summary,
+  .checkout-summary.has-campaign {
     grid-template-columns: 1fr;
   }
 

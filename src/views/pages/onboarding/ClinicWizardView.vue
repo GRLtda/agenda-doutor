@@ -7,7 +7,8 @@ import StepCreateClinic from '@/components/pages/onboarding/steps/StepCreateClin
 import StepWorkingHours from '@/components/pages/onboarding/steps/StepWorkingHours.vue'
 import StepSubscription from '@/components/pages/onboarding/steps/StepSubscription.vue'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
-import { Building, Clock, CheckCircle, PartyPopper, Sparkles } from 'lucide-vue-next'
+import PaymentSuccess from '@/components/pages/onboarding/PaymentSuccess.vue'
+import { Building, Clock, CheckCircle, Sparkles } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -108,6 +109,13 @@ function goToDashboard() {
   router.push('/')
 }
 
+// Consulta leve usada pela tela de sucesso enquanto o webhook confirma o
+// pagamento (não troca para o skeleton, para não reiniciar a animação).
+async function refreshPaymentStatus() {
+  await authStore.fetchUser()
+  subscriptionStatus.value = authStore.user?.clinic?.subscriptionStatus || null
+}
+
 async function finishOnboarding() {
   isPreparingPlans.value = true
 
@@ -165,23 +173,16 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
     @back="previousStep"
   />
 
-  <main v-else-if="currentStep === 5 && !isCheckingPayment" class="payment-result-page">
-    <div class="payment-result-card">
-      <div class="success-icon-wrapper">
-        <PartyPopper :size="48" />
-      </div>
-      <h1>Obrigado!</h1>
-      <p v-if="!hasActiveSubscription">
-        Recebemos seu retorno do pagamento e estamos finalizando a confirmação da assinatura.
-        Em instantes sua clínica será liberada.
-      </p>
-      <p v-else>Pagamento confirmado com sucesso. Sua clínica já está pronta para começar.</p>
-      <button v-if="hasActiveSubscription" @click="goToDashboard" class="auth-button">
-        Ir para o Dashboard
-      </button>
-      <button v-else @click="syncOnboardingStep" class="auth-button">Verificar assinatura</button>
-    </div>
-  </main>
+  <PaymentSuccess
+    v-else-if="currentStep === 5 && !isCheckingPayment"
+    :confirmed="hasActiveSubscription"
+    :trialing="(subscriptionStatus || clinic?.subscriptionStatus) === 'trialing'"
+    :campaign-trial="authStore.user?.signupCampaignTrial || null"
+    :user-name="authStore.user?.name || ''"
+    @refresh="refreshPaymentStatus"
+    @dashboard="goToDashboard"
+    @navigate="(target) => router.push(target)"
+  />
 
   <AuthCard v-else :image-url="imageUrl" panel-width="large" class="onboarding-auth-card">
     <template #image-content>
@@ -426,33 +427,6 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
   to {
     transform: rotate(360deg);
   }
-}
-
-.payment-result-page {
-  align-items: center;
-  background: #ffffff;
-  background-image:
-    linear-gradient(to right, rgba(229, 231, 235, 0.32) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(229, 231, 235, 0.32) 1px, transparent 1px);
-  background-size: 40px 40px;
-  display: flex;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 2rem;
-}
-
-.payment-result-card {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  max-width: 460px;
-  text-align: center;
-}
-
-.payment-result-card h1 {
-  color: var(--preto);
-  font-size: 2rem;
-  margin: 0 0 0.5rem;
 }
 
 .success-icon-wrapper {
