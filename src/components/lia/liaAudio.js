@@ -23,3 +23,26 @@ export async function recordingToWav(blob) {
     return encodeMonoWav(mono.getChannelData(0))
   } finally { await context.close().catch(() => {}) }
 }
+
+// Read microphone levels without routing audio to the speakers.
+export function attachVoiceMeter(context, stream, onLevel) {
+  let source, analyser, frame, stopped = false, last = 0
+  const stop = () => { stopped = true; window.cancelAnimationFrame?.(frame); source?.disconnect(); analyser?.disconnect() }
+  try {
+    source = context.createMediaStreamSource(stream)
+    analyser = context.createAnalyser(); analyser.fftSize = 256
+    source.connect(analyser)
+    const samples = new Uint8Array(analyser.fftSize)
+    const tick = now => {
+      if (stopped) return
+      if (now - last >= 70) {
+        analyser.getByteTimeDomainData(samples)
+        const power = samples.reduce((sum, value) => sum + ((value - 128) / 128) ** 2, 0) / samples.length
+        onLevel(Math.min(1, Math.sqrt(power) * 7)); last = now
+      }
+      if (!stopped) frame = window.requestAnimationFrame(tick)
+    }
+    frame = window.requestAnimationFrame(tick)
+    return stop
+  } catch { stop(); return () => {} }
+}

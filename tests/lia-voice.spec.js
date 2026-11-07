@@ -21,24 +21,24 @@ beforeEach(() => {
     stop() { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob(['synthetic']) }); this.onstop?.() }
   })
 })
-afterEach(() => { wrappers.forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+afterEach(() => { wrappers.forEach(wrapper => wrapper.unmount()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 const voice = () => { const wrapper = mount(LiaVoiceInput, { props: { active: true, contextKey: 'clinic:user:conversation' } }); wrappers.push(wrapper); return wrapper }
-it('grava somente ao clicar, para o microfone antes da transcrição e emite só texto', async () => {
+it('pausar para o microfone e transcreve para revisão sem pedir envio', async () => {
   const wrapper = voice()
   expect(mocks.getUserMedia).not.toHaveBeenCalled()
   await wrapper.get('.microphone').trigger('click'); await flushPromises()
   expect(mocks.getUserMedia).toHaveBeenCalledWith(expect.objectContaining({ video: false }))
   expect(mocks.transcribe).not.toHaveBeenCalled()
-  await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  await wrapper.get('.pause-recording').trigger('click'); await flushPromises()
   expect(stop).toHaveBeenCalledTimes(1)
   expect(mocks.transcribe).toHaveBeenCalledTimes(1)
-  expect(wrapper.emitted('transcript')).toEqual([['Ver minha agenda']])
+  expect(wrapper.emitted('transcript')).toEqual([['Ver minha agenda', { send: false }]])
 })
 it('cancelar uma transcrição impede que o texto atrasado seja enviado', async () => {
   let finish
   mocks.transcribe.mockReturnValue(new Promise(resolve => { finish = resolve }))
   const wrapper = voice(); await wrapper.get('.microphone').trigger('click'); await flushPromises()
-  await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  await wrapper.get('.pause-recording').trigger('click'); await flushPromises()
   const signal = mocks.transcribe.mock.calls[0][1]
   await wrapper.get('.cancel-voice').trigger('click')
   finish({ data: { text: 'Não enviar' } }); await flushPromises()
@@ -69,4 +69,51 @@ it('WAV padroniza duração, canais e amostras PCM e limita a gravação a 60 se
   expect(view.getUint32(24, true)).toBe(16000); expect(view.getUint16(22, true)).toBe(1)
   expect(view.getInt16(44, true)).toBe(32767); expect(view.getInt16(46, true)).toBe(-32768)
   expect(() => encodeMonoWav(new Float32Array(16000 * 61))).toThrow()
+})
+it('enviar durante a gravação transcreve uma vez e sinaliza envio direto', async () => {
+  let finish
+  mocks.transcribe.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const wrapper = voice(); await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  expect(wrapper.get('.send-message').element.disabled).toBe(false)
+  await wrapper.get('.send-message').trigger('click'); await flushPromises()
+  expect(wrapper.get('.send-message').element.disabled).toBe(true)
+  expect(wrapper.get('.pause-recording').element.disabled).toBe(true)
+  await wrapper.get('.send-message').trigger('click')
+  expect(mocks.transcribe).toHaveBeenCalledTimes(1)
+  finish({ data: { text: 'Enviar minha pergunta' } }); await flushPromises()
+  expect(wrapper.emitted('transcript')).toEqual([['Enviar minha pergunta', { send: true }]])
+})
+it('limite de sessenta segundos transcreve para o campo, sem envio automático', async () => {
+  vi.useFakeTimers()
+  let finish
+  mocks.transcribe.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const wrapper = voice(); await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  await vi.advanceTimersByTimeAsync(2500)
+  expect(wrapper.get('time').text()).toBe('0:02')
+  await vi.advanceTimersByTimeAsync(57500); await flushPromises()
+  expect(wrapper.get('time').text()).toBe('1:00')
+  expect(stop).toHaveBeenCalledTimes(1)
+  finish({ data: { text: 'Revisar ao terminar' } }); await flushPromises()
+  expect(wrapper.emitted('transcript')).toEqual([['Revisar ao terminar', { send: false }]])
+})
+it('ondas seguem o nível real do microfone e o analisador é encerrado ao pausar', async () => {
+  let frame
+  const source = { connect: vi.fn(), disconnect: vi.fn() }
+  const analyser = { fftSize: 256, getByteTimeDomainData: samples => samples.fill(255), disconnect: vi.fn() }
+  const close = vi.fn().mockResolvedValue()
+  vi.stubGlobal('requestAnimationFrame', vi.fn(callback => { frame = callback; return 1 }))
+  vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  vi.stubGlobal('AudioContext', class {
+    resume() { return Promise.resolve() }
+    createMediaStreamSource() { return source }
+    createAnalyser() { return analyser }
+    close = close
+  })
+  const wrapper = voice(); await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  frame(100); await flushPromises()
+  expect(wrapper.findAll('.voice-waveform rect').at(-1).attributes('height')).toBe('30')
+  expect(source.connect).toHaveBeenCalledExactlyOnceWith(analyser)
+  await wrapper.get('.pause-recording').trigger('click'); await flushPromises()
+  expect(source.disconnect).toHaveBeenCalledTimes(1); expect(analyser.disconnect).toHaveBeenCalledTimes(1)
+  expect(close).toHaveBeenCalledTimes(1)
 })

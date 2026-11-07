@@ -9,13 +9,16 @@ import LiaLauncher from '@/components/lia/LiaLauncher.vue'
 import LiaConversationSearch from '@/components/lia/LiaConversationSearch.vue'
 import { buildLiaChart } from '@/components/lia/liaChart'
 
-const mocks = vi.hoisted(() => ({ store: null, auth: null, page: null }))
+const mocks = vi.hoisted(() => ({ store: null, auth: null, page: null, transcribe: vi.fn() }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => mocks.auth }))
 vi.mock('@/stores/lia', () => ({ useLiaStore: () => mocks.store }))
 vi.mock('@/composables/useLiaPageContext', () => ({ useLiaPageContext: () => mocks.page }))
+vi.mock('@/api/lia', () => ({ transcribeLiaAudio: mocks.transcribe, submitLiaFeedback: vi.fn() }))
+vi.mock('@/components/lia/liaAudio', async original => ({ ...await original(), recordingToWav: vi.fn().mockResolvedValue(new Blob(['synthetic'], { type: 'audio/wav' })) }))
 let wrappers
 beforeEach(() => {
   wrappers = []
+  mocks.transcribe.mockReset()
   vi.stubGlobal('matchMedia', vi.fn(query => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   mocks.auth = reactive({ user: { _id: 'synthetic-user', name: 'Guilherme Exemplo', role: 'owner' } })
   mocks.page = ref(null)
@@ -87,6 +90,35 @@ it('Enter envia uma vez com contexto validável; Shift+Enter e composição de t
   expect(mocks.store.sendMessage).not.toHaveBeenCalled()
   await field.trigger('keydown', { key: 'Enter' }); await flushPromises()
   expect(mocks.store.sendMessage).toHaveBeenCalledExactlyOnceWith('Ver atendimentos', { pageContext: { type: 'patient', entityId: 'synthetic-patient' } })
+})
+it('voz fica ao lado de enviar: pausar preenche o campo e enviar durante a fala envia direto', async () => {
+  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) } })
+  vi.stubGlobal('AudioContext', class {})
+  vi.stubGlobal('OfflineAudioContext', class {})
+  vi.stubGlobal('MediaRecorder', class {
+    state = 'inactive'; mimeType = 'audio/webm'
+    static isTypeSupported() { return true }
+    start() { this.state = 'recording' }
+    stop() { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob(['synthetic']) }); this.onstop?.() }
+  })
+  mocks.transcribe.mockResolvedValueOnce({ data: { text: 'Pergunta para revisar' } }).mockResolvedValueOnce({ data: { text: 'Pergunta para enviar direto' } })
+  const wrapper = chat(); await flushPromises()
+  expect(wrapper.get('.microphone').element.nextElementSibling).toBe(wrapper.get('[aria-label="Enviar mensagem"]').element)
+  await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  expect(wrapper.get('textarea').isVisible()).toBe(false)
+  expect(wrapper.find('.voice-waveform').exists()).toBe(true)
+  expect(wrapper.get('[aria-label="Enviar mensagem"]').element.disabled).toBe(false)
+  await wrapper.get('.pause-recording').trigger('click'); await flushPromises()
+  expect(wrapper.get('textarea').element.value).toBe('Pergunta para revisar')
+  expect(wrapper.get('textarea').isVisible()).toBe(true)
+  expect(document.activeElement).toBe(wrapper.get('textarea').element)
+  expect(mocks.store.sendMessage).not.toHaveBeenCalled()
+  await wrapper.get('[aria-label="Enviar mensagem"]').trigger('click'); await flushPromises()
+  expect(mocks.store.sendMessage).toHaveBeenCalledWith('Pergunta para revisar', {})
+  await wrapper.get('.microphone').trigger('click'); await flushPromises()
+  await wrapper.get('[aria-label="Enviar mensagem"]').trigger('click'); await flushPromises()
+  expect(mocks.store.sendMessage).toHaveBeenLastCalledWith('Pergunta para enviar direto', {})
+  expect(mocks.store.sendMessage).toHaveBeenCalledTimes(2)
 })
 it('envio em andamento bloqueia duplicação e permite expansão sem perder a pergunta', async () => {
   mocks.store.isSending = true; mocks.store.messages = [{ id: 'q', role: 'user', content: 'Pergunta sintética' }]

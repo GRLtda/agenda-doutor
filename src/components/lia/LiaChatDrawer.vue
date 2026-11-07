@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
 import { routerKey } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
@@ -112,6 +112,12 @@ async function loadOlder() {
   if (element) element.scrollTop = top + element.scrollHeight - height
 }
 async function useSuggestion(suggestion) { input.value = suggestion.prompt; await resizeInput(); textarea.value?.focus() }
+async function onVoiceTranscript(text, options = {}) {
+  input.value = text
+  await resizeInput()
+  if (options.send) await submit()
+  else textarea.value?.focus()
+}
 async function openPatient(id) {
   if (!/^[a-f0-9]{24}$/i.test(id) || !router) return
   await router.push({ name: 'detalhes-paciente', params: { id } })
@@ -120,7 +126,7 @@ async function openPatient(id) {
 }
 async function submit(value = input.value, options = {}) {
   const message = value.trim()
-  if (!message || liaStore.isSending || liaStore.isLoading || !liaStore.isAvailable) return
+  if (!message || liaStore.isSending || liaStore.isLoading || voiceBusy.value || !liaStore.isAvailable) return
   input.value = ''; nearBottom.value = true
   await resizeInput()
   const pending = liaStore.sendMessage(message, { ...options, ...(pageContext.value ? { pageContext: pageContext.value } : {}) })
@@ -220,7 +226,16 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
         <button v-if="!nearBottom && liaStore.messages.length" type="button" class="scroll-latest" aria-label="Ir para a última mensagem" @click="nearBottom = true; scrollToLatest(true)"><ArrowDown :size="15" /> Últimas mensagens</button>
         <footer class="lia-footer">
           <div v-if="followups.length && !liaStore.isSending && !liaStore.isLoading" class="followups" aria-label="Sugestões para continuar"><button v-for="suggestion in followups" :key="suggestion.prompt" type="button" :disabled="voiceBusy" @click="useSuggestion(suggestion)">{{ suggestion.label }}</button></div>
-          <form class="composer" @submit.prevent="submit()"><label for="lia-message" class="sr-only">Mensagem para a Lia</label><textarea id="lia-message" ref="textarea" v-model="input" data-clarity-mask="true" data-sentry-mask :disabled="liaStore.isSending || liaStore.isLoading || voiceBusy" maxlength="4000" rows="1" placeholder="Lia, me ajuda com…" @keydown.enter="onEnter"></textarea><div class="composer-bottom"><LiaVoiceInput :active="open && chatVisible" :context-key="voiceContext" :disabled="liaStore.isSending || liaStore.isLoading || !!input.trim()" @busy="voiceBusy = $event" @transcript="submit($event)" /><span v-if="!voiceBusy"><span class="composer-dot"></span> {{ liaStore.isSending ? 'Lia está pensando' : 'Vamos conversar' }}</span><small v-if="input.length > 3600">{{ input.length }}/4000</small><button type="submit" :disabled="!canSend" aria-label="Enviar mensagem"><ArrowUp :size="19" :stroke-width="2.3" /></button></div></form>
+          <form class="composer" :class="{ 'is-voice': voiceBusy }" @submit.prevent="submit()">
+            <label for="lia-message" class="sr-only">Mensagem para a Lia</label>
+            <textarea id="lia-message" ref="textarea" v-model="input" v-show="!voiceBusy" data-clarity-mask="true" data-sentry-mask :disabled="liaStore.isSending || liaStore.isLoading || voiceBusy" maxlength="4000" rows="1" placeholder="Lia, me ajuda com…" @keydown.enter="onEnter"></textarea>
+            <div class="composer-bottom">
+              <LiaVoiceInput :active="open && chatVisible" :context-key="voiceContext" :can-send="canSend" :disabled="liaStore.isSending || liaStore.isLoading || !!input.trim()" @busy="voiceBusy = $event" @transcript="onVoiceTranscript" @submit="submit()">
+                <span class="composer-hint"><span class="composer-dot"></span>{{ liaStore.isSending ? 'Lia está pensando' : 'Vamos conversar' }}</span>
+                <small v-if="input.length > 3600" class="composer-count">{{ input.length }}/4000</small>
+              </LiaVoiceInput>
+            </div>
+          </form>
           <div class="footer-note"><ShieldCheck :size="11" /><span>Confira as informações. A Lia pode cometer erros.</span></div>
         </footer>
       </main>
