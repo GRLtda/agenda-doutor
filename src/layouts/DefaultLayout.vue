@@ -9,6 +9,7 @@ import SettingsView from '@/views/pages/configuracoes/SettingsView.vue'
 import ProfileModal from '@/views/pages/profile/ProfileModal.vue'
 import PaymentErrorBanner from '@/components/layout/PaymentErrorBanner.vue'
 import LiaChatDrawer from '@/components/lia/LiaChatDrawer.vue'
+import LiaAvatar from '@/components/lia/LiaAvatar.vue'
 import { useLayoutStore } from '@/stores/layout'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
@@ -188,9 +189,9 @@ watch(
     <SettingsView v-if="isSettingsModalOpen" @close="closeSettingsModal" />
     <ProfileModal v-if="isProfileModalOpen" @close="closeProfileModal" />
     <LiaChatDrawer v-if="liaStore.isAvailable" :open="liaStore.isOpen" @close="liaStore.isOpen = false" />
-    <button v-if="liaStore.isAvailable" class="lia-launcher" type="button" aria-label="Abrir a Lia" @click="liaStore.isOpen = true">
-      <span>✦</span>
-      <span class="lia-launcher-label">Lia</span>
+    <button v-if="liaStore.isAvailable && !liaStore.isOpen" class="lia-launcher" type="button" aria-label="Conversar com a Lia" @click="liaStore.isOpen = true">
+      <LiaAvatar class="launcher-character" :thinking="liaStore.isSending" />
+      <span class="lia-launcher-label">Fale com a Lia</span>
     </button>
 
     <Transition name="sidebar-overlay-fade">
@@ -249,22 +250,23 @@ watch(
   z-index: 3000;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.72rem 0.9rem;
-  border: 0;
+  gap: 0.3rem;
+  padding: 0.32rem 1rem 0.32rem 0.3rem;
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 999px;
-  color: #fff;
-  background: var(--azul-principal, #2563eb);
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+  color: var(--foreground, #243247);
+  background: var(--card, #fff);
+  box-shadow: 0 8px 30px rgba(25, 48, 85, 0.12);
   cursor: pointer;
   font: inherit;
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 550;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.lia-launcher:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37, 99, 235, 0.34); }
-.lia-launcher span:first-child { font-size: 1rem; }
+.lia-launcher:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(25, 48, 85, 0.18); }
+.lia-launcher .launcher-character { width: 40px; }
+@media(prefers-reduced-motion: reduce) { .lia-launcher { transition: none; } .lia-launcher:hover { transform: none; } }
 
 .sidebar-overlay {
   position: fixed;

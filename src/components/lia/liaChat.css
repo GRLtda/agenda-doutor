@@ -1,0 +1,74 @@
+button,textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .45; }
+button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; }
+.lia-header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 8px; min-height: 77px; padding: 13px 16px; border-bottom: 1px solid var(--lia-line); background: var(--lia-surface); }
+.lia-identity { display: flex; align-items: center; min-width: 0; gap: 7px; }
+.lia-identity>div { min-width: 0; }
+.header-character { width: 43px; }
+.lia-identity h1 { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.6px; }
+.lia-identity h1>span { color: var(--lia-muted); font-size: 10px; font-weight: 450; letter-spacing: 0; }
+.lia-identity p { display: flex; align-items: center; gap: 5px; margin: 4px 0 0; white-space: nowrap; color: var(--lia-muted); font-size: 10px; }
+.lia-identity i { width: 4px; height: 4px; border-radius: 50%; background: #29ad89; }
+.lia-identity i.thinking { background: #e4aa39; }
+.header-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.header-actions button { display: grid; place-items: center; width: 30px; height: 32px; padding: 0; border: 0; border-radius: 9px; color: var(--lia-muted); background: transparent; }
+.header-actions button:hover,.header-actions button[aria-pressed=true] { color: var(--lia-blue); background: var(--lia-tint); }
+.lia-body { display: flex; flex: 1; min-height: 0; }
+.lia-body>:deep(.lia-history:not(.sidebar)) { width: 100%; }
+.lia-chat { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.messages { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 22px 23px 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lia-muted) 25%, transparent) transparent; }
+.page-context { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; padding: 8px 12px; color: var(--lia-blue); background: var(--lia-tint); font-size: 10px; }
+.page-context>span,.composer-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.chat-error { display: flex; align-items: center; gap: 8px; margin: 12px 16px 0; padding: 10px 12px; border: 1px solid #c2435730; border-radius: 10px; color: #bd4354; background: #bd435408; font-size: 11px; line-height: 1.5; }
+.chat-error>span { flex: 1; }.chat-error>button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; color: inherit; background: transparent; }
+.welcome { margin: auto 0; padding: 4px 0 18px; text-align: center; }
+.welcome-art { position: relative; width: 104px; height: 104px; margin: 0 auto 4px; }
+.welcome-art:before { content: ''; position: absolute; inset: 10px -20px; border-radius: 50%; background: radial-gradient(ellipse, #1a68fe15, transparent 70%); }
+.welcome-character { position: relative; width: 104px; }
+.greeting { margin: 0 0 11px; color: var(--lia-muted); font-size: 12px; }
+.welcome h2 { margin: 0; color: var(--lia-text); font-size: clamp(28px, 3vw, 38px); line-height: 1.15; letter-spacing: -1.5px; font-weight: 550; }
+.welcome h2 span { color: var(--lia-blue); }
+.welcome-description { margin: 14px 0 24px; color: var(--lia-muted); font-size: 12px; line-height: 1.7; }
+.suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; text-align: left; }
+.suggestions button { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; position: relative; min-width: 0; padding: 13px 12px; border: 1px solid var(--lia-line); border-radius: 14px; color: var(--lia-text); background: var(--lia-surface); transition: border-color .16s, transform .16s, box-shadow .16s; }
+.suggestions button:hover { border-color: color-mix(in srgb, var(--lia-blue) 40%, var(--lia-line)); transform: translateY(-2px); box-shadow: 0 6px 14px #14233d06; }
+.suggestion-icon { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: var(--lia-tint); color: var(--lia-blue); }
+.suggestions button>span:nth-child(2) { flex: 1 0 100%; min-width: 0; }
+.suggestions strong { display: block; font-size: 11px; font-weight: 600; }
+.suggestions small { display: block; margin-top: 5px; color: var(--lia-muted); font-size: 10px; line-height: 1.5; }
+.suggestion-arrow { position: absolute; right: 12px; top: 17px; color: var(--lia-muted); }
+.conversation { display: flex; flex-direction: column; gap: 25px; width: 100%; max-width: 760px; margin: 0 auto; }
+.message { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+.message-label { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; color: var(--lia-muted); font-size: 10px; }
+.message-label>span { font-weight: 600; }.message-label time { margin-left: 3px; font-size: 9px; opacity: .7; }
+.message-character { width: 23px; margin: -4px 0 -3px -4px; }
+.message-content { color: var(--lia-text); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; }
+.message.user { align-self: flex-end; align-items: flex-end; max-width: 87%; }
+.message.user .message-content { padding: 11px 15px; border: 1px solid color-mix(in srgb, var(--lia-blue) 10%, transparent); border-radius: 17px 17px 4px 17px; color: var(--lia-text); background: var(--lia-tint); }
+.message.user .message-label { margin-right: 3px; }
+.markdown :deep(p) { margin: 0; }.markdown :deep(p+p) { margin-top: 10px; }
+.markdown :deep(ul),.markdown :deep(ol) { margin: 8px 0 0; padding-left: 20px; }.markdown :deep(li+li) { margin-top: 4px; }
+.markdown :deep(code) { padding: 2px 4px; border-radius: 4px; background: var(--lia-soft); font-size: 12px; }
+.markdown :deep(h1),.markdown :deep(h2),.markdown :deep(h3) { margin: 12px 0 5px; font-size: 14px; font-weight: 650; }
+.markdown :deep(table) { display: block; max-width: 100%; overflow-x: auto; font-size: 11px; }.markdown :deep(td),.markdown :deep(th) { padding: 6px 8px; border-bottom: 1px solid var(--lia-line); text-align: left; }
+.copy-message { display: flex; align-items: center; gap: 5px; align-self: flex-start; margin: 8px 0 0; padding: 3px 0; border: 0; color: var(--lia-muted); background: transparent; font-size: 10px; }.copy-message:hover { color: var(--lia-blue); }
+.message-failed { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0 0; color: #bc4354; font-size: 11px; line-height: 1.5; }.message-failed button { display: inline-flex; align-items: center; gap: 4px; border: 0; color: inherit; background: transparent; font-size: 11px; text-decoration: underline; }.copy-error { color: var(--lia-muted); font-size: 11px; }
+.patient-picker { margin-top: 13px; }.patient-picker :deep(.form-group) { margin: 0; }.patient-picker.is-selected :deep(.select-button) { pointer-events: none; opacity: .7; }
+.time-alternatives { margin-top: 13px; }.time-alternatives h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--lia-muted); font-size: 11px; font-weight: 550; }.time-alternatives>div { display: flex; flex-wrap: wrap; gap: 6px; }.time-alternatives button { padding: 8px 10px; border: 1px solid var(--lia-line); border-radius: 10px; color: var(--lia-blue); background: var(--lia-surface); font-size: 11px; }.time-alternatives button:hover { background: var(--lia-tint); }
+.lia-footer { width: 100%; max-width: 808px; flex: 0 0 auto; margin: 0 auto; padding: 14px 22px 16px; box-sizing: border-box; background: var(--lia-bg); }
+.composer { padding: 13px 13px 9px; border: 1px solid var(--lia-line); border-radius: 18px; background: var(--lia-surface); box-shadow: 0 3px 12px #14233d04; transition: border-color .18s, box-shadow .18s; }.composer:focus-within { border-color: color-mix(in srgb, var(--lia-blue) 48%, var(--lia-line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lia-blue) 5%, transparent); }
+.composer textarea { display: block; width: 100%; min-height: 26px; max-height: 132px; resize: none; border: 0; outline: none; padding: 0 1px 6px; background: transparent; color: var(--lia-text); font-size: 13px; line-height: 1.6; box-sizing: border-box; }.composer textarea::placeholder { color: var(--lia-muted); }
+.composer-bottom { display: flex; align-items: center; gap: 8px; min-height: 34px; }.composer-bottom>span { display: flex; align-items: center; gap: 6px; color: var(--lia-muted); font-size: 10px; }.composer-dot { color: var(--lia-blue); }.composer-bottom>small { margin-left: auto; color: var(--lia-muted); font-size: 9px; }
+.composer-bottom>button { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; margin-left: auto; border: 1px solid color-mix(in srgb, var(--lia-blue) 80%, white); border-radius: 12px; color: #fff; background: linear-gradient(145deg, #4a94ff, var(--lia-blue)); box-shadow: inset 0 1px 1px #ffffff60, 0 3px 8px #0057ff22; }.composer-bottom>button:disabled { border-color: var(--lia-line); color: var(--lia-muted); background: var(--lia-soft); box-shadow: none; opacity: .7; }
+.footer-note { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 11px; color: var(--lia-muted); font-size: 9px; }
+.followups { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; }.followups button { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--lia-line); border-radius: 20px; color: var(--lia-muted); background: var(--lia-surface); font-size: 9px; }.followups button:hover { color: var(--lia-blue); border-color: var(--lia-blue); }
+.scroll-latest { position: absolute; bottom: 190px; left: 50%; z-index: 1; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--lia-line); border-radius: 20px; white-space: nowrap; color: var(--lia-muted); background: var(--lia-surface); box-shadow: 0 3px 14px #14233d12; font-size: 10px; }
+.load-more { align-self: center; margin: 0 0 15px; padding: 7px 11px; border: 1px solid var(--lia-line); border-radius: 10px; color: var(--lia-muted); background: var(--lia-surface); font-size: 11px; }
+.lia-activity { display: flex; align-items: center; gap: 8px; margin: 22px 0 8px; }.thinking-character { width: 44px; }.lia-activity>div { display: grid; gap: 4px; }.lia-activity strong { color: var(--lia-text); font-size: 12px; font-weight: 550; }.lia-activity>div>span { display: flex; align-items: center; gap: 6px; color: var(--lia-muted); font-size: 11px; }.thinking-dots { display: flex; gap: 3px; }.thinking-dots i,.loading-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--lia-blue); animation: lia-dot 1.3s ease-in-out infinite; }.thinking-dots i:nth-child(2) { animation-delay: .16s; }.thinking-dots i:nth-child(3) { animation-delay: .32s; }
+.loading-conversation { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; color: var(--lia-muted); font-size: 12px; }.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.with-sidebar .messages { padding: 28px 32px 10px; }.with-sidebar .welcome { width: min(540px, 100%); margin: auto; padding-bottom: 24px; }.with-sidebar .welcome-art,.with-sidebar .welcome-character { width: 120px; height: 120px; }.with-sidebar .welcome h2 { font-size: 42px; letter-spacing: -1.8px; }.with-sidebar .welcome-description { font-size: 13px; }.with-sidebar .suggestions button { flex-wrap: nowrap; padding: 16px 12px; }.with-sidebar .suggestions button>span:nth-child(2) { flex: 1; }.with-sidebar .suggestion-arrow { display: none; }.with-sidebar .lia-footer { padding: 16px 32px 19px; }
+@keyframes lia-dot { 0%,80%,100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media(max-height: 790px) { .welcome-art,.welcome-character { width: 72px; height: 72px; }.welcome-description { margin: 10px 0 18px; }.welcome h2 { font-size: 29px; }.suggestions button { padding: 10px; gap: 7px; }.with-sidebar .welcome-art,.with-sidebar .welcome-character { width: 82px; height: 82px; }.with-sidebar .welcome h2 { font-size: 34px; } }
+@media(max-width: 640px) { .lia-header { min-height: 72px; padding: 12px; }.lia-identity h1>span { display: none; }.lia-identity p { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 9px; }.lia-identity i { display: inline-block; margin-right: 4px; }.header-actions button { width: 29px; }.messages { padding: 18px 18px 8px; }.lia-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }.welcome h2 { font-size: 34px; }.welcome { padding-bottom: 12px; }.composer textarea { font-size: 16px; } }
+@media(prefers-reduced-motion: reduce) { .thinking-dots i,.loading-dot { animation: none; }.suggestions button,.composer { transition: none; }.suggestions button:hover { transform: none; } }
