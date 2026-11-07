@@ -100,7 +100,22 @@ it('envio em andamento bloqueia duplicação e permite expansão sem perder a pe
 it('sugestão financeira respeita permissões explícitas do usuário', async () => {
   mocks.auth.user.permissions = ['patients.read']
   const wrapper = chat(); await flushPromises()
-  expect(wrapper.text()).not.toContain('Explorar resultados'); expect(wrapper.text()).toContain('Conhecer minha clínica')
+  expect(wrapper.text()).not.toContain('Resultados da clínica'); expect(wrapper.text()).toContain('Movimento da clínica')
+})
+it('sugestões vêm da resposta, preenchem o campo e não abrem outro assunto', async () => {
+  mocks.store.messages = [{ id: 'one', role: 'assistant', content: 'Veja sua agenda.', metadata: { suggestions: [{ label: 'Preparar consulta', prompt: 'Quero preparar um agendamento.' }, { label: 'Ver amanhã', prompt: 'Mostre minha agenda de amanhã.' }] } }]
+  const wrapper = chat(); await flushPromises()
+  expect(wrapper.findAll('.followups button')).toHaveLength(2); expect(wrapper.text()).not.toContain('Outro assunto')
+  await wrapper.get('.followups button').trigger('click')
+  expect(wrapper.get('textarea').element.value).toBe('Quero preparar um agendamento.')
+  expect(mocks.store.sendMessage).not.toHaveBeenCalled()
+})
+it('abertura da conversa apresenta skeleton discreto em vez de mensagens antigas', async () => {
+  mocks.store.isLoading = true
+  const wrapper = chat(); await flushPromises()
+  expect(wrapper.find('.conversation-skeleton').exists()).toBe(true)
+  expect(wrapper.find('.welcome').exists()).toBe(false)
+  expect(wrapper.get('textarea').element.disabled).toBe(true)
 })
 it('escolha de horário em outra data usa a data completa retornada', async () => {
   mocks.store.messages = [{ id: 'one', role: 'assistant', content: 'Horários', metadata: { availabilityAlternatives: { professionalId: 'professional', patientId: 'patient', durationMinutes: 30, times: [{ date: '2030-01-16', time: '00:30', startAt: '2030-01-16T03:30:00Z' }] } } }]

@@ -1,6 +1,7 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { routerKey } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -10,6 +11,8 @@ import LiaConversationHistory from './LiaConversationHistory.vue'
 import LiaConversationSearch from './LiaConversationSearch.vue'
 import LiaActionConfirmationCard from './LiaActionConfirmationCard.vue'
 import LiaAnalyticsCard from './LiaAnalyticsCard.vue'
+import LiaConversationSkeleton from './LiaConversationSkeleton.vue'
+import LiaVoiceInput from './LiaVoiceInput.vue'
 import LiaResponseFeedback from './LiaResponseFeedback.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
@@ -19,6 +22,7 @@ const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 const authStore = useAuthStore()
 const liaStore = useLiaStore()
+const router = inject(routerKey, null)
 const pageContext = useLiaPageContext()
 const input = ref('')
 const textarea = ref(null)
@@ -26,6 +30,8 @@ const messageList = ref(null)
 const historyButton = ref(null)
 const showHistory = ref(false)
 const searchOpen = ref(false)
+const voiceBusy = ref(false)
+const voiceContext = computed(() => JSON.stringify([authStore.user?._id, authStore.user?.clinic, liaStore.activeConversationId]))
 const expanded = ref(false)
 const mobile = useMediaQuery('(max-width: 760px), (max-height: 500px) and (pointer: coarse)')
 const historySidebar = computed(() => expanded.value && !mobile.value)
@@ -45,7 +51,11 @@ const avatarState = computed(() => {
   if (liaStore.error || last?.status === 'failed' || last && messageConfirmations(last).some(card => card.status === 'failed')) return 'error'
   return reaction.value
 })
-const canSend = computed(() => input.value.trim().length > 0 && !liaStore.isSending && liaStore.isAvailable)
+const canSend = computed(() => input.value.trim().length > 0 && !liaStore.isSending && !voiceBusy.value && !liaStore.isLoading && liaStore.isAvailable)
+const followups = computed(() => {
+  const last = liaStore.messages.at(-1)
+  return last?.role === 'assistant' && Array.isArray(last.metadata?.suggestions) ? last.metadata.suggestions.slice(0, 2) : []
+})
 const firstName = computed(() => authStore.user?.name?.trim().split(/\s+/)[0] || '')
 const greeting = computed(() => {
   const hour = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date(openedAt.value)))
@@ -56,10 +66,10 @@ const financialAccess = computed(() => {
   return Array.isArray(user?.permissions) ? user.permissions.includes('*') || user.permissions.includes('financial.read') : ['owner', 'gerente'].includes(user?.role)
 })
 const suggestions = computed(() => [
-  { title: 'Organizar meu dia', description: 'Veja os próximos atendimentos', prompt: 'Como está minha agenda hoje?', icon: CalendarDays },
-  { title: 'Encontrar retornos', description: 'Pacientes que podem voltar', prompt: 'Quais pacientes fizeram Botox há mais de quatro meses?', icon: RotateCcw },
-  { title: financialAccess.value ? 'Explorar resultados' : 'Conhecer minha clínica', description: financialAccess.value ? 'Entenda os números da clínica' : 'Consulte os dados dos pacientes', prompt: financialAccess.value ? 'Quais são os 10 pacientes que mais gastaram na clínica em todo o histórico?' : 'Quantos pacientes estão cadastrados na minha clínica?', icon: financialAccess.value ? Wallet : Users },
-  { title: 'Encontrar um horário', description: 'Consulte a disponibilidade', prompt: 'Quais horários estão disponíveis para atendimento amanhã?', icon: Clock3 },
+  { title: 'Agenda do dia', description: 'Atendimentos e horários de hoje', prompt: 'Como está minha agenda hoje?', icon: CalendarDays },
+  { title: 'Acompanhar pacientes', description: 'Consulte o histórico de procedimentos', prompt: 'Quero um relatório de pacientes pelo último procedimento realizado. Me ajude a definir o procedimento e o período.', icon: Users },
+  { title: financialAccess.value ? 'Resultados da clínica' : 'Movimento da clínica', description: financialAccess.value ? 'Recebimentos e valores a receber' : 'Atendimentos realizados no mês', prompt: financialAccess.value ? 'Faça um resumo dos recebimentos e do saldo a receber da clínica neste mês, explicando a diferença entre os valores.' : 'Quantos atendimentos foram realizados neste mês na clínica?', icon: financialAccess.value ? Wallet : CalendarDays },
+  { title: 'Horários disponíveis', description: 'Encontre espaço na agenda', prompt: 'Quero encontrar um horário disponível para uma consulta. Quais informações você precisa?', icon: Clock3 },
 ])
 const patientOptions = message => (message.metadata?.patientOptions || []).map(patient => ({ value: patient.id, label: `${patient.name}${patient.phone ? ` · ${patient.phone}` : ''}` }))
 const messageConfirmations = message => message.metadata?.confirmations?.length ? message.metadata.confirmations : message.metadata?.confirmation ? [message.metadata.confirmation] : []
@@ -102,9 +112,15 @@ async function loadOlder() {
   if (element) element.scrollTop = top + element.scrollHeight - height
 }
 async function useSuggestion(suggestion) { input.value = suggestion.prompt; await resizeInput(); textarea.value?.focus() }
+async function openPatient(id) {
+  if (!/^[a-f0-9]{24}$/i.test(id) || !router) return
+  await router.push({ name: 'detalhes-paciente', params: { id } })
+  expanded.value = false; showHistory.value = false
+  if (mobile.value) emit('close')
+}
 async function submit(value = input.value, options = {}) {
   const message = value.trim()
-  if (!message || liaStore.isSending || !liaStore.isAvailable) return
+  if (!message || liaStore.isSending || liaStore.isLoading || !liaStore.isAvailable) return
   input.value = ''; nearBottom.value = true
   await resizeInput()
   const pending = liaStore.sendMessage(message, { ...options, ...(pageContext.value ? { pageContext: pageContext.value } : {}) })
@@ -178,7 +194,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
         <div v-if="liaStore.error" class="chat-error" role="alert"><span>{{ liaStore.error }}</span><button type="button" aria-label="Tentar carregar a Lia novamente" @click="liaStore.initialize()"><RotateCcw :size="14" /></button></div>
         <div ref="messageList" class="messages clarity-mask" data-clarity-mask="true" data-sentry-mask :aria-busy="liaStore.isLoading" @scroll.passive="onScroll">
           <button v-if="liaStore.messagesCursor" type="button" class="load-more" :disabled="liaStore.isLoading" @click="loadOlder">Carregar mensagens anteriores</button>
-          <div v-if="liaStore.isLoading && !liaStore.messages.length" class="loading-conversation" role="status"><span class="loading-dot"></span> Abrindo sua conversa…</div>
+          <LiaConversationSkeleton v-if="liaStore.isLoading && !liaStore.messages.length" />
           <section v-else-if="!liaStore.messages.length" class="welcome" aria-label="Começar uma conversa">
             <div class="welcome-art"><LiaAvatar class="welcome-character" intro :state="avatarState" :active="open && chatVisible" /></div>
             <p class="greeting">{{ greeting }}</p><h2>O que vamos<br /><span>cuidar hoje?</span></h2>
@@ -191,7 +207,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
               <div class="message-content"><div class="markdown" v-html="renderMarkdown(message.content)"></div></div>
               <p v-if="message.status === 'failed'" class="message-failed" role="alert">{{ message.error }} <button type="button" :disabled="liaStore.isSending" @click="retryMessage(message)"><RotateCcw :size="12" /> Tentar novamente</button></p>
               <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />
-              <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" />
+              <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" :conversation-id="liaStore.activeConversationId" :load-page="liaStore.loadReportPage" @navigate="openPatient" />
               <div v-if="message.role === 'assistant' && message.metadata?.patientOptions?.length > 1" class="patient-picker" :class="{ 'is-selected': liaStore.isSending || !!message.selectedPatientId }"><StyledSelect :model-value="message.selectedPatientId || ''" :options="patientOptions(message)" label="Quem é o paciente?" required placeholder="Selecione um paciente" @update:model-value="choosePatient(message, $event)" /></div>
               <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><h3><Clock3 :size="14" /> Horários disponíveis</h3><div><button v-for="time in message.metadata.availabilityAlternatives.times" :key="typeof time === 'string' ? time : time.startAt" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ alternativeLabel(time) }}</button></div></section>
               <LiaResponseFeedback v-if="message.role === 'assistant' && message.content" :message="message" :conversation-id="liaStore.activeConversationId"><button type="button" class="copy-message" :aria-label="copiedId === message.id ? 'Resposta copiada' : 'Copiar resposta'" @click="copyMessage(message)"><Check v-if="copiedId === message.id" :size="12" /><Copy v-else :size="12" />{{ copiedId === message.id ? 'Copiado' : 'Copiar' }}</button></LiaResponseFeedback>
@@ -203,8 +219,8 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
         </div>
         <button v-if="!nearBottom && liaStore.messages.length" type="button" class="scroll-latest" aria-label="Ir para a última mensagem" @click="nearBottom = true; scrollToLatest(true)"><ArrowDown :size="15" /> Últimas mensagens</button>
         <footer class="lia-footer">
-          <div v-if="liaStore.messages.length && !liaStore.isSending" class="followups"><button type="button" @click="useSuggestion(suggestions[0])">Minha agenda</button><button type="button" @click="useSuggestion(suggestions[1])">Retornos de pacientes</button><button type="button" @click="newConversation">Outro assunto <Plus :size="12" /></button></div>
-          <form class="composer" @submit.prevent="submit()"><label for="lia-message" class="sr-only">Mensagem para a Lia</label><textarea id="lia-message" ref="textarea" v-model="input" data-clarity-mask="true" data-sentry-mask :disabled="liaStore.isSending" maxlength="4000" rows="1" placeholder="Lia, me ajuda com…" @keydown.enter="onEnter"></textarea><div class="composer-bottom"><span><span class="composer-dot"></span> {{ liaStore.isSending ? 'Lia está pensando' : 'Vamos conversar' }}</span><small v-if="input.length > 3600">{{ input.length }}/4000</small><button type="submit" :disabled="!canSend" aria-label="Enviar mensagem"><ArrowUp :size="19" :stroke-width="2.3" /></button></div></form>
+          <div v-if="followups.length && !liaStore.isSending && !liaStore.isLoading" class="followups" aria-label="Sugestões para continuar"><button v-for="suggestion in followups" :key="suggestion.prompt" type="button" :disabled="voiceBusy" @click="useSuggestion(suggestion)">{{ suggestion.label }}</button></div>
+          <form class="composer" @submit.prevent="submit()"><label for="lia-message" class="sr-only">Mensagem para a Lia</label><textarea id="lia-message" ref="textarea" v-model="input" data-clarity-mask="true" data-sentry-mask :disabled="liaStore.isSending || liaStore.isLoading || voiceBusy" maxlength="4000" rows="1" placeholder="Lia, me ajuda com…" @keydown.enter="onEnter"></textarea><div class="composer-bottom"><LiaVoiceInput :active="open && chatVisible" :context-key="voiceContext" :disabled="liaStore.isSending || liaStore.isLoading || !!input.trim()" @busy="voiceBusy = $event" @transcript="submit($event)" /><span v-if="!voiceBusy"><span class="composer-dot"></span> {{ liaStore.isSending ? 'Lia está pensando' : 'Vamos conversar' }}</span><small v-if="input.length > 3600">{{ input.length }}/4000</small><button type="submit" :disabled="!canSend" aria-label="Enviar mensagem"><ArrowUp :size="19" :stroke-width="2.3" /></button></div></form>
           <div class="footer-note"><ShieldCheck :size="11" /><span>Confira as informações. A Lia pode cometer erros.</span></div>
         </footer>
       </main>

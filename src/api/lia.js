@@ -17,6 +17,14 @@ export const getLiaConversation = (conversationId) =>
 export const getLiaMessages = (conversationId, params = {}) =>
   apiClient.get(`/lia/conversations/${conversationId}/messages`, { params })
 
+export const getLiaReportPage = (conversationId, reportId, page, signal) =>
+  apiClient.get(`/lia/conversations/${conversationId}/reports/${reportId}`, { params: { page }, signal })
+
+export const transcribeLiaAudio = (audio, signal) => {
+  const form = new FormData(); form.append('audio', audio, 'mensagem.wav')
+  return apiClient.post('/lia/transcriptions', form, { signal, headers: { 'Content-Type': undefined }, timeout: 35000 })
+}
+
 export const sendLiaMessage = (conversationId, message, options = {}, transport = {}) =>
   sendLiaMessageStream(conversationId, message, options, transport)
 

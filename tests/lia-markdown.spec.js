@@ -13,3 +13,8 @@ it.each([
 it('preserva tabelas e formatação de texto úteis para resultados', () => {
   expect(renderLiaMarkdown('**Resultado**')).toContain('<strong>Resultado</strong>')
 })
+it('renderiza títulos, listas aninhadas, citação, tachado e tabelas sem HTML livre', () => {
+  const element = document.createElement('div')
+  element.innerHTML = renderLiaMarkdown('## Agenda\n\n**Confirmados** e *pendentes*\n\n1. Hoje\n   - Primeiro\n   - Segundo\n\n> Confira os dados\n\n~~Cancelado~~\n\n| Paciente | Horário |\n| --- | --- |\n| Exemplo | 10h |')
+  for (const tag of ['h2', 'strong', 'em', 'ol', 'ul', 'blockquote', 'del', 'table', 'th', 'td']) expect(element.querySelector(tag)).not.toBeNull()
+})

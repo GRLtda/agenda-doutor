@@ -2,9 +2,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { reactive } from 'vue'
 import { useLiaStore } from '@/stores/lia'
-const mocks = vi.hoisted(() => ({ auth: null, access: vi.fn(), list: vi.fn(), send: vi.fn(), messages: vi.fn(), create: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), get: vi.fn(), remove: vi.fn(), update: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: null, access: vi.fn(), list: vi.fn(), send: vi.fn(), messages: vi.fn(), create: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), get: vi.fn(), remove: vi.fn(), update: vi.fn(), report: vi.fn() }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => mocks.auth }))
-vi.mock('@/api/lia', () => ({ getLiaAccess: mocks.access, listLiaConversations: mocks.list, sendLiaMessage: mocks.send, getLiaMessages: mocks.messages, createLiaConversation: mocks.create, deleteLiaConversation: mocks.remove, getLiaConversation: mocks.get, confirmLiaAction: mocks.confirm, cancelLiaAction: mocks.cancel, updateLiaConversation: mocks.update }))
+vi.mock('@/api/lia', () => ({ getLiaAccess: mocks.access, listLiaConversations: mocks.list, sendLiaMessage: mocks.send, getLiaMessages: mocks.messages, createLiaConversation: mocks.create, deleteLiaConversation: mocks.remove, getLiaConversation: mocks.get, confirmLiaAction: mocks.confirm, cancelLiaAction: mocks.cancel, updateLiaConversation: mocks.update, getLiaReportPage: mocks.report }))
 let pinia
 const deferred = () => { let resolve, reject; const promise = new Promise((done, fail) => { resolve = done; reject = fail }); return { promise, resolve, reject } }
 const modelAnswer = (name = 'Resposta') => ({ data: { userMessage: { id: 'saved', role: 'user', content: 'Ver agenda' }, message: { id: 'assistant', role: 'assistant', content: name } } })
@@ -17,6 +17,21 @@ beforeEach(() => {
   useLiaStore().isAvailable = true
 })
 afterEach(() => disposePinia(pinia))
+it('página de relatório atrasada não retorna depois de trocar conversa ou identidade', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'
+  const pending = deferred(); mocks.report.mockReturnValueOnce(pending.promise)
+  const report = store.loadReportPage('old', 'report', 2)
+  store.startNewConversation(); pending.resolve({ data: { card: { items: [{ name: 'Privado' }] } } })
+  expect(await report).toBeNull()
+  expect(await store.loadReportPage('old', 'report', 3)).toBeNull()
+  expect(mocks.report).toHaveBeenCalledTimes(1)
+})
+it('revogação do piloto ao paginar limpa a conversa e fecha a Lia', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'; store.isOpen = true
+  mocks.report.mockRejectedValue({ response: { data: { code: 'LIA_NOT_AVAILABLE' } } })
+  await expect(store.loadReportPage('old', 'report', 2)).rejects.toBeTruthy()
+  expect(store.isAvailable).toBe(false); expect(store.isOpen).toBe(false)
+})
 
 it('renomear e fixar usam o servidor e reordenam sem alterar a conversa aberta', async () => {
   const store = useLiaStore(); store.activeConversationId = 'one'

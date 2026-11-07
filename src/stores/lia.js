@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import {
   cancelLiaAction, confirmLiaAction, createLiaConversation, deleteLiaConversation,
-  getLiaAccess, getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage, updateLiaConversation,
+  getLiaAccess, getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage, updateLiaConversation, getLiaReportPage,
 } from '@/api/lia'
 
 const STORAGE_PREFIX = 'lia.activeConversationId'
@@ -133,6 +133,19 @@ export const useLiaStore = defineStore('lia', () => {
       return sameIdentity(ticket) ? data : null
     } catch (requestError) {
       if (!sameIdentity(ticket)) return null
+      handleAccessDenied(requestError)
+      throw requestError
+    }
+  }
+  async function loadReportPage(conversationId, reportId, page, signal) {
+    ensureIdentity()
+    if (!isAvailable.value || conversationId !== activeConversationId.value) return null
+    const ticket = viewTicket()
+    try {
+      const { data } = await getLiaReportPage(conversationId, reportId, page, signal)
+      return sameView(ticket) ? data.card : null
+    } catch (requestError) {
+      if (!sameView(ticket)) return null
       handleAccessDenied(requestError)
       throw requestError
     }
@@ -386,6 +399,6 @@ export const useLiaStore = defineStore('lia', () => {
     nextCursor, messagesCursor, error, hasActiveConversation, initialize, loadConversations,
     loadMore: () => loadConversations({ append: true }).catch(() => { error.value = 'Não foi possível carregar mais conversas.' }), loadMessages,
     loadOlderMessages: () => messagesCursor.value && loadMessages(activeConversationId.value, { older: true }).catch(() => []),
-    selectConversation, startNewConversation, sendMessage, retryMessage, confirmAction, cancelAction, deleteConversation, updateConversation, searchConversations, reset,
+    selectConversation, startNewConversation, sendMessage, retryMessage, confirmAction, cancelAction, deleteConversation, updateConversation, searchConversations, loadReportPage, reset,
   }
 })

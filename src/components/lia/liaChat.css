@@ -25,13 +25,13 @@ button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; 
 .welcome h2 span { color: var(--lia-blue); }
 .welcome-description { margin: 14px 0 24px; color: var(--lia-muted); font-size: 12px; line-height: 1.7; }
 .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; text-align: left; }
-.suggestions button { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; position: relative; min-width: 0; padding: 13px 12px; border: 1px solid var(--lia-line); border-radius: 14px; color: var(--lia-text); background: var(--lia-surface); transition: border-color .16s, transform .16s, box-shadow .16s; }
+.suggestions button { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 10px; position: relative; min-width: 0; padding: 14px 12px; border: 1px solid var(--lia-line); border-radius: 14px; color: var(--lia-text); background: var(--lia-surface); transition: border-color .16s, transform .16s, box-shadow .16s; }
 .suggestions button:hover { border-color: color-mix(in srgb, var(--lia-blue) 40%, var(--lia-line)); transform: translateY(-2px); box-shadow: 0 6px 14px #14233d06; }
-.suggestion-icon { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: var(--lia-tint); color: var(--lia-blue); }
+.suggestion-icon { display: grid; place-items: center; align-self: start; flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--lia-tint); color: var(--lia-blue); }
 .suggestions button>span:nth-child(2) { flex: 1 0 100%; min-width: 0; }
 .suggestions strong { display: block; font-size: 11px; font-weight: 600; }
 .suggestions small { display: block; margin-top: 5px; color: var(--lia-muted); font-size: 10px; line-height: 1.5; }
-.suggestion-arrow { position: absolute; right: 12px; top: 17px; color: var(--lia-muted); }
+.suggestion-arrow { display: none; }
 .conversation { display: flex; flex-direction: column; gap: 25px; width: 100%; max-width: 760px; margin: 0 auto; }
 .message { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
 .message-label { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; color: var(--lia-muted); font-size: 10px; }
@@ -46,6 +46,7 @@ button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; 
 .markdown :deep(code) { padding: 2px 4px; border-radius: 4px; background: var(--lia-soft); font-size: 12px; }
 .markdown :deep(h1),.markdown :deep(h2),.markdown :deep(h3) { margin: 12px 0 5px; font-size: 14px; font-weight: 650; }
 .markdown :deep(table) { display: block; max-width: 100%; overflow-x: auto; font-size: 11px; }.markdown :deep(td),.markdown :deep(th) { padding: 6px 8px; border-bottom: 1px solid var(--lia-line); text-align: left; }
+.markdown :deep(strong) { font-weight: 650; }.markdown :deep(em) { font-style: italic; }.markdown :deep(ul) { list-style: disc; }.markdown :deep(ol) { list-style: decimal; }.markdown :deep(ul ul) { list-style: circle; }.markdown :deep(li) { padding-left: 3px; }.markdown :deep(li>p) { margin: 5px 0; }.markdown :deep(h1) { font-size: 20px; }.markdown :deep(h2) { font-size: 17px; }.markdown :deep(h3) { font-size: 15px; }.markdown :deep(h4),.markdown :deep(h5),.markdown :deep(h6) { margin: 14px 0 7px; font-size: 13px; font-weight: 650; }.markdown :deep(blockquote) { margin: 14px 0; padding: 10px 14px; border-left: 3px solid var(--lia-blue); border-radius: 0 9px 9px 0; color: var(--lia-muted); background: var(--lia-soft); }.markdown :deep(hr) { margin: 20px 0; border: 0; border-top: 1px solid var(--lia-line); }.markdown :deep(pre) { overflow-x: auto; padding: 14px; border-radius: 10px; background: var(--lia-soft); }.markdown :deep(pre code) { padding: 0; background: none; white-space: pre; }.markdown :deep(table) { margin-top: 14px; border-collapse: collapse; line-height: 1.6; }.markdown :deep(th) { background: var(--lia-soft); font-weight: 600; }.markdown :deep(p+ul),.markdown :deep(p+ol) { margin-top: 12px; }.markdown :deep(input[type=checkbox]) { margin-right: 6px; pointer-events: none; }.suggestions strong { line-height: 1.4; overflow-wrap: anywhere; }
 .copy-message { display: flex; align-items: center; gap: 5px; align-self: flex-start; margin: 0; padding: 5px 0; border: 0; color: var(--lia-muted); background: transparent; font-size: 10px; }.copy-message:hover { color: var(--lia-blue); }
 .streamed-answer { margin: 25px auto 0; width: 100%; max-width: 760px; }
 .message-failed { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0 0; color: #bc4354; font-size: 11px; line-height: 1.5; }.message-failed button { display: inline-flex; align-items: center; gap: 4px; border: 0; color: inherit; background: transparent; font-size: 11px; text-decoration: underline; }.copy-error { color: var(--lia-muted); font-size: 11px; }

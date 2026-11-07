@@ -2,7 +2,14 @@
 import { computed, ref, useId } from 'vue'
 import { BarChart3, CalendarDays, ChevronDown, TrendingDown, TrendingUp, Users } from 'lucide-vue-next'
 import { buildLiaChart } from './liaChart'
-const props = defineProps({ card: { type: Object, required: true } })
+import LiaPatientReport from './LiaPatientReport.vue'
+const props = defineProps({ card: { type: Object, required: true }, conversationId: String, loadPage: Function })
+const emit = defineEmits(['navigate'])
+const patientPath = id => /^[a-f0-9]{24}$/i.test(String(id)) ? `/pacientes/${id}` : null
+function openPatient(event, id) {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  event.preventDefault(); emit('navigate', id)
+}
 const gradientId = `lia-chart-${useId().replace(/[^a-zA-Z0-9-]/g, '')}`
 const selected = ref(null)
 const formatValue = value => props.card.unit === 'BRL_CENTS' ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((value || 0) / 100) : new Intl.NumberFormat('pt-BR').format(value || 0)
@@ -19,7 +26,8 @@ const comparisonMaximum = computed(() => Math.max(1, Math.abs(props.card.compari
 </script>
 
 <template>
-  <section class="analytics-card" :class="card.type" :aria-label="card.title">
+  <LiaPatientReport v-if="card.report && card.entityType === 'patient'" :card="card" :conversation-id="conversationId" :load-page="loadPage" @navigate="emit('navigate', $event)" />
+  <section v-else class="analytics-card" :class="card.type" :aria-label="card.title">
     <header><span class="card-icon"><Users v-if="card.type === 'patient_list'" :size="15" /><BarChart3 v-else :size="15" /></span><strong>{{ card.title }}</strong><span v-if="card.period" class="period"><CalendarDays :size="11" />{{ periodLabel(card.period) }}</span></header>
     <template v-if="card.type === 'ranking'">
       <div v-if="card.total !== undefined" class="total"><small>Total do período</small><strong>{{ formatValue(card.total) }}</strong></div>
@@ -39,7 +47,7 @@ const comparisonMaximum = computed(() => Math.max(1, Math.abs(props.card.compari
       <ol v-else-if="card.items?.length" class="ranking-list"><li v-for="(item, index) in card.items" :key="item.id || item.name"><span class="rank-position">{{ String(index + 1).padStart(2, '0') }}</span><div class="rank-item"><div><span>{{ item.name }}</span><b>{{ formatValue(item.value) }}</b></div><div class="rank-track" aria-hidden="true"><i :class="{ negative: item.value < 0 }" :style="{ width: `${chart.points[index]?.width || 0}%` }"></i></div></div></li></ol>
       <div v-else class="empty-result"><BarChart3 :size="22" /><span>Sem dados no período selecionado.</span></div>
     </template>
-    <template v-else-if="card.type === 'patient_list'"><strong class="metric-value">{{ card.value }} <span>pacientes</span></strong><ul class="patient-list"><li v-for="(item, index) in card.items" :key="item.id || `${item.name}-${item.birthday}`"><span class="patient-initial">{{ item.name?.charAt(0) || index + 1 }}</span><strong>{{ item.name }}</strong><span>{{ item.lastProcedureAt ? formatDate(item.lastProcedureAt) : item.birthday }}</span></li></ul><p v-if="card.hasMore" class="more-note">Mostrando {{ card.items?.length }} de {{ card.value }}. Peça os próximos resultados à Lia.</p></template>
+    <template v-else-if="card.type === 'patient_list'"><strong class="metric-value">{{ card.value }} <span>pacientes</span></strong><ul class="patient-list"><li v-for="(item, index) in card.items" :key="item.id || `${item.name}-${item.birthday}`"><span class="patient-initial">{{ item.name?.charAt(0) || index + 1 }}</span><a v-if="patientPath(item.id)" :href="patientPath(item.id)" @click="openPatient($event, item.id)">{{ item.name }}</a><strong v-else>{{ item.name }}</strong><span>{{ item.lastProcedureAt ? formatDate(item.lastProcedureAt) : item.birthday }}</span></li></ul><p v-if="card.hasMore" class="more-note">Mostrando {{ card.items?.length }} de {{ card.value }}. Gere novamente este relatório para navegar por páginas.</p></template>
     <template v-else>
       <strong class="metric-value">{{ formatValue(card.comparison ? card.comparison.current : card.value) }}</strong>
       <template v-if="card.comparison">
