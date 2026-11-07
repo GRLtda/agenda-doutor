@@ -516,15 +516,15 @@ function handleRegistrationComplete() {
 }
 
 .title-text {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2.25rem;
+  font-weight: 800;
   line-height: 1.2;
   color: var(--preto-principal);
   margin-bottom: 0.5rem;
 }
 
 .subtitle-text {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   text-align: left;
   color: var(--cinza-texto);
   font-weight: 400;
