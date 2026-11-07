@@ -26,5 +26,5 @@ function onKey(event) {
 <template><dialog ref="dialog" class="lia-modal clarity-mask" :class="{ wide }" role="dialog" aria-modal="true" :aria-label="title" data-clarity-mask="true" data-sentry-mask @keydown="onKey" @cancel.prevent="close" @click.self="close"><slot /></dialog></template>
 <style scoped>
 .lia-modal { width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow: auto; margin: auto; padding: 24px; border: 1px solid var(--lia-line); border-radius: 18px; color: var(--lia-text); background: var(--lia-bg); box-shadow: 0 24px 80px #0005; font: inherit; }.wide { width: min(680px, calc(100vw - 32px)); padding: 0; }.lia-modal::backdrop { background: #05070bcc; backdrop-filter: blur(3px); }
-@media(max-width:760px) { .lia-modal { max-height: calc(var(--lia-viewport-height, 100dvh) - 32px); } :deep(input),:deep(textarea),:deep(select) { font-size: 16px; } }
+@media(max-width:760px), (max-height:500px) and (pointer:coarse) { .lia-modal { position: fixed; top: calc(var(--lia-viewport-top, 0px) + var(--lia-viewport-height, 100dvh) / 2); bottom: auto; left: 0; right: 0; margin: 0 auto; transform: translateY(-50%); max-height: calc(var(--lia-viewport-height, 100dvh) - 32px); } :deep(input),:deep(textarea),:deep(select) { font-size: 16px; } }
 </style>

@@ -48,7 +48,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="lia-window">
-      <div v-if="open" class="lia-workspace" :class="{ expanded: expanded || mobile, mobile }" :style="mobile ? { '--lia-viewport-height': `${viewportHeight}px`, height: `${viewportHeight}px`, top: `${viewportTop}px` } : undefined">
+      <div v-if="open" class="lia-workspace" :class="{ expanded: expanded || mobile, mobile }" :style="mobile ? { '--lia-viewport-height': `${viewportHeight}px`, '--lia-viewport-top': `${viewportTop}px`, height: `${viewportHeight}px`, top: `${viewportTop}px` } : undefined">
         <div v-if="expanded && !mobile" class="lia-backdrop" @click.self="emit('close')"></div>
         <section ref="panel" class="lia-window" role="dialog" :aria-modal="expanded || mobile ? 'true' : 'false'" aria-label="Lia, assistente da clínica" tabindex="-1" @keydown="onKey">
           <slot></slot>

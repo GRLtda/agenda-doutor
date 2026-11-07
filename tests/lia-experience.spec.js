@@ -249,8 +249,9 @@ it('celular sempre abre tela cheia, sem botão de ampliar, e acompanha o teclado
   expect(wrapper.get('.lia-workspace').classes()).toEqual(expect.arrayContaining(['mobile', 'expanded']))
   expect(wrapper.find('.view-mode').exists()).toBe(false)
   expect(wrapper.get('.lia-workspace').element.style.height).toBe('740px')
-  viewport.height = 400; viewport.dispatchEvent(new Event('resize')); await flushPromises()
+  viewport.height = 400; viewport.offsetTop = 20; viewport.dispatchEvent(new Event('resize')); await flushPromises()
   expect(wrapper.get('.lia-workspace').element.style.height).toBe('400px')
+  expect(wrapper.get('.lia-workspace').element.style.getPropertyValue('--lia-viewport-top')).toBe('20px')
   expect(wrapper.get('[aria-label="Lia, assistente da clínica"]').attributes('aria-modal')).toBe('true')
 })
 it('celular deitado mantém tela cheia e não oferece reduzir a janela', async () => {
