@@ -92,6 +92,9 @@ async function scrollToLatest(force = false) {
   await nextTick()
   if (messageList.value && (force || nearBottom.value)) messageList.value.scrollTop = messageList.value.scrollHeight
 }
+function keepComposerVisible() {
+  if (nearBottom.value) void scrollToLatest(true)
+}
 function onScroll() {
   const el = messageList.value
   if (el) nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
@@ -185,7 +188,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
 </script>
 
 <template>
-  <LiaChatShell :open="open" :expanded="expanded" @close="emit('close')">
+  <LiaChatShell :open="open" :expanded="expanded" @close="emit('close')" @viewportchange="keepComposerVisible">
     <header class="lia-header">
       <div class="header-leading"><button ref="historyButton" type="button" class="open-history" :aria-label="showHistory ? 'Fechar histórico' : 'Abrir histórico'" title="Conversas" :aria-expanded="showHistory" @click="showHistory = !showHistory"><PanelLeftOpen :size="18" /></button><span class="conversation-title clarity-mask" data-clarity-mask="true" data-sentry-mask>{{ conversationTitle }}</span></div>
       <nav class="header-actions" aria-label="Controles da Lia">
@@ -245,3 +248,4 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
 </template>
 
 <style scoped src="./liaChat.css"></style>
+
