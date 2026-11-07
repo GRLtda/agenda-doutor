@@ -15,7 +15,9 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
-    "test:whatsapp": "vitest run --config vitest.whatsapp.config.js"
+    "test:whatsapp": "vitest run --config vitest.whatsapp.config.js",
+    "test:lia": "vitest run --config vitest.lia.config.js",
+    "dev:lia": "vite --config vite.lia-preview.config.js"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.9.0",
