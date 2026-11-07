@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, History, Maximize2, Minimize2, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, Plus, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -27,6 +27,8 @@ const expanded = ref(false)
 const mobile = useMediaQuery('(max-width: 760px)')
 const historySidebar = computed(() => expanded.value && !mobile.value)
 const chatVisible = computed(() => historySidebar.value || !showHistory.value)
+const conversationTitle = computed(() => liaStore.conversations.find(item => item.id === liaStore.activeConversationId)?.title || '')
+watch(expanded, value => { showHistory.value = value && !mobile.value })
 const nearBottom = ref(true)
 const copiedId = ref(null)
 const copyError = ref('')
@@ -157,16 +159,14 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
 <template>
   <LiaChatShell :open="open" :expanded="expanded" @close="emit('close')">
     <header class="lia-header">
-      <div class="lia-identity"><LiaAvatar class="header-character" :active="open" :state="avatarState" /><div><h1>Lia <span>Agenda Doutor</span></h1><p><i :class="{ thinking: liaStore.isSending }"></i>{{ liaStore.isSending ? 'Preparando uma resposta' : 'Um cuidado a mais com sua rotina' }}</p></div></div>
+      <span class="conversation-title clarity-mask" data-clarity-mask="true" data-sentry-mask>{{ conversationTitle }}</span>
       <nav class="header-actions" aria-label="Controles da Lia">
-        <button type="button" aria-label="Nova conversa" title="Nova conversa" @click="newConversation"><Plus :size="18" /></button>
-        <button v-if="!historySidebar" type="button" aria-label="Histórico de conversas" title="Histórico de conversas" :aria-pressed="showHistory" @click="showHistory = !showHistory"><History :size="17" /></button>
-        <button type="button" :aria-label="expanded ? 'Recolher conversa' : 'Expandir conversa'" :title="expanded ? 'Recolher' : 'Expandir'" :aria-pressed="expanded" @click="expanded = !expanded"><Minimize2 v-if="expanded" :size="16" /><Maximize2 v-else :size="16" /></button>
+        <button type="button" class="view-mode" :aria-label="expanded ? 'Recolher conversa' : 'Expandir conversa'" :title="expanded ? 'Voltar à janela compacta' : 'Abrir em janela ampliada'" :aria-pressed="expanded" @click="expanded = !expanded"><Minimize2 v-if="expanded" :size="14" /><Maximize2 v-else :size="14" /><span>{{ expanded ? 'Reduzir' : 'Ampliar' }}</span></button>
         <button type="button" aria-label="Fechar Lia" title="Fechar Lia" @click="emit('close')"><X :size="18" /></button>
       </nav>
     </header>
     <div class="lia-body" :class="{ 'with-sidebar': historySidebar }">
-      <LiaConversationHistory v-if="historySidebar || showHistory" :sidebar="historySidebar" @new="newConversation" @select="selectConversation" @back="showHistory = false" />
+      <LiaConversationHistory :sidebar="historySidebar" :collapsed="!showHistory" @toggle="showHistory = !showHistory" @new="newConversation" @select="selectConversation" @back="showHistory = false" />
       <main v-show="chatVisible" class="lia-chat" :class="{ 'is-welcome': !liaStore.messages.length }">
         <div v-if="pageContext" class="page-context"><span></span> Ficha do paciente em contexto</div>
         <div v-if="liaStore.error" class="chat-error" role="alert"><span>{{ liaStore.error }}</span><button type="button" aria-label="Tentar carregar a Lia novamente" @click="liaStore.initialize()"><RotateCcw :size="14" /></button></div>

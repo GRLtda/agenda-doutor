@@ -5,6 +5,7 @@ import LiaChatDrawer from '@/components/lia/LiaChatDrawer.vue'
 import LiaConversationHistory from '@/components/lia/LiaConversationHistory.vue'
 import LiaAvatar from '@/components/lia/LiaAvatar.vue'
 import LiaChatShell from '@/components/lia/LiaChatShell.vue'
+import LiaLauncher from '@/components/lia/LiaLauncher.vue'
 import { buildLiaChart } from '@/components/lia/liaChart'
 
 const mocks = vi.hoisted(() => ({ store: null, auth: null, page: null }))
@@ -30,7 +31,7 @@ function chat() {
     global: { stubs: { Teleport: true, LiaAvatar: { template: '<span class="avatar-stub" />' } } } })
   wrappers.push(wrapper); return wrapper
 }
-function history() { const wrapper = mount(LiaConversationHistory); wrappers.push(wrapper); return wrapper }
+function history() { const wrapper = mount(LiaConversationHistory, { attachTo: document.body }); wrappers.push(wrapper); return wrapper }
 
 it('entrada usa o nome do usuário e sugestões editáveis, sem disparar consulta automaticamente', async () => {
   const wrapper = chat(); await flushPromises()
@@ -51,7 +52,7 @@ it('expandir e recolher preservam rascunho e mensagens, exibindo histórico late
   expect(wrapper.get('textarea').element.value).toBe('Meu rascunho'); expect(mocks.store.startNewConversation).not.toHaveBeenCalled()
 })
 it('histórico vazio oferece nova conversa e volta ao chat com foco no campo', async () => {
-  const wrapper = chat(); await flushPromises(); await wrapper.get('[aria-label="Histórico de conversas"]').trigger('click')
+  const wrapper = chat(); await flushPromises(); await wrapper.get('button[aria-label="Histórico de conversas"]').trigger('click')
   expect(wrapper.find('.lia-chat').isVisible()).toBe(false)
   expect(wrapper.text()).toContain('Sua primeira conversa começa aqui')
   await wrapper.get('.new-conversation').trigger('click'); await flushPromises()
@@ -62,10 +63,10 @@ it('histórico vazio oferece nova conversa e volta ao chat com foco no campo', a
 it('navegar no histórico preserva o rascunho até selecionar outra conversa', async () => {
   mocks.store.conversations = [{ id: 'another', title: 'Agenda de amanhã', updatedAt: new Date().toISOString() }]
   const wrapper = chat(); await flushPromises(); await wrapper.get('textarea').setValue('Rascunho antigo')
-  await wrapper.get('[aria-label="Histórico de conversas"]').trigger('click')
+  await wrapper.get('button[aria-label="Histórico de conversas"]').trigger('click')
   await wrapper.get('.back-button').trigger('click')
   expect(wrapper.get('textarea').element.value).toBe('Rascunho antigo')
-  await wrapper.get('[aria-label="Histórico de conversas"]').trigger('click'); await wrapper.get('.history-select').trigger('click')
+  await wrapper.get('button[aria-label="Histórico de conversas"]').trigger('click'); await wrapper.get('.history-select').trigger('click')
   expect(mocks.store.selectConversation).toHaveBeenCalledWith('another'); expect(wrapper.get('textarea').element.value).toBe('')
 })
 it('fechar e reabrir preservam o rascunho da sessão', async () => {
@@ -102,10 +103,10 @@ it('escolha de horário em outra data usa a data completa retornada', async () =
 })
 it('histórico busca sem acentos e não exclui antes da confirmação', async () => {
   mocks.store.conversations = [{ id: 'one', title: 'Reunião da clínica', updatedAt: new Date().toISOString() }, { id: 'two', title: 'Outra conversa', updatedAt: new Date().toISOString() }]
-  const wrapper = history(); await wrapper.get('input').setValue('reuniao')
+  const wrapper = history(); await wrapper.get('button[aria-label="Buscar conversas"]').trigger('click'); await wrapper.get('input').setValue('reuniao')
   expect(wrapper.findAll('.history-item')).toHaveLength(1)
   await wrapper.get('.delete-button').trigger('click'); expect(mocks.store.deleteConversation).not.toHaveBeenCalled()
-  await wrapper.get('.delete-confirmation .destructive').trigger('click'); await flushPromises()
+  await wrapper.get('.lia-confirm .destructive').trigger('click'); await flushPromises()
   expect(mocks.store.deleteConversation).toHaveBeenCalledExactlyOnceWith('one')
 })
 it('falha ao excluir mantém o histórico e mostra erro recuperável', async () => {
@@ -113,6 +114,73 @@ it('falha ao excluir mantém o histórico e mostra erro recuperável', async () 
   mocks.store.deleteConversation.mockRejectedValueOnce(new Error('offline'))
   const wrapper = history(); await wrapper.get('.delete-button').trigger('click'); await wrapper.get('.destructive').trigger('click'); await flushPromises()
   expect(wrapper.text()).toContain('Não foi possível excluir'); expect(wrapper.findAll('.history-item')).toHaveLength(1)
+})
+it('Recentes recolhe e reabre a lista sem perder a conversa selecionada', async () => {
+  mocks.store.conversations = [{ id: 'one', title: 'Conversa', updatedAt: new Date().toISOString() }]
+  mocks.store.activeConversationId = 'one'
+  const wrapper = history()
+  expect(wrapper.get('.recent-toggle').text()).toBe('Recentes')
+  await wrapper.get('.recent-toggle').trigger('click')
+  expect(wrapper.get('.history-scroll').isVisible()).toBe(false)
+  expect(mocks.store.activeConversationId).toBe('one')
+  await wrapper.get('.recent-toggle').trigger('click')
+  expect(wrapper.get('.history-scroll').isVisible()).toBe(true)
+})
+it('lateral vira faixa de ícones, busca abre sob demanda e mantém o rascunho', async () => {
+  const wrapper = chat(); await flushPromises(); await wrapper.get('textarea').setValue('Meu rascunho')
+  expect(wrapper.get('.lia-history').classes()).toContain('collapsed')
+  expect(wrapper.find('.history-search').exists()).toBe(false)
+  expect(wrapper.find('.lia-identity').exists()).toBe(false)
+  await wrapper.get('button[aria-label="Buscar conversas"]').trigger('click'); await flushPromises()
+  expect(document.activeElement).toBe(wrapper.get('.history-search input').element)
+  await wrapper.get('[aria-label="Recolher histórico"]').trigger('click')
+  expect(wrapper.get('.lia-history').classes()).toContain('collapsed')
+  expect(wrapper.get('textarea').element.value).toBe('Meu rascunho')
+  await wrapper.get('[aria-label="Expandir conversa"]').trigger('click')
+  await wrapper.get('[aria-label="Recolher histórico"]').trigger('click')
+  expect(wrapper.get('.lia-chat').isVisible()).toBe(true)
+  expect(wrapper.get('.lia-history').classes()).toContain('collapsed')
+})
+it('exclusão abre diálogo com cancelar em foco; Escape cancela sem fechar a Lia', async () => {
+  mocks.store.conversations = [{ id: 'one', title: 'Conversa', updatedAt: new Date().toISOString() }]
+  const wrapper = chat(); await flushPromises()
+  await wrapper.get('[aria-label="Abrir histórico"]').trigger('click')
+  const opener = wrapper.get('.delete-button'); opener.element.focus(); await opener.trigger('click'); await flushPromises()
+  expect(wrapper.get('[role="alertdialog"]').attributes('aria-modal')).toBe('true')
+  expect(document.activeElement.textContent).toBe('Cancelar')
+  await wrapper.get('[role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises()
+  expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+  expect(mocks.store.deleteConversation).not.toHaveBeenCalled()
+  expect(wrapper.emitted('close')).toBeUndefined()
+  expect(document.activeElement).toBe(opener.element)
+})
+it('confirmação em andamento bloqueia duplicação e cancelamento', async () => {
+  mocks.store.conversations = [{ id: 'one', title: 'Conversa' }]
+  let finish
+  mocks.store.deleteConversation.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const wrapper = history(); await wrapper.get('.delete-button').trigger('click')
+  await wrapper.get('.destructive').trigger('click')
+  expect(wrapper.findAll('.dialog-actions button').every(button => button.element.disabled)).toBe(true)
+  await wrapper.get('[role="alertdialog"]').trigger('keydown', { key: 'Escape' })
+  expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
+  expect(mocks.store.deleteConversation).toHaveBeenCalledTimes(1)
+  finish(); await flushPromises()
+  expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+})
+it('botão flutuante acompanha processamento e avisa sobre resposta sem mostrar conteúdo', async () => {
+  const wrapper = mount(LiaLauncher, { global: { stubs: { LiaAvatar: { template: '<span class="avatar-stub" />' } } } }); wrappers.push(wrapper)
+  mocks.store.isSending = true; await flushPromises()
+  expect(wrapper.get('.launcher-character').attributes('state')).toBe('thinking')
+  mocks.store.streamText = 'Texto privado'; await flushPromises()
+  expect(wrapper.get('.launcher-character').attributes('state')).toBe('responding')
+  mocks.store.isSending = false; mocks.store.backgroundNotice = 'answer'; await flushPromises()
+  expect(wrapper.text()).toContain('Resposta pronta'); expect(wrapper.text()).not.toContain('Texto privado')
+  expect(wrapper.find('.notice-dot').exists()).toBe(true)
+  mocks.store.backgroundNotice = 'error'; await flushPromises()
+  expect(wrapper.get('.launcher-character').attributes('state')).toBe('error')
+  await wrapper.get('button').trigger('click')
+  expect(mocks.store.isOpen).toBe(true)
+  expect(wrapper.find('button').exists()).toBe(false)
 })
 it('gráfico mantém apenas pontos fornecidos, ordena datas e não altera o ranking original', () => {
   const items = [{ name: '2026-11-04', value: 20 }, { name: '2026-11-01', value: 5 }]
@@ -192,9 +260,9 @@ it('estados de erro e sucesso exibem as expressões v3 sem movimento reduzido vi
 it('mascote do chat muda de pensar para responder e sinaliza falha real', async () => {
   const wrapper = chat(); await flushPromises()
   mocks.store.isSending = true; await flushPromises()
-  expect(wrapper.get('.header-character').attributes('state')).toBe('thinking')
+  expect(wrapper.get('.welcome-character').attributes('state')).toBe('thinking')
   mocks.store.streamText = 'Resposta sendo transmitida'; await flushPromises()
-  expect(wrapper.get('.header-character').attributes('state')).toBe('responding')
+  expect(wrapper.get('.welcome-character').attributes('state')).toBe('responding')
   mocks.store.isSending = false; mocks.store.error = 'Falha no envio'; await flushPromises()
-  expect(wrapper.get('.header-character').attributes('state')).toBe('error')
+  expect(wrapper.get('.welcome-character').attributes('state')).toBe('error')
 })

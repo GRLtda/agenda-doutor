@@ -77,6 +77,47 @@ it('resposta antiga não aparece depois de Nova conversa', async () => {
   const send = store.sendMessage('Ver agenda'); await Promise.resolve()
   store.startNewConversation(); pending.resolve(modelAnswer('Resposta antiga')); await send
   expect(store.messages).toEqual([]); expect(store.activeConversationId).toBeNull()
+  expect(store.backgroundNotice).toBeNull()
+})
+it('resposta concluída com chat fechado avisa até abrir a Lia', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'; store.isOpen = true
+  const pending = deferred(); mocks.send.mockReturnValue(pending.promise)
+  const send = store.sendMessage('Ver agenda'); await Promise.resolve()
+  store.isOpen = false
+  expect(store.backgroundNotice).toBeNull()
+  pending.resolve(modelAnswer()); await send
+  expect(store.backgroundNotice).toBe('answer')
+  store.isOpen = true
+  expect(store.backgroundNotice).toBeNull()
+})
+it('stream parcial e histórico carregado não geram aviso de resposta pronta', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'; store.isOpen = true
+  mocks.send.mockImplementation(async (_id, _text, _options, stream) => {
+    stream.onEvent({ type: 'text', content: 'Trecho parcial' })
+    expect(store.backgroundNotice).toBeNull()
+    return modelAnswer()
+  })
+  await store.sendMessage('Ver agenda')
+  store.isOpen = false; await store.loadMessages()
+  expect(store.backgroundNotice).toBeNull()
+})
+it('falha com janela fechada avisa erro; troca de identidade elimina o aviso', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'
+  mocks.send.mockRejectedValue(new Error('offline'))
+  await expect(store.sendMessage('Ver agenda')).rejects.toBeTruthy()
+  expect(store.backgroundNotice).toBe('error')
+  mocks.auth.user = { _id: 'other', clinic: 'other', role: 'owner' }
+  expect(store.backgroundNotice).toBeNull()
+})
+it('resposta recuperada após desconexão também avisa, sem duplicar o envio', async () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'
+  mocks.send.mockImplementation(async (_id, _content, options) => {
+    mocks.messages.mockResolvedValue({ data: { messages: [{ id: 'q', role: 'user', metadata: { clientMessageId: options.clientMessageId } }, { id: 'a', role: 'assistant', metadata: { replyTo: 'q' } }] } })
+    throw new Error('stream interrupted')
+  })
+  await store.sendMessage('Ver agenda')
+  expect(store.backgroundNotice).toBe('answer')
+  expect(mocks.send).toHaveBeenCalledTimes(1)
 })
 it('criação lenta de conversa não reabre conversa abandonada', async () => {
   const store = useLiaStore(); const pending = deferred(); mocks.create.mockReturnValue(pending.promise)

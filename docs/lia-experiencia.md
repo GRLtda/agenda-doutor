@@ -12,7 +12,11 @@ A prévia isolada continua usando somente dados fictícios e simula o envio de f
 
 A interface tem dois modos que compartilham a mesma conversa: janela compacta flutuante e modal central expandido. Expandir, recolher, consultar o histórico e fechar/reabrir preservam o rascunho da sessão. Selecionar outra conversa ou iniciar uma nova limpa o campo para evitar enviar um pedido para o contexto anterior.
 
-O histórico tem busca local nos itens carregados, grupos por data, paginação, confirmação de exclusão e estados de carregamento, busca vazia e primeira conversa. No modo expandido de desktop, ele aparece como painel lateral. No celular, ocupa o painel com uma ação para voltar ao chat.
+O histórico tem uma seção “Recentes” recolhível, paginação e busca local nos itens carregados. A lateral pode virar uma faixa de ícones: caneta para nova conversa, lupa para abrir a busca e balão para acessar as conversas. Chat e lateral compartilham a mesma cor de fundo. No modo compacto, o histórico ocupa o espaço do chat e pode ser fechado sem perder o rascunho. O cabeçalho exibe apenas o título da conversa e os controles de tamanho e fechar, sem duplicar a mascote.
+
+A exclusão exige um diálogo modal com Cancelar em foco, isolamento do teclado, Escape e devolução do foco. Durante a exclusão, os controles ficam bloqueados; falha mantém o diálogo para tentar novamente. A exclusão continua lógica no servidor.
+
+O botão flutuante acompanha os estados reais de espera e streaming. Se uma resposta finalizar com a janela fechada, mostra “Resposta pronta”, um marcador e um aviso acessível. Falhas mostram um aviso distinto. Não há som, notificação do navegador nem conteúdo de pacientes no botão. O aviso existe apenas na sessão atual, é limpo ao abrir a Lia, trocar de conversa, usuário ou clínica e só indica conclusão após resposta final ou recuperação de uma resposta persistida.
 
 A arte enviada em `lia-animada-final` foi integrada em `LiaAvatar.vue`, `liaAnimation.js` e `src/assets/lia/lia-animated.svg`. Cada instância tem IDs próprios no SVG. O estado pensando acompanha o envio real; não alterna automaticamente para fingir atividade. A animação pausa quando a aba fica oculta ou a instância está inativa e respeita redução de movimento. Eventos e quadros de animação são removidos ao desmontar.
 
@@ -34,4 +38,4 @@ O sistema principal continua usando a autorização do servidor antes de exibir 
 - `npm run test:auth`: isolamento e autenticação do frontend.
 - `npm run build`: verificação de tipos e build Vite.
 
-A revisão visual automatizada não pôde ser concluída nesta sessão: a ferramenta de computer use interrompeu o acesso ao navegador porque não conseguiu identificar a URL com segurança. Os testes DOM não substituem essa inspeção visual.
+A revisão visual automatizada não pôde ser concluída nesta sessão: a ferramenta de computer use informou que o host de acesso ao navegador está indisponível. Os testes DOM não substituem essa inspeção visual.

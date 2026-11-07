@@ -14,6 +14,9 @@ export const useLiaStore = defineStore('lia', () => {
   const conversations = ref([])
   const messages = ref([])
   const isOpen = ref(false)
+  const backgroundNotice = ref(null)
+  watch(isOpen, open => { if (open) backgroundNotice.value = null }, { flush: 'sync' })
+  function notifyWhenClosed(kind) { if (!isOpen.value && isAvailable.value) backgroundNotice.value = kind }
   const isAvailable = ref(false)
   const isSending = ref(false)
   const streamStatus = ref(null)
@@ -61,6 +64,7 @@ export const useLiaStore = defineStore('lia', () => {
     nextCursor.value = null
     messagesCursor.value = null
     isOpen.value = false
+    backgroundNotice.value = null
     isAvailable.value = false
     isSending.value = false
     isLoadingMore.value = false
@@ -147,6 +151,7 @@ export const useLiaStore = defineStore('lia', () => {
     }
   }
   function invalidateView() {
+    backgroundNotice.value = null
     sendController?.abort()
     sendController = null
     streamStatus.value = null
@@ -194,6 +199,7 @@ export const useLiaStore = defineStore('lia', () => {
     const retryOptions = { ...options, clientMessageId }
     const temporaryMessage = { id: 'local-' + clientMessageId, role: 'user', content: message, status: 'sending', retryOptions }
     messages.value.push(temporaryMessage)
+    backgroundNotice.value = null
     isSending.value = true
     streamText.value = ''
     streamStatus.value = { phase: 'starting', label: 'Enviando sua solicitação' }
@@ -215,6 +221,7 @@ export const useLiaStore = defineStore('lia', () => {
       messages.value = messages.value.filter(item => item.id !== temporaryMessage.id)
       replaceMessage({ ...data.userMessage, status: 'sent' })
       replaceMessage(data.message)
+      notifyWhenClosed('answer')
       // Refreshing the history list must not turn a successful answer into a failed send.
       await loadConversations().catch(() => {})
       return data.message
@@ -228,7 +235,7 @@ export const useLiaStore = defineStore('lia', () => {
           if (!sameView(ticket)) return null
           const persisted = messages.value.find(item => item.role === 'user' && item.metadata?.clientMessageId === clientMessageId)
           const response = persisted && messages.value.find(item => item.role === 'assistant' && item.metadata?.replyTo === persisted.id)
-          if (response) return response
+          if (response) { notifyWhenClosed('answer'); return response }
           if (persisted) temporaryMessage.id = persisted.id
         } catch { /* keep a visible retryable failure */ }
       }
@@ -237,6 +244,7 @@ export const useLiaStore = defineStore('lia', () => {
       temporaryMessage.error = requestError.response?.data?.message || 'Não foi possível obter a resposta da Lia. Tente novamente.'
       replaceMessage(temporaryMessage)
       error.value = temporaryMessage.error
+      notifyWhenClosed('error')
       throw requestError
     } finally {
       if (sendController === controller) sendController = null
@@ -254,11 +262,12 @@ export const useLiaStore = defineStore('lia', () => {
     if (!confirmation?.id || !(confirmation.status === 'pending' || confirmation.status === 'processing' && confirmation.recoverable) || isSending.value) return
     const ticket = viewTicket()
     isSending.value = true
+    backgroundNotice.value = null
     streamStatus.value = { phase: 'confirmation', label: operation === confirmLiaAction ? 'Verificando e confirmando a ação' : 'Cancelando a ação solicitada' }
     error.value = null
     try {
       const { data } = await operation(ticket.conversationId, confirmation.id)
-      if (sameView(ticket)) replaceMessage(data.message)
+      if (sameView(ticket)) { replaceMessage(data.message); notifyWhenClosed('answer') }
     } catch (requestError) {
       if (!sameView(ticket)) return
       if (handleAccessDenied(requestError)) return
@@ -266,6 +275,7 @@ export const useLiaStore = defineStore('lia', () => {
       if (sameView(ticket)) {
         const current = messages.value.flatMap(item => item.metadata?.confirmations || [item.metadata?.confirmation]).find(item => item?.id === confirmation.id)
         error.value = current?.status === 'success' ? null : requestError.response?.data?.message || 'Não foi possível concluir a ação. Confira o estado do card.'
+        notifyWhenClosed(error.value ? 'error' : 'answer')
       }
     } finally {
       if (sameView(ticket)) { isSending.value = false; streamStatus.value = null }
@@ -336,7 +346,7 @@ export const useLiaStore = defineStore('lia', () => {
     return pending
   }
   return {
-    activeConversationId, conversations, messages, isOpen, isAvailable, isLoading, isSending, isLoadingMore, streamStatus, streamText,
+    activeConversationId, conversations, messages, isOpen, backgroundNotice, isAvailable, isLoading, isSending, isLoadingMore, streamStatus, streamText,
     nextCursor, messagesCursor, error, hasActiveConversation, initialize, loadConversations,
     loadMore: () => loadConversations({ append: true }).catch(() => { error.value = 'Não foi possível carregar mais conversas.' }), loadMessages,
     loadOlderMessages: () => messagesCursor.value && loadMessages(activeConversationId.value, { older: true }).catch(() => []),

@@ -2,20 +2,13 @@ button,textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .45; }
 button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; }
-.lia-header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 8px; min-height: 77px; padding: 13px 16px; border-bottom: 1px solid var(--lia-line); background: var(--lia-surface); }
-.lia-identity { display: flex; align-items: center; min-width: 0; gap: 7px; }
-.lia-identity>div { min-width: 0; }
-.header-character { width: 43px; }
-.lia-identity h1 { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.6px; }
-.lia-identity h1>span { color: var(--lia-muted); font-size: 10px; font-weight: 450; letter-spacing: 0; }
-.lia-identity p { display: flex; align-items: center; gap: 5px; margin: 4px 0 0; white-space: nowrap; color: var(--lia-muted); font-size: 10px; }
-.lia-identity i { width: 4px; height: 4px; border-radius: 50%; background: #29ad89; }
-.lia-identity i.thinking { background: #e4aa39; }
-.header-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.lia-header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 12px; min-height: 48px; padding: 7px 12px 7px 19px; background: var(--lia-bg); }
+.conversation-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--lia-muted); font-size: 12px; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .header-actions button { display: grid; place-items: center; width: 30px; height: 32px; padding: 0; border: 0; border-radius: 9px; color: var(--lia-muted); background: transparent; }
 .header-actions button:hover,.header-actions button[aria-pressed=true] { color: var(--lia-blue); background: var(--lia-tint); }
+.header-actions .view-mode { display: flex; gap: 6px; width: auto; height: 30px; padding: 0 10px; border: 1px solid var(--lia-line); border-radius: 9px; font-size: 10px; }.header-actions>button:last-child { border-radius: 50%; }
 .lia-body { display: flex; flex: 1; min-height: 0; }
-.lia-body>:deep(.lia-history:not(.sidebar)) { width: 100%; }
 .lia-chat { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .messages { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 22px 23px 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lia-muted) 25%, transparent) transparent; }
 .page-context { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; padding: 8px 12px; color: var(--lia-blue); background: var(--lia-tint); font-size: 10px; }
@@ -71,5 +64,5 @@ button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; 
 .with-sidebar .messages { padding: 28px 32px 10px; }.with-sidebar .welcome { width: min(540px, 100%); margin: auto; padding-bottom: 24px; }.with-sidebar .welcome-art,.with-sidebar .welcome-character { width: 120px; height: 120px; }.with-sidebar .welcome h2 { font-size: 42px; letter-spacing: -1.8px; }.with-sidebar .welcome-description { font-size: 13px; }.with-sidebar .suggestions button { flex-wrap: nowrap; padding: 16px 12px; }.with-sidebar .suggestions button>span:nth-child(2) { flex: 1; }.with-sidebar .suggestion-arrow { display: none; }.with-sidebar .lia-footer { padding: 16px 32px 19px; }
 @keyframes lia-dot { 0%,80%,100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @media(max-height: 790px) { .welcome-art,.welcome-character { width: 72px; height: 72px; }.welcome-description { margin: 10px 0 18px; }.welcome h2 { font-size: 29px; }.suggestions button { padding: 10px; gap: 7px; }.with-sidebar .welcome-art,.with-sidebar .welcome-character { width: 82px; height: 82px; }.with-sidebar .welcome h2 { font-size: 34px; } }
-@media(max-width: 640px) { .lia-header { min-height: 72px; padding: 12px; }.lia-identity h1>span { display: none; }.lia-identity p { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 9px; }.lia-identity i { display: inline-block; margin-right: 4px; }.header-actions button { width: 29px; }.messages { padding: 18px 18px 8px; }.lia-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }.welcome h2 { font-size: 34px; }.welcome { padding-bottom: 12px; }.composer textarea { font-size: 16px; } }
+@media(max-width: 640px) { .lia-header { min-height: 48px; padding: 7px 12px; }.messages { padding: 18px 18px 8px; }.lia-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }.welcome h2 { font-size: 34px; }.welcome { padding-bottom: 12px; }.composer textarea { font-size: 16px; } }
 @media(prefers-reduced-motion: reduce) { .loading-dot { animation: none; }.suggestions button,.composer { transition: none; }.suggestions button:hover { transform: none; } }
