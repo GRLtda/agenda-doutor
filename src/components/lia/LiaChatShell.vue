@@ -1,27 +1,73 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useMediaQuery, useScrollLock } from '@vueuse/core'
+import { useMediaQuery } from '@vueuse/core'
 
 const props = defineProps({ open: Boolean, expanded: Boolean })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'viewportchange'])
 const panel = ref(null)
 const mobile = useMediaQuery('(max-width: 760px), (max-height: 500px) and (pointer: coarse)')
 const viewportHeight = ref(window.visualViewport?.height || window.innerHeight)
 const viewportTop = ref(window.visualViewport?.offsetTop || 0)
 function updateViewport() {
   if (window.visualViewport && window.visualViewport.scale !== 1) return
-  viewportHeight.value = window.visualViewport?.height || window.innerHeight
-  viewportTop.value = window.visualViewport?.offsetTop || 0
+  const nextHeight = Math.round(window.visualViewport?.height || window.innerHeight)
+  const nextTop = Math.round(window.visualViewport?.offsetTop || 0)
+  if (viewportHeight.value === nextHeight && viewportTop.value === nextTop) return
+  viewportHeight.value = nextHeight
+  viewportTop.value = nextTop
+  emit('viewportchange')
 }
 onMounted(() => {
   window.addEventListener('resize', updateViewport)
   window.visualViewport?.addEventListener('resize', updateViewport)
   window.visualViewport?.addEventListener('scroll', updateViewport)
 })
-const locked = useScrollLock(document.body)
+// `overflow: hidden` alone does not keep iOS from moving the document behind a
+// fixed overlay.  Keep the layout viewport in place while the mobile dialog is
+// open, then restore the exact page position on close.
+const lockProperties = ['overflow', 'overscroll-behavior', 'position', 'top', 'left', 'right', 'width']
+let scrollLock = null
+function saveStyles(element, properties) {
+  return Object.fromEntries(properties.map(property => [property, [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)]]))
+}
+function restoreStyles(element, styles) {
+  Object.entries(styles).forEach(([property, [value, priority]]) => {
+    if (value) element.style.setProperty(property, value, priority)
+    else element.style.removeProperty(property)
+  })
+}
+function lockPageScroll() {
+  if (scrollLock || typeof document === 'undefined') return
+  const root = document.documentElement
+  const body = document.body
+  scrollLock = {
+    x: window.scrollX,
+    y: window.scrollY,
+    root: saveStyles(root, ['overflow', 'overscroll-behavior']),
+    body: saveStyles(body, lockProperties),
+  }
+  root.style.setProperty('overflow', 'hidden')
+  root.style.setProperty('overscroll-behavior', 'none')
+  body.style.setProperty('overflow', 'hidden')
+  body.style.setProperty('overscroll-behavior', 'none')
+  body.style.setProperty('position', 'fixed')
+  body.style.setProperty('top', `${-scrollLock.y}px`)
+  body.style.setProperty('left', `${-scrollLock.x}px`)
+  body.style.setProperty('right', '0')
+  body.style.setProperty('width', '100%')
+}
+function unlockPageScroll() {
+  if (!scrollLock || typeof document === 'undefined') return
+  const previous = scrollLock
+  scrollLock = null
+  restoreStyles(document.documentElement, previous.root)
+  restoreStyles(document.body, previous.body)
+  if ((previous.x || previous.y) && typeof window.scrollTo === 'function') window.scrollTo(previous.x, previous.y)
+}
 let opener
 watch(() => [props.open, props.expanded, mobile.value], async ([open, expanded, isMobile], previous) => {
-  locked.value = open && (expanded || isMobile)
+  if (open && (expanded || isMobile)) lockPageScroll()
+  else unlockPageScroll()
   if (open && !previous?.[0]) {
     opener = document.activeElement
     await nextTick()
@@ -41,7 +87,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateViewport)
   window.visualViewport?.removeEventListener('resize', updateViewport)
   window.visualViewport?.removeEventListener('scroll', updateViewport)
-  locked.value = false; opener?.focus?.()
+  unlockPageScroll(); opener?.focus?.()
 })
 </script>
 
@@ -59,13 +105,14 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.lia-workspace { --lia-surface: var(--card, #fff); --lia-bg: var(--background, #fff); --lia-text: var(--foreground, #1c2738); --lia-muted: var(--muted-foreground, #737c8d); --lia-line: var(--border, #e7eaf0); --lia-soft: var(--muted, #f5f6f9); --lia-blue: var(--azul-principal, #0057ff); --lia-tint: color-mix(in srgb, var(--lia-blue) 7%, var(--lia-surface)); position: fixed; z-index: 5900; right: 22px; bottom: 22px; width: min(440px, calc(100vw - 44px)); height: min(740px, calc(100dvh - 44px)); color: var(--lia-text); font-family: var(--fonte-principal, 'DM Sans', sans-serif); }
+.lia-workspace { --lia-surface: var(--card, #fff); --lia-bg: var(--background, #fff); --lia-text: var(--foreground, #1c2738); --lia-muted: var(--muted-foreground, #737c8d); --lia-line: var(--border, #e7eaf0); --lia-soft: var(--muted, #f5f6f9); --lia-blue: var(--azul-principal, #0057ff); --lia-tint: color-mix(in srgb, var(--lia-blue) 7%, var(--lia-surface)); position: fixed; z-index: 5900; right: 22px; bottom: 22px; width: min(440px, calc(100vw - 44px)); height: min(740px, calc(100dvh - 44px)); overflow: hidden; overscroll-behavior: none; color: var(--lia-text); font-family: var(--fonte-principal, 'DM Sans', sans-serif); }
 .lia-window { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; border: 1px solid var(--lia-line); border-radius: 24px; outline: none; background: var(--lia-bg); box-shadow: 0 24px 80px #14233d24, 0 2px 12px #14233d0a; }
 .expanded { inset: 0; display: grid; place-items: center; width: auto; height: auto; padding: clamp(16px, 3vw, 40px); }
 .lia-backdrop { position: absolute; inset: 0; background: #0f172a57; backdrop-filter: blur(5px); }
 .expanded .lia-window { width: min(1120px, 100%); height: min(84dvh, 850px); box-shadow: 0 30px 90px #0f172a40; }
 .lia-window-enter-active, .lia-window-leave-active { transition: opacity .18s ease, transform .22s ease; }
 .lia-window-enter-from, .lia-window-leave-to { opacity: 0; transform: translateY(12px) scale(.98); }
-@media(max-width: 760px), (max-height: 500px) and (pointer: coarse) { .lia-workspace { inset: 0; width: 100%; height: 100dvh; padding: 0; } .lia-window, .expanded .lia-window { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; } :deep(.lia-header) { padding-top: calc(7px + env(safe-area-inset-top)); padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); } :deep(input),:deep(textarea),:deep(select),:deep([contenteditable=true]) { font-size: 16px !important; } }
+@media(max-width: 760px), (max-height: 500px) and (pointer: coarse) { .lia-workspace { inset: 0 auto auto 0; width: 100%; height: var(--lia-viewport-height, 100dvh); padding: 0; touch-action: manipulation; } .lia-window, .expanded .lia-window { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; } :deep(.lia-header) { padding-top: calc(7px + env(safe-area-inset-top)); padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); } :deep(input),:deep(textarea),:deep(select),:deep([contenteditable=true]) { font-size: 16px !important; } }
 @media(prefers-reduced-motion: reduce) { .lia-window-enter-active, .lia-window-leave-active { transition: none; } }
 </style>
+
