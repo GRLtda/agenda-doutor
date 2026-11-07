@@ -26,6 +26,10 @@ const phone = ref('')
 const password = ref('')
 const errorMessage = ref(null)
 const emailError = ref('')
+// Erros por campo devolvidos pela API (details.fields)
+const nameError = ref('')
+const phoneError = ref('')
+const passwordError = ref('')
 const termsError = ref('')
 const invitationError = ref('')
 const registrationSuccess = ref(false)
@@ -166,6 +170,9 @@ watch(registrationSuccess, (newValue) => {
 async function handleRegister() {
   errorMessage.value = null
   emailError.value = ''
+  nameError.value = ''
+  phoneError.value = ''
+  passwordError.value = ''
   termsError.value = ''
   invitationError.value = ''
   isLoading.value = true
@@ -222,9 +229,15 @@ async function handleRegister() {
           : message
         break
       }
-      case 'AUTH_VALIDATION_ERROR':
-        errorMessage.value = message
+      case 'AUTH_VALIDATION_ERROR': {
+        const fields = registrationError.details?.fields || {}
+        if (fields.name) nameError.value = fields.name
+        if (fields.email) emailError.value = fields.email
+        if (fields.phone) phoneError.value = fields.phone
+        if (fields.password) passwordError.value = fields.password
+        if (!fields.name && !fields.email && !fields.phone && !fields.password) errorMessage.value = message
         break
+      }
       default:
         errorMessage.value = message
         console.error('[Cadastro] Erro não mapeado retornado pela API:', {
@@ -312,6 +325,8 @@ function handleRegistrationComplete() {
           autocomplete="name"
           :required="true"
           :disabled="nameIsDisabled"
+          :error="nameError"
+          @update:model-value="nameError = ''"
         />
         <FormInput
           v-model="email"
@@ -323,6 +338,7 @@ function handleRegistrationComplete() {
           :required="true"
           :disabled="emailIsDisabled"
           :error="emailError"
+          @update:model-value="emailError = ''"
         />
         <FormInput
           v-model="phone"
@@ -334,8 +350,16 @@ function handleRegistrationComplete() {
           phone-mask
           :required="true"
           :disabled="phoneIsDisabled"
+          :error="phoneError"
+          @update:model-value="phoneError = ''"
         />
-        <PasswordInput v-model="password" label="Senha" :required="true" />
+        <PasswordInput
+          v-model="password"
+          label="Senha"
+          :required="true"
+          :error="passwordError"
+          @update:model-value="passwordError = ''"
+        />
 
         <div class="terms-checkbox">
           <label class="checkbox-container">

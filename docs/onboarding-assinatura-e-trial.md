@@ -48,6 +48,10 @@ A landing page do evento (`agendadoutor.com/evento/<código>`) leva para
 `/register?campanha=<código>`. As campanhas são criadas no admin. É um fluxo diferente do teste do convite: o cartão
 é obrigatório e o teste fica na Stripe.
 
+- Erros de validação da API (`AUTH_VALIDATION_ERROR` com `details.fields`) aparecem
+  no input de nome, e-mail, telefone ou senha e somem ao editar o campo. E-mail já
+  cadastrado aparece no campo e-mail. Testes: `npm run test:signup`
+  ([detalhes](../../api-clinic/docs/TESTES_FLUXO_CADASTRO_CHECKOUT.md)).
 - `RegisterView` lê `?campanha=`, guarda o código em `sessionStorage`
   (`signupCampaignCode`, para sobreviver a um recarregamento), consulta
   `GET /api/auth/signup-campaigns/:code` e, se a campanha for válida, mostra a
