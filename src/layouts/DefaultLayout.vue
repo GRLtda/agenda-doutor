@@ -102,11 +102,12 @@ const openPaymentPortal = async () => {
 
 onMounted(async () => {
   loadDismissal()
-  void liaStore.initialize()
   if (isOwner.value) {
     await clinicStore.getSubscriptionStatus()
   }
 })
+
+watch(() => authStore.user, () => { void liaStore.initialize() }, { deep: true, immediate: true })
 
 watch(paymentBannerStorageKey, () => {
   loadDismissal()
@@ -186,8 +187,8 @@ watch(
     <SubscriptionModal />
     <SettingsView v-if="isSettingsModalOpen" @close="closeSettingsModal" />
     <ProfileModal v-if="isProfileModalOpen" @close="closeProfileModal" />
-    <LiaChatDrawer :open="liaStore.isOpen" @close="liaStore.isOpen = false" />
-    <button class="lia-launcher" type="button" aria-label="Abrir a Lia" @click="liaStore.isOpen = true">
+    <LiaChatDrawer v-if="liaStore.isAvailable" :open="liaStore.isOpen" @close="liaStore.isOpen = false" />
+    <button v-if="liaStore.isAvailable" class="lia-launcher" type="button" aria-label="Abrir a Lia" @click="liaStore.isOpen = true">
       <span>✦</span>
       <span class="lia-launcher-label">Lia</span>
     </button>

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import {
   cancelLiaAction, confirmLiaAction, createLiaConversation, deleteLiaConversation,
-  getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage,
+  getLiaAccess, getLiaConversation, getLiaMessages, listLiaConversations, sendLiaMessage,
 } from '@/api/lia'
 
 const STORAGE_PREFIX = 'lia.activeConversationId'
@@ -14,6 +14,7 @@ export const useLiaStore = defineStore('lia', () => {
   const conversations = ref([])
   const messages = ref([])
   const isOpen = ref(false)
+  const isAvailable = ref(false)
   const isSending = ref(false)
   const isLoadingMore = ref(false)
   const loadingConversations = ref(false)
@@ -53,6 +54,7 @@ export const useLiaStore = defineStore('lia', () => {
     nextCursor.value = null
     messagesCursor.value = null
     isOpen.value = false
+    isAvailable.value = false
     isSending.value = false
     isLoadingMore.value = false
     loadingConversations.value = false
@@ -65,6 +67,12 @@ export const useLiaStore = defineStore('lia', () => {
   watch(identityKey, () => reset(), { flush: 'sync' })
   function ensureIdentity() {
     if (lastIdentity !== identityKey()) reset()
+  }
+  function handleAccessDenied(requestError) {
+    if (requestError.response?.data?.code !== 'LIA_NOT_AVAILABLE') return false
+    reset()
+    initializedKey.value = identityKey()
+    return true
   }
   const identityTicket = () => ({ identity: identityKey(), identityVersion })
   const sameIdentity = ticket => ticket.identity === identityKey() && ticket.identityVersion === identityVersion
@@ -85,7 +93,7 @@ export const useLiaStore = defineStore('lia', () => {
   }
   async function loadConversations({ append = false } = {}) {
     ensureIdentity()
-    if (!identityKey() || (append && isLoadingMore.value)) return []
+    if (!isAvailable.value || !identityKey() || (append && isLoadingMore.value)) return []
     const ticket = identityTicket()
     const version = ++listVersion
     if (append) isLoadingMore.value = true
@@ -96,6 +104,9 @@ export const useLiaStore = defineStore('lia', () => {
       conversations.value = append ? [...conversations.value, ...data.conversations] : data.conversations
       nextCursor.value = data.nextCursor || null
       return data.conversations
+    } catch (requestError) {
+      if (sameIdentity(ticket)) handleAccessDenied(requestError)
+      throw requestError
     } finally {
       if (sameIdentity(ticket) && version === listVersion) {
         isLoadingMore.value = false
@@ -105,7 +116,7 @@ export const useLiaStore = defineStore('lia', () => {
   }
   async function loadMessages(conversationId = activeConversationId.value, { older = false } = {}) {
     ensureIdentity()
-    if (!conversationId) return []
+    if (!isAvailable.value || !conversationId) return []
     const ticket = viewTicket()
     const version = ++loadVersion
     loadingMessages.value = true
@@ -118,6 +129,7 @@ export const useLiaStore = defineStore('lia', () => {
       messagesCursor.value = data.nextCursor || null
       return data.messages
     } catch (requestError) {
+      if (sameView(ticket) && handleAccessDenied(requestError)) throw requestError
       if (sameView(ticket)) {
         if (requestError.response?.status === 404) startNewConversation()
         else error.value = requestError.response?.data?.message || 'Não foi possível carregar as mensagens.'
@@ -138,7 +150,7 @@ export const useLiaStore = defineStore('lia', () => {
   }
   async function selectConversation(conversationId) {
     ensureIdentity()
-    if (!conversationId) return []
+    if (!isAvailable.value || !conversationId) return []
     if (conversationId !== activeConversationId.value) {
       invalidateView()
       activeConversationId.value = conversationId
@@ -165,7 +177,7 @@ export const useLiaStore = defineStore('lia', () => {
   async function sendMessage(content, options = {}) {
     ensureIdentity()
     const message = content?.trim()
-    if (!message || isSending.value || !identityKey()) return null
+    if (!isAvailable.value || !message || isSending.value || !identityKey()) return null
     const ticket = viewTicket()
     const clientMessageId = options.clientMessageId || newRequestId()
     const retryOptions = { ...options, clientMessageId }
@@ -187,6 +199,7 @@ export const useLiaStore = defineStore('lia', () => {
       return data.message
     } catch (requestError) {
       if (!sameView(ticket)) return null
+      if (handleAccessDenied(requestError)) throw requestError
       if (conversationId) {
         try {
           await loadMessages(conversationId)
@@ -213,6 +226,7 @@ export const useLiaStore = defineStore('lia', () => {
   }
   async function updateAction(message, selectedConfirmation, operation) {
     ensureIdentity()
+    if (!isAvailable.value) return
     const confirmation = selectedConfirmation || message.metadata?.confirmation
     if (!confirmation?.id || !(confirmation.status === 'pending' || confirmation.status === 'processing' && confirmation.recoverable) || isSending.value) return
     const ticket = viewTicket()
@@ -223,6 +237,7 @@ export const useLiaStore = defineStore('lia', () => {
       if (sameView(ticket)) replaceMessage(data.message)
     } catch (requestError) {
       if (!sameView(ticket)) return
+      if (handleAccessDenied(requestError)) return
       await loadMessages(ticket.conversationId).catch(() => {})
       if (sameView(ticket)) {
         const current = messages.value.flatMap(item => item.metadata?.confirmations || [item.metadata?.confirmation]).find(item => item?.id === confirmation.id)
@@ -236,8 +251,13 @@ export const useLiaStore = defineStore('lia', () => {
   const cancelAction = (message, confirmation) => updateAction(message, confirmation, cancelLiaAction)
 
   async function deleteConversation(conversationId) {
+    ensureIdentity()
+    if (!isAvailable.value) return
     const ticket = identityTicket()
-    await deleteLiaConversation(conversationId)
+    try { await deleteLiaConversation(conversationId) } catch (requestError) {
+      if (sameIdentity(ticket)) handleAccessDenied(requestError)
+      throw requestError
+    }
     if (!sameIdentity(ticket)) return
     conversations.value = conversations.value.filter(item => item.id !== conversationId)
     if (activeConversationId.value === conversationId) {
@@ -255,6 +275,14 @@ export const useLiaStore = defineStore('lia', () => {
     const storedConversationId = storageKey() && localStorage.getItem(storageKey())
     const pending = (async () => {
       try {
+        const { data: access } = await getLiaAccess()
+        if (!sameView(ticket)) return
+        isAvailable.value = access?.enabled === true
+        if (!isAvailable.value) {
+          reset()
+          initializedKey.value = key
+          return
+        }
         await loadConversations()
         if (!sameView(ticket)) return
         if (storedConversationId) {
@@ -274,6 +302,7 @@ export const useLiaStore = defineStore('lia', () => {
         }
         if (sameIdentity(ticket)) initializedKey.value = key
       } catch (requestError) {
+        if (sameIdentity(ticket)) isAvailable.value = false
         if (sameIdentity(ticket)) error.value = requestError.response?.data?.message || 'Não foi possível carregar a Lia. Abra novamente para tentar.'
       } finally {
         if (initializePromise === pending) initializePromise = null
@@ -283,7 +312,7 @@ export const useLiaStore = defineStore('lia', () => {
     return pending
   }
   return {
-    activeConversationId, conversations, messages, isOpen, isLoading, isSending, isLoadingMore,
+    activeConversationId, conversations, messages, isOpen, isAvailable, isLoading, isSending, isLoadingMore,
     nextCursor, messagesCursor, error, hasActiveConversation, initialize, loadConversations,
     loadMore: () => loadConversations({ append: true }).catch(() => { error.value = 'Não foi possível carregar mais conversas.' }), loadMessages,
     loadOlderMessages: () => messagesCursor.value && loadMessages(activeConversationId.value, { older: true }).catch(() => []),

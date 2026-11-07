@@ -1,5 +1,7 @@
 import apiClient from './index'
 
+export const getLiaAccess = () => apiClient.get('/lia/access')
+
 export const createLiaConversation = () => apiClient.post('/lia/conversations')
 
 export const listLiaConversations = ({ limit = 30, cursor } = {}) =>
