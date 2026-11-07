@@ -301,6 +301,17 @@ it('celular sempre abre tela cheia, sem botão de ampliar, e acompanha o teclado
   expect(wrapper.get('.lia-workspace').element.style.getPropertyValue('--lia-viewport-top')).toBe('20px')
   expect(wrapper.get('[aria-label="Lia, assistente da clínica"]').attributes('aria-modal')).toBe('true')
 })
+it('no celular bloqueia o documento atrás do chat e restaura os estilos ao fechar', async () => {
+  vi.stubGlobal('matchMedia', query => ({ matches: query.includes('max-width'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  const wrapper = chat(); await flushPromises()
+  expect(document.documentElement.style.overflow).toBe('hidden')
+  expect(document.body.style.position).toBe('fixed')
+  expect(document.body.style.overflow).toBe('hidden')
+  await wrapper.setProps({ open: false }); await flushPromises()
+  expect(document.documentElement.style.overflow).toBe('')
+  expect(document.body.style.position).toBe('')
+  expect(document.body.style.overflow).toBe('')
+})
 it('celular deitado mantém tela cheia e não oferece reduzir a janela', async () => {
   vi.stubGlobal('matchMedia', query => ({ matches: query.includes('(max-height: 500px) and (pointer: coarse)'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
   const wrapper = chat(); await flushPromises()
@@ -391,3 +402,4 @@ it('mascote do chat muda de pensar para responder e sinaliza falha real', async 
   mocks.store.isSending = false; mocks.store.error = 'Falha no envio'; await flushPromises()
   expect(wrapper.get('.welcome-character').attributes('state')).toBe('error')
 })
+
