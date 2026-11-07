@@ -410,23 +410,23 @@ async function handleResetPassword() {
 
 .simple-title {
   display: block;
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2.25rem;
+  font-weight: 800;
   line-height: 1.3;
   color: var(--preto-principal);
   margin-bottom: 0.5rem;
 }
 
 .title-text {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2.25rem;
+  font-weight: 800;
   line-height: 1.2;
   color: var(--preto-principal);
   margin-bottom: 0.75rem;
 }
 
 .subtitle-text {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   color: var(--cinza-texto);
   font-weight: 400;
   line-height: 1.5;

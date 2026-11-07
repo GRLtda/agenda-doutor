@@ -4,12 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 // Importar as duas APIs de convite
 import { getInvitationDetails } from '@/api/employees' // Convite de funcionário
-import { verifyInvitationToken } from '@/api/auth' // Convite de registro
+import { verifyInvitationToken, getSignupCampaign } from '@/api/auth' // Convite de registro e campanha
 import { useToast } from 'vue-toastification'
 import AuthCard from '@/components/pages/autenticacao/AuthCard.vue'
 import FormInput from '@/components/global/FormInput.vue'
 import PasswordInput from '@/components/global/PasswordInput.vue'
-import { CheckCircle2, Building2, Check } from 'lucide-vue-next' // ✨ Importei o Building2 e Check
+import { CheckCircle2, Building2, Check, Gift } from 'lucide-vue-next'
 import ClinicLogo from '@/components/global/ClinicLogo.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import confetti from 'canvas-confetti'
@@ -26,6 +26,10 @@ const phone = ref('')
 const password = ref('')
 const errorMessage = ref(null)
 const emailError = ref('')
+// Erros por campo devolvidos pela API (details.fields)
+const nameError = ref('')
+const phoneError = ref('')
+const passwordError = ref('')
 const termsError = ref('')
 const invitationError = ref('')
 const registrationSuccess = ref(false)
@@ -39,6 +43,37 @@ const invitationToken = ref(null)
 const emailIsDisabled = ref(false)
 const phoneIsDisabled = ref(false)
 const nameIsDisabled = ref(false)
+
+// Campanha de autocadastro (?campanha=<código>). Ver docs/onboarding-assinatura-e-trial.md.
+const CAMPAIGN_STORAGE_KEY = 'signupCampaignCode'
+const campaignCode = ref(null)
+const campaign = ref(null)
+
+async function loadSignupCampaign() {
+  const fromQuery = typeof route.query.campanha === 'string' ? route.query.campanha.trim() : ''
+  let code = fromQuery
+  try {
+    if (fromQuery) sessionStorage.setItem(CAMPAIGN_STORAGE_KEY, fromQuery)
+    else code = sessionStorage.getItem(CAMPAIGN_STORAGE_KEY) || ''
+  } catch {
+    // sessionStorage indisponível: usa apenas a URL
+  }
+  if (!code) return
+
+  try {
+    const response = await getSignupCampaign(code)
+    const data = response.data?.data || response.data
+    if (data?.valid) {
+      campaignCode.value = code
+      campaign.value = { label: data.label, trialDays: data.trialDays }
+      return
+    }
+  } catch (error) {
+    console.error('Erro ao consultar campanha de cadastro:', error)
+  }
+  // Campanha inválida ou expirada: cadastro segue normalmente, sem benefício.
+  try { sessionStorage.removeItem(CAMPAIGN_STORAGE_KEY) } catch { /* noop */ }
+}
 
 const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
 
@@ -116,6 +151,8 @@ onMounted(async () => {
       invitationToken.value = null
       router.push('/register') // Limpa a URL
     }
+  } else {
+    await loadSignupCampaign()
   }
 })
 
@@ -133,6 +170,9 @@ watch(registrationSuccess, (newValue) => {
 async function handleRegister() {
   errorMessage.value = null
   emailError.value = ''
+  nameError.value = ''
+  phoneError.value = ''
+  passwordError.value = ''
   termsError.value = ''
   invitationError.value = ''
   isLoading.value = true
@@ -155,12 +195,15 @@ async function handleRegister() {
   // Envia o token apenas quando o cadastro veio de convite.
   if (invitationToken.value) {
     payload.invitationToken = invitationToken.value
+  } else if (campaignCode.value) {
+    payload.campaignCode = campaignCode.value
   }
 
   const { success, error } = await authStore.register(payload)
   isLoading.value = false
 
   if (success) {
+    try { sessionStorage.removeItem(CAMPAIGN_STORAGE_KEY) } catch { /* noop */ }
     registrationSuccess.value = true
   } else {
     const registrationError =
@@ -186,9 +229,15 @@ async function handleRegister() {
           : message
         break
       }
-      case 'AUTH_VALIDATION_ERROR':
-        errorMessage.value = message
+      case 'AUTH_VALIDATION_ERROR': {
+        const fields = registrationError.details?.fields || {}
+        if (fields.name) nameError.value = fields.name
+        if (fields.email) emailError.value = fields.email
+        if (fields.phone) phoneError.value = fields.phone
+        if (fields.password) passwordError.value = fields.password
+        if (!fields.name && !fields.email && !fields.phone && !fields.password) errorMessage.value = message
         break
+      }
       default:
         errorMessage.value = message
         console.error('[Cadastro] Erro não mapeado retornado pela API:', {
@@ -255,6 +304,18 @@ function handleRegistrationComplete() {
           Seu cadastro será concluído com os benefícios do plano selecionado.
         </p>
       </div>
+      <div v-else-if="campaign" class="plan-info" role="status">
+        <div class="plan-title-wrapper">
+          <Gift class="plan-icon" :size="20" />
+          <h4 class="plan-title">
+            {{ campaign.trialDays }} dias grátis · <span class="plan-name">{{ campaign.label }}</span>
+          </h4>
+        </div>
+        <p class="plan-description">
+          Ao assinar no fim do cadastro, você informa o cartão e só é cobrado depois de
+          {{ campaign.trialDays }} dias. Cancele quando quiser antes disso.
+        </p>
+      </div>
       <form @submit.prevent="handleRegister">
         <FormInput
           v-model="name"
@@ -264,6 +325,8 @@ function handleRegistrationComplete() {
           autocomplete="name"
           :required="true"
           :disabled="nameIsDisabled"
+          :error="nameError"
+          @update:model-value="nameError = ''"
         />
         <FormInput
           v-model="email"
@@ -275,6 +338,7 @@ function handleRegistrationComplete() {
           :required="true"
           :disabled="emailIsDisabled"
           :error="emailError"
+          @update:model-value="emailError = ''"
         />
         <FormInput
           v-model="phone"
@@ -286,8 +350,16 @@ function handleRegistrationComplete() {
           phone-mask
           :required="true"
           :disabled="phoneIsDisabled"
+          :error="phoneError"
+          @update:model-value="phoneError = ''"
         />
-        <PasswordInput v-model="password" label="Senha" :required="true" />
+        <PasswordInput
+          v-model="password"
+          label="Senha"
+          :required="true"
+          :error="passwordError"
+          @update:model-value="passwordError = ''"
+        />
 
         <div class="terms-checkbox">
           <label class="checkbox-container">
@@ -468,15 +540,15 @@ function handleRegistrationComplete() {
 }
 
 .title-text {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2.25rem;
+  font-weight: 800;
   line-height: 1.2;
   color: var(--preto-principal);
   margin-bottom: 0.5rem;
 }
 
 .subtitle-text {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   text-align: left;
   color: var(--cinza-texto);
   font-weight: 400;

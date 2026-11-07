@@ -4,6 +4,11 @@ export const verifyInvitationToken = (token) => {
   return apiClient.get(`/auth/verify-invitation/${token}`)
 }
 
+// Campanha de autocadastro (ex.: feira) informada por ?campanha=
+export const getSignupCampaign = (code) => {
+  return apiClient.get(`/auth/signup-campaigns/${encodeURIComponent(code)}`)
+}
+
 // Função para buscar os dados do usuário logado
 export const getMe = () => {
   return apiClient.get('/auth/me')
