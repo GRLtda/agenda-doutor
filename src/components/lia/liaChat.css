@@ -8,7 +8,7 @@ button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; 
 .header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .header-actions button { display: grid; place-items: center; width: 30px; height: 32px; padding: 0; border: 0; border-radius: 9px; color: var(--lia-muted); background: transparent; }
 .header-actions button:hover,.header-actions button[aria-pressed=true] { color: var(--lia-blue); background: var(--lia-tint); }
-.header-actions .view-mode { display: flex; gap: 6px; width: auto; height: 30px; padding: 0 10px; border: 1px solid var(--lia-line); border-radius: 9px; font-size: 10px; }.header-actions>button:last-child { border-radius: 50%; }
+.header-actions .new-chat,.header-actions .view-mode { display: flex; gap: 6px; width: auto; height: 30px; padding: 0 10px; border: 1px solid var(--lia-line); border-radius: 9px; font-size: 10px; }.header-actions>button:last-child { border-radius: 50%; }
 .lia-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .lia-chat { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 .messages { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 22px 23px 8px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lia-muted) 25%, transparent) transparent; }

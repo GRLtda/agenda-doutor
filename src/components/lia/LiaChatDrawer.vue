@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDown, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, RotateCcw, ShieldCheck, Users, Wallet, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUpRight, CalendarDays, Check, Clock3, Copy, Maximize2, Minimize2, PanelLeftOpen, RotateCcw, ShieldCheck, SquarePen, Users, Wallet, X } from 'lucide-vue-next'
 import { routerKey } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
@@ -192,6 +192,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
     <header class="lia-header">
       <div class="header-leading"><button ref="historyButton" type="button" class="open-history" :aria-label="showHistory ? 'Fechar histórico' : 'Abrir histórico'" title="Conversas" :aria-expanded="showHistory" @click="showHistory = !showHistory"><PanelLeftOpen :size="18" /></button><span class="conversation-title clarity-mask" data-clarity-mask="true" data-sentry-mask>{{ conversationTitle }}</span></div>
       <nav class="header-actions" aria-label="Controles da Lia">
+        <button type="button" class="new-chat" aria-label="Novo chat" title="Novo chat" :disabled="liaStore.isSending" @click="newConversation"><SquarePen :size="14" /><span>Novo chat</span></button>
         <button v-if="!mobile" type="button" class="view-mode" :aria-label="expanded ? 'Recolher conversa' : 'Expandir conversa'" :title="expanded ? 'Voltar à janela compacta' : 'Abrir em janela ampliada'" :aria-pressed="expanded" @click="expanded = !expanded"><Minimize2 v-if="expanded" :size="14" /><Maximize2 v-else :size="14" /><span>{{ expanded ? 'Reduzir' : 'Ampliar' }}</span></button>
         <button type="button" aria-label="Fechar Lia" title="Fechar Lia" @click="emit('close')"><X :size="18" /></button>
       </nav>
