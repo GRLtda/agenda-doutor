@@ -41,3 +41,7 @@ caso de falha, a mensagem e a ação de nova tentativa ficam visíveis.
   conforme o campo existente. Não introduzir select nativo em formulários padronizados.
 
 - Estados vazios de páginas, abas e cards seguem [Estados vazios das telas](estados-vazios.md): SVG em arquivo, azuis suaves da marca e conjunto centralizado na área útil. Consulte a fila de adoção antes de migrar uma tela.
+
+## Barra flutuante e botão da Lia (mobile)
+
+Páginas com barra flutuante fixa na parte inferior (hoje, o calendário) adicionam a classe `has-floating-toolbar` ao `body` ao montar e a removem ao desmontar. Em telas até 768px, o `LiaLauncher` sobe para `bottom: 5.5rem` quando essa classe existe, para não cobrir os controles da barra (como o botão de avançar).

@@ -513,6 +513,7 @@ async function maybeOpenCreateBlockFromQuery() {
 }
 
 onMounted(async () => {
+  document.body.classList.add('has-floating-toolbar')
   updateCalendarView()
   await fetchDataForView()
   window.addEventListener('resize', updateCalendarView)
@@ -530,6 +531,7 @@ watch(
 )
 
 onUnmounted(() => {
+  document.body.classList.remove('has-floating-toolbar')
   clearInterval(timer)
   window.removeEventListener('resize', updateCalendarView)
 })
