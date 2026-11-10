@@ -45,3 +45,5 @@ caso de falha, a mensagem e a ação de nova tentativa ficam visíveis.
 ## Barra flutuante e botão da Lia (mobile)
 
 Páginas com barra flutuante fixa na parte inferior (hoje, o calendário) adicionam a classe `has-floating-toolbar` ao `body` ao montar e definem `--lia-toolbar-offset` (distância em px do topo da barra até o rodapé da janela, recalculada no `resize`); ambos são removidos ao desmontar. Em telas até 768px, o `LiaLauncher` fica em `bottom: calc(var(--lia-toolbar-offset) + .5rem)`, logo acima da barra e sobre o conteúdo, sem cobrir os controles nem abrir espaço extra.
+
+Em CSS `scoped`, coloque o seletor inteiro dentro de `:global(...)` (por exemplo, `:global(body.has-floating-toolbar .lia-launcher-area)`). Na forma `:global(body.x) .filho`, o Vue descarta `.filho` e aplica a regra ao próprio `body`. Como o `body` tem `position: relative`, isso move a página para cima e deixa uma faixa em branco no rodapé.
