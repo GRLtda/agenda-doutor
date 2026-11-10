@@ -1,0 +1,118 @@
+/*
+ * Design System — tokens de fundação.
+ * Documentação: docs/Design System/README.md
+ *
+ * Os tokens usam o prefixo --ds-* e não alteram nenhum componente sozinhos.
+ * A paleta da marca (--azul-principal etc.) continua em global.css.
+ */
+:root {
+  /* Superfícies */
+  --ds-canvas: #f6f8fb;
+  --ds-surface: #ffffff;
+  --ds-surface-subtle: #f9fafc;
+  --ds-surface-muted: #f1f4f8;
+  --ds-surface-brand: #eef2ff;
+
+  /* Bordas */
+  --ds-border-subtle: #eef1f5;
+  --ds-border: #e6eaf0;
+  --ds-border-control: #e5e7eb;       /* FormInput, StyledSelect, AppButton outline */
+  --ds-border-control-hover: #d1d5db; /* hover do AppButton outline */
+  --ds-border-focus: var(--azul-principal, #0057ff);
+  --ds-border-danger: #ef4444;
+
+  /* Texto */
+  --ds-text: #0f172a;
+  --ds-text-secondary: #334155;
+  --ds-text-muted: #64748b;
+  --ds-text-subtle: #94a3b8;
+  --ds-text-danger: #dc2626;
+
+  /* Raios */
+  --ds-radius-xs: 6px;
+  --ds-radius-sm: 8px;  /* AppButton */
+  --ds-radius-md: 12px; /* FormInput, StyledSelect, dropdowns */
+  --ds-radius-lg: 14px;
+  --ds-radius-xl: 18px;
+  --ds-radius-full: 9999px;
+
+  /* Sombras (tom frio, base rgb(16 24 40)) */
+  --ds-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+  --ds-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
+  --ds-shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  --ds-shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --ds-shadow-xl: 0 20px 24px -4px rgb(16 24 40 / 0.1), 0 8px 8px -4px rgb(16 24 40 / 0.04);
+
+  /* Halos de foco (mesmos valores do FormInput) */
+  --ds-ring: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  --ds-ring-danger: 0 0 0 3px rgba(239, 68, 68, 0.2);
+
+  /* Sobreposição de modal e drawer */
+  --ds-overlay: rgb(15 23 42 / 0.4);
+
+  /* Controles (alturas do AppButton; FormInput mede ~50px pelo padding) */
+  --ds-control-height-sm: 32px;
+  --ds-control-height-md: 38px;
+  --ds-control-height-lg: 48px;
+
+  /* Espaçamento (base 4px) */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-10: 40px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+
+  /* Layout */
+  --ds-page-padding: 24px;
+  --ds-page-padding-mobile: 16px;
+  --ds-grid-gap: 16px;
+  --ds-grid-gap-mobile: 12px;
+  --ds-section-gap: 32px;
+  --ds-container-form: 720px;
+  --ds-container-detail: 960px;
+  --ds-sidebar-width: 240px;
+  --ds-sidebar-width-collapsed: 72px;
+
+  /* Tipografia */
+  --ds-font-xs: 0.75rem;   /* 12px — legendas, badges, eixos */
+  --ds-font-sm: 0.8125rem; /* 13px — ajuda, erro, descrições compactas */
+  --ds-font-base: 0.875rem;/* 14px — corpo, rótulos, links da sidebar */
+  --ds-font-md: 0.9375rem; /* 15px — valor de input, título de card */
+  --ds-font-lg: 1.0625rem; /* 17px — título de seção */
+  --ds-font-xl: 1.25rem;   /* 20px — título de drawer e modal */
+  --ds-font-2xl: clamp(1.45rem, 1.3vw + 1rem, 2rem); /* título de página */
+  --ds-font-kpi: clamp(1.28rem, 1.15vw + 0.9rem, 1.62rem);
+  --ds-leading-tight: 1.15;
+  --ds-leading-normal: 1.5;
+
+  /* Ícones */
+  --ds-icon-sm: 14px;
+  --ds-icon-md: 16px;
+  --ds-icon-lg: 20px;
+  --ds-icon-xl: 24px;
+  --ds-icon-stroke: 1.8;
+
+  /* Gráficos */
+  --ds-chart-1: var(--azul-principal, #0057ff);
+  --ds-chart-2: #7ea6ff;
+  --ds-chart-3: #10b981;
+  --ds-chart-4: #f59e0b;
+  --ds-chart-5: #94a3b8;
+  --ds-chart-grid: #eef1f5;
+  --ds-chart-axis: #64748b;
+
+  /* Movimento */
+  --ds-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ds-duration-fast: 120ms;
+  --ds-duration-base: 200ms;
+  --ds-duration-slow: 320ms;
+  --ds-duration-step: 480ms;
+  --ds-stagger: 40ms;
+}

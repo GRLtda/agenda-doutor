@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design System Agenda Doutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: réplica do app (sidebar branca + canvas frio) com as fundações v2 empilhadas em seções. */
+:root {
+  color-scheme: light;
+  /* Marca */
+  --azul-principal: #0057ff;
+  --azul-escuro: #1b69ff;
+  --branco: #ffffff;
+  --preto: #1e293b;
+  /* Fundações v2 (tokens.css) */
+  --ds-canvas: #f6f8fb;
+  --ds-surface: #ffffff;
+  --ds-surface-subtle: #f9fafc;
+  --ds-surface-muted: #f1f4f8;
+  --ds-surface-brand: #eef2ff;
+  --ds-border-subtle: #eef1f5;
+  --ds-border: #e6eaf0;
+  --ds-border-control: #e5e7eb;
+  --ds-border-control-hover: #d1d5db;
+  --ds-border-focus: var(--azul-principal);
+  --ds-border-danger: #ef4444;
+  --ds-text: #0f172a;
+  --ds-text-secondary: #334155;
+  --ds-text-muted: #64748b;
+  --ds-text-subtle: #94a3b8;
+  --ds-text-danger: #dc2626;
+  --ds-radius-xs: 6px;
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-lg: 14px;
+  --ds-radius-xl: 18px;
+  --ds-radius-full: 9999px;
+  --ds-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+  --ds-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
+  --ds-shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  --ds-shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --ds-shadow-xl: 0 20px 24px -4px rgb(16 24 40 / 0.1), 0 8px 8px -4px rgb(16 24 40 / 0.04);
+  --ds-ring: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  --ds-ring-danger: 0 0 0 3px rgba(239, 68, 68, 0.2);
+  --ds-overlay: rgb(15 23 42 / 0.4);
+  --ds-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ds-duration-fast: 120ms;
+  --ds-duration-base: 200ms;
+  --ds-duration-slow: 320ms;
+  --ds-duration-step: 480ms;
+  --ds-stagger: 40ms;
+  --ds-chart-1: #0057ff;
+  --ds-chart-2: #7ea6ff;
+  --ds-chart-3: #10b981;
+  --ds-chart-4: #f59e0b;
+  --ds-chart-5: #94a3b8;
+  --ds-chart-grid: #eef1f5;
+  --ds-chart-axis: #64748b;
+  --font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'DM Mono', 'SF Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: var(--font); color: var(--ds-text); background: var(--ds-canvas); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+svg.i { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- App shell ---------- */
+.app { display: flex; min-height: 100%; }
+
+/* Sidebar — estrutura atual */
+.sidebar { position: sticky; top: 0; display: flex; flex-direction: column; width: 240px; height: 100dvh; padding: 1rem; background: #fff; border-right: 1px solid var(--ds-border); border-top-right-radius: 1rem; flex-shrink: 0; }
+.sb-header { display: flex; align-items: center; gap: .75rem; padding: .5rem; border-radius: .5rem; margin-bottom: 1.5rem; cursor: pointer; }
+.sb-header:hover { background: #edf0f4; }
+.clinic-logo { width: 32px; height: 32px; border-radius: .375rem; background: #eef2ff; color: var(--azul-principal); display: grid; place-items: center; font-weight: 700; border: 1px solid #e5e7eb; }
+.clinic-name { font-size: 1rem; font-weight: 600; color: var(--preto); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-nav { position: relative; flex: 1; overflow-y: auto; }
+.sb-indicator { position: absolute; left: 0; width: 3px; background: var(--azul-principal); border-radius: 0 2px 2px 0; transform: scaleY(.6); }
+.sb-title { font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; padding: .5rem .75rem .375rem; margin-top: .25rem; }
+.sb-links { list-style: none; margin: 0 0 .25rem; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
+.nav-link { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; border-radius: .5rem; color: #525866; font-weight: 500; font-size: .875rem; text-decoration: none; transition: background-color .25s var(--ds-ease), color .2s, padding-left .2s var(--ds-ease); }
+.nav-link:hover { background: #f0f2f5; color: var(--azul-principal); padding-left: .875rem; }
+.nav-link.active { background: #eef2ff; color: var(--azul-principal); font-weight: 600; }
+.nav-link .grow { flex: 1; }
+.submenu { list-style: none; margin: 0 0 0 1.5rem; padding: 0; border-left: 1px solid #e5e7eb; }
+.submenu a { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem .5rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: #6b7280; font-size: .8125rem; text-decoration: none; }
+.submenu a:hover { color: var(--preto); }
+.submenu a.active { color: var(--azul-principal); font-weight: 500; background: #f9fafb; border-left-color: var(--azul-principal); }
+.submenu svg.i { width: 16px; height: 16px; color: #9ca3af; }
+.submenu a.active svg.i { color: var(--azul-principal); }
+.sb-brand { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem 0; border-top: 1px solid var(--ds-border-subtle); }
+.brand-mark { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(180deg, #5b8bf7, var(--azul-principal)); }
+.brand-name { display: block; font-size: .8125rem; font-weight: 600; }
+.brand-ver { display: block; font-size: .6875rem; color: var(--ds-text-muted); }
+
+/* Conteúdo */
+.main { flex: 1; min-width: 0; padding: 32px 40px 80px; display: flex; flex-direction: column; gap: 40px; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.page-head h1 { font-size: clamp(1.45rem, 1.3vw + 1rem, 2rem); font-weight: 650; line-height: 1.12; }
+.page-head p { color: var(--ds-text-muted); font-size: .92rem; margin-top: 6px; max-width: 62ch; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+.toc a { font-size: 12.5px; color: var(--ds-text-secondary); text-decoration: none; padding: 5px 10px; border-radius: var(--ds-radius-full); background: var(--ds-surface); border: 1px solid var(--ds-border); }
+.toc a:hover { border-color: var(--ds-border-control-hover); }
+
+section.block { display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 24px; }
+.block-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.block-head h2 { font-size: 1.05rem; font-weight: 650; }
+.block-head .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--ds-radius-full); }
+.tag.keep { background: #f1f5f9; color: #475569; }
+.tag.new { background: #eef2ff; color: var(--azul-principal); }
+.block-head p { color: var(--ds-text-muted); font-size: 13px; flex-basis: 100%; padding-right: max(0px, calc(100% - 70ch)); }
+
+/* Card v2: borda + sombra xs */
+.card { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: var(--ds-radius-lg); box-shadow: var(--ds-shadow-xs); }
+.card-pad { padding: 20px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--ds-border-subtle); }
+.card-head h3 { font-size: .95rem; font-weight: 600; }
+.card-head p { font-size: 12.5px; color: var(--ds-text-muted); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.caption { font-size: 12px; color: var(--ds-text-muted); }
+.caption code { color: var(--ds-text-secondary); }
+
+/* Fundações: superfícies, bordas, raios, sombras */
+.swatch { display: flex; flex-direction: column; gap: 10px; }
+.swatch .chip { height: 64px; border-radius: var(--ds-radius-md); border: 1px solid var(--ds-border); }
+.swatch strong { font-size: 13px; font-weight: 600; display: block; }
+.line-demo { height: 52px; border-radius: var(--ds-radius-md); background: #fff; display: grid; place-items: center; font-size: 12px; color: var(--ds-text-muted); }
+.radius-row { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.radius-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.radius-box { width: 76px; height: 56px; background: var(--ds-surface-brand); border: 1.5px solid #c7d4ff; }
+.shadow-stage { background: var(--ds-canvas); border-radius: var(--ds-radius-lg); padding: 28px 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 24px; }
+.shadow-box { height: 92px; background: #fff; border-radius: var(--ds-radius-lg); display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; gap: 2px; }
+.shadow-box strong { font-size: 13px; font-weight: 600; }
+
+/* Botões — variantes do AppButton */
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* AppButton — valores idênticos ao componente */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; height: 38px; padding: 0 1.25rem; border-radius: .5rem; font-family: inherit; font-weight: 500; font-size: .95rem; border: 1px solid transparent; cursor: pointer; transition: all .2s ease; white-space: nowrap; }
+.btn:focus-visible { outline: 2px solid var(--azul-principal); outline-offset: 2px; }
+.btn svg.i { width: 16px; height: 16px; }
+.btn.sm { height: 32px; padding: 0 .75rem; font-size: .875rem; }
+.btn.lg { height: 48px; padding: 0 1.5rem; font-size: 1rem; }
+.btn.default { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+.btn.default:hover { background: #e5e7eb; color: #111827; }
+.btn.default:active { background: #d1d5db; }
+.btn.primary { background: linear-gradient(180deg, #5b8bf7 0%, var(--azul-principal) 100%); color: #fff; box-shadow: 0 1px 2px 0 rgba(0,0,0,.05), 0 0 0 1px rgba(59,130,246,.1), inset 0 1px 0 0 rgba(255,255,255,.1); }
+.btn.primary:hover { background: linear-gradient(180deg, #6ba0f9 0%, #468bf7 100%); transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06); }
+.btn.secondary { background: #10b981; color: #fff; }
+.btn.secondary:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
+.btn.dangerous { background: #ef4444; color: #fff; }
+.btn.dangerous:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
+.btn.warning { background: #f59e0b; color: #fff; }
+.btn.warning:hover { background: #d97706; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
+.btn.ghost { background: transparent; color: var(--azul-principal); padding: 0 .5rem; }
+.btn.ghost:hover { background: #eff6ff; }
+.btn.ghost:active { background: #dbeafe; }
+.btn.outline { background: #fff; color: #374151; border-color: #e5e7eb; box-shadow: 0 1px 2px 0 rgba(0,0,0,.05); }
+.btn.outline:hover { background: #f9fafb; border-color: #d1d5db; color: #111827; }
+.btn.outline:active { background: #f3f4f6; }
+.btn:active { transform: translateY(0) !important; }
+.btn[disabled] { opacity: .6; cursor: not-allowed; transform: none !important; }
+.btn .spin { width: 16px; height: 16px; border: 2px solid rgb(255 255 255 / .45); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-meta { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--ds-border-subtle); }
+.btn-meta:first-of-type { border-top: 0; }
+.btn-meta > span { font-size: 12px; color: var(--ds-text-muted); font-weight: 500; }
+
+/* Inputs — estados da referência */
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px 40px; padding: 24px; }
+.state { display: grid; grid-template-columns: 74px 1fr; gap: 14px; align-items: center; }
+.state-tag { font-family: var(--mono); font-size: 10.5px; line-height: 1.25; color: #475569; background: #f1f5f9; border-radius: var(--ds-radius-xs); padding: 4px 6px; justify-self: start; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.label { display: flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 500; color: var(--preto); }
+.label .req { color: #ef4444; }
+.label .hint { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ds-text-subtle); color: var(--ds-text-muted); font-size: 10px; font-weight: 700; cursor: help; }
+.control { position: relative; display: flex; align-items: center; }
+.control > svg.i.lead { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--ds-text-subtle); pointer-events: none; }
+.control > .trail { position: absolute; right: 12px; display: grid; place-items: center; }
+/* FormInput — valores idênticos ao componente */
+.input { width: 100%; padding: .75rem 1rem; font: inherit; font-size: 1rem; line-height: 1.5; color: var(--preto); background: #fff; border: 1px solid #e5e7eb; border-radius: .75rem; transition: border-color .2s ease, box-shadow .2s ease; }
+.input::placeholder { color: #9ca3af; }
+.input.with-lead { padding-left: 2.5rem; }
+.input.with-trail { padding-right: 2.5rem; }
+.input:focus, .input.is-focus { outline: none; border-color: var(--azul-principal); box-shadow: 0 0 0 3px rgba(59, 130, 246, .3); }
+.input.is-error { border-color: #ef4444; }
+.input.is-error:focus, .input.is-error.is-focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, .2); }
+.input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+.help { font-size: .8125rem; color: var(--cinza-texto, #6b7281); }
+.error-msg { display: flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 500; color: #ef4444; margin-top: -2px; }
+.error-msg svg.i { width: 14px; height: 14px; }
+.err-icon { width: 18px; height: 18px; color: #ef4444; }
+/* StyledSelect (representação estática) */
+select.input { appearance: none; padding: 0 2.25rem 0 .875rem; height: 46px; border-color: #d1d5db; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+select.input:focus { box-shadow: 0 0 0 3px rgba(59, 131, 246, .1); }
+/* Textarea: cresce sozinha, sem redimensionamento manual */
+textarea.input { display: block; min-height: calc(3 * 1.5em + 1.5rem + 2px); max-height: 240px; resize: none; overflow-y: auto; field-sizing: content; }
+
+/* Seleção: checkbox, rádio, switch */
+.choice-col { display: flex; flex-direction: column; gap: 14px; }
+.check { display: flex; align-items: center; gap: 10px; font-size: .875rem; font-weight: 500; color: var(--ds-text-secondary); cursor: pointer; }
+/* Checkbox do FormInput */
+.check { display: flex; align-items: center; gap: .75rem; font-size: .875rem; font-weight: 500; color: #374151; cursor: pointer; }
+.check:hover { color: #111827; }
+.check input { appearance: none; margin: 0; width: 1.25rem; height: 1.25rem; border: 2px solid #e5e7eb; border-radius: 6px; background: #fff; display: grid; place-items: center; transition: all .2s cubic-bezier(.4,0,.2,1); cursor: pointer; flex-shrink: 0; }
+.check input:hover { border-color: var(--azul-principal); }
+.check input:focus-visible { outline: 2px solid var(--azul-principal); outline-offset: 2px; }
+.check input:checked { background: var(--azul-principal); border-color: var(--azul-principal); }
+.check input:checked::after { content: ''; width: 9px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); animation: pop-in .2s cubic-bezier(.175,.885,.32,1.275); }
+.check input[type="radio"] { border-radius: 50%; }
+.check input[type="radio"]:checked { background: #fff; border-width: 6px; }
+.check input[type="radio"]:checked::after { display: none; }
+.check input:disabled { background: #f3f4f6; border-color: #d1d5db; cursor: not-allowed; }
+.check:has(input:disabled) { color: #9ca3af; cursor: not-allowed; }
+/* Switch: 56×32, polegar 24px */
+.switch { display: flex; align-items: flex-start; gap: .75rem; font-size: .875rem; color: #374151; cursor: pointer; }
+.switch > span { padding-top: 5px; }
+.switch input { appearance: none; margin: 0; position: relative; width: 56px; height: 32px; border-radius: 9999px; background: #d1d5db; transition: background-color .2s ease-in-out; cursor: pointer; flex-shrink: 0; }
+.switch input::after { content: ''; position: absolute; left: 4px; bottom: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06); transition: transform .2s ease-in-out; }
+.switch input:checked { background: var(--azul-principal); }
+.switch input:checked::after { transform: translateX(24px); }
+.switch input:focus-visible { outline: 2px solid var(--azul-principal); outline-offset: 2px; }
+.switch small { display: block; font-weight: 400; color: var(--ds-text-muted); font-size: 12.5px; }
+
+/* Badges de status do atendimento */
+.badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--ds-radius-full); font-size: 12px; font-weight: 500; border: 1px solid transparent; white-space: nowrap; }
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.b-pendente { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.b-confirmado { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.b-iniciado { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; animation: pulse-live 1.5s ease-in-out infinite; }
+.b-realizado { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.b-faltou { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.b-cancelado { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+@keyframes pulse-live { 0%, 100% { box-shadow: 0 0 0 0 rgb(34 197 94 / .35); } 50% { box-shadow: 0 0 0 5px rgb(34 197 94 / 0); } }
+
+/* Composições */
+.stat { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; }
+.stat-top { display: flex; align-items: center; justify-content: space-between; }
+.stat-label { font-size: .78rem; font-weight: 600; color: var(--ds-text-muted); }
+.stat-icon { width: 32px; height: 32px; border-radius: var(--ds-radius-sm); background: var(--ds-surface-brand); color: var(--azul-principal); display: grid; place-items: center; }
+.stat-icon svg.i { width: 16px; height: 16px; }
+.stat-value { font-size: clamp(1.28rem, 1.15vw + .9rem, 1.62rem); font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat-delta { font-size: 12px; color: var(--ds-text-muted); }
+.stat-delta b { color: #047857; font-weight: 600; }
+
+.agenda-list { list-style: none; margin: 0; padding: 0; }
+.agenda-item { display: grid; grid-template-columns: 56px 3px 1fr auto; gap: 14px; align-items: center; padding: 12px 20px; border-top: 1px solid var(--ds-border-subtle); }
+.agenda-item:first-child { border-top: 0; }
+.agenda-item:hover { background: var(--ds-surface-subtle); }
+.agenda-time { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
+.agenda-time small { display: block; font-weight: 400; color: var(--ds-text-muted); font-size: 11.5px; }
+.agenda-bar { height: 34px; border-radius: 2px; }
+.agenda-who strong { display: block; font-size: 13.5px; font-weight: 600; }
+.agenda-who span { font-size: 12.5px; color: var(--ds-text-muted); }
+
+.table-wrap { overflow-x: auto; }
+/* Tabela — padrão da listagem de Pacientes (AppTableList) */
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+th { text-align: left; height: 44px; font-size: .75rem; font-weight: 500; letter-spacing: .01em; color: #64748b; background: #f5f6f8; padding: 0 1.25rem; box-shadow: inset 0 -1px #e5e7eb; white-space: nowrap; }
+td { padding: 1rem 1.25rem; border-bottom: 1px solid #e5e7eb; font-size: .875rem; color: var(--preto); vertical-align: middle; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #f0f4fc; }
+.table-v1 { border: 1px solid #e5e7eb; border-radius: 1rem; box-shadow: none; }
+.table-v1 .avatar { width: 40px; height: 40px; font-size: .95rem; background: #eef2ff; color: var(--azul-principal); }
+.table-v1 .pt { gap: .75rem; }
+.table-v1 .pt strong { color: var(--preto); font-size: .875rem; }
+.table-v1 .pt div span { color: var(--cinza-texto, #6b7281); font-size: .8125rem; }
+.empty-value { color: #6b7281; background: #f3f4f6; border-radius: 6px; padding: .3rem .5rem; font-size: .8125rem; }
+.pt { display: flex; align-items: center; gap: 10px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ds-surface-brand); color: var(--azul-principal); display: grid; place-items: center; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.pt strong { display: block; color: var(--ds-text); font-weight: 600; font-size: 13.5px; }
+.pt span { font-size: 12px; color: var(--ds-text-muted); }
+.num { font-variant-numeric: tabular-nums; }
+.icon-btn { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: var(--ds-radius-sm); border: 1px solid transparent; background: transparent; color: var(--ds-text-muted); cursor: pointer; }
+.icon-btn:hover { background: var(--ds-surface-muted); color: var(--ds-text); }
+.icon-btn:focus-visible { outline: none; box-shadow: var(--ds-ring); }
+
+/* Camadas flutuantes */
+.float-stage { position: relative; background: var(--ds-canvas); border: 1px dashed var(--ds-border-control); border-radius: var(--ds-radius-lg); padding: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; align-items: start; }
+.menu { background: #fff; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-md); box-shadow: var(--ds-shadow-md); padding: 4px; }
+.menu-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--ds-radius-sm); font-size: 13.5px; color: var(--ds-text-secondary); cursor: pointer; }
+.menu-item svg.i { width: 16px; height: 16px; color: var(--ds-text-muted); }
+.menu-item:hover { background: var(--ds-surface-muted); color: var(--ds-text); }
+.menu-item.danger { color: var(--ds-text-danger); }
+.menu-item.danger svg.i { color: var(--ds-text-danger); }
+.menu-sep { height: 1px; background: var(--ds-border-subtle); margin: 4px -4px; }
+.modal-demo { position: relative; border-radius: var(--ds-radius-lg); background: var(--ds-overlay); padding: 28px 20px; display: grid; place-items: center; }
+.modal { width: 100%; max-width: 400px; background: #fff; border-radius: var(--ds-radius-xl); box-shadow: var(--ds-shadow-xl); overflow: hidden; }
+.modal-body { padding: 20px 20px 16px; display: flex; gap: 14px; }
+.modal-icon { width: 40px; height: 40px; border-radius: 50%; background: #fef2f2; color: #dc2626; display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 0 0 6px #fff5f5; }
+.modal h3 { font-size: 1rem; font-weight: 600; }
+.modal p { font-size: 13.5px; color: var(--ds-text-muted); margin-top: 4px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; background: var(--ds-surface-subtle); border-top: 1px solid var(--ds-border-subtle); flex-wrap: wrap; }
+.toast { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-md); box-shadow: var(--ds-shadow-lg); padding: 12px 14px; }
+.toast .ok { width: 20px; height: 20px; color: #059669; }
+.toast strong { display: block; font-size: 13.5px; font-weight: 600; }
+.toast span { font-size: 12.5px; color: var(--ds-text-muted); }
+.tooltip { display: inline-block; background: #0f172a; color: #fff; font-size: 12px; font-weight: 500; padding: 6px 9px; border-radius: var(--ds-radius-xs); box-shadow: var(--ds-shadow-md); }
+
+/* Regras e referências */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.rule { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.rule h4 { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.rule p { font-size: 13px; color: var(--ds-text-muted); }
+.rule.do h4 svg.i { color: #059669; width: 16px; height: 16px; }
+.rule.dont h4 svg.i { color: #dc2626; width: 16px; height: 16px; }
+.ref-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ref { padding: 14px 16px; }
+.ref strong { display: block; font-size: 13.5px; font-weight: 600; }
+.ref span { font-size: 12.5px; color: var(--ds-text-muted); }
+.ref a { color: var(--azul-principal); text-decoration: none; font-size: 12.5px; font-weight: 500; }
+.ref a:hover { text-decoration: underline; }
+
+/* Grid e layout */
+.grid12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.grid12 .col { height: 56px; border-radius: var(--ds-radius-sm); background: rgb(0 87 255 / .07); border: 1px dashed rgb(0 87 255 / .28); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--azul-principal); }
+.span3 { grid-column: span 3; } .span4 { grid-column: span 4; } .span6 { grid-column: span 6; } .span8 { grid-column: span 8; } .span12 { grid-column: span 12; }
+.container-demo { display: flex; flex-direction: column; gap: 10px; }
+.cont-bar { height: 34px; border-radius: var(--ds-radius-sm); background: var(--ds-surface-brand); border: 1px solid #c7d4ff; display: flex; align-items: center; padding: 0 12px; font-size: 12.5px; color: var(--ds-text-secondary); }
+.dtable { width: 100%; border-collapse: collapse; min-width: 0; }
+.dtable th, .dtable td { padding: 10px 16px; text-align: left; font-size: 13px; }
+.dtable td code { white-space: nowrap; }
+.space-row { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
+.space-row code { width: 110px; flex-shrink: 0; }
+.space-bar { height: 14px; background: var(--azul-principal); border-radius: 3px; opacity: .85; flex-shrink: 0; }
+.space-row span { font-size: 12.5px; color: var(--ds-text-muted); }
+
+/* Tipografia */
+.type-row { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: baseline; padding: 12px 20px; border-top: 1px solid var(--ds-border-subtle); }
+.type-row:first-child { border-top: 0; }
+.type-row code { color: var(--ds-text-muted); }
+
+/* Ícones */
+.icon-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+.icon-sample { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.icon-sample svg.i { color: var(--ds-text-secondary); }
+.icon-tiles { display: flex; flex-wrap: wrap; gap: 12px; }
+.icon-tile { width: 40px; height: 40px; border-radius: var(--ds-radius-sm); display: grid; place-items: center; }
+.icon-tile svg.i { width: 20px; height: 20px; }
+
+/* Gráficos */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ds-text-muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--font); font-size: 11px; fill: var(--ds-chart-axis); }
+
+/* Animações — demos */
+.anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.demo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.demo-head h3 { font-size: .95rem; font-weight: 600; }
+.seg { display: inline-flex; padding: 3px; background: var(--ds-surface-muted); border-radius: var(--ds-radius-md); gap: 2px; }
+.seg button { font: inherit; font-size: 12.5px; font-weight: 500; border: 0; background: transparent; color: var(--ds-text-muted); padding: 5px 10px; border-radius: 7px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ds-text); box-shadow: var(--ds-shadow-xs); }
+.seg button:focus-visible { outline: none; box-shadow: var(--ds-ring); }
+.drawer-mock { border: 1px solid var(--ds-border); border-radius: var(--ds-radius-lg); overflow: hidden; background: #fff; box-shadow: var(--ds-shadow-lg); display: flex; flex-direction: column; min-height: 430px; }
+.dm-head { padding: 20px; border-bottom: 1px solid var(--ds-border-subtle); }
+.dm-head h4 { font-size: 1.1rem; font-weight: 600; }
+.dm-head p { font-size: 13px; color: var(--ds-text-muted); margin-top: 2px; }
+.dm-body { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+.dm-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--ds-border-subtle); }
+.step-enter { animation: step-in var(--ds-duration-step) ease both; }
+@keyframes step-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.step-leave { animation: step-out var(--ds-duration-step) ease both; }
+@keyframes step-out { to { opacity: 0; transform: translateY(-6px); } }
+.success-visual { display: grid; place-items: center; min-height: 120px; }
+.check-draw { width: 96px; height: 96px; }
+.check-draw circle { fill: none; stroke: var(--cel-accent, #059669); stroke-width: 3; stroke-dasharray: 290; stroke-dashoffset: 290; animation: draw 0.7s var(--ds-ease-out) 0.15s forwards; transform-origin: center; }
+.check-draw .bg { fill: var(--cel-soft, #ecfdf5); stroke: none; transform: scale(0); transform-origin: 48px 48px; animation: grow 0.5s var(--ds-ease-spring) 0.1s forwards; }
+.check-draw path { fill: none; stroke: var(--cel-accent, #059669); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 60; stroke-dashoffset: 60; animation: draw 0.45s var(--ds-ease-out) 0.6s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes grow { to { transform: scale(1); } }
+.cel-copy { text-align: center; }
+.cel-copy .eyebrow { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--cel-accent, #059669); margin-bottom: 4px; }
+.cel-copy h5 { margin: 0 0 4px; font-size: 1rem; font-weight: 700; }
+.cel-copy p { font-size: 13.5px; color: var(--ds-text-muted); }
+.link-box { display: flex; gap: 8px; align-items: center; background: var(--ds-surface-subtle); border: 1px solid var(--ds-border); border-radius: var(--ds-radius-md); padding: 10px 12px; font-size: 13px; color: var(--ds-text-secondary); }
+.link-box span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+
+.ds-celebrate { --s: rgba(34,197,94,.24); --g: rgba(187,247,208,.9); --sf: rgba(240,253,244,.72); --t: #dcfce7; --m: #f0fdf4; --sh: rgba(220,252,231,.72); position: relative; overflow: hidden; isolation: isolate; animation: cel-on 1.45s ease-out both; background: radial-gradient(120% 120% at 20% 0%, var(--g) 0%, var(--sf) 38%, transparent 70%), linear-gradient(180deg, var(--t) 0%, var(--m) 52%, #fff 100%); border-bottom-color: transparent; }
+.ds-celebrate--info { --s: rgba(0,87,255,.2); --g: rgba(199,214,255,.9); --sf: rgba(238,242,255,.72); --t: #e0e9ff; --m: #eef2ff; --sh: rgba(224,233,255,.75); }
+.ds-celebrate > * { position: relative; z-index: 1; }
+.ds-celebrate::before { content: ''; position: absolute; inset: -45% -70%; z-index: 0; pointer-events: none; background: linear-gradient(105deg, transparent 0%, color-mix(in srgb, var(--s) 35%, transparent) 22%, var(--s) 42%, var(--sh) 53%, color-mix(in srgb, var(--s) 75%, transparent) 64%, transparent 84%); transform: translateX(-55%) rotate(-8deg); animation: cel-wave 1.75s var(--ds-ease-out) both; }
+.ds-celebrate::after { content: ''; position: absolute; top: -84px; left: -24px; width: 180px; height: 180px; z-index: 0; pointer-events: none; border-radius: 999px; background: radial-gradient(circle, var(--s) 0%, color-mix(in srgb, var(--g) 20%, transparent) 34%, transparent 68%); animation: cel-ripple 1.85s ease-out both; }
+@keyframes cel-on { 0% { filter: saturate(.75); opacity: .72; } 55% { filter: saturate(1.18); opacity: 1; } 100% { filter: saturate(1); opacity: 1; } }
+@keyframes cel-wave { 0% { opacity: 0; transform: translateX(-65%) rotate(-8deg); } 18% { opacity: 1; } 100% { opacity: 0; transform: translateX(62%) rotate(-8deg); } }
+@keyframes cel-ripple { 0% { opacity: 0; transform: scale(.45); } 35% { opacity: 1; } 100% { opacity: .25; transform: scale(1.42); } }
+
+.overlay-stage { position: relative; height: 300px; border-radius: var(--ds-radius-lg); background: var(--ds-canvas); border: 1px dashed var(--ds-border-control); overflow: hidden; }
+.overlay-stage .launch { position: absolute; top: 16px; left: 16px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 1; }
+.ov-menu { position: absolute; top: 62px; left: 16px; width: 220px; z-index: 3; transform-origin: top left; }
+.ov-backdrop { position: absolute; inset: 0; background: var(--ds-overlay); z-index: 4; }
+.ov-modal { position: absolute; left: 50%; top: 50%; width: min(340px, calc(100% - 32px)); z-index: 5; translate: -50% -50%; }
+.ov-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(280px, 80%); background: #fff; z-index: 5; box-shadow: var(--ds-shadow-lg); border-radius: var(--ds-radius-xl) 0 0 var(--ds-radius-xl); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.ov-drawer h4 { font-size: 1rem; font-weight: 600; }
+.hidden { display: none !important; }
+.a-pop-in { animation: a-pop-in var(--ds-duration-base) var(--ds-ease-out) both; }
+@keyframes a-pop-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.a-pop-out { animation: a-pop-out var(--ds-duration-fast) ease both; }
+@keyframes a-pop-out { to { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.a-fade-in { animation: a-fade-in var(--ds-duration-base) ease both; }
+@keyframes a-fade-in { from { opacity: 0; } }
+.a-fade-out { animation: a-fade-out var(--ds-duration-base) ease both; }
+@keyframes a-fade-out { to { opacity: 0; } }
+.a-modal-in { animation: a-modal-in var(--ds-duration-slow) var(--ds-ease-out) both; }
+@keyframes a-modal-in { from { opacity: 0; transform: translateY(8px) scale(.97); } }
+.a-modal-out { animation: a-modal-out var(--ds-duration-base) ease both; }
+@keyframes a-modal-out { to { opacity: 0; transform: translateY(8px) scale(.97); } }
+.a-drawer-in { animation: a-drawer-in var(--ds-duration-slow) var(--ds-ease-out) both; }
+@keyframes a-drawer-in { from { opacity: 0; transform: translateX(24px); } }
+.a-drawer-out { animation: a-drawer-out var(--ds-duration-base) ease both; }
+@keyframes a-drawer-out { to { opacity: 0; transform: translateX(24px); } }
+
+.ds-enter { animation: enter-up var(--ds-duration-slow) var(--ds-ease-out) both; animation-delay: calc(min(var(--i, 0), 8) * var(--ds-stagger)); }
+@keyframes enter-up { from { opacity: 0; transform: translateY(6px); } }
+.skel { height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f4f8 0%, #f8fafc 50%, #f1f4f8 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.skel-row { display: grid; grid-template-columns: 32px 1fr 80px; gap: 12px; align-items: center; padding: 12px 20px; border-top: 1px solid var(--ds-border-subtle); }
+.skel-row:first-child { border-top: 0; }
+.skel.round { width: 32px; height: 32px; border-radius: 50%; }
+
+.fb-grid { display: grid; gap: 18px; }
+.fb-item { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; }
+.fb-item > span { font-size: 12px; font-weight: 500; color: var(--ds-text-muted); }
+.ds-press:active { transform: scale(.97) !important; }
+.ds-pop-in { animation: pop-in .2s var(--ds-ease-spring) both; }
+@keyframes pop-in { from { transform: scale(0); opacity: 0; } }
+.ds-shake { animation: shake .36s var(--ds-ease) both; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.motion-table td:first-child { font-weight: 600; color: var(--ds-text); }
+
+/* Acessibilidade e microcopy */
+.copy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.copy-pair > div { padding: 12px 14px; border-radius: var(--ds-radius-md); font-size: 13px; }
+.copy-pair .bad { background: #fef2f2; color: #7f1d1d; }
+.copy-pair .good { background: #ecfdf5; color: #064e3b; }
+.copy-pair b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+
+/* Responsivo */
+@media (max-width: 1024px) {
+  .sidebar { display: none; }
+  .main { padding: 24px 16px 64px; gap: 32px; }
+}
+@media (max-width: 520px) {
+  .state { grid-template-columns: 1fr; gap: 8px; }
+  .btn-meta { grid-template-columns: 1fr; gap: 8px; }
+  .agenda-item { grid-template-columns: 48px 3px 1fr; }
+  .agenda-item .badge { grid-column: 3; justify-self: start; }
+  .grid12 { gap: 6px; }
+  .type-row { grid-template-columns: 1fr; gap: 4px; }
+  .fb-item { grid-template-columns: 1fr; gap: 6px; }
+  .copy-pair { grid-template-columns: 1fr; }
+  .dm-foot { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-celebrate::before, .ds-celebrate::after { opacity: 0; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-calcheck" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-steth" viewBox="0 0 24 24"><path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar" aria-label="Menu principal">
+    <div class="sb-header">
+      <div class="clinic-logo">C</div>
+      <span class="clinic-name">Clínica Exemplo</span>
+      <svg class="i" style="color:#6b7281"><use href="#i-more"/></svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-indicator" style="top:44px;height:37px"></div>
+      <ul class="sb-links">
+        <li><a class="nav-link" href="#fundacoes"><svg class="i"><use href="#i-grid"/></svg><span>Resumo</span></a></li>
+        <li><a class="nav-link active" href="#botoes"><svg class="i"><use href="#i-cal"/></svg><span>Calendário</span></a></li>
+        <li><a class="nav-link" href="#formularios"><svg class="i"><use href="#i-calcheck"/></svg><span>Atendimentos</span></a></li>
+      </ul>
+      <div class="sb-title">Gestão</div>
+      <ul class="sb-links">
+        <li><a class="nav-link" href="#composicoes"><svg class="i"><use href="#i-users"/></svg><span>Pacientes</span></a></li>
+        <li>
+          <a class="nav-link" href="#composicoes"><svg class="i"><use href="#i-clip"/></svg><span class="grow">Prontuário</span><svg class="i" style="width:16px;height:16px;color:#9ca3af;transform:rotate(180deg)"><use href="#i-down"/></svg></a>
+          <ul class="submenu">
+            <li><a class="active" href="#composicoes"><svg class="i"><use href="#i-clip"/></svg>Anamneses</a></li>
+            <li><a href="#composicoes"><svg class="i"><use href="#i-file"/></svg>Termos</a></li>
+            <li><a href="#composicoes"><svg class="i"><use href="#i-img"/></svg>Galeria</a></li>
+          </ul>
+        </li>
+        <li><a class="nav-link" href="#camadas"><svg class="i"><use href="#i-steth"/></svg><span>Procedimentos</span></a></li>
+        <li><a class="nav-link" href="#camadas"><svg class="i"><use href="#i-dollar"/></svg><span class="grow">Financeiro</span><svg class="i" style="width:16px;height:16px;color:#9ca3af"><use href="#i-down"/></svg></a></li>
+      </ul>
+      <div class="sb-title">Marketing</div>
+      <ul class="sb-links">
+        <li><a class="nav-link" href="#regras"><svg class="i"><use href="#i-msg"/></svg><span>Mensagens</span></a></li>
+        <li><a class="nav-link" href="#referencias"><svg class="i"><use href="#i-gear"/></svg><span>Configurações</span></a></li>
+      </ul>
+    </nav>
+    <div class="sb-brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div><span class="brand-name">Agenda Doutor</span><span class="brand-ver">Design System</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Design System</h1>
+        <p>Padrão visual do Agenda Doutor: sidebar, paleta, botões, campos e tabela dos componentes atuais, mais grid, superfícies, sombras, gráficos, animações e as regras de uso dos componentes existentes.</p>
+      </div>
+      <nav class="toc" aria-label="Seções">
+        <a href="#fundacoes">Fundações</a><a href="#grid">Grid</a><a href="#tipografia">Tipografia</a><a href="#icones">Ícones</a><a href="#botoes">Botões</a><a href="#formularios">Formulários</a><a href="#status">Status</a><a href="#composicoes">Composições</a><a href="#graficos">Gráficos</a><a href="#camadas">Camadas</a><a href="#animacoes">Animações</a><a href="#acessibilidade">Acessibilidade</a><a href="#regras">Regras</a><a href="#referencias">Referências</a>
+      </nav>
+    </header>
+
+    <!-- Fundações -->
+    <section class="block" id="fundacoes">
+      <div class="block-head"><h2>Superfícies e bordas</h2>
+        <p>O conteúdo fica sobre um canvas cinza-azulado; cards são brancos com borda fria e sombra quase imperceptível. A sidebar continua branca, separada por uma borda.</p></div>
+      <div class="grid g4">
+        <div class="swatch"><div class="chip" style="background:var(--ds-canvas)"></div><div><strong>Canvas</strong><code>--ds-canvas #F6F8FB</code></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--ds-surface)"></div><div><strong>Superfície</strong><code>--ds-surface #FFFFFF</code></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--ds-surface-subtle)"></div><div><strong>Superfície sutil</strong><code>--ds-surface-subtle #F9FAFC</code></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--ds-surface-muted)"></div><div><strong>Superfície neutra</strong><code>--ds-surface-muted #F1F4F8</code></div></div>
+      </div>
+      <div class="card card-pad grid g4">
+        <div class="swatch"><div class="line-demo" style="border:1px solid var(--ds-border-subtle)">Divisória</div><code>--ds-border-subtle #EEF1F5</code><span class="caption">Linhas, cabeçalhos internos</span></div>
+        <div class="swatch"><div class="line-demo" style="border:1px solid var(--ds-border)">Card</div><code>--ds-border #E6EAF0</code><span class="caption">Cards, painéis, menus</span></div>
+        <div class="swatch"><div class="line-demo" style="border:1px solid var(--ds-border-control)">Controle</div><code>--ds-border-control #E5E7EB</code><span class="caption">FormInput e botão outline (v1)</span></div>
+        <div class="swatch"><div class="line-demo" style="border:1px solid var(--ds-border-control-hover)">Hover</div><code>--ds-border-control-hover #D1D5DB</code><span class="caption">Hover do botão outline (v1)</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Raios</h2>
+        <p>Botões (8px), campos (12px) e tabela (16px) mantêm os raios atuais. A escala vale para superfícies novas.</p></div>
+      <div class="card card-pad radius-row">
+        <div class="radius-item"><div class="radius-box" style="border-radius:6px"></div><code>xs · 6px</code><span class="caption">Badge, tooltip</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:8px"></div><code>sm · 8px</code><span class="caption">Botão (v1), item de menu</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:12px"></div><code>md · 12px</code><span class="caption">Input e select (v1)</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:14px"></div><code>lg · 14px</code><span class="caption">Card, tabela</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:18px"></div><code>xl · 18px</code><span class="caption">Modal, drawer</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:9999px;width:96px"></div><code>full</code><span class="caption">Pill, avatar, switch</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Sombras e elevação</h2>
+        <p>Sombras em tom frio e baixa opacidade. Quanto mais a camada flutua, maior a sombra. Cards estáticos não ganham sombra no hover.</p></div>
+      <div class="shadow-stage">
+        <div class="shadow-box" style="border:1px solid var(--ds-border);box-shadow:var(--ds-shadow-xs)"><strong>xs · nível 1</strong><span class="caption">Card, input</span></div>
+        <div class="shadow-box" style="border:1px solid var(--ds-border);box-shadow:var(--ds-shadow-sm)"><strong>sm · nível 2</strong><span class="caption">Botão primário, cabeçalho fixo</span></div>
+        <div class="shadow-box" style="border:1px solid var(--ds-border);box-shadow:var(--ds-shadow-md)"><strong>md · nível 3</strong><span class="caption">Dropdown, popover</span></div>
+        <div class="shadow-box" style="border:1px solid var(--ds-border);box-shadow:var(--ds-shadow-lg)"><strong>lg · nível 4</strong><span class="caption">Toast, drawer</span></div>
+        <div class="shadow-box" style="box-shadow:var(--ds-shadow-xl)"><strong>xl · nível 5</strong><span class="caption">Modal</span></div>
+      </div>
+    </section>
+
+    <!-- Grid -->
+    <section class="block" id="grid">
+      <div class="block-head"><h2>Grid e layout</h2>
+        <p>Grid de 12 colunas com gap de 16px (12px no celular). Página com padding de 24px (16px no celular). Agenda, listas e dashboards são fluidos; formulários e detalhes têm largura máxima.</p></div>
+      <div class="card card-pad" style="display:flex;flex-direction:column;gap:12px">
+        <div class="grid12">
+          <div class="col">1</div><div class="col">2</div><div class="col">3</div><div class="col">4</div><div class="col">5</div><div class="col">6</div><div class="col">7</div><div class="col">8</div><div class="col">9</div><div class="col">10</div><div class="col">11</div><div class="col">12</div>
+        </div>
+        <div class="grid12">
+          <div class="col span3">KPI · 3</div><div class="col span3">KPI · 3</div><div class="col span3">KPI · 3</div><div class="col span3">KPI · 3</div>
+        </div>
+        <div class="grid12">
+          <div class="col span8">Agenda / lista · 8</div><div class="col span4">Resumo lateral · 4</div>
+        </div>
+        <div class="grid12">
+          <div class="col span6">Gráfico · 6</div><div class="col span6">Gráfico · 6</div>
+        </div>
+        <p class="caption">≥ 1280px: KPIs em 4 colunas. ≤ 1024px: KPIs em 2 e blocos 8/4 empilham. ≤ 520px: tudo em 1 coluna.</p>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-head"><div><h3>Contêiner por tipo de tela</h3><p>Largura máxima do conteúdo, alinhado à esquerda</p></div></div>
+          <div class="card-pad container-demo">
+            <div class="cont-bar" style="width:100%">Fluido · Calendário, Atendimentos, Pacientes, Resumo, Financeiro</div>
+            <div class="cont-bar" style="width:min(100%, 78%)">960px · Detalhe do paciente, prontuário, atendimento</div>
+            <div class="cont-bar" style="width:min(100%, 58%)">720px · Formulários, Configurações</div>
+            <div class="cont-bar" style="width:min(100%, 40%)">Drawer md · 480px</div>
+          </div>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <div class="card-head"><div><h3>Breakpoints</h3><p>Use em <code>@media (max-width: …)</code></p></div></div>
+          <div class="table-wrap"><table class="dtable">
+            <thead><tr><th>Largura</th><th>Comportamento</th></tr></thead>
+            <tbody>
+              <tr><td><code>≤ 520px</code></td><td>Celular: 1 coluna, inputs de 44px, rodapé de drawer empilhado</td></tr>
+              <tr><td><code>≤ 768px</code></td><td>Tablet: 2 colunas, Lia acima da barra flutuante</td></tr>
+              <tr><td><code>≤ 1024px</code></td><td>Sidebar vira menu, padding 16px</td></tr>
+              <tr><td><code>≥ 1280px</code></td><td>Desktop largo: 4 colunas de KPI, colunas extras na tabela</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="espacamento">
+      <div class="block-head"><h2>Espaçamento</h2>
+        <p>Escala de base 4px. Espaço maior separa grupos diferentes; espaço menor une itens do mesmo grupo.</p></div>
+      <div class="card card-pad">
+        <div class="space-row"><code>--ds-space-1</code><span class="space-bar" style="width:4px"></span><span>4px · ícone e texto</span></div>
+        <div class="space-row"><code>--ds-space-2</code><span class="space-bar" style="width:8px"></span><span>8px · itens de um grupo, botões lado a lado</span></div>
+        <div class="space-row"><code>--ds-space-3</code><span class="space-bar" style="width:12px"></span><span>12px · campos lado a lado, gap no celular</span></div>
+        <div class="space-row"><code>--ds-space-4</code><span class="space-bar" style="width:16px"></span><span>16px · gap entre cards, entre campos</span></div>
+        <div class="space-row"><code>--ds-space-5</code><span class="space-bar" style="width:20px"></span><span>20px · padding interno de card</span></div>
+        <div class="space-row"><code>--ds-space-6</code><span class="space-bar" style="width:24px"></span><span>24px · padding da página, de drawer e modal</span></div>
+        <div class="space-row"><code>--ds-space-8</code><span class="space-bar" style="width:32px"></span><span>32px · entre seções da página</span></div>
+        <div class="space-row"><code>--ds-space-10</code><span class="space-bar" style="width:40px"></span><span>40px · respiro de estado vazio</span></div>
+        <div class="space-row"><code>--ds-space-12</code><span class="space-bar" style="width:48px"></span><span>48px · topo de página de autenticação</span></div>
+        <div class="space-row"><code>--ds-space-16</code><span class="space-bar" style="width:64px"></span><span>64px · grandes blocos em telas largas</span></div>
+      </div>
+    </section>
+
+    <!-- Tipografia -->
+    <section class="block" id="tipografia">
+      <div class="block-head"><h2>Tipografia</h2>
+        <p>DM Sans em toda a interface; DM Mono só para conteúdo técnico. Pesos 400, 500, 600 e 650; 700 só em ênfase pontual.</p></div>
+      <div class="card">
+        <div class="type-row"><code>2xl · 650</code><span style="font-size:clamp(1.45rem,1.3vw + 1rem,2rem);font-weight:650;line-height:1.12">Pacientes</span></div>
+        <div class="type-row"><code>xl · 20px · 600</code><span style="font-size:1.25rem;font-weight:600">Aplicar anamnese</span></div>
+        <div class="type-row"><code>lg · 17px · 650</code><span style="font-size:1.0625rem;font-weight:650">Agenda de hoje</span></div>
+        <div class="type-row"><code>kpi · 500</code><span style="font-size:clamp(1.28rem,1.15vw + .9rem,1.62rem);font-weight:500;font-variant-numeric:tabular-nums">R$ 4.380,00</span></div>
+        <div class="type-row"><code>md · 15px · 600</code><span style="font-size:.9375rem;font-weight:600">Juliana Prado</span></div>
+        <div class="type-row"><code>base · 14px · 400</code><span style="font-size:.875rem">Paciente relata sensibilidade após o último procedimento.</span></div>
+        <div class="type-row"><code>sm · 13px · 400</code><span style="font-size:.8125rem;color:var(--ds-text-muted)">Enviaremos o lembrete 24h antes do horário.</span></div>
+        <div class="type-row"><code>xs · 12px · 600</code><span style="font-size:.75rem;font-weight:600;color:var(--ds-text-muted)">ÚLTIMO ATENDIMENTO</span></div>
+        <div class="type-row"><code>mono · 12px</code><span class="mono">CID-10 L70.0 · lote 2026-11-A</span></div>
+      </div>
+    </section>
+
+    <!-- Ícones -->
+    <section class="block" id="icones">
+      <div class="block-head"><h2>Ícones e ilustrações</h2>
+        <p>Lucide com traço 1.8, cantos arredondados e a cor do texto ao lado. Ícone acompanha um rótulo; sozinho, precisa de <code>aria-label</code>. Estados vazios seguem o guia de estados vazios.</p></div>
+      <div class="grid g2">
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:18px">
+          <div class="icon-grid">
+            <div class="icon-sample"><svg class="i" style="width:14px;height:14px"><use href="#i-cal"/></svg><code>sm · 14</code></div>
+            <div class="icon-sample"><svg class="i" style="width:16px;height:16px"><use href="#i-cal"/></svg><code>md · 16</code></div>
+            <div class="icon-sample"><svg class="i" style="width:20px;height:20px"><use href="#i-cal"/></svg><code>lg · 20</code></div>
+            <div class="icon-sample"><svg class="i" style="width:24px;height:24px"><use href="#i-cal"/></svg><code>xl · 24</code></div>
+          </div>
+          <p class="caption">14px em badges e ajuda · 16px em botões, inputs e menus · 20px na sidebar e em blocos de ícone · 24px em destaques e estados vazios.</p>
+        </div>
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:18px">
+          <div class="icon-tiles">
+            <span class="icon-tile" style="background:#eef2ff;color:#0057ff"><svg class="i"><use href="#i-steth"/></svg></span>
+            <span class="icon-tile" style="background:#ecfdf5;color:#047857"><svg class="i"><use href="#i-checkc"/></svg></span>
+            <span class="icon-tile" style="background:#fffbeb;color:#b45309"><svg class="i"><use href="#i-clock"/></svg></span>
+            <span class="icon-tile" style="background:#fef2f2;color:#b91c1c"><svg class="i"><use href="#i-alert"/></svg></span>
+            <span class="icon-tile" style="background:#f1f5f9;color:#64748b"><svg class="i"><use href="#i-file"/></svg></span>
+          </div>
+          <p class="caption">Bloco de ícone: 32–40px, raio sm, fundo claro do mesmo tom do ícone. Azul para marca e informação; cores semânticas só para estados.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Botões -->
+    <section class="block" id="botoes">
+      <div class="block-head"><h2>Botões</h2><span class="tag keep">componente existente</span>
+        <p>Idênticos ao <code>AppButton</code>: sete variantes, raio 8px, alturas 32/38/48px e outline azul de 2px no foco. Use sempre o componente; nunca crie botão com estilo local.</p></div>
+      <div class="card">
+        <div class="btn-meta"><span>Variantes</span>
+          <div class="btn-row">
+            <button class="btn primary" type="button"><svg class="i"><use href="#i-plus"/></svg>Novo atendimento</button>
+            <button class="btn secondary" type="button">Confirmar</button>
+            <button class="btn outline" type="button">Exportar</button>
+            <button class="btn default" type="button">Cancelar</button>
+            <button class="btn ghost" type="button">Ver agenda</button>
+            <button class="btn warning" type="button">Remarcar</button>
+            <button class="btn dangerous" type="button">Excluir</button>
+          </div>
+        </div>
+        <div class="btn-meta"><span>Tamanhos</span>
+          <div class="btn-row">
+            <button class="btn primary sm" type="button">sm · 32px</button>
+            <button class="btn primary" type="button">md · 38px</button>
+            <button class="btn primary lg" type="button">lg · 48px</button>
+          </div>
+        </div>
+        <div class="btn-meta"><span>Estados</span>
+          <div class="btn-row">
+            <button class="btn primary" type="button" aria-busy="true"><span class="spin" aria-hidden="true"></span>Salvando</button>
+            <button class="btn primary" type="button" disabled>Desabilitado</button>
+            <button class="btn outline" type="button" disabled>Desabilitado</button>
+            <button class="btn outline" type="button" style="outline:2px solid var(--azul-principal);outline-offset:2px">Foco do teclado</button>
+          </div>
+        </div>
+        <div class="btn-meta"><span>Com input</span>
+          <div class="btn-row" style="flex-wrap:nowrap;max-width:460px;width:100%">
+            <div class="control" style="flex:1"><svg class="i lead"><use href="#i-search"/></svg><input class="input with-lead" id="busca-demo" placeholder="Buscar paciente" aria-label="Buscar paciente"></div>
+            <button class="btn outline" type="button">Filtrar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Formulários -->
+    <section class="block" id="formularios">
+      <div class="block-head"><h2>Campos de texto</h2><span class="tag keep">componente existente</span>
+        <p>Idênticos ao <code>FormInput</code>: borda #E5E7EB, raio 12px, fonte 16px, azul com halo no foco, vermelho com mensagem abaixo no erro. Nunca use input nativo: use FormInput, PasswordInput, CurrencyInput ou PhoneInputWithDDI.</p></div>
+      <div class="card states">
+        <div class="state"><span class="state-tag">Default</span><div class="field"><label class="label" for="s1">Nome do paciente</label><input class="input" id="s1" placeholder="Ex.: Maria Souza"></div></div>
+        <div class="state"><span class="state-tag">Filled</span><div class="field"><label class="label" for="s2">Nome do paciente</label><input class="input" id="s2" value="Maria Souza"></div></div>
+        <div class="state"><span class="state-tag">Focus</span><div class="field"><label class="label" for="s5">E-mail</label><input class="input is-focus" id="s5" placeholder="nome@email.com"></div></div>
+        <div class="state"><span class="state-tag">Filled<br>Focus</span><div class="field"><label class="label" for="s7">E-mail</label><input class="input is-focus" id="s7" value="maria.souza@email.com"></div></div>
+        <div class="state"><span class="state-tag">Disabled</span><div class="field"><label class="label" for="s6">Convênio</label><input class="input" id="s6" placeholder="Particular" disabled></div></div>
+        <div class="state"><span class="state-tag">Required</span><div class="field"><label class="label" for="s3">CPF <span class="req">*</span></label><input class="input" id="s3" placeholder="000.000.000-00"></div></div>
+        <div class="state"><span class="state-tag">Error</span><div class="field"><label class="label" for="s8">Telefone <span class="req">*</span></label>
+          <input class="input is-error" id="s8" value="(11) 9999-99" aria-invalid="true" aria-describedby="s8e">
+          <span class="error-msg" id="s8e">Informe um telefone com DDD e 9 dígitos.</span></div></div>
+        <div class="state"><span class="state-tag">Error<br>Focus</span><div class="field"><label class="label" for="s9">E-mail</label>
+          <input class="input is-error is-focus" id="s9" value="maria@email" aria-invalid="true" aria-describedby="s9e">
+          <span class="error-msg" id="s9e">Use o formato nome@dominio.com.</span></div></div>
+      </div>
+      <p class="caption">Clique nos campos para ver o foco real. O erro fica no próprio campo e some quando a pessoa volta a editar; nunca use toast para ele.</p>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Seleção, opções e textos longos</h2><span class="tag keep">componente existente</span>
+        <p>Select é sempre StyledSelect, SearchableSelect ou StyledMultiSelect. Checkbox e Switch são os componentes atuais. Textarea cresce sozinha conforme o texto e não pode ser redimensionada pela pessoa.</p></div>
+      <div class="grid g3">
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:16px">
+          <div class="field"><label class="label" for="sel1">Profissional</label><select class="input" id="sel1"><option>Dra. Ana Lima</option><option>Dr. Paulo Reis</option></select></div>
+          <div class="field"><label class="label" for="ta1">Observações</label><textarea class="input" id="ta1" data-autogrow placeholder="Queixa principal, alergias, retorno…">Paciente relata sensibilidade na região malar após o último procedimento. Sem alergias conhecidas.</textarea><span class="help">Digite várias linhas: o campo cresce sozinho até 240px.</span></div>
+        </div>
+        <div class="card card-pad choice-col">
+          <span class="label">Lembretes</span>
+          <label class="check"><input type="checkbox" id="c1" checked>WhatsApp 24h antes</label>
+          <label class="check"><input type="checkbox" id="c2">E-mail de confirmação</label>
+          <label class="check"><input type="checkbox" id="c3" disabled>SMS (indisponível no plano)</label>
+          <span class="label" style="margin-top:6px">Tipo de consulta</span>
+          <label class="check"><input type="radio" name="tipo" id="r1" checked>Primeira consulta</label>
+          <label class="check"><input type="radio" name="tipo" id="r2">Retorno</label>
+        </div>
+        <div class="card card-pad choice-col">
+          <label class="switch"><input type="checkbox" id="sw1" checked role="switch"><span>Confirmação automática<small>Envia a mensagem ao agendar.</small></span></label>
+          <label class="switch"><input type="checkbox" id="sw2" role="switch"><span>Bloquear encaixes<small>Impede horários sobrepostos.</small></span></label>
+          <label class="switch"><input type="checkbox" id="sw3" checked role="switch"><span>Lista de espera<small>Avisa quando um horário abrir.</small></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status -->
+    <section class="block" id="status">
+      <div class="block-head"><h2>Status do atendimento</h2>
+        <p>Pill com fundo claro, borda do mesmo tom e ponto. O texto sempre nomeia o estado; a cor só reforça. Em atendimento mantém o pulso "ao vivo" do v1.</p></div>
+      <div class="card card-pad badges">
+        <span class="badge b-pendente"><span class="dot"></span>Pendente</span>
+        <span class="badge b-confirmado"><span class="dot"></span>Confirmado</span>
+        <span class="badge b-iniciado"><span class="dot"></span>Em atendimento</span>
+        <span class="badge b-realizado"><span class="dot"></span>Realizado</span>
+        <span class="badge b-faltou"><span class="dot"></span>Não compareceu</span>
+        <span class="badge b-cancelado"><span class="dot"></span>Cancelado</span>
+      </div>
+    </section>
+
+    <!-- Composições -->
+    <section class="block" id="composicoes">
+      <div class="block-head"><h2>Composições</h2>
+        <p>Como as fundações se combinam em telas reais: indicadores, agenda do dia e listagem.</p></div>
+      <div class="grid g4">
+        <div class="card stat"><div class="stat-top"><span class="stat-label">Atendimentos hoje</span><span class="stat-icon"><svg class="i"><use href="#i-cal"/></svg></span></div><span class="stat-value">18</span><span class="stat-delta"><b>+3</b> em relação a ontem</span></div>
+        <div class="card stat"><div class="stat-top"><span class="stat-label">Taxa de confirmação</span><span class="stat-icon"><svg class="i"><use href="#i-checkc"/></svg></span></div><span class="stat-value">92%</span><span class="stat-delta"><b>+4 p.p.</b> no mês</span></div>
+        <div class="card stat"><div class="stat-top"><span class="stat-label">Novos pacientes</span><span class="stat-icon"><svg class="i"><use href="#i-users"/></svg></span></div><span class="stat-value">7</span><span class="stat-delta">Últimos 7 dias</span></div>
+        <div class="card stat"><div class="stat-top"><span class="stat-label">A receber</span><span class="stat-icon"><svg class="i"><use href="#i-dollar"/></svg></span></div><span class="stat-value">R$ 4.380,00</span><span class="stat-delta">12 lançamentos abertos</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-head"><div><h3>Agenda de hoje</h3><p>Terça, 10 de novembro</p></div><button class="btn outline sm" type="button">Abrir calendário</button></div>
+          <ul class="agenda-list">
+            <li class="agenda-item"><span class="agenda-time">08:00<small>30 min</small></span><span class="agenda-bar" style="background:#047857"></span><span class="agenda-who"><strong>Carlos Mendes</strong><span>Retorno · Dra. Ana Lima</span></span><span class="badge b-realizado"><span class="dot"></span>Realizado</span></li>
+            <li class="agenda-item"><span class="agenda-time">09:00<small>50 min</small></span><span class="agenda-bar" style="background:#22c55e"></span><span class="agenda-who"><strong>Juliana Prado</strong><span>Limpeza de pele · Dra. Ana Lima</span></span><span class="badge b-iniciado"><span class="dot"></span>Em atendimento</span></li>
+            <li class="agenda-item"><span class="agenda-time">10:30<small>30 min</small></span><span class="agenda-bar" style="background:#1d4ed8"></span><span class="agenda-who"><strong>Roberto Alves</strong><span>Primeira consulta · Dr. Paulo Reis</span></span><span class="badge b-confirmado"><span class="dot"></span>Confirmado</span></li>
+            <li class="agenda-item"><span class="agenda-time">11:15<small>45 min</small></span><span class="agenda-bar" style="background:#f59e0b"></span><span class="agenda-who"><strong>Fernanda Costa</strong><span>Toxina botulínica · Dra. Ana Lima</span></span><span class="badge b-pendente"><span class="dot"></span>Pendente</span></li>
+          </ul>
+        </div>
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:16px">
+          <div><h3 style="font-size:.95rem;font-weight:600">Novo paciente</h3><p class="caption" style="margin-top:2px">Formulário em card, com ações no rodapé.</p></div>
+          <div class="field"><label class="label" for="np1">Nome completo <span class="req">*</span></label><input class="input" id="np1" value="Fernanda Costa"></div>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+            <div class="field"><label class="label" for="np2">Nascimento</label><input class="input" id="np2" value="14/03/1991"></div>
+            <div class="field"><label class="label" for="np3">Telefone <span class="req">*</span></label><div class="control"><svg class="i lead"><use href="#i-phone"/></svg><input class="input with-lead" id="np3" placeholder="(11) 99999-9999"></div></div>
+          </div>
+          <div class="field"><label class="label" for="np4">E-mail</label><input class="input is-error" id="np4" value="fernanda@email" aria-invalid="true" aria-describedby="np4e"><span class="error-msg" id="np4e">E-mail incompleto. Use o formato nome@dominio.com.</span></div>
+          <div class="btn-row" style="justify-content:flex-end;margin-top:4px"><button class="btn default" type="button">Cancelar</button><button class="btn primary" type="button">Salvar paciente</button></div>
+        </div>
+      </div>
+      <div class="block-head" style="margin-top:8px"><h2>Tabela</h2><span class="tag keep">componente existente</span>
+        <p>Padrão da listagem de Pacientes com AppTableList: cabeçalho cinza fixo, avatar com a inicial em azul sobre fundo azul claro, nome em destaque, hover azulado e ações à direita.</p></div>
+      <div class="card table-v1" style="overflow:hidden">
+        <div class="card-head" style="padding:1rem 1.25rem;border-bottom:1px solid #e5e7eb"><div class="control" style="width:min(100%,320px)"><svg class="i lead"><use href="#i-search"/></svg><input class="input with-lead" id="tbl-busca" placeholder="Buscar paciente" aria-label="Buscar paciente"></div><button class="btn primary" type="button"><svg class="i"><use href="#i-plus"/></svg>Novo paciente</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Paciente</th><th>Telefone</th><th>Último atendimento</th><th>Próximo atendimento</th><th style="text-align:right">Ações</th></tr></thead>
+            <tbody>
+              <tr><td><div class="pt"><span class="avatar">J</span><div><strong>Juliana Prado</strong><span>juliana.prado@email.com</span></div></div></td><td>(11) 98123-4471</td><td>03/11/2026</td><td>10/11/2026 · 09:00</td><td style="text-align:right"><button class="icon-btn" type="button" aria-label="Ações de Juliana Prado"><svg class="i"><use href="#i-more"/></svg></button></td></tr>
+              <tr><td><div class="pt"><span class="avatar">R</span><div><strong>Roberto Alves</strong><span>Sem e-mail</span></div></div></td><td>(11) 99654-0012</td><td><span class="empty-value">Sem atendimento</span></td><td>10/11/2026 · 10:30</td><td style="text-align:right"><button class="icon-btn" type="button" aria-label="Ações de Roberto Alves"><svg class="i"><use href="#i-more"/></svg></button></td></tr>
+              <tr><td><div class="pt"><span class="avatar">M</span><div><strong>Maria Souza</strong><span>maria.souza@email.com</span></div></div></td><td>(21) 97012-3388</td><td>28/10/2026</td><td><span class="empty-value">Sem agendamento</span></td><td style="text-align:right"><button class="icon-btn" type="button" aria-label="Ações de Maria Souza"><svg class="i"><use href="#i-more"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gráficos -->
+    <section class="block" id="graficos">
+      <div class="block-head"><h2>Gráficos e indicadores</h2>
+        <p>Série principal no azul da marca; demais séries em azul claro, verde, âmbar e cinza. Grade horizontal discreta, eixos em 11px e valores formatados em reais com <code>tabular-nums</code>.</p></div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-head"><div><h3>Atendimentos por semana</h3><p>Últimas 6 semanas</p></div>
+            <div class="legend"><span><i style="background:var(--ds-chart-1)"></i>Realizados</span><span><i style="background:var(--ds-chart-2)"></i>Agendados</span></div></div>
+          <div class="card-pad chart">
+            <svg viewBox="0 0 420 200" role="img" aria-label="Barras de atendimentos realizados e agendados por semana">
+              <g stroke="var(--ds-chart-grid)" stroke-width="1">
+                <line x1="36" y1="20" x2="410" y2="20"/><line x1="36" y1="65" x2="410" y2="65"/><line x1="36" y1="110" x2="410" y2="110"/><line x1="36" y1="155" x2="410" y2="155"/>
+              </g>
+              <line x1="36" y1="170" x2="410" y2="170" stroke="var(--ds-border)"/>
+              <text x="28" y="24" text-anchor="end">60</text><text x="28" y="69" text-anchor="end">45</text><text x="28" y="114" text-anchor="end">30</text><text x="28" y="159" text-anchor="end">15</text><text x="28" y="174" text-anchor="end">0</text>
+              <g>
+                <rect x="52" y="74" width="18" height="96" rx="4" fill="var(--ds-chart-1)"/><rect x="73" y="62" width="18" height="108" rx="4" fill="var(--ds-chart-2)"/>
+                <rect x="114" y="65" width="18" height="105" rx="4" fill="var(--ds-chart-1)"/><rect x="135" y="56" width="18" height="114" rx="4" fill="var(--ds-chart-2)"/>
+                <rect x="176" y="83" width="18" height="87" rx="4" fill="var(--ds-chart-1)"/><rect x="197" y="68" width="18" height="102" rx="4" fill="var(--ds-chart-2)"/>
+                <rect x="238" y="56" width="18" height="114" rx="4" fill="var(--ds-chart-1)"/><rect x="259" y="44" width="18" height="126" rx="4" fill="var(--ds-chart-2)"/>
+                <rect x="300" y="47" width="18" height="123" rx="4" fill="var(--ds-chart-1)"/><rect x="321" y="38" width="18" height="132" rx="4" fill="var(--ds-chart-2)"/>
+                <rect x="362" y="35" width="18" height="135" rx="4" fill="var(--ds-chart-1)"/><rect x="383" y="26" width="18" height="144" rx="4" fill="var(--ds-chart-2)"/>
+              </g>
+              <text x="71" y="190" text-anchor="middle">06/10</text><text x="133" y="190" text-anchor="middle">13/10</text><text x="195" y="190" text-anchor="middle">20/10</text><text x="257" y="190" text-anchor="middle">27/10</text><text x="319" y="190" text-anchor="middle">03/11</text><text x="381" y="190" text-anchor="middle">10/11</text>
+            </svg>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>Receita do mês</h3><p>Novembro de 2026</p></div><span class="badge b-realizado"><span class="dot"></span>+12% vs. outubro</span></div>
+          <div class="card-pad" style="display:flex;flex-direction:column;gap:12px">
+            <span class="stat-value">R$ 38.940,00</span>
+            <div class="chart">
+              <svg viewBox="0 0 420 120" role="img" aria-label="Linha de receita diária crescendo ao longo do mês">
+                <defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#0057ff" stop-opacity=".18"/><stop offset="1" stop-color="#0057ff" stop-opacity="0"/></linearGradient></defs>
+                <g stroke="var(--ds-chart-grid)"><line x1="0" y1="20" x2="420" y2="20"/><line x1="0" y1="60" x2="420" y2="60"/><line x1="0" y1="100" x2="420" y2="100"/></g>
+                <path d="M0 96 L40 90 L80 84 L120 88 L160 72 L200 66 L240 58 L280 60 L320 44 L360 36 L400 26 L400 110 L0 110 Z" fill="url(#area)"/>
+                <path d="M0 96 L40 90 L80 84 L120 88 L160 72 L200 66 L240 58 L280 60 L320 44 L360 36 L400 26" fill="none" stroke="var(--ds-chart-1)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+                <circle cx="400" cy="26" r="4.5" fill="#fff" stroke="var(--ds-chart-1)" stroke-width="2.2"/>
+              </svg>
+            </div>
+            <div class="legend"><span><i style="background:var(--ds-chart-1)"></i>Série principal</span><span><i style="background:var(--ds-chart-2)"></i>Comparação</span><span><i style="background:var(--ds-chart-3)"></i>Positivo</span><span><i style="background:var(--ds-chart-4)"></i>Atenção</span><span><i style="background:var(--ds-chart-5)"></i>Outros</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Camadas -->
+    <section class="block" id="camadas">
+      <div class="block-head"><h2>Camadas flutuantes</h2>
+        <p>Menu e popover usam borda + sombra md; toast e drawer, sombra lg; modal, sombra xl sobre a sobreposição escura, sem borda.</p></div>
+      <div class="float-stage">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="menu" role="menu" aria-label="Ações do atendimento">
+            <div class="menu-item" role="menuitem"><svg class="i"><use href="#i-edit"/></svg>Editar atendimento</div>
+            <div class="menu-item" role="menuitem"><svg class="i"><use href="#i-clock"/></svg>Remarcar</div>
+            <div class="menu-item" role="menuitem"><svg class="i"><use href="#i-msg"/></svg>Enviar lembrete</div>
+            <div class="menu-sep"></div>
+            <div class="menu-item danger" role="menuitem"><svg class="i"><use href="#i-trash"/></svg>Cancelar atendimento</div>
+          </div>
+          <span class="tooltip">Tooltip · raio xs</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="toast" role="status"><svg class="i ok"><use href="#i-checkc"/></svg><div><strong>Atendimento confirmado</strong><span>Juliana Prado · 10/11 às 09:00</span></div></div>
+          <div class="modal-demo">
+            <div class="modal" role="dialog" aria-labelledby="mdt" aria-modal="false">
+              <div class="modal-body"><span class="modal-icon"><svg class="i"><use href="#i-alert"/></svg></span><div><h3 id="mdt">Cancelar atendimento?</h3><p>O horário de Fernanda Costa às 11:15 fica livre e o paciente recebe um aviso pelo WhatsApp.</p></div></div>
+              <div class="modal-foot"><button class="btn default sm" type="button">Voltar</button><button class="btn dangerous sm" type="button">Cancelar atendimento</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animações -->
+    <section class="block" id="animacoes">
+      <div class="block-head"><h2>Animações</h2>
+        <p>O padrão vem dos drawers de anexar anamnese e termo: a etapa troca com fade, o cabeçalho ganha brilho e uma faixa de luz, e o check é desenhado. No dia a dia, tudo é rápido (120–200ms); a celebração fica para conclusões importantes.</p></div>
+
+      <div class="anim-grid">
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="demo-head"><h3>Celebração de conclusão</h3>
+            <div class="seg" role="group" aria-label="Variante">
+              <button type="button" id="v-success" aria-pressed="true">Sucesso</button>
+              <button type="button" id="v-info" aria-pressed="false">Informação</button>
+            </div>
+          </div>
+          <div class="drawer-mock">
+            <div class="dm-head" id="cel-head">
+              <div><h4 id="cel-title">Aplicar anamnese</h4><p id="cel-sub">Selecione o modelo e escolha como o paciente será avisado.</p></div>
+            </div>
+            <div class="dm-body" id="cel-body">
+              <div id="cel-form" style="display:flex;flex-direction:column;gap:16px">
+                <div class="field"><label class="label" for="cel-sel">Modelo de anamnese</label><select class="input" id="cel-sel"><option>Anamnese facial completa</option><option>Pré-procedimento injetável</option></select></div>
+                <label class="check"><input type="checkbox" id="cel-wpp" checked>Enviar notificação via WhatsApp</label>
+              </div>
+            </div>
+            <div class="dm-foot">
+              <button class="btn default" type="button" id="cel-cancel">Cancelar</button>
+              <button class="btn primary" type="button" id="cel-go">Gerar link</button>
+            </div>
+          </div>
+          <p class="caption">Cabeçalho <code>.ds-celebrate</code> (1.45–1.85s) + troca de etapa <code>ds-step</code> (480ms) + check animado. Clique em Gerar link; depois, Repetir.</p>
+        </div>
+
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="demo-head"><h3>Menu, modal e drawer</h3></div>
+          <div class="overlay-stage" id="ov-stage">
+            <div class="launch">
+              <button class="btn outline sm" type="button" id="ov-menu-btn" aria-expanded="false"><svg class="i"><use href="#i-more"/></svg>Ações</button>
+              <button class="btn outline sm" type="button" id="ov-modal-btn">Abrir modal</button>
+              <button class="btn outline sm" type="button" id="ov-drawer-btn">Abrir drawer</button>
+            </div>
+            <div class="menu ov-menu hidden" id="ov-menu" role="menu">
+              <div class="menu-item" role="menuitem"><svg class="i"><use href="#i-edit"/></svg>Editar</div>
+              <div class="menu-item" role="menuitem"><svg class="i"><use href="#i-clock"/></svg>Remarcar</div>
+              <div class="menu-sep"></div>
+              <div class="menu-item danger" role="menuitem"><svg class="i"><use href="#i-trash"/></svg>Cancelar</div>
+            </div>
+            <div class="ov-backdrop hidden" id="ov-backdrop"></div>
+            <div class="modal ov-modal hidden" id="ov-modal" role="dialog" aria-label="Exemplo de modal">
+              <div class="modal-body"><span class="modal-icon"><svg class="i"><use href="#i-alert"/></svg></span><div><h3>Cancelar atendimento?</h3><p>O horário fica livre e o paciente recebe um aviso.</p></div></div>
+              <div class="modal-foot"><button class="btn default sm" type="button" data-close>Voltar</button><button class="btn dangerous sm" type="button" data-close>Cancelar atendimento</button></div>
+            </div>
+            <div class="ov-drawer hidden" id="ov-drawer" role="dialog" aria-label="Exemplo de drawer">
+              <h4>Novo atendimento</h4>
+              <div class="field"><label class="label" for="ov-d1">Paciente</label><input class="input" id="ov-d1" placeholder="Buscar paciente"></div>
+              <div style="margin-top:auto;display:flex;gap:8px;justify-content:flex-end"><button class="btn default sm" type="button" data-close>Fechar</button></div>
+            </div>
+          </div>
+          <p class="caption">Menu: <code>ds-pop</code> 200ms entra, 120ms sai · Modal: <code>ds-modal</code> 320ms com escala 0.97 · Drawer: <code>ds-drawer</code> 320ms deslizando 24px · Sobreposição: <code>ds-fade</code>.</p>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+          <div class="card-head"><div><h3>Entrada de listas</h3><p>Skeleton → conteúdo em cascata</p></div><button class="btn outline sm" type="button" id="list-reload">Recarregar</button></div>
+          <div id="list-area"></div>
+          <p class="caption" style="padding:12px 20px;border-top:1px solid var(--ds-border-subtle)"><code>.ds-enter</code> com <code>--i</code>: 320ms, 40ms entre itens, no máximo 8 itens em cascata.</p>
+        </div>
+
+        <div class="card card-pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="demo-head"><h3>Feedback de ações</h3></div>
+          <div class="fb-grid">
+            <div class="fb-item"><span>Press · 120ms</span><div class="btn-row"><button class="btn primary ds-press" type="button">Salvar</button><button class="btn outline ds-press" type="button">Exportar</button></div></div>
+            <div class="fb-item"><span>Copiar link</span><div class="link-box" style="max-width:320px"><span>agendadoutor.com/a/7Kq2</span><button class="icon-btn" type="button" id="copy-btn" aria-label="Copiar link"><svg class="i" id="copy-ic"><use href="#i-copy"/></svg></button></div></div>
+            <div class="fb-item"><span>Erro ao enviar</span>
+              <form id="shake-form" class="btn-row" style="flex-wrap:nowrap;align-items:flex-start" novalidate>
+                <div class="field" style="flex:1;min-width:0"><input class="input" id="shake-in" placeholder="CPF do paciente" aria-label="CPF do paciente" aria-describedby="shake-err"><span class="error-msg hidden" id="shake-err"><svg class="i"><use href="#i-alert"/></svg>Informe os 11 dígitos do CPF.</span></div>
+                <button class="btn outline" type="submit">Validar</button>
+              </form></div>
+            <div class="fb-item"><span>Toggle · 200ms</span><label class="switch"><input type="checkbox" id="fb-sw" role="switch" checked>Lembrete automático</label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:hidden">
+        <div class="card-head"><div><h3>Ritmo e curvas</h3><p>Tokens de <code>tokens.css</code>; classes em <code>motion.css</code></p></div></div>
+        <div class="table-wrap"><table class="dtable motion-table">
+          <thead><tr><th>Token</th><th>Valor</th><th>Uso</th></tr></thead>
+          <tbody>
+            <tr><td>--ds-duration-fast</td><td><code>120ms</code></td><td>Hover, press, troca de cor, saída de menu</td></tr>
+            <tr><td>--ds-duration-base</td><td><code>200ms</code></td><td>Menu, tooltip, aba, switch, sobreposição</td></tr>
+            <tr><td>--ds-duration-slow</td><td><code>320ms</code></td><td>Entrada de modal e drawer, itens de lista</td></tr>
+            <tr><td>--ds-duration-step</td><td><code>480ms</code></td><td>Troca de etapa dentro de drawer ou formulário</td></tr>
+            <tr><td>Celebração</td><td><code>1.45–1.85s</code></td><td>Anamnese/termo anexados, paciente criado, atendimento agendado, pagamento registrado, atendimento finalizado</td></tr>
+            <tr><td>--ds-ease-out</td><td><code>cubic-bezier(.16,1,.3,1)</code></td><td>Tudo que entra na tela</td></tr>
+            <tr><td>--ds-ease-spring</td><td><code>cubic-bezier(.175,.885,.32,1.275)</code></td><td>Ícones que aparecem (check, copiado)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- Acessibilidade -->
+    <section class="block" id="acessibilidade">
+      <div class="block-head"><h2>Acessibilidade e microcopy</h2>
+        <p>A interface é usada o dia todo por recepção e profissionais de saúde: leitura rápida, alvos confortáveis e mensagens que dizem o que fazer.</p></div>
+      <div class="rules">
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Contraste AA</h4><p>Texto ≥ 4.5:1 sobre o fundo. <code>--ds-text-muted</code> passa em branco e no canvas; <code>--ds-text-subtle</code> só em placeholder e ícone auxiliar.</p></div>
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Alvos de toque</h4><p>Botão md de 38px e FormInput com cerca de 50px; itens de menu com pelo menos 40px. Botão de ícone de 32px precisa de área de 40px no celular.</p></div>
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Movimento reduzido</h4><p>Com <code>prefers-reduced-motion</code>, a celebração mostra só a cor final e as transições viram fade de 120ms.</p></div>
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Leitor de tela</h4><p>Toast em <code>role="status"</code>; erro de campo com <code>aria-invalid</code> e <code>aria-describedby</code>; ícone sozinho com <code>aria-label</code>.</p></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3>Como escrever</h3><p>Português claro, voz ativa, sem jargão técnico</p></div></div>
+        <div class="card-pad" style="display:flex;flex-direction:column;gap:12px">
+          <div class="copy-pair"><div class="bad"><b>Evite</b>OK</div><div class="good"><b>Prefira</b>Salvar paciente</div></div>
+          <div class="copy-pair"><div class="bad"><b>Evite</b>Erro: campo inválido</div><div class="good"><b>Prefira</b>Informe um telefone com DDD e 9 dígitos.</div></div>
+          <div class="copy-pair"><div class="bad"><b>Evite</b>Tem certeza?</div><div class="good"><b>Prefira</b>Cancelar atendimento? O paciente recebe um aviso pelo WhatsApp.</div></div>
+          <div class="copy-pair"><div class="bad"><b>Evite</b>Operação realizada com sucesso!</div><div class="good"><b>Prefira</b>Anamnese anexada</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Regras -->
+    <section class="block" id="regras">
+      <div class="block-head"><h2>Regras de uso</h2></div>
+      <div class="rules">
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Uma superfície por nível</h4><p>Card branco sobre o canvas. Dentro do card, separe com divisória sutil, não com outro card.</p></div>
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Foco sempre visível</h4><p>Todo controle focável usa <code>--ds-ring</code>. O halo não desloca o layout porque é box-shadow.</p></div>
+        <div class="card rule do"><h4><svg class="i"><use href="#i-check"/></svg>Sempre componentes existentes</h4><p>AppButton, FormInput, StyledSelect, SearchableSelect, Switch e AppTableList. Nunca input, select ou textarea nativo; estenda o componente com uma prop se faltar algo.</p></div>
+        <div class="card rule dont"><h4><svg class="i"><use href="#i-x"/></svg>Sombra no hover de card estático</h4><p>Só ganha elevação no hover o que é clicável como um todo (ex.: card de agendamento arrastável).</p></div>
+        <div class="card rule dont"><h4><svg class="i"><use href="#i-x"/></svg>Hex soltos no componente</h4><p>Use os tokens <code>--ds-*</code>. Um valor novo entra primeiro em <code>tokens.css</code> e na documentação.</p></div>
+        <div class="card rule dont"><h4><svg class="i"><use href="#i-x"/></svg>Toast para erro de campo</h4><p>Erro corrigível fica no input, com borda, halo, ícone e mensagem. Toast é para falha geral ou sucesso.</p></div>
+      </div>
+    </section>
+
+    <!-- Referências -->
+    <section class="block" id="referencias">
+      <div class="block-head"><h2>Referências</h2>
+        <p>Inspirações para a direção visual do Design System: neutros frios, bordas finas, sombras contidas e estados de formulário claros.</p></div>
+      <div class="ref-list">
+        <div class="card ref"><strong>shadcn/ui</strong><span>Borda + sombra xs, raio por token, foco em anel.</span><br><a href="https://ui.shadcn.com/" rel="noopener">ui.shadcn.com</a></div>
+        <div class="card ref"><strong>Untitled UI</strong><span>Escala de sombras em tom frio e estados de input.</span><br><a href="https://www.untitledui.com/" rel="noopener">untitledui.com</a></div>
+        <div class="card ref"><strong>Radix Themes</strong><span>Escalas de cinza e camadas de superfície.</span><br><a href="https://www.radix-ui.com/themes" rel="noopener">radix-ui.com/themes</a></div>
+        <div class="card ref"><strong>Referências enviadas</strong><span>Botões macios com brilho interno e grade de estados de input (default, hover, focus, disabled, error).</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Celebração */
+  let variant = 'success';
+  let done = false;
+  const head = $('cel-head'), body = $('cel-body'), go = $('cel-go'), cancel = $('cel-cancel');
+  const formHTML = $('cel-form').outerHTML;
+  function setVariant(v) {
+    variant = v;
+    $('v-success').setAttribute('aria-pressed', String(v === 'success'));
+    $('v-info').setAttribute('aria-pressed', String(v === 'info'));
+    reset();
+  }
+  function swap(html) {
+    const cur = body.firstElementChild;
+    const put = () => { body.innerHTML = html; body.firstElementChild.classList.add('step-enter'); };
+    if (!cur || reduce) return put();
+    cur.classList.add('step-leave');
+    cur.addEventListener('animationend', put, { once: true });
+  }
+  function celebrate() {
+    done = true;
+    const info = variant === 'info';
+    head.className = 'dm-head';
+    void head.offsetWidth;
+    head.classList.add('ds-celebrate');
+    if (info) head.classList.add('ds-celebrate--info');
+    $('cel-title').textContent = info ? 'Anamnese enviada' : 'Anamnese anexada';
+    $('cel-sub').textContent = info ? 'O paciente recebeu o link pelo WhatsApp.' : 'O link de resposta foi criado e já está vinculado ao paciente.';
+    const accent = info ? '#0057ff' : '#059669', soft = info ? '#eef2ff' : '#ecfdf5';
+    swap('<div style="display:flex;flex-direction:column;gap:16px;--cel-accent:' + accent + ';--cel-soft:' + soft + '">' +
+      '<div class="success-visual" aria-hidden="true"><svg class="check-draw" viewBox="0 0 96 96"><circle class="bg" cx="48" cy="48" r="44"/><circle cx="48" cy="48" r="44" transform="rotate(-90 48 48)"/><path d="M30 49 l12 12 l24 -26"/></svg></div>' +
+      '<div class="cel-copy"><span class="eyebrow">' + (info ? 'Enviado' : 'Tudo pronto') + '</span><h5>' + (info ? 'Link enviado ao paciente' : 'Link gerado com sucesso') + '</h5><p>' + (info ? 'Você será avisado quando a resposta chegar.' : 'Copie o link agora ou acesse depois na aba de anamneses.') + '</p></div>' +
+      '<div class="link-box"><span>agendadoutor.com/a/7Kq2</span></div></div>');
+    go.textContent = 'Repetir';
+    cancel.textContent = 'Concluir';
+  }
+  function reset() {
+    done = false;
+    head.className = 'dm-head';
+    $('cel-title').textContent = 'Aplicar anamnese';
+    $('cel-sub').textContent = 'Selecione o modelo e escolha como o paciente será avisado.';
+    swap(formHTML);
+    go.textContent = 'Gerar link';
+    cancel.textContent = 'Cancelar';
+  }
+  go.addEventListener('click', () => {
+    if (done) { reset(); setTimeout(celebrate, reduce ? 0 : 520); return; }
+    go.innerHTML = '<span class="spin" aria-hidden="true"></span>Gerando';
+    go.disabled = true;
+    setTimeout(() => { go.disabled = false; celebrate(); }, 650);
+  });
+  cancel.addEventListener('click', reset);
+  $('v-success').addEventListener('click', () => setVariant('success'));
+  $('v-info').addEventListener('click', () => setVariant('info'));
+
+  /* Camadas */
+  const show = (el, cls) => { el.classList.remove('hidden', ...el.dataset.out ? [el.dataset.out] : []); el.classList.add(cls); };
+  const hide = (el, inCls, outCls) => {
+    if (el.classList.contains('hidden')) return;
+    el.classList.remove(inCls); el.classList.add(outCls);
+    el.addEventListener('animationend', () => { el.classList.add('hidden'); el.classList.remove(outCls); }, { once: true });
+  };
+  const menu = $('ov-menu'), menuBtn = $('ov-menu-btn'), bd = $('ov-backdrop'), modal = $('ov-modal'), drawer = $('ov-drawer');
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.classList.contains('hidden');
+    menuBtn.setAttribute('aria-expanded', String(open));
+    open ? show(menu, 'a-pop-in') : hide(menu, 'a-pop-in', 'a-pop-out');
+  });
+  menu.addEventListener('click', () => { hide(menu, 'a-pop-in', 'a-pop-out'); menuBtn.setAttribute('aria-expanded', 'false'); });
+  $('ov-modal-btn').addEventListener('click', () => { show(bd, 'a-fade-in'); show(modal, 'a-modal-in'); });
+  $('ov-drawer-btn').addEventListener('click', () => { show(bd, 'a-fade-in'); show(drawer, 'a-drawer-in'); });
+  const closeAll = () => { hide(bd, 'a-fade-in', 'a-fade-out'); hide(modal, 'a-modal-in', 'a-modal-out'); hide(drawer, 'a-drawer-in', 'a-drawer-out'); };
+  bd.addEventListener('click', closeAll);
+  $('ov-stage').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeAll));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
+
+  /* Lista */
+  const people = [
+    ['JP', 'Juliana Prado', 'Limpeza de pele · 09:00', 'b-iniciado', 'Em atendimento'],
+    ['RA', 'Roberto Alves', 'Primeira consulta · 10:30', 'b-confirmado', 'Confirmado'],
+    ['FC', 'Fernanda Costa', 'Toxina botulínica · 11:15', 'b-pendente', 'Pendente'],
+    ['CM', 'Carlos Mendes', 'Retorno · 14:00', 'b-confirmado', 'Confirmado'],
+    ['MS', 'Maria Souza', 'Peeling químico · 15:30', 'b-pendente', 'Pendente']
+  ];
+  const area = $('list-area');
+  function load() {
+    area.innerHTML = people.map(() => '<div class="skel-row"><span class="skel round"></span><span class="skel" style="width:70%"></span><span class="skel"></span></div>').join('');
+    setTimeout(() => {
+      area.innerHTML = '<ul class="agenda-list">' + people.map((p, i) =>
+        '<li class="agenda-item ds-enter" style="--i:' + i + ';grid-template-columns:32px 1fr auto"><span class="avatar">' + p[0] + '</span><span class="agenda-who"><strong>' + p[1] + '</strong><span>' + p[2] + '</span></span><span class="badge ' + p[3] + '"><span class="dot"></span>' + p[4] + '</span></li>'
+      ).join('') + '</ul>';
+    }, reduce ? 0 : 900);
+  }
+  $('list-reload').addEventListener('click', load);
+  load();
+
+  /* Copiar */
+  let copyT;
+  $('copy-btn').addEventListener('click', () => {
+    const ic = $('copy-ic');
+    ic.innerHTML = '<use href="#i-check"/>';
+    ic.style.color = '#059669';
+    ic.classList.remove('ds-pop-in'); void ic.offsetWidth; ic.classList.add('ds-pop-in');
+    $('copy-btn').setAttribute('aria-label', 'Copiado');
+    clearTimeout(copyT);
+    copyT = setTimeout(() => { ic.innerHTML = '<use href="#i-copy"/>'; ic.style.color = ''; $('copy-btn').setAttribute('aria-label', 'Copiar link'); }, 1600);
+  });
+
+  /* Textarea que cresce sozinha (fallback de field-sizing) */
+  document.querySelectorAll("textarea[data-autogrow]").forEach((ta) => {
+    const fit = () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight + 2, 240) + "px"; };
+    ta.addEventListener("input", fit); fit();
+  });
+
+  /* Erro com shake */
+  const inp = $('shake-in'), err = $('shake-err');
+  $('shake-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const ok = inp.value.replace(/\D/g, '').length === 11;
+    inp.classList.toggle('is-error', !ok);
+    inp.setAttribute('aria-invalid', String(!ok));
+    err.classList.toggle('hidden', ok);
+    if (!ok) { inp.classList.remove('ds-shake'); void inp.offsetWidth; inp.classList.add('ds-shake'); inp.focus(); }
+  });
+  inp.addEventListener('input', () => { inp.classList.remove('is-error'); inp.setAttribute('aria-invalid', 'false'); err.classList.add('hidden'); });
+})();
+</script>
+</body>
+</html>

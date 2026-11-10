@@ -34,7 +34,7 @@ composição, não variáveis globais adicionais.
 | `#F8FAFC` | Fundo neutro suave e brilho do skeleton. |
 | `#F1F5F9` | Trilhos de progresso e superfícies neutras compactas. |
 | `#E8EDF4` / `#E9EDF3` | Contorno de painéis e indicadores. |
-| `#E5E7EB` / `#D1D5DB` | Contorno de controles; veja [Bordas](bordas.md). |
+| `#E5E7EB` / `#D1D5DB` | Contorno de controles; veja [Fundações](fundacoes.md#bordas). |
 
 ## Estados semânticos
 

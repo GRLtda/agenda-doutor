@@ -1,0 +1,190 @@
+/*
+ * Design System — animações compartilhadas.
+ * Documentação: docs/Design System/animacoes.md
+ *
+ * A celebração reproduz o efeito dos drawers de anexar anamnese e termo
+ * (AssignAnamnesisModal / AssignConsentTermModal). Use as classes abaixo
+ * em vez de copiar os keyframes para cada componente.
+ */
+
+/* ---------- Celebração no cabeçalho do drawer/modal ---------- */
+.ds-celebrate {
+  --ds-celebrate-strong: rgba(34, 197, 94, 0.24);
+  --ds-celebrate-glow: rgba(187, 247, 208, 0.9);
+  --ds-celebrate-soft: rgba(240, 253, 244, 0.72);
+  --ds-celebrate-top: #dcfce7;
+  --ds-celebrate-mid: #f0fdf4;
+  --ds-celebrate-shine: rgba(220, 252, 231, 0.72);
+  --ds-celebrate-accent: #059669;
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  animation: ds-celebrate-on 1.45s ease-out both;
+  background:
+    radial-gradient(120% 120% at 20% 0%, var(--ds-celebrate-glow) 0%, var(--ds-celebrate-soft) 38%, transparent 70%),
+    linear-gradient(180deg, var(--ds-celebrate-top) 0%, var(--ds-celebrate-mid) 52%, #ffffff 100%);
+}
+
+.ds-celebrate--info {
+  --ds-celebrate-strong: rgba(0, 87, 255, 0.2);
+  --ds-celebrate-glow: rgba(199, 214, 255, 0.9);
+  --ds-celebrate-soft: rgba(238, 242, 255, 0.72);
+  --ds-celebrate-top: #e0e9ff;
+  --ds-celebrate-mid: #eef2ff;
+  --ds-celebrate-shine: rgba(224, 233, 255, 0.75);
+  --ds-celebrate-accent: var(--azul-principal, #0057ff);
+}
+
+.ds-celebrate > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Faixa de luz que atravessa o cabeçalho */
+.ds-celebrate::before {
+  content: '';
+  position: absolute;
+  inset: -45% -70%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ds-celebrate-strong) 35%, transparent) 22%,
+    var(--ds-celebrate-strong) 42%,
+    var(--ds-celebrate-shine) 53%,
+    color-mix(in srgb, var(--ds-celebrate-strong) 75%, transparent) 64%,
+    transparent 84%
+  );
+  transform: translateX(-55%) rotate(-8deg);
+  animation: ds-celebrate-wave 1.75s var(--ds-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+/* Círculo que se expande a partir do canto */
+.ds-celebrate::after {
+  content: '';
+  position: absolute;
+  top: -84px;
+  left: -24px;
+  width: 180px;
+  height: 180px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--ds-celebrate-strong) 0%, color-mix(in srgb, var(--ds-celebrate-glow) 20%, transparent) 34%, transparent 68%);
+  animation: ds-celebrate-ripple 1.85s ease-out both;
+}
+
+@keyframes ds-celebrate-on {
+  0% { filter: saturate(0.75); opacity: 0.72; }
+  55% { filter: saturate(1.18); opacity: 1; }
+  100% { filter: saturate(1); opacity: 1; }
+}
+
+@keyframes ds-celebrate-wave {
+  0% { opacity: 0; transform: translateX(-65%) rotate(-8deg); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(62%) rotate(-8deg); }
+}
+
+@keyframes ds-celebrate-ripple {
+  0% { opacity: 0; transform: scale(0.45); }
+  35% { opacity: 1; }
+  100% { opacity: 0.25; transform: scale(1.42); }
+}
+
+/* ---------- Troca de etapa (Vue <Transition name="ds-step" mode="out-in">) ---------- */
+.ds-step-enter-active,
+.ds-step-leave-active {
+  transition:
+    opacity var(--ds-duration-step, 480ms) ease,
+    transform var(--ds-duration-step, 480ms) ease;
+}
+.ds-step-enter-from { opacity: 0; transform: translateY(8px); }
+.ds-step-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* ---------- Menus e popovers (<Transition name="ds-pop">) ---------- */
+.ds-pop-enter-active { transition: opacity var(--ds-duration-base, 200ms) var(--ds-ease-out), transform var(--ds-duration-base, 200ms) var(--ds-ease-out); }
+.ds-pop-leave-active { transition: opacity var(--ds-duration-fast, 120ms) ease, transform var(--ds-duration-fast, 120ms) ease; }
+.ds-pop-enter-from,
+.ds-pop-leave-to { opacity: 0; transform: translateY(-4px) scale(0.98); }
+
+/* ---------- Modal (<Transition name="ds-modal">) ---------- */
+.ds-modal-enter-active { transition: opacity var(--ds-duration-slow, 320ms) var(--ds-ease-out), transform var(--ds-duration-slow, 320ms) var(--ds-ease-out); }
+.ds-modal-leave-active { transition: opacity var(--ds-duration-base, 200ms) ease, transform var(--ds-duration-base, 200ms) ease; }
+.ds-modal-enter-from,
+.ds-modal-leave-to { opacity: 0; transform: translateY(8px) scale(0.97); }
+
+/* ---------- Drawer lateral (<Transition name="ds-drawer">) ---------- */
+.ds-drawer-enter-active { transition: transform var(--ds-duration-slow, 320ms) var(--ds-ease-out), opacity var(--ds-duration-slow, 320ms) ease; }
+.ds-drawer-leave-active { transition: transform var(--ds-duration-base, 200ms) ease, opacity var(--ds-duration-base, 200ms) ease; }
+.ds-drawer-enter-from,
+.ds-drawer-leave-to { transform: translateX(24px); opacity: 0; }
+
+/* ---------- Sobreposição (<Transition name="ds-fade">) ---------- */
+.ds-fade-enter-active,
+.ds-fade-leave-active { transition: opacity var(--ds-duration-base, 200ms) ease; }
+.ds-fade-enter-from,
+.ds-fade-leave-to { opacity: 0; }
+
+/* ---------- Entrada de listas e cards ---------- */
+/* Aplique .ds-enter no item e defina style="--i: <índice>" (limite em 8). */
+.ds-enter {
+  animation: ds-enter-up var(--ds-duration-slow, 320ms) var(--ds-ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 8) * var(--ds-stagger, 40ms));
+}
+@keyframes ds-enter-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Feedback de ações ---------- */
+.ds-press { transition: transform var(--ds-duration-fast, 120ms) var(--ds-ease); }
+.ds-press:active { transform: scale(0.97); }
+
+.ds-pop-in { animation: ds-pop-in 0.2s var(--ds-ease-spring) both; }
+@keyframes ds-pop-in {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.ds-shake { animation: ds-shake 0.36s var(--ds-ease) both; }
+@keyframes ds-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-celebrate,
+  .ds-celebrate::before,
+  .ds-celebrate::after,
+  .ds-enter,
+  .ds-pop-in,
+  .ds-shake {
+    animation: none !important;
+  }
+  .ds-celebrate::before,
+  .ds-celebrate::after { opacity: 0; }
+  .ds-step-enter-active,
+  .ds-step-leave-active,
+  .ds-pop-enter-active,
+  .ds-pop-leave-active,
+  .ds-modal-enter-active,
+  .ds-modal-leave-active,
+  .ds-drawer-enter-active,
+  .ds-drawer-leave-active {
+    transition: opacity var(--ds-duration-fast, 120ms) ease !important;
+  }
+  .ds-step-enter-from,
+  .ds-step-leave-to,
+  .ds-pop-enter-from,
+  .ds-pop-leave-to,
+  .ds-modal-enter-from,
+  .ds-modal-leave-to,
+  .ds-drawer-enter-from,
+  .ds-drawer-leave-to { transform: none; }
+}
