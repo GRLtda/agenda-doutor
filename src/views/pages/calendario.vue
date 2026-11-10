@@ -512,10 +512,23 @@ async function maybeOpenCreateBlockFromQuery() {
   await router.replace({ query: remainingQuery })
 }
 
+const toolbarRef = ref(null)
+
+// Informa ao botão da Lia onde fica o topo da barra flutuante (px a partir do rodapé da janela)
+function syncLiaOffset() {
+  const el = toolbarRef.value
+  if (!el) return
+  const top = el.getBoundingClientRect().top
+  document.body.style.setProperty('--lia-toolbar-offset', `${Math.max(0, window.innerHeight - top)}px`)
+}
+
 onMounted(async () => {
   document.body.classList.add('has-floating-toolbar')
   updateCalendarView()
   await fetchDataForView()
+  await nextTick()
+  syncLiaOffset()
+  window.addEventListener('resize', syncLiaOffset)
   window.addEventListener('resize', updateCalendarView)
   timer = setInterval(() => {
     currentTime.value = new Date()
@@ -532,6 +545,8 @@ watch(
 
 onUnmounted(() => {
   document.body.classList.remove('has-floating-toolbar')
+  document.body.style.removeProperty('--lia-toolbar-offset')
+  window.removeEventListener('resize', syncLiaOffset)
   clearInterval(timer)
   window.removeEventListener('resize', updateCalendarView)
 })
@@ -1190,7 +1205,7 @@ const getDayNumber = (heading) => {
                 </vue-cal>
             </div>
              <!-- Toolbar Flutuante (apenas navegação) -->
-            <footer class="calendar-toolbar-floating">
+            <footer ref="toolbarRef" class="calendar-toolbar-floating">
             <div class="calendar-nav">
                 <button @click="goToPrevious" class="nav-btn" title="Anterior">
                 <ChevronLeft :size="20" />
