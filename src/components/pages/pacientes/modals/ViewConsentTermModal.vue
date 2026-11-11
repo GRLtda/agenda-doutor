@@ -5,7 +5,8 @@ import { downloadConsentTermPdf, sendConsentTermPdf } from '@/api/consent-terms'
 import { useToast } from 'vue-toastification'
 import SideDrawer from '@/components/global/SideDrawer.vue'
 import AppButton from '@/components/global/AppButton.vue'
-import { 
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
+import {
   FileSignature, 
   Clock, 
   CheckCircle2, 
@@ -36,7 +37,7 @@ onMounted(async () => {
   if (data) {
     term.value = data
   } else {
-    toast.error('Erro ao carregar termo.')
+    toast.error('Não foi possível abrir o termo agora. Confira sua conexão e tente novamente.')
     emit('close')
   }
   isLoading.value = false
@@ -126,13 +127,15 @@ async function handleSendPdf() {
         <div class="header-left">
           <div class="title-row">
             <FileSignature :size="24" class="header-icon" />
-            <h2>{{ term?.template?.name || 'Termo de Consentimento' }}</h2>
+            <h2 v-if="!isLoading">{{ term?.template?.name || 'Termo de Consentimento' }}</h2>
+            <AppSkeleton v-else width="12rem" height="1.5rem" />
           </div>
-          <div class="status-badge" :class="{ signed: isSigned, pending: !isSigned }">
+          <div v-if="!isLoading" class="status-badge" :class="{ signed: isSigned, pending: !isSigned }">
             <CheckCircle2 v-if="isSigned" :size="14" />
             <Clock v-else :size="14" />
-            {{ term?.status || 'Carregando...' }}
+            {{ term?.status }}
           </div>
+          <AppSkeleton v-else width="5.5rem" height="1.625rem" border-radius="9999px" />
         </div>
         <button @click="emit('close')" class="close-btn">
           <X :size="24" />
@@ -140,10 +143,20 @@ async function handleSendPdf() {
       </div>
     </template>
 
-    <!-- Loading -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Carregando termo...</p>
+    <!-- Carregando: skeleton com a forma do termo e da assinatura -->
+    <div v-if="isLoading" class="drawer-content" role="status" aria-label="Carregando termo" aria-busy="true">
+      <div class="term-content skeleton-term">
+        <AppSkeleton width="55%" height="1.5rem" />
+        <AppSkeleton v-for="n in 6" :key="n" :width="n % 3 === 0 ? '80%' : '100%'" height="0.875rem" />
+        <AppSkeleton width="40%" height="1.25rem" />
+        <AppSkeleton v-for="n in 4" :key="`b${n}`" :width="n === 4 ? '65%' : '100%'" height="0.875rem" />
+      </div>
+      <div class="signature-section skeleton-signature">
+        <AppSkeleton width="45%" height="1.125rem" />
+        <AppSkeleton height="6rem" />
+        <AppSkeleton width="70%" height="0.875rem" />
+        <AppSkeleton width="50%" height="0.875rem" />
+      </div>
     </div>
 
     <!-- Content -->
@@ -425,26 +438,11 @@ h2 {
   gap: 0.75rem;
 }
 
-/* Loading */
-.loading-state {
+/* Skeleton de carregamento */
+.skeleton-term,
+.skeleton-signature {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  gap: 1rem;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--azul-principal);
-  border-bottom-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  gap: 0.75rem;
 }
 </style>

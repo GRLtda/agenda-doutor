@@ -226,7 +226,8 @@ watch(
 
 .main-content {
   flex: 1;
-  padding: 1.5rem;
+  /* Folga no fim para o botão flutuante da Lia nunca cobrir o último botão da página. */
+  padding: 1.5rem 1.5rem 5.5rem;
   border-radius: 1rem 0 0 0rem;
   border: 1px solid #e5e7eb;
   overflow-y: auto;
@@ -272,7 +273,7 @@ watch(
   }
 
   .main-content {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 1rem 5.5rem;
     border-radius: 0;
   }
 

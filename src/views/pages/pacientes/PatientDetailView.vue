@@ -43,7 +43,8 @@ import {
   Briefcase,
   Play,
   Folder,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-vue-next'
 import FormInput from '@/components/global/FormInput.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
@@ -207,6 +208,18 @@ async function loadPatientData(patientId) {
 
 async function handleAnamnesisAssigned() {
   await anamnesisStore.fetchAnamnesisForPatient(route.params.id)
+}
+
+// Recarga manual da lista (quando o paciente responde, a tela não é avisada sozinha).
+const isReloadingAnamneses = ref(false)
+async function reloadAnamneses() {
+  if (isReloadingAnamneses.value) return
+  isReloadingAnamneses.value = true
+  try {
+    await anamnesisStore.fetchAnamnesisForPatient(route.params.id, { keepList: true })
+  } finally {
+    isReloadingAnamneses.value = false
+  }
 }
 
 // HOOK: Chama a função de carregamento quando o componente é montado
@@ -863,8 +876,30 @@ async function deleteAppointment(appointment) {
 
             <div v-if="activeTab === 'anamneses'" class="card-section">
               <div class="anamnesis-section">
-                <h3 class="section-title"><CheckSquare class="title-icon" :size="18" /> Respondidas</h3>
-                <ul v-if="answeredAnamneses.length > 0" class="anamnesis-list">
+                <div class="section-title-row">
+                  <h3 class="section-title"><CheckSquare class="title-icon" :size="18" /> Respondidas</h3>
+                  <button
+                    type="button"
+                    class="btn-icon reload-btn"
+                    :disabled="isReloadingAnamneses"
+                    :aria-busy="isReloadingAnamneses"
+                    title="Recarregar respondidas"
+                    aria-label="Recarregar anamneses respondidas"
+                    @click="reloadAnamneses"
+                  >
+                    <RefreshCw class="title-icon" :class="{ spinning: isReloadingAnamneses }" :size="16" />
+                  </button>
+                </div>
+                <ul v-if="anamnesisStore.isLoading" class="anamnesis-list" role="status" aria-label="Carregando anamneses respondidas" aria-busy="true">
+                  <li v-for="n in 2" :key="n" class="anamnesis-item">
+                    <div class="anamnesis-info">
+                      <AppSkeleton width="12rem" height="1rem" />
+                      <AppSkeleton width="9rem" height="0.75rem" />
+                    </div>
+                    <AppSkeleton width="2rem" height="2rem" border-radius="50%" />
+                  </li>
+                </ul>
+                <ul v-else-if="answeredAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in answeredAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info clickable" @click="viewingAnamnesis = item">
                       <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
@@ -898,7 +933,16 @@ async function deleteAppointment(appointment) {
 
               <div class="anamnesis-section">
                 <h3 class="section-title"><FileText class="title-icon" :size="18" /> Pendentes</h3>
-                <ul v-if="pendingAnamneses.length > 0" class="anamnesis-list">
+                <ul v-if="anamnesisStore.isLoading" class="anamnesis-list" role="status" aria-label="Carregando anamneses pendentes" aria-busy="true">
+                  <li class="anamnesis-item">
+                    <div class="anamnesis-info">
+                      <AppSkeleton width="12rem" height="1rem" />
+                      <AppSkeleton width="8rem" height="0.75rem" />
+                    </div>
+                    <AppSkeleton width="2rem" height="2rem" border-radius="50%" />
+                  </li>
+                </ul>
+                <ul v-else-if="pendingAnamneses.length > 0" class="anamnesis-list">
                   <li v-for="item in pendingAnamneses" :key="item._id" class="anamnesis-item">
                     <div class="anamnesis-info">
                       <span class="anamnesis-name">{{ getAnamnesisTemplateName(item) }}</span>
@@ -1595,6 +1639,19 @@ async function deleteAppointment(appointment) {
   font-weight: 600;
   color: var(--preto);
   margin: 0 0 1.5rem 0;
+}
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem 0;
+}
+.section-title-row .section-title {
+  margin: 0;
+}
+.reload-btn {
+  flex-shrink: 0;
 }
 .divider {
   height: 1px;

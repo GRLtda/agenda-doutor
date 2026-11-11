@@ -132,3 +132,16 @@ testes: [Cadastro de clínicas](../../api-clinic/docs/CADASTRO_CLINICAS.md).
 
 Verificar obrigatórios, CEP/UF inválidos retornados pela API, CNPJ duplicado,
 limpeza de erros ao editar, foco e nova tentativa após HTTP 503.
+
+## Layout do cadastro e do onboarding
+
+- **Cadastro (`/register`):** o formulário usa `novalidate`; os erros de e-mail,
+  telefone, nome e senha aparecem no campo (mensagens da API), não no balão
+  nativo do navegador. O erro dos termos some ao marcar a caixa e não se
+  sobrepõe ao texto do aceite.
+- **Onboarding (`/onboarding/clinic`):** o painel do formulário tem altura da
+  janela e `overflow-y: auto`, com `align-items: safe center`. Mensagens de erro
+  aumentam o formulário sem cortar o stepper nem esconder o botão "Salvar e
+  Continuar"; em telas baixas a coluna do formulário rola.
+- **Stepper:** os itens têm largura pelo conteúdo (`flex: 1 1 auto`), então
+  "Dados da Clínica" e "Informações principais" não são cortados com reticências.

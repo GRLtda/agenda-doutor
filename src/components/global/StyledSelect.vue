@@ -7,7 +7,8 @@ const props = defineProps({
   label: String,
   options: { type: Array, required: true },
   required: { type: Boolean, default: false },
-  error: { type: [Boolean, String], default: false },
+  // String antes de Boolean: com [Boolean, String] o Vue converte '' em true e o campo ficava vermelho sem erro.
+  error: { type: [String, Boolean], default: false },
   placeholder: { type: String, default: 'Selecione' },
   disabled: { type: Boolean, default: false },
   dark: { type: Boolean, default: false },

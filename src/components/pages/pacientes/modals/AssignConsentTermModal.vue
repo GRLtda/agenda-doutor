@@ -25,6 +25,7 @@ const toast = useToast()
 
 const templates = ref([])
 const selectedTemplateId = ref(null)
+const templateError = ref('')
 const generatedLink = ref(null)
 const copied = ref(false)
 const isLoading = ref(false)
@@ -32,6 +33,10 @@ const sendNotification = ref(true)
 const whatsappUnavailableMessage = 'Não está ativo o WhatsApp.'
 const canSendWhatsappNotification = computed(() => crmStore.status === 'connected')
 const hasTemplates = computed(() => templates.value.length > 0)
+
+watch(selectedTemplateId, () => {
+  templateError.value = ''
+})
 
 watch(canSendWhatsappNotification, (canSend) => {
   if (!canSend) {
@@ -80,7 +85,7 @@ async function handleGenerateLink() {
   }
 
   if (!selectedTemplateId.value) {
-    toast.error('Por favor, selecione um modelo.')
+    templateError.value = 'Escolha o modelo de termo que o paciente vai assinar.'
     return
   }
 
@@ -98,7 +103,7 @@ async function handleGenerateLink() {
   if (success) {
     generatedLink.value = `${window.location.origin}/termo/${data.patientAccessToken}`
   } else {
-    toast.error('Não foi possível gerar o link.')
+    toast.error('Não foi possível gerar o link de assinatura agora. Tente novamente em instantes.')
   }
 
   isLoading.value = false
@@ -160,6 +165,7 @@ function copyLink() {
             v-model="selectedTemplateId"
             :options="templates"
             label="Selecione o Modelo"
+            :error="templateError"
           >
             <template #empty>
               <button type="button" class="create-term-option" @mousedown.prevent="goToConsentTermSettings">

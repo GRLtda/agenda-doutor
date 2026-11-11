@@ -2,8 +2,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useConsentTermsStore } from '@/stores/consent-terms'
 import { useToast } from 'vue-toastification'
-import { FileSignature, Plus, Copy, Eye, Clock, CheckCircle2 } from 'lucide-vue-next'
+import { FileSignature, Plus, Copy, Eye, Clock, CheckCircle2, RefreshCw } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AssignConsentTermModal from './modals/AssignConsentTermModal.vue'
 import ViewConsentTermModal from './modals/ViewConsentTermModal.vue'
 
@@ -29,6 +30,18 @@ watch(() => props.patientId, (newId) => {
     consentTermsStore.fetchTermsForPatient(newId)
   }
 })
+
+// Recarga manual: quando o paciente assina, a tela não é avisada sozinha.
+const isReloading = ref(false)
+async function reloadTerms() {
+  if (isReloading.value) return
+  isReloading.value = true
+  try {
+    await consentTermsStore.fetchTermsForPatient(props.patientId, { keepList: true })
+  } finally {
+    isReloading.value = false
+  }
+}
 
 function openAssignModal() {
   isAssignModalOpen.value = true
@@ -99,15 +112,40 @@ function formatDate(date) {
         <FileSignature :size="20" class="header-icon" />
         <h3>Termos de Consentimento</h3>
       </div>
-      <AppButton @click="openAssignModal" variant="primary" size="sm">
-        <Plus :size="16" />
-        Enviar Termo
-      </AppButton>
+      <div class="header-actions">
+        <AppButton
+          variant="default"
+          size="sm"
+          :disabled="isReloading"
+          :aria-busy="isReloading"
+          title="Recarregar termos"
+          aria-label="Recarregar termos"
+          @click="reloadTerms"
+        >
+          <RefreshCw :size="16" :class="{ spinning: isReloading }" />
+        </AppButton>
+        <AppButton @click="openAssignModal" variant="primary" size="sm">
+          <Plus :size="16" />
+          Enviar Termo
+        </AppButton>
+      </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="isLoading" class="loading-container">
-      <div class="spinner"></div>
+    <!-- Carregando (primeira carga e recarga manual): skeleton com a forma dos cards -->
+    <div v-if="isLoading" class="terms-list" role="status" aria-label="Carregando termos" aria-busy="true">
+      <div v-for="n in 3" :key="n" class="term-card">
+        <div class="term-info">
+          <AppSkeleton width="11rem" height="1rem" />
+          <div class="term-meta">
+            <AppSkeleton width="8rem" height="0.75rem" />
+            <AppSkeleton width="5rem" height="1.25rem" border-radius="9999px" />
+          </div>
+        </div>
+        <div class="term-actions">
+          <AppSkeleton width="6.5rem" height="2rem" />
+          <AppSkeleton width="4rem" height="2rem" />
+        </div>
+      </div>
     </div>
 
     <!-- Lista de Termos -->
@@ -188,26 +226,21 @@ function formatDate(date) {
   color: var(--azul-principal);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
 h3 {
   font-size: 1rem;
   font-weight: 600;
   color: var(--preto);
   margin: 0;
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--azul-principal);
-  border-bottom-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

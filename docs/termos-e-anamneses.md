@@ -66,3 +66,30 @@ também reutiliza o componente. Contratos e checklist estão em
 [Componentes compartilhados](componentes-compartilhados.md).
 
 Para verificar, abra ambas as rotas em largura ampla e estreita, compare o alinhamento com Pacientes e Galeria e confira busca, filtro, ações dos cartões e navegação entre páginas.
+
+## Erros e comportamento verificados nos testes visuais (11/11/2026)
+
+- **Aplicar termo/anamnese sem modelo:** o erro aparece no próprio seletor
+  ("Escolha o modelo de termo que o paciente vai assinar." / "...anamnese que o
+  paciente vai responder."), sem toast, e some ao escolher um modelo.
+- **Formulário público da anamnese** (`/anamnese/:token`): perguntas
+  condicionais (sub-perguntas A, B...) aparecem quando a resposta do pai bate
+  com `showWhenAnswerIs`. O renderer usa a mesma normalização da validação
+  (`true`/"sim" -> "Sim", `false`/"nao" -> "Não"); antes, responder "Sim"
+  exigia sub-perguntas que não eram exibidas e o envio ficava bloqueado sem
+  explicação. Perguntas de texto longo crescem sozinhas com o conteúdo.
+- **Falha ao enviar respostas:** mensagem amigável que informa que as respostas
+  continuam preenchidas; sem texto técnico.
+- **Link já usado ou inválido** (`/termo/:token`, `/anamnese/:token`): exibe
+  "Link Inválido ou Expirado" com os próximos passos.
+
+O teste `tests/consent-anamnesis-renderer.spec.js` (roda em `npm run test:consent`) garante que a sub-pergunta condicional aparece com resposta "Sim"/`true` e some com "Não"/`false`.
+
+## Recarregar listas no detalhe do paciente
+
+O paciente responde a anamnese e assina o termo em outra tela, e a ficha aberta não é avisada sozinha. Por isso há um botão só com ícone (seta circular) para recarregar:
+
+- **Anamneses → Respondidas:** à direita do título. Chama `fetchAnamnesisForPatient(id, { keepList: true })`.
+- **Termos:** à esquerda de "Enviar Termo". Chama `fetchTermsForPatient(id, { keepList: true })`.
+
+Durante a carga e a recarga, as listas de Respondidas, Pendentes e Termos mostram `AppSkeleton` com a forma das linhas (sem spinner nem texto "Carregando"). Com `keepList`, se a busca falhar a lista anterior é mantida, com toast explicando o motivo. O ícone gira e o botão fica desabilitado enquanto carrega, evitando cliques repetidos. Ao abrir um termo ("Ver"), o drawer mostra skeleton do título, status, texto e assinatura até o termo chegar. Teste: `tests/consent-terms-reload.spec.js` (`npm run test:consent`).

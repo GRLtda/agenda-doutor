@@ -21,6 +21,8 @@ const toast = useToast();
 
 const templates = ref([]);
 const selectedTemplateId = ref(null);
+const templateError = ref('');
+watch(selectedTemplateId, () => { templateError.value = ''; });
 const generatedLink = ref(null);
 const notificationSent = ref(null);
 const copied = ref(false);
@@ -55,7 +57,7 @@ onMounted(async () => {
 
 async function handleGenerateLink() {
   if (!selectedTemplateId.value) {
-    toast.error('Por favor, selecione um modelo.');
+    templateError.value = 'Escolha o modelo de anamnese que o paciente vai responder.';
     return;
   }
   isLoading.value = true;
@@ -78,7 +80,7 @@ async function handleGenerateLink() {
     emit('saved', data)
 
   } else {
-    toast.error('Não foi possível gerar o link.');
+    toast.error('Não foi possível gerar o link da anamnese agora. Tente novamente em instantes.');
   }
   isLoading.value = false;
 }
@@ -133,7 +135,7 @@ function copyLink() {
     <div class="drawer-body-content">
       <Transition name="confirm-fade" mode="out-in">
         <div v-if="!generatedLink" class="assign-step">
-          <StyledSelect v-model="selectedTemplateId" :options="templates" label="Modelo de anamnese" />
+          <StyledSelect v-model="selectedTemplateId" :options="templates" label="Modelo de anamnese" :error="templateError" />
 
           <FormInput
             type="checkbox"

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   question: { type: Object, required: true },
@@ -18,6 +18,17 @@ const localValue = computed({
     emit('update:modelValue', value)
   },
 })
+
+// Texto longo cresce sozinho com o conteúdo (a pessoa nunca redimensiona o campo).
+const textareaRef = ref(null)
+function autoGrowTextarea() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+onMounted(autoGrowTextarea)
+watch(() => props.modelValue, () => nextTick(autoGrowTextarea))
 
 // Handler específico para checkboxes (multiple_choice)
 function handleCheckboxChange(e, option) {
@@ -47,6 +58,7 @@ function handleCheckboxChange(e, option) {
 
   <textarea
     v-if="question.questionType === 'long_text'"
+    ref="textareaRef"
     v-model="localValue"
     class="form-textarea"
     :id="'q-' + qId"
@@ -125,6 +137,7 @@ function handleCheckboxChange(e, option) {
 .form-textarea {
   min-height: 120px;
   resize: none;
+  overflow: hidden;
 }
 .form-input:disabled,
 .form-textarea:disabled {

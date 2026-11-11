@@ -109,7 +109,10 @@ apiClient.interceptors.response.use(
 
     // Rede, timeout, limite temporário e indisponibilidade do servidor não invalidam sessão.
     if (isTemporaryApiError(error)) {
-      reportApiFailure(error)
+      // O WhatsApp é um serviço externo: se a API respondeu (ex.: 502 porque o provedor está
+      // desligado), o sistema está no ar e a própria tela do WhatsApp mostra o aviso.
+      const isWhatsappProviderFailure = Boolean(error.response) && /\/whatsapp\//.test(originalRequest?.url || '')
+      if (!isWhatsappProviderFailure) reportApiFailure(error)
       Sentry.captureException(error)
       return Promise.reject(error)
     }

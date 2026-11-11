@@ -82,6 +82,11 @@ Botão com padding horizontal de 14px, borda `#D1D5DB`, raio 12px e sombra
 `#E5E7EB`, raio 12px, sombra `0 10px 24px rgba(15, 23, 42, 0.12)` e itens com
 raio 8px.
 
+A prop `error` aceita texto (mostra a mensagem sob o campo e a borda vermelha) ou
+`true` (só a borda). Vazio (`''`) ou `false` não mostra erro. O tipo da prop é
+`[String, Boolean]` nessa ordem: com `Boolean` primeiro o Vue converte `''` em `true`
+e o campo ficava vermelho sem erro (`tests/consent-styled-select-error.spec.js`).
+
 ## Checkbox (FormInput)
 
 Caixa de 20px (`1.25rem`), borda 2px `#E5E7EB`, raio 6px. No hover, a borda

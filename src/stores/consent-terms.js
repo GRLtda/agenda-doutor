@@ -167,9 +167,10 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
         }
     }
 
-    async function fetchTermsForPatient(patientId) {
+    // keepList: recarga manual — mantém a lista na tela enquanto busca e se a busca falhar.
+    async function fetchTermsForPatient(patientId, { keepList = false } = {}) {
         isLoading.value = true
-        patientTerms.value = []
+        if (!keepList) patientTerms.value = []
         try {
             const response = await apiGetForPatient(patientId)
             if (Array.isArray(response.data)) {
@@ -179,9 +180,11 @@ export const useConsentTermsStore = defineStore('consentTerms', () => {
             }
         } catch (error) {
             console.error('Erro ao buscar termos do paciente:', error)
-            const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido'
-            toast.error(`Erro ao buscar termos: ${errorMessage}`)
-            patientTerms.value = []
+            toast.error(
+                error.response?.data?.message ||
+                    'Não foi possível carregar os termos do paciente agora. Confira sua conexão e tente novamente.',
+            )
+            if (!keepList) patientTerms.value = []
         } finally {
             isLoading.value = false
         }

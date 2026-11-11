@@ -352,7 +352,9 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Tratamento de erros V2
       const errorData = error.response?.data
-      let message = 'Erro ao realizar login. Tente novamente.'
+      let message = error.response
+        ? 'Não foi possível entrar agora porque o sistema não concluiu o acesso. Tente novamente em instantes.'
+        : 'Não foi possível entrar porque não conseguimos falar com o sistema. Confira sua conexão e tente novamente em instantes.'
 
       if (errorData?.error?.message) {
         message = errorData.error.message

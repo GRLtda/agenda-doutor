@@ -209,9 +209,11 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       return { success: true }
     } catch (error) {
       console.error('Erro ao enviar respostas da anamnese:', error)
+      // A API devolve o motivo em português; sem ele, não exibimos texto técnico.
       const errorMessage =
-        error.response?.data?.message || error.message || 'Erro desconhecido'
-      toast.error(`Erro ao enviar respostas: ${errorMessage}`)
+        error.response?.data?.message ||
+        'Não foi possível enviar suas respostas agora. Suas respostas continuam preenchidas; confira sua conexão e tente novamente.'
+      toast.error(errorMessage)
       return { success: false, error }
     } finally {
       isLoading.value = false
@@ -263,9 +265,10 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
     }
   }
 
-  async function fetchAnamnesisForPatient(patientId) {
+  // keepList: recarga manual — mantém a lista na tela enquanto busca e se a busca falhar.
+  async function fetchAnamnesisForPatient(patientId, { keepList = false } = {}) {
     isLoading.value = true
-    patientAnamneses.value = [] // Reseta para um array vazio antes da chamada
+    if (!keepList) patientAnamneses.value = [] // Reseta para um array vazio antes da chamada
     try {
       const response = await apiGetForPatient(patientId)
 
@@ -282,10 +285,11 @@ export const useAnamnesisStore = defineStore('anamnesis', () => {
       }
     } catch (error) {
       console.error('Erro ao buscar anamneses do paciente:', error)
-      const errorMessage =
-        error.response?.data?.message || error.message || 'Erro desconhecido'
-      toast.error(`Erro ao buscar anamneses do paciente: ${errorMessage}`)
-      patientAnamneses.value = [] // Garante que seja um array no erro
+      toast.error(
+        error.response?.data?.message ||
+          'Não foi possível carregar as anamneses do paciente agora. Confira sua conexão e tente novamente.',
+      )
+      if (!keepList) patientAnamneses.value = [] // Garante que seja um array no erro
     } finally {
       isLoading.value = false
     }

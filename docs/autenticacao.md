@@ -84,6 +84,18 @@ bloqueia cliques repetidos. Uma resposta bem-sucedida de uma requisição
 iniciada após a última falha remove o aviso. Respostas de requisições antigas
 concorrentes e erros de validação não escondem uma falha mais recente.
 
+Falhas de integrações externas não acendem o aviso: se a API respondeu (por
+exemplo, 502 em `/v2/whatsapp/...` porque o provedor de WhatsApp está
+desligado), o sistema está no ar. O interceptor ignora esse caso e a própria
+tela do WhatsApp mostra o estado da conexão. Falhas sem resposta (rede, timeout)
+continuam acionando o aviso mesmo nessas rotas.
+
+No login, a falha sem resposta do servidor (API fora do ar, rede) mostra no
+formulário: "Não foi possível entrar porque não conseguimos falar com o sistema.
+Confira sua conexão e tente novamente em instantes." Quando a API responde sem
+mensagem própria, o texto é o equivalente para "o sistema não concluiu o acesso".
+Credenciais erradas usam a mensagem da API ("E-mail ou senha incorretos...").
+
 Não há polling, recarga automática da página nem repetição automática de
 escritas por causa desse aviso. O refresh após 401 mantém a repetição já
 existente da chamada autenticada; indisponibilidade não aciona essa repetição.

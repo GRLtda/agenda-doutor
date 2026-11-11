@@ -42,6 +42,10 @@ caso de falha, a mensagem e a ação de nova tentativa ficam visíveis.
 
 - Estados vazios de páginas, abas e cards seguem [Estados vazios das telas](estados-vazios.md): SVG em arquivo, azuis suaves da marca e conjunto centralizado na área útil. Consulte a fila de adoção antes de migrar uma tela.
 
+## Folga no fim da página para o botão da Lia
+
+O `.main-content` do `DefaultLayout` reserva `5.5rem` de padding inferior (desktop e mobile). Assim o botão flutuante da Lia nunca cobre o último botão da página, como o "Avançar" do cadastro de paciente. Páginas com `layout.noPadding` controlam o próprio espaçamento.
+
 ## Barra flutuante e botão da Lia (mobile)
 
 Páginas com barra flutuante fixa na parte inferior (hoje, o calendário) adicionam a classe `has-floating-toolbar` ao `body` ao montar e definem `--lia-toolbar-offset` (distância em px do topo da barra até o rodapé da janela, recalculada no `resize`); ambos são removidos ao desmontar. Em telas até 768px, o `LiaLauncher` fica em `bottom: calc(var(--lia-toolbar-offset) + .5rem)`, logo acima da barra e sobre o conteúdo, sem cobrir os controles nem abrir espaço extra.

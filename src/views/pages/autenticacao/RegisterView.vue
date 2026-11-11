@@ -156,6 +156,11 @@ onMounted(async () => {
   }
 })
 
+// O erro dos termos some assim que a pessoa marca a caixa.
+watch(termsAccepted, () => {
+  termsError.value = ''
+})
+
 watch(registrationSuccess, (newValue) => {
   if (newValue) {
     confetti({
@@ -316,7 +321,7 @@ function handleRegistrationComplete() {
           {{ campaign.trialDays }} dias. Cancele quando quiser antes disso.
         </p>
       </div>
-      <form @submit.prevent="handleRegister">
+      <form novalidate @submit.prevent="handleRegister">
         <FormInput
           v-model="name"
           label="Nome completo"
@@ -473,7 +478,7 @@ function handleRegistrationComplete() {
   color: #ef4444;
   font-size: 0.75rem;
   font-weight: 500;
-  margin-top: -0.75rem;
+  margin-top: 0.25rem;
   margin-bottom: 1rem;
   text-align: left;
 }

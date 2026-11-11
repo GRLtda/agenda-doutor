@@ -317,15 +317,18 @@ const imageUrl = new URL('@/assets/clinic2.webp', import.meta.url).href
 }
 
 .onboarding-auth-card :deep(.form-panel) {
-  align-items: center;
-  min-height: 100vh;
-  overflow: hidden;
+  /* "safe" evita cortar o topo quando as mensagens de erro aumentam o formulário. */
+  align-items: safe center;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1rem 1.5rem;
 }
 
 .onboarding-auth-card :deep(.form-content) {
   max-width: 760px;
-  transform: translateY(-1vh);
 }
 
 .onboarding-auth-card :deep(.content-title) {

@@ -101,7 +101,8 @@ onBeforeUnmount(() => {
 }
 
 .app-stepper-item {
-  flex: 1 1 0;
+  /* Tamanho pelo conteúdo: com "flex: 1 1 0" os títulos eram cortados com reticências. */
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;

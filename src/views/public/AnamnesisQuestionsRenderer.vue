@@ -32,27 +32,33 @@ function getSubQuestionLetter(index) {
   return String.fromCharCode(65 + index)
 }
 
+// Mesma normalização usada na validação do envio (AnswerAnamnesisView):
+// true/"true"/"sim" -> "Sim" e false/"false"/"nao" -> "Não". Sem isso a pergunta
+// condicional era exigida na validação, mas nunca aparecia na tela.
+function normalizeAnswerValue(value) {
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase().trim()
+    if (lower === 'true' || lower === 'sim') return 'Sim'
+    if (lower === 'false' || lower === 'não' || lower === 'nao') return 'Não'
+  }
+  return String(value)
+}
+
 function getVisibleSubQuestions(question) {
   if (!question.conditionalQuestions || question.conditionalQuestions.length === 0) {
     return []
   }
 
   const answerObj = props.answers[question.qId]
-  
+
   // Normal Condition: Logic based on parent's answer
-  const currentAnswer = answerObj ? String(answerObj.answer) : ''
+  const currentAnswer = answerObj ? normalizeAnswerValue(answerObj.answer) : ''
 
   return question.conditionalQuestions
     .filter((group) => {
-      // Normaliza showWhenAnswerIs para string
-      // Trata boolean: true->"Sim", false->"Não"
-      let triggerValue = group.showWhenAnswerIs
-      if (typeof triggerValue === 'boolean') {
-        triggerValue = triggerValue ? 'Sim' : 'Não'
-      } else {
-        triggerValue = String(triggerValue)
-      }
-      
+      const triggerValue = normalizeAnswerValue(group.showWhenAnswerIs)
+
       if (answerObj && triggerValue === currentAnswer) {
         return true
       }
