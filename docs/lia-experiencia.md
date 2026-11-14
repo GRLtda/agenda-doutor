@@ -38,6 +38,14 @@ Rankings usam barras proporcionais aos valores retornados. Quando todos os rótu
 
 Os cards de ações diferenciam preparação, confirmação e conclusão usando o estado recebido do servidor; nenhuma ação é concluída por uma animação ou pelo simples envio da mensagem. Falhas, cancelamento e recuperação de processamento continuam distintos.
 
+O relatório de atendimentos reutiliza `LiaPatientReport`, com colunas de paciente,
+data e horário, profissional e situação. `report.entityLabel` e `entityPlural`
+ajustam os textos para atendimentos. Os padrões continuam sendo paciente e
+pacientes. `item.rowId` identifica cada consulta, inclusive várias consultas do
+mesmo paciente. `item.id` mantém o link para o perfil do paciente. A paginação
+consulta dez registros por vez e preserva o período e os filtros no backend.
+Há um cenário de atendimentos em aberto na prévia local, com dados fictícios.
+
 ## Prévia local
 
 Execute `npm run dev:lia` e abra `http://127.0.0.1:5182`. A configuração própria usa apenas estado fictício em `tests/lia-preview`, não inicializa autenticação nem clientes da API real e não faz parte do build de produção. O seletor permite testar entrada, conversa, gráfico, ranking, confirmação, histórico vazio e indisponibilidade. O tema claro/escuro afeta apenas a página de prévia.

@@ -9,6 +9,8 @@ const page = computed(() => current.value.report.page)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / 10)))
 const from = computed(() => total.value ? (page.value - 1) * 10 + 1 : 0)
 const to = computed(() => Math.min(total.value, (page.value - 1) * 10 + current.value.items.length))
+const entityLabel = computed(() => current.value.report.entityLabel || 'paciente')
+const entityPlural = computed(() => current.value.report.entityPlural || 'pacientes')
 let controller, version = 0
 watch(() => props.card, value => { controller?.abort(); version++; current.value = value; loading.value = false; error.value = '' })
 onBeforeUnmount(() => { controller?.abort(); version++ })
@@ -37,11 +39,11 @@ function format(value, column) {
 </script>
 <template>
   <section class="patient-report clarity-mask" :aria-label="current.title" data-clarity-mask="true" data-sentry-mask>
-    <header><span class="report-icon"><Users :size="17" /></span><div><h3>{{ current.title }}</h3><p>{{ total }} {{ total === 1 ? 'paciente encontrado' : 'pacientes encontrados' }}</p></div></header>
+    <header><span class="report-icon"><Users :size="17" /></span><div><h3>{{ current.title }}</h3><p>{{ total }} {{ total === 1 ? `${entityLabel} encontrado` : `${entityPlural} encontrados` }}</p></div></header>
     <p v-if="current.definition" class="definition">{{ current.definition }}</p>
-    <div class="report-table" :aria-busy="loading"><table><thead><tr><th v-for="column in current.report.columns" :key="column.key" scope="col">{{ column.label }}</th></tr></thead><tbody><tr v-for="item in current.items" :key="item.id"><td v-for="column in current.report.columns" :key="column.key"><template v-if="column.type === 'patient'"><a v-if="patientPath(item.id)" :href="patientPath(item.id)" :aria-label="`Abrir perfil de ${item.name}`" @click="navigate($event, item.id)">{{ item.name }}</a><span v-else>{{ item.name }}</span></template><span v-else>{{ format(item[column.key], column) }}</span></td></tr></tbody></table><p v-if="!current.items.length" class="empty">Nenhum paciente nesta página.</p></div>
+    <div class="report-table" :aria-busy="loading"><table><thead><tr><th v-for="column in current.report.columns" :key="column.key" scope="col">{{ column.label }}</th></tr></thead><tbody><tr v-for="item in current.items" :key="item.rowId || item.id"><td v-for="column in current.report.columns" :key="column.key"><template v-if="column.type === 'patient'"><a v-if="patientPath(item.id)" :href="patientPath(item.id)" :aria-label="`Abrir perfil de ${item.name}`" @click="navigate($event, item.id)">{{ item.name }}</a><span v-else>{{ item.name }}</span></template><span v-else>{{ format(item[column.key], column) }}</span></td></tr></tbody></table><p v-if="!current.items.length" class="empty">Nenhum {{ entityLabel }} nesta página.</p></div>
     <p v-if="error" role="alert" class="report-error">{{ error }}</p>
-    <footer><span role="status" aria-live="polite">{{ loading ? 'Carregando pacientes…' : `Mostrando ${from}–${to} de ${total}` }}</span><nav aria-label="Páginas do relatório"><button type="button" aria-label="Página anterior de pacientes" :disabled="loading || page <= 1" @click="changePage(page - 1)"><ChevronLeft :size="16" /></button><span>{{ page }} / {{ pages }}</span><button type="button" aria-label="Próxima página de pacientes" :disabled="loading || page >= pages" @click="changePage(page + 1)"><LoaderCircle v-if="loading" :size="16" class="spin" /><ChevronRight v-else :size="16" /></button></nav></footer>
+    <footer><span role="status" aria-live="polite">{{ loading ? `Carregando ${entityPlural}…` : `Mostrando ${from}–${to} de ${total}` }}</span><nav aria-label="Páginas do relatório"><button type="button" :aria-label="`Página anterior de ${entityPlural}`" :disabled="loading || page <= 1" @click="changePage(page - 1)"><ChevronLeft :size="16" /></button><span>{{ page }} / {{ pages }}</span><button type="button" :aria-label="`Próxima página de ${entityPlural}`" :disabled="loading || page >= pages" @click="changePage(page + 1)"><LoaderCircle v-if="loading" :size="16" class="spin" /><ChevronRight v-else :size="16" /></button></nav></footer>
     <details><summary>Sobre o relatório</summary><p>Filtros e período mantidos ao trocar de página. Os dados são consultados novamente e podem refletir atualizações da clínica.</p><p v-if="current.source">{{ current.source }}</p><p v-if="current.type === 'ranking' && current.total !== undefined">Total do período: {{ format(current.total, { type: 'currency_cents' }) }}. O ranking respeita a quantidade solicitada.</p></details>
   </section>
 </template>

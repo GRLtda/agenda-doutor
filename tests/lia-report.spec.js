@@ -30,3 +30,19 @@ it('fechar o card cancela busca e ignora página atrasada', async () => {
   const signal = loadPage.mock.calls[0][3]; wrapper.unmount(); wrappers.pop()
   expect(signal.aborted).toBe(true); finish(card(2)); await flushPromises()
 })
+
+it('reutiliza o relatório para atendimentos e mantém consultas repetidas do mesmo paciente', async () => {
+  const appointments = {
+    ...card(), type: 'appointment_list', title: 'Atendimentos em aberto',
+    items: [1, 2].map(index => ({ id: id(1), rowId: id(200 + index), name: 'Paciente exemplo', startLabel: `0${index}/11/2026 09:00`, status: 'Agendado' })),
+    report: { ...card().report, total: 12, entityLabel: 'atendimento', entityPlural: 'atendimentos', columns: [{ key: 'name', label: 'Paciente', type: 'patient' }, { key: 'startLabel', label: 'Data e horário', type: 'text' }, { key: 'status', label: 'Situação', type: 'text' }] },
+  }
+  const loadPage = vi.fn().mockResolvedValue({ ...appointments, items: [], report: { ...appointments.report, page: 2 } })
+  const wrapper = mount(LiaPatientReport, { props: { card: appointments, conversationId: 'thread', loadPage } }); wrappers.push(wrapper)
+  expect(wrapper.text()).toContain('12 atendimentos encontrados')
+  expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+  expect(wrapper.findAll('tbody a').map(link => link.attributes('href'))).toEqual([`/pacientes/${id(1)}`, `/pacientes/${id(1)}`])
+  await wrapper.get('[aria-label="Próxima página de atendimentos"]').trigger('click'); await flushPromises()
+  expect(loadPage).toHaveBeenCalledWith('thread', id(100), 2, expect.any(AbortSignal))
+  expect(wrapper.text()).toContain('Nenhum atendimento nesta página.')
+})
