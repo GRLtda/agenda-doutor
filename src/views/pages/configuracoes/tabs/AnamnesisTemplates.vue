@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 import { FilePlus2, Pencil, Trash2, Copy } from 'lucide-vue-next'
 import CreateAnamnesisModal from '@/components/pages/configuracoes/modals/CreateAnamnesisModal.vue'
 import AppButton from '@/components/global/AppButton.vue'
+import { useCreateFromQuery } from '@/composables/useCreateFromQuery'
 
 const anamnesisStore = useAnamnesisStore()
 const toast = useToast()
@@ -30,6 +31,8 @@ function openCreateModal() {
   templateToDuplicate.value = null
   isModalOpen.value = true
 }
+
+useCreateFromQuery(() => { if (!isModalOpen.value) openCreateModal() })
 
 function openEditModal(templateId) {
   editingTemplateId.value = templateId

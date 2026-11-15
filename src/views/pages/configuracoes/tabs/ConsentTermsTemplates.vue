@@ -4,6 +4,7 @@ import { useConsentTermsStore } from '@/stores/consent-terms'
 import { useToast } from 'vue-toastification'
 import { FilePlus2, Pencil, Trash2, Copy } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import { useCreateFromQuery } from '@/composables/useCreateFromQuery'
 import CreateConsentTermModal from '@/components/pages/configuracoes/modals/CreateConsentTermModal.vue'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -33,6 +34,8 @@ function openCreateModal() {
   templateToDuplicate.value = null
   isModalOpen.value = true
 }
+
+useCreateFromQuery(() => { if (!isModalOpen.value) openCreateModal() })
 
 function openEditModal(templateId) {
   editingTemplateId.value = templateId

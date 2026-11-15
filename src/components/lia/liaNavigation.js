@@ -8,6 +8,9 @@ const paths = new Set([
 ])
 const settingsTabs = new Set(['unidades', 'identidade', 'horario', 'configuracoes', 'funcionarios', 'auditoria', 'anamnese', 'termos'])
 const profileTabs = new Set(['personal', 'security', 'devices', 'storage', 'subscription'])
+const creationTabs = new Set(['termos', 'anamnese', 'unidades'])
+
+export const appointmentDetailsPath = id => /^[a-f0-9]{24}$/i.test(String(id)) ? `/atendimentos?appointment=${id}` : null
 
 export function safeProductNavigation(targets) {
   if (!Array.isArray(targets)) return []
@@ -21,9 +24,12 @@ export function safeProductNavigation(targets) {
     if (new Set(keys).size !== keys.length) return false
     if (!keys.length) return url.pathname !== '/'
     if (url.pathname === '/') {
+      if (keys.length === 3) return url.searchParams.get('settings') === '1' && creationTabs.has(url.searchParams.get('tab')) && url.searchParams.get('create') === '1'
       if (keys.length !== 2) return false
       return url.searchParams.get('settings') === '1' && settingsTabs.has(url.searchParams.get('tab')) || url.searchParams.get('profile') === '1' && profileTabs.has(url.searchParams.get('profileTab'))
     }
-    return url.pathname === '/calendario' && keys.length === 1 && url.searchParams.get('newBlock') === '1'
+    if (keys.length !== 1) return false
+    if (['/calendario', '/procedimentos'].includes(url.pathname) && url.searchParams.get('create') === '1') return true
+    return url.pathname === '/calendario' && url.searchParams.get('newBlock') === '1'
   }).slice(0, 5)
 }

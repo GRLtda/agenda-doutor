@@ -32,8 +32,8 @@ export const rescheduleAppointment = (appointmentId, data) => {
  * @param {string} appointmentId - ID do agendamento.
  * @returns {Promise}
  */
-export const getAppointmentById = (appointmentId) => {
-  return apiClient.get(`/appointments/${appointmentId}`)
+export const getAppointmentById = (appointmentId, options = {}) => {
+  return apiClient.get(`/appointments/${appointmentId}`, options)
 }
 
 /**

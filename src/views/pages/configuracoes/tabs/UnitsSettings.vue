@@ -9,6 +9,7 @@ import AppTableList from '@/components/global/AppTableList.vue'
 import Switch from '@/components/global/Switch.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import { fetchAddressByCEP } from '@/api/external'
+import { useCreateFromQuery } from '@/composables/useCreateFromQuery'
 import { Trash2, Plus, Pencil, Star, Save, MapPin } from 'lucide-vue-next'
 
 const auth = useAuthStore()
@@ -28,6 +29,8 @@ const formElement = ref(null)
 const legacyAddress = ref(null)
 const labels = { cep: 'CEP', street: 'Rua', number: 'Número', district: 'Bairro', complement: 'Complemento', city: 'Cidade', state: 'UF' }
 const limits = { cep: 9, street: 150, number: 20, district: 100, complement: 150, city: 100, state: 2 }
+
+useCreateFromQuery(() => { if (!form.value) return edit(null) }, () => canManage.value && !loading.value && !loadError.value && !saving.value)
 
 async function load() {
   loading.value = true

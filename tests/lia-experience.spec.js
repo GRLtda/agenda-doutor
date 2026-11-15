@@ -414,6 +414,20 @@ it('orientação oferece botão interno verificado e ignora um link externo forj
   expect(push).toHaveBeenCalledWith('/marketing/conexao')
 })
 
+it('um relatório abre o atendimento escolhido e preserva os filtros da tela', async () => {
+  const appointmentId = '2'.repeat(24)
+  const patientId = '1'.repeat(24)
+  const push = vi.fn().mockResolvedValue()
+  const router = { push, currentRoute: ref({ name: 'atendimentos', query: { from: '2026-11-01', to: '2026-11-30' } }) }
+  mocks.store.messages = [{ id: 'appointments', role: 'assistant', content: 'Confira os atendimentos.', metadata: { analyticsCards: [{ type: 'appointment_list', entityType: 'patient', title: 'Em aberto', items: [{ id: patientId, rowId: appointmentId, name: 'Paciente QA', startLabel: '01/11/2026 09:00' }], report: { id: 'report', page: 1, pageSize: 10, total: 1, columns: [{ key: 'name', type: 'patient', label: 'Paciente' }, { key: 'startLabel', type: 'appointment', label: 'Atendimento' }] } }] } }]
+  const wrapper = mount(LiaChatDrawer, { props: { open: true }, attachTo: document.body, global: { provide: { [routerKey]: router }, stubs: { Teleport: true, LiaAvatar: true } } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  await wrapper.get(`[href="/atendimentos?appointment=${appointmentId}"]`).trigger('click')
+  expect(push).toHaveBeenCalledWith({ name: 'atendimentos', query: { from: '2026-11-01', to: '2026-11-30', appointment: appointmentId } })
+  expect(mocks.store.sendMessage).not.toHaveBeenCalled()
+})
+
 it('rascunho vindo da busca preenche o campo para revisão', async () => {
   mocks.store.pendingPrompt = 'Como adiciono outro endereço?'
   mocks.store.consumePrompt = vi.fn(() => { mocks.store.pendingPrompt = ''; return 'Como adiciono outro endereço?' })

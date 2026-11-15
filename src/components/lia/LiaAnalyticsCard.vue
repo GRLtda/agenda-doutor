@@ -4,7 +4,7 @@ import { BarChart3, CalendarDays, ChevronDown, TrendingDown, TrendingUp, Users }
 import { buildLiaChart } from './liaChart'
 import LiaPatientReport from './LiaPatientReport.vue'
 const props = defineProps({ card: { type: Object, required: true }, conversationId: String, loadPage: Function })
-const emit = defineEmits(['navigate'])
+const emit = defineEmits(['navigate', 'navigate-appointment'])
 const patientPath = id => /^[a-f0-9]{24}$/i.test(String(id)) ? `/pacientes/${id}` : null
 function openPatient(event, id) {
   if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
@@ -26,7 +26,7 @@ const comparisonMaximum = computed(() => Math.max(1, Math.abs(props.card.compari
 </script>
 
 <template>
-  <LiaPatientReport v-if="card.report && card.entityType === 'patient'" :card="card" :conversation-id="conversationId" :load-page="loadPage" @navigate="emit('navigate', $event)" />
+  <LiaPatientReport v-if="card.report && card.entityType === 'patient'" :card="card" :conversation-id="conversationId" :load-page="loadPage" @navigate="emit('navigate', $event)" @navigate-appointment="emit('navigate-appointment', $event)" />
   <section v-else class="analytics-card" :class="card.type" :aria-label="card.title">
     <header><span class="card-icon"><Users v-if="card.type === 'patient_list'" :size="15" /><BarChart3 v-else :size="15" /></span><strong>{{ card.title }}</strong><span v-if="card.period" class="period"><CalendarDays :size="11" />{{ periodLabel(card.period) }}</span></header>
     <template v-if="card.type === 'ranking'">

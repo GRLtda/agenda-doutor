@@ -2,6 +2,7 @@
 import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCreateFromQuery } from '@/composables/useCreateFromQuery'
 import { useProceduresStore } from '@/stores/procedures'
 import { useEstoqueStore } from '@/stores/estoque'
 import { useToast } from 'vue-toastification'
@@ -22,6 +23,8 @@ const selectedProcedure = ref(null)
 const showFormModal = ref(false)
 const isSaving = ref(false)
 const currentStep = ref(1)
+
+useCreateFromQuery(() => { if (!showFormModal.value) handleNew() })
 
 const formSteps = [
   { name: 'Dados', icon: FileText, subtitle: 'Identificação' },

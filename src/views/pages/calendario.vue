@@ -1,4 +1,5 @@
 <script setup>
+import { useCreateFromQuery } from '@/composables/useCreateFromQuery'
 import { ref, onMounted, computed, onUnmounted, nextTick, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useScheduleBlocksStore } from '@/stores/scheduleBlocks'
@@ -511,6 +512,8 @@ async function maybeOpenCreateBlockFromQuery() {
   const { newBlock, ...remainingQuery } = route.query
   await router.replace({ query: remainingQuery })
 }
+
+useCreateFromQuery(() => { if (!isModalOpen.value) openCreateAppointmentFromMenu() })
 
 const toolbarRef = ref(null)
 

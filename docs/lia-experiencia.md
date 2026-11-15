@@ -8,6 +8,26 @@ pelo roteador. A validação aceita somente páginas conhecidas e parâmetros da
 seções de configurações/perfil ou do formulário de bloqueio. A navegação recolhe
 o chat no desktop e fecha a janela no celular, preservando a conversa.
 
+Os tutoriais de termos, anamneses, endereços, procedimentos e agendamento também
+oferecem um botão para abrir o formulário existente. Os destinos de criação usam
+`create=1` apenas nas páginas/seções verificadas. `useCreateFromQuery` abre o
+rascunho após a montagem, respeita a permissão/carga do endereço e consome o
+parâmetro para permitir fechar e reabrir pelo mesmo link. Salvar é uma ação do
+usuário no formulário.
+
+Nas listagens de atendimentos, a data/hora abre `/atendimentos?appointment=ID`.
+O ID da linha identifica a consulta, inclusive quando o paciente tem várias.
+A página consulta o registro pela API autenticada e abre `AppointmentDetailsModal`
+com carga, erro e nova tentativa. Filtros são preservados ao fechar o painel.
+Trocar de registro/identidade ou desmontar cancela e ignora respostas atrasadas.
+O painel permite usar as ações existentes de continuar ou finalizar o atendimento.
+O nome do paciente continua abrindo o perfil. Cards antigos de atendimentos que
+já possuem `rowId` também recebem o link na data, mesmo com coluna de texto.
+O link de atendimento tem área de toque ampliada no celular e foco por teclado.
+`LiaPatientReport` emite `navigate-appointment` com o ID da consulta e
+`LiaAnalyticsCard` propaga esse evento até o chat. O evento `navigate` continua
+identificando o paciente.
+
 Links de texto do modelo seguem o renderer Markdown existente. Os botões de
 navegação usam a estrutura fornecida pelas ferramentas do backend. Permissões e
 confirmações são verificadas pelos fluxos normais de cada tela.
@@ -17,10 +37,12 @@ O texto vira um rascunho em uma nova conversa e fica pronto para revisão e envi
 Uma resposta em andamento bloqueia essa abertura. Troca de identidade limpa o
 rascunho. Atalhos e busca de pacientes continuam disponíveis.
 
-O cenário Orientações do sistema na prévia local permite conferir o conteúdo e
-os botões com dados fictícios. Na revisão de 15/11/2026, a inspeção visual ficou
-bloqueada pela indisponibilidade do host de acesso ao navegador. Os testes DOM
-e o build verificam os contratos de navegação e rascunhos.
+Os cenários Orientações do sistema e Atendimentos em aberto na prévia local
+permitem conferir os botões e links com dados fictícios. Na revisão de
+15/11/2026, o navegador integrado estava indisponível. A tentativa no navegador
+nativo foi interrompida pela ferramenta por não conseguir validar a URL com
+segurança. A inspeção visual ficou pendente. Os 144 testes DOM e o build
+passaram, incluindo navegação, formulários e rascunhos.
 
 As quatro entradas iniciais agora são Agenda do dia, Acompanhar pacientes, Resultados da clínica (ou Movimento da clínica conforme permissões) e Horários disponíveis. Os prompts são genéricos para a clínica e pedem esclarecimentos quando faltarem procedimento, período ou profissional. As sugestões abaixo da resposta vêm da própria Lia e são salvas na mensagem; clicar preenche o campo sem enviar. Não há “Outro assunto” ou substituição por sugestões fixas em caso de falha do modelo. O título é atualizado pelo assunto da conversa, preservando renomeações manuais.
 

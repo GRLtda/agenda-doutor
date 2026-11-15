@@ -3,6 +3,7 @@ import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
 import AppDropdownActions from '@/components/global/AppDropdownActions.vue'
 import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { getAppointmentById } from '@/api/appointments'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { CalendarDays, Plus, CheckCircle, Clock, Search, Check, Play, X, CalendarPlus, Bell, AlertCircle, Ban, LayoutGrid, List, Activity, Calendar, Settings } from 'lucide-vue-next'
@@ -28,6 +29,10 @@ const isModalOpen = ref(false)
 const modalInitialData = ref(null)
 const isDetailsModalOpen = ref(false)
 const selectedAppointment = ref(null)
+const detailsLoading = ref(false)
+const detailsError = ref('')
+let detailsController
+let detailsVersion = 0
 const searchQuery = ref('')
 const viewMode = ref('kanban') // 'kanban' | 'list'
 const pendingStatusUpdates = ref(new Set())
@@ -194,6 +199,10 @@ function openCreateModal() {
 }
 
 function openDetailsModal(appointment) {
+  detailsController?.abort()
+  detailsVersion++
+  detailsLoading.value = false
+  detailsError.value = ''
   // Formatar para o mesmo formato que o calendário usa
   selectedAppointment.value = {
     originalEvent: appointment,
@@ -205,8 +214,49 @@ function openDetailsModal(appointment) {
 }
 
 function closeDetailsModal() {
+  detailsController?.abort()
+  detailsVersion++
   isDetailsModalOpen.value = false
   selectedAppointment.value = null
+  detailsLoading.value = false
+  detailsError.value = ''
+  if (route.query.appointment) {
+    const { appointment, ...query } = route.query
+    void router.replace({ query })
+  }
+}
+
+async function openAppointmentFromQuery() {
+  const id = getSingleQueryValue(route.query.appointment)
+  if (!id) return
+  detailsController?.abort()
+  const controller = new AbortController()
+  detailsController = controller
+  const version = ++detailsVersion
+  isDetailsModalOpen.value = true
+  selectedAppointment.value = null
+  detailsError.value = ''
+  detailsLoading.value = false
+  if (!/^[a-f0-9]{24}$/i.test(id)) {
+    detailsError.value = 'O link deste atendimento está incompleto. Abra a lista de atendimentos e selecione a consulta.'
+    return
+  }
+  detailsLoading.value = true
+  try {
+    const { data } = await getAppointmentById(id, { signal: controller.signal })
+    if (version !== detailsVersion || controller.signal.aborted) return
+    openDetailsModal(data)
+  } catch (error) {
+    if (version !== detailsVersion || controller.signal.aborted) return
+    const status = error.response?.status
+    detailsError.value = status === 404
+      ? 'Este atendimento foi removido ou não está disponível para sua clínica.'
+      : status === 403
+        ? 'Seu acesso atual não permite consultar este atendimento.'
+        : 'Não foi possível abrir este atendimento. Tente novamente.'
+  } finally {
+    if (version === detailsVersion) detailsLoading.value = false
+  }
 }
 
 function setStatusPending(appointmentId, isPending) {
@@ -524,6 +574,13 @@ watch(searchQuery, async () => {
   await syncAppointmentsFiltersToQuery()
 })
 
+watch(() => route.query.appointment, id => {
+  if (id) void openAppointmentFromQuery()
+  else closeDetailsModal()
+}, { immediate: true })
+
+watch(() => [authStore.user?._id, authStore.user?.clinic?._id || authStore.user?.clinic], closeDetailsModal)
+
 onMounted(async () => {
   kanbanDragMediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)')
   syncKanbanDragCapability()
@@ -535,6 +592,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  detailsController?.abort()
+  detailsVersion++
 
   kanbanDragMediaQuery?.removeEventListener('change', syncKanbanDragCapability)
   cleanupCardDrag()
@@ -916,6 +975,9 @@ onUnmounted(() => {
   <AppointmentDetailsModal
     v-if="isDetailsModalOpen"
     :event="selectedAppointment"
+    :loading="detailsLoading"
+    :error="detailsError"
+    @retry="openAppointmentFromQuery"
     @close="closeDetailsModal"
     @edit="handleEditAction"
     @return="handleReturn(selectedAppointment)"

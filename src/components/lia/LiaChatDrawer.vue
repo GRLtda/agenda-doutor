@@ -129,6 +129,14 @@ async function openPatient(id) {
   expanded.value = false; showHistory.value = false
   if (mobile.value) emit('close')
 }
+async function openAppointment(id) {
+  if (!/^[a-f0-9]{24}$/i.test(id) || !router) return
+  const query = router.currentRoute?.value?.name === 'atendimentos' ? router.currentRoute.value.query : {}
+  await router.push({ name: 'atendimentos', query: { ...query, appointment: id } })
+  expanded.value = false
+  showHistory.value = false
+  if (mobile.value) emit('close')
+}
 async function openProductPage(target) {
   if (!router || !safeProductNavigation([target]).length) return
   await router.push(target.to)
@@ -236,7 +244,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
               </nav>
               <p v-if="message.status === 'failed'" class="message-failed" role="alert">{{ message.error }} <button type="button" :disabled="liaStore.isSending" @click="retryMessage(message)"><RotateCcw :size="12" /> Tentar novamente</button></p>
               <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />
-              <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" :conversation-id="liaStore.activeConversationId" :load-page="liaStore.loadReportPage" @navigate="openPatient" />
+              <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" :conversation-id="liaStore.activeConversationId" :load-page="liaStore.loadReportPage" @navigate="openPatient" @navigate-appointment="openAppointment" />
               <div v-if="message.role === 'assistant' && message.metadata?.patientOptions?.length > 1" class="patient-picker" :class="{ 'is-selected': liaStore.isSending || !!message.selectedPatientId }"><StyledSelect :model-value="message.selectedPatientId || ''" :options="patientOptions(message)" label="Quem é o paciente?" required placeholder="Selecione um paciente" @update:model-value="choosePatient(message, $event)" /></div>
               <section v-if="message.role === 'assistant' && message.metadata?.availabilityAlternatives?.times?.length" class="time-alternatives"><h3><Clock3 :size="14" /> Horários disponíveis</h3><div><button v-for="time in message.metadata.availabilityAlternatives.times" :key="typeof time === 'string' ? time : time.startAt" type="button" :disabled="liaStore.isSending" @click="chooseAlternativeTime(message, time)">{{ alternativeLabel(time) }}</button></div></section>
               <LiaResponseFeedback v-if="message.role === 'assistant' && message.content" :message="message" :conversation-id="liaStore.activeConversationId"><button type="button" class="copy-message" :aria-label="copiedId === message.id ? 'Resposta copiada' : 'Copiar resposta'" @click="copyMessage(message)"><Check v-if="copiedId === message.id" :size="12" /><Copy v-else :size="12" />{{ copiedId === message.id ? 'Copiado' : 'Copiar' }}</button></LiaResponseFeedback>
