@@ -5,6 +5,7 @@ import { routerKey } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { renderLiaMarkdown as renderMarkdown } from '@/utils/liaMarkdown'
 import StyledSelect from '@/components/global/StyledSelect.vue'
+import AppButton from '@/components/global/AppButton.vue'
 import LiaChatShell from './LiaChatShell.vue'
 import LiaAvatar from './LiaAvatar.vue'
 import LiaConversationHistory from './LiaConversationHistory.vue'
@@ -17,6 +18,7 @@ import LiaResponseFeedback from './LiaResponseFeedback.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
 import { useLiaPageContext } from '@/composables/useLiaPageContext'
+import { safeProductNavigation } from './liaNavigation'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
@@ -127,6 +129,20 @@ async function openPatient(id) {
   expanded.value = false; showHistory.value = false
   if (mobile.value) emit('close')
 }
+async function openProductPage(target) {
+  if (!router || !safeProductNavigation([target]).length) return
+  await router.push(target.to)
+  expanded.value = false
+  showHistory.value = false
+  if (mobile.value) emit('close')
+}
+watch(() => [props.open, liaStore.pendingPrompt], async ([open, prompt]) => {
+  if (!open || !prompt || typeof liaStore.consumePrompt !== 'function') return
+  input.value = liaStore.consumePrompt()
+  showHistory.value = false
+  await nextTick()
+  textarea.value?.focus()
+}, { immediate: true })
 async function submit(value = input.value, options = {}) {
   const message = value.trim()
   if (!message || liaStore.isSending || liaStore.isLoading || voiceBusy.value || !liaStore.isAvailable) return
@@ -215,6 +231,9 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
             <article v-for="message in liaStore.messages" :key="message.id" class="message" :class="message.role">
               <div class="message-label"><LiaAvatar v-if="message.role === 'assistant'" class="message-character" :active="false" /><span>{{ message.role === 'user' ? 'Você' : 'Lia' }}</span><time v-if="messageTime(message.createdAt)">{{ messageTime(message.createdAt) }}</time></div>
               <div class="message-content"><div class="markdown" v-html="renderMarkdown(message.content)"></div></div>
+              <nav v-if="message.role === 'assistant' && safeProductNavigation(message.metadata?.navigation).length" class="product-navigation" aria-label="Abrir recurso do sistema">
+                <AppButton v-for="target in safeProductNavigation(message.metadata.navigation)" :key="target.id || target.to" variant="outline" @click="openProductPage(target)">{{ target.label }}<ArrowUpRight :size="14" /></AppButton>
+              </nav>
               <p v-if="message.status === 'failed'" class="message-failed" role="alert">{{ message.error }} <button type="button" :disabled="liaStore.isSending" @click="retryMessage(message)"><RotateCcw :size="12" /> Tentar novamente</button></p>
               <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />
               <LiaAnalyticsCard v-for="(card, index) in message.metadata?.analyticsCards || []" :key="`analytics-${index}`" :card="card" :conversation-id="liaStore.activeConversationId" :load-page="liaStore.loadReportPage" @navigate="openPatient" />

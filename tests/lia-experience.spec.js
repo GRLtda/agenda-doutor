@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive, ref } from 'vue'
+import { routerKey } from 'vue-router'
 import LiaChatDrawer from '@/components/lia/LiaChatDrawer.vue'
 import LiaConversationHistory from '@/components/lia/LiaConversationHistory.vue'
 import LiaAvatar from '@/components/lia/LiaAvatar.vue'
@@ -401,5 +402,23 @@ it('mascote do chat muda de pensar para responder e sinaliza falha real', async 
   expect(wrapper.get('.welcome-character').attributes('state')).toBe('responding')
   mocks.store.isSending = false; mocks.store.error = 'Falha no envio'; await flushPromises()
   expect(wrapper.get('.welcome-character').attributes('state')).toBe('error')
+})
+
+it('orientação oferece botão interno verificado e ignora um link externo forjado', async () => {
+  const push = vi.fn().mockResolvedValue()
+  mocks.store.messages = [{ id: 'help', role: 'assistant', content: 'Abra Marketing e escolha Conexão.', metadata: { navigation: [{ id: 'whatsapp', label: 'Abrir Conexão WhatsApp', to: '/marketing/conexao' }, { id: 'evil', label: 'Link externo', to: 'https://evil.invalid' }] } }]
+  const wrapper = mount(LiaChatDrawer, { props: { open: true }, attachTo: document.body, global: { provide: { [routerKey]: { push } }, stubs: { Teleport: true, LiaAvatar: true } } }); wrappers.push(wrapper)
+  await flushPromises()
+  expect(wrapper.findAll('.product-navigation button')).toHaveLength(1)
+  await wrapper.get('.product-navigation button').trigger('click')
+  expect(push).toHaveBeenCalledWith('/marketing/conexao')
+})
+
+it('rascunho vindo da busca preenche o campo para revisão', async () => {
+  mocks.store.pendingPrompt = 'Como adiciono outro endereço?'
+  mocks.store.consumePrompt = vi.fn(() => { mocks.store.pendingPrompt = ''; return 'Como adiciono outro endereço?' })
+  const wrapper = chat(); await flushPromises()
+  expect(wrapper.get('textarea').element.value).toBe('Como adiciono outro endereço?')
+  expect(mocks.store.sendMessage).not.toHaveBeenCalled()
 })
 

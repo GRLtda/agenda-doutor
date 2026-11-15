@@ -14,6 +14,7 @@ export const useLiaStore = defineStore('lia', () => {
   const conversations = ref([])
   const messages = ref([])
   const isOpen = ref(false)
+  const pendingPrompt = ref('')
   const backgroundNotice = ref(null)
   watch(isOpen, open => { if (open) backgroundNotice.value = null }, { flush: 'sync' })
   function notifyWhenClosed(kind) { if (!isOpen.value && isAvailable.value) backgroundNotice.value = kind }
@@ -64,6 +65,7 @@ export const useLiaStore = defineStore('lia', () => {
     nextCursor.value = null
     messagesCursor.value = null
     isOpen.value = false
+    pendingPrompt.value = ''
     backgroundNotice.value = null
     isAvailable.value = false
     isSending.value = false
@@ -225,9 +227,23 @@ export const useLiaStore = defineStore('lia', () => {
   }
   function startNewConversation() {
     ensureIdentity()
+    pendingPrompt.value = ''
     invalidateView()
     activeConversationId.value = null
     persistActiveConversation()
+  }
+  function openWithPrompt(prompt = '') {
+    ensureIdentity()
+    if (!isAvailable.value || isSending.value) return false
+    startNewConversation()
+    pendingPrompt.value = String(prompt).trim().slice(0, 4000)
+    isOpen.value = true
+    return true
+  }
+  function consumePrompt() {
+    const prompt = pendingPrompt.value
+    pendingPrompt.value = ''
+    return prompt
   }
   async function ensureConversation(ticket) {
     if (activeConversationId.value) return activeConversationId.value
@@ -395,7 +411,7 @@ export const useLiaStore = defineStore('lia', () => {
     return pending
   }
   return {
-    activeConversationId, conversations, messages, isOpen, backgroundNotice, isAvailable, isLoading, isSending, isLoadingMore, streamStatus, streamText,
+    activeConversationId, conversations, messages, isOpen, pendingPrompt, openWithPrompt, consumePrompt, backgroundNotice, isAvailable, isLoading, isSending, isLoadingMore, streamStatus, streamText,
     nextCursor, messagesCursor, error, hasActiveConversation, initialize, loadConversations,
     loadMore: () => loadConversations({ append: true }).catch(() => { error.value = 'Não foi possível carregar mais conversas.' }), loadMessages,
     loadOlderMessages: () => messagesCursor.value && loadMessages(activeConversationId.value, { older: true }).catch(() => []),

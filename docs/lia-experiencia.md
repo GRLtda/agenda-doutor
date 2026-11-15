@@ -1,5 +1,27 @@
 # Experiência da Lia
 
+## Orientações e navegação do produto
+
+O backend fornece orientações verificadas e destinos em `metadata.navigation`,
+com `{ id, label, to }`. O chat reutiliza `AppButton` para abrir esses destinos
+pelo roteador. A validação aceita somente páginas conhecidas e parâmetros das
+seções de configurações/perfil ou do formulário de bloqueio. A navegação recolhe
+o chat no desktop e fecha a janela no celular, preservando a conversa.
+
+Links de texto do modelo seguem o renderer Markdown existente. Os botões de
+navegação usam a estrutura fornecida pelas ferramentas do backend. Permissões e
+confirmações são verificadas pelos fluxos normais de cada tela.
+
+A busca global oferece Buscar com a Lia para usuários com o piloto disponível.
+O texto vira um rascunho em uma nova conversa e fica pronto para revisão e envio.
+Uma resposta em andamento bloqueia essa abertura. Troca de identidade limpa o
+rascunho. Atalhos e busca de pacientes continuam disponíveis.
+
+O cenário Orientações do sistema na prévia local permite conferir o conteúdo e
+os botões com dados fictícios. Na revisão de 15/11/2026, a inspeção visual ficou
+bloqueada pela indisponibilidade do host de acesso ao navegador. Os testes DOM
+e o build verificam os contratos de navegação e rascunhos.
+
 As quatro entradas iniciais agora são Agenda do dia, Acompanhar pacientes, Resultados da clínica (ou Movimento da clínica conforme permissões) e Horários disponíveis. Os prompts são genéricos para a clínica e pedem esclarecimentos quando faltarem procedimento, período ou profissional. As sugestões abaixo da resposta vêm da própria Lia e são salvas na mensagem; clicar preenche o campo sem enviar. Não há “Outro assunto” ou substituição por sugestões fixas em caso de falha do modelo. O título é atualizado pelo assunto da conversa, preservando renomeações manuais.
 
 Ao abrir outra conversa, um skeleton substitui o conteúdo durante o carregamento. Os ícones das entradas usam uma coluna fixa e o texto ocupa o espaço restante nos dois modos. Markdown tem hierarquia de títulos, negrito, itálico, listas/níveis, citações, separadores, tabelas, tachado e formatação de código quando presente. HTML livre, imagens e links arbitrários do modelo continuam bloqueados; links de pacientes são produzidos pelos dados estruturados autorizados.

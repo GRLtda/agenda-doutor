@@ -1,4 +1,7 @@
 button,textarea { font: inherit; }
+.product-navigation { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.product-navigation .app-button { white-space: normal; text-align: left; }
+@media(max-width: 640px) { .product-navigation button { min-height: 44px; } }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .45; }
 button:focus-visible { outline: 2px solid var(--lia-blue); outline-offset: 3px; }

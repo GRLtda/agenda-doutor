@@ -5,6 +5,7 @@ import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOp
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useLiaStore } from '@/stores/lia'
 
 import { useAppointmentsStore } from '@/stores/appointments'
 import { usePatientsStore } from '@/stores/patients'
@@ -45,6 +46,7 @@ const anamnesisStore = useAnamnesisStore()
 const employeesStore = useEmployeesStore()
 const dashboardStore = useDashboardStore()
 const authStore = useAuthStore()
+const liaStore = useLiaStore()
 
 const isUserDropdownOpen = ref(false)
 const isNotificationsOpen = ref(false)
@@ -138,12 +140,13 @@ const allItems = computed(() => {
   const items = []
   filteredShortcuts.value.forEach((s, i) => items.push({ type: 'shortcut', data: s, index: i }))
   recentPatients.value.forEach((p, i) => items.push({ type: 'patient', data: p, index: filteredShortcuts.value.length + i }))
+  if (liaStore.isAvailable) items.push({ type: 'lia' })
   return items
 })
 
 const showPatients = computed(() => recentPatients.value.length > 0)
 const showShortcuts = computed(() => filteredShortcuts.value.length > 0)
-const hasNoResults = computed(() => searchQuery.value && !showPatients.value && !showShortcuts.value)
+const hasNoResults = computed(() => searchQuery.value && !showPatients.value && !showShortcuts.value && !liaStore.isAvailable)
 // Reset selection quando busca muda
 watch(searchQuery, () => {
   selectedIndex.value = 0
@@ -174,10 +177,15 @@ function handleSearchSubmit() {
   if (item) {
     if (item.type === 'shortcut') {
       executeShortcut(item.data)
+    } else if (item.type === 'lia') {
+      askLia()
     } else {
       goToPatient(item.data)
     }
   }
+}
+function askLia() {
+  if (liaStore.openWithPrompt(searchQuery.value)) closeCommandPalette()
 }
 
 function handleKeyNavigation(e) {
@@ -252,7 +260,7 @@ onUnmounted(() => {
               <input
                 ref="searchInputRef"
                 type="text"
-                placeholder="Pesquise aqui ou utilize nossa IA"
+                :placeholder="liaStore.isAvailable ? 'Pesquise ou pergunte à Lia' : 'Pesquise pacientes e atalhos'"
                 v-model="searchQuery"
                 @keydown.enter.prevent="handleSearchSubmit"
                 class="palette-search-input"
@@ -306,6 +314,12 @@ onUnmounted(() => {
               </div>
 
               <!-- No Results -->
+              <div v-if="liaStore.isAvailable" class="palette-section">
+                <button type="button" class="palette-item lia-search-action" :class="{ 'is-selected': selectedIndex === allItems.length - 1 }" :disabled="liaStore.isSending" @click="askLia">
+                  <span class="item-left"><Search :size="18" class="item-icon" /><span class="item-label">Buscar com a Lia</span></span>
+                  <ChevronRight :size="16" class="item-arrow" />
+                </button>
+              </div>
               <div v-if="hasNoResults" class="no-results">
                 <span>Nenhum resultado para "{{ searchQuery }}"</span>
               </div>
@@ -632,6 +646,8 @@ onUnmounted(() => {
   max-height: 400px;
   overflow-y: auto;
 }
+.lia-search-action { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lia-search-action:disabled { opacity: .5; cursor: default; }
 
 .palette-section {
   padding: 0.5rem;

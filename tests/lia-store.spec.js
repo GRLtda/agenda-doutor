@@ -276,3 +276,21 @@ it('texto provisório some assim que chega o final, mesmo com histórico ainda c
   expect(store.messages.filter(message => message.role === 'assistant')).toHaveLength(1)
   listing.resolve({ data: { conversations: [] } }); await send
 })
+
+it('busca abre a Lia em uma nova conversa com rascunho isolado por identidade', () => {
+  const store = useLiaStore(); store.activeConversationId = 'old'
+  expect(store.openWithPrompt('Como conecto WhatsApp?')).toBe(true)
+  expect(store.isOpen).toBe(true); expect(store.activeConversationId).toBeNull()
+  expect(store.consumePrompt()).toBe('Como conecto WhatsApp?'); expect(store.pendingPrompt).toBe('')
+  expect(mocks.send).not.toHaveBeenCalled()
+  store.openWithPrompt('Rascunho local'); mocks.auth.user._id = 'another-user'
+  expect(store.pendingPrompt).toBe(''); expect(store.isOpen).toBe(false)
+})
+
+it('busca preserva uma resposta em andamento e respeita a disponibilidade do piloto', () => {
+  const store = useLiaStore(); store.isSending = true
+  expect(store.openWithPrompt('Nova pergunta')).toBe(false)
+  store.isSending = false; store.isAvailable = false
+  expect(store.openWithPrompt('Nova pergunta')).toBe(false)
+  expect(mocks.send).not.toHaveBeenCalled()
+})
