@@ -67,6 +67,12 @@ const routes = [
       return { path }
     }
   },
+  {
+    path: '/retrospectiva',
+    name: 'retrospectiva',
+    component: () => import('../features/retrospective/views/RetrospectiveView.vue'),
+    meta: { requiresAuth: true, title: 'Retrospectiva' },
+  },
   ...dashboardRoutes,
   {
     path: '/:pathMatch(.*)*',

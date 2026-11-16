@@ -2,6 +2,7 @@
 import { onMounted, computed } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAuthStore } from '@/stores/auth'
+import RetrospectiveBanner from '@/features/retrospective/components/RetrospectiveBanner.vue'
 import { storeToRefs } from 'pinia'
 import { formatDistanceToNow, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -149,6 +150,9 @@ function handleRefresh() {
         </div>
       </div>
     </header>
+
+    <!-- Retrospectiva anual (só para o dono, quando publicada) -->
+    <RetrospectiveBanner />
 
     <!-- Stats Row (Top Grid) -->
     <div class="top-grid">

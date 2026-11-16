@@ -1,0 +1,17 @@
+/* Design 2026-v1: fontes e base comum. Cores dos temas em theme.ts (usadas em SVG e inline). */
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/dm-sans/700.css';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource/dm-mono/500.css';
+
+.rd26 {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.rd26 .mono { font-family: 'DM Mono', ui-monospace, monospace; }
+.rd26 .tnum { font-variant-numeric: tabular-nums; }
+.rd26 p { margin: 0; }
+.rd26 button { font-family: 'DM Sans', system-ui, sans-serif; }
+.rd26 button:focus-visible { outline: 3px solid #9DBEFF; outline-offset: 2px; }

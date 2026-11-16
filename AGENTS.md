@@ -65,6 +65,12 @@ O guia completo, com exemplos, está em
 - Ao revisar ou criar um fluxo, confira os casos de erro esperados (validação,
   conflito, permissão, limite do plano, conexão) e a mensagem de cada um.
 
+## Retrospectiva anual
+
+A Retrospectiva (stories do ano para o dono) está documentada em
+[docs/retrospectiva.md](docs/retrospectiva.md). Todo o visual do ano fica em
+`src/features/retrospective/designs/<designKey>/`; nada fora dessa pasta conhece o layout.
+
 ## Regras de layout do frontend
 
 Antes de alterar interfaces, consulte [docs/regras-layout.md](docs/regras-layout.md).
