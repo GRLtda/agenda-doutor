@@ -4,7 +4,8 @@ import { RouterView, useRoute } from 'vue-router'
 import AppToaster from '@/components/global/AppToaster.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSeoStore } from '@/stores/seo'
-import ApiAvailabilityBanner from '@/components/layout/ApiAvailabilityBanner.vue'
+// Banner de instabilidade desativado temporariamente (ver template).
+// import ApiAvailabilityBanner from '@/components/layout/ApiAvailabilityBanner.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import { isApiUnavailable } from '@/services/apiAvailability'
@@ -44,7 +45,9 @@ watch(
 </script>
 
 <template>
+  <!-- Banner de instabilidade desativado temporariamente. Para reativar, descomente a linha abaixo.
   <ApiAvailabilityBanner :visible="isApiUnavailable" :loading="isRetryingConnection" :can-retry="authStore.isAuthenticated" @retry="retryConnection" />
+  -->
   <main v-if="needsIdentityRecovery" class="session-recovery" :aria-busy="isRetryingConnection">
     <h1>Não foi possível carregar sua conta</h1>
     <p>Sua sessão foi preservada. Tente novamente para carregar suas informações.</p>
