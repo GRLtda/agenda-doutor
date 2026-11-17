@@ -14,7 +14,8 @@ export const COPY: Record<string, CopyEntry[]> = {
   rosto: [{ p: 'Onde a mágica mais aconteceu', c: 'Expressão leve, resultado natural.' }, { p: 'As regiões preferidas do ano', c: 'A {regiao1} ficou com o primeiro lugar.' }, { p: 'O mapa do cuidado em {ano}', c: 'Cada ponto, um paciente mais confiante.' }],
   mensagens: [{ p: 'Enquanto vocês atendiam, a gente conversava.', c: 'Lembretes e confirmações, sem ninguém digitar nada.', x: 'economizadas pela equipe. Dá quase um feriadão.' }, { p: 'A gente cuidou do papo por vocês.', c: 'Confirmações e lembretes no automático.', x: 'que a equipe usou para o que importa.' }, { p: 'Recado dado, paciente lembrado.', c: 'Ninguém precisou ficar no celular para isso.', x: 'de volta para a equipe. Tempo é ouro.' }],
   comparecimento: [{ p: 'Quase ninguém deu bolo.', c: 'A agenda agradece, e a recepção também.' }, { p: 'Compromisso é com vocês mesmo.', c: 'Cadeira vazia foi raridade.' }, { p: 'Marcou, apareceu.', c: 'Lembrete bom é assim.' }],
-  resumo: [{ p: 'Que ano!', c: 'Obrigado por deixar a gente fazer parte do seu ano.' }, { p: 'Que {ano}!', c: 'Foi um prazer cuidar da agenda com vocês.' }, { p: 'Ano inesquecível!', c: 'Obrigado pela confiança. Que venha {proximoAno}.' }],
+  // x = subtítulo logo abaixo do título (o nome da clínica já aparece no cabeçalho).
+  resumo: [{ p: 'Que ano!', x: 'Os números que marcaram o seu {ano}.', c: 'Obrigado por deixar a gente fazer parte do seu ano.' }, { p: 'Que {ano}!', x: 'Tudo o que vocês construíram juntos.', c: 'Foi um prazer cuidar da agenda com vocês.' }, { p: 'Ano inesquecível!', x: 'Olha só tudo o que aconteceu por aqui.', c: 'Obrigado pela confiança. Que venha {proximoAno}.' }],
 }
 
 export type CopyVars = Record<string, string | number | undefined | null>

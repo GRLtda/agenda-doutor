@@ -1,5 +1,5 @@
 <script setup>
-// D2: menu de compartilhar no celular.
+// D2: menu de compartilhar no celular/tablet (sempre, mesmo sem Web Share com arquivos).
 import { onMounted, ref } from 'vue'
 
 defineProps({
@@ -8,10 +8,13 @@ defineProps({
   thumbText: { type: String, default: 'AD' },
   previewUrl: { type: String, default: null },
   busy: { type: Boolean, default: false },
+  // Sem Web Share com arquivos (HTTP, Firefox, navegador de apps) só dá para salvar a imagem.
+  canShare: { type: Boolean, default: true },
 })
 const emit = defineEmits(['share', 'save', 'cancel'])
 const first = ref(null)
-onMounted(() => first.value?.focus())
+const saveBtn = ref(null)
+onMounted(() => (first.value || saveBtn.value)?.focus())
 </script>
 
 <template>
@@ -28,11 +31,12 @@ onMounted(() => first.value?.focus())
           <div class="s" aria-live="polite">{{ busy ? 'Preparando a imagem…' : 'Imagem 1080 × 1920, sem botões, pronta para os Stories.' }}</div>
         </div>
       </div>
-      <button ref="first" type="button" class="opt" :disabled="busy" @click="emit('share')">
+      <p v-if="!canShare" class="note">Este navegador não abre o Instagram direto. Salve a imagem e, no Instagram, toque em <strong>+</strong>, escolha <strong>Story</strong> e selecione a foto.</p>
+      <button v-if="canShare" ref="first" type="button" class="opt" :disabled="busy" @click="emit('share')">
         <span class="ico blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg></span>
         Compartilhar no Instagram Stories
       </button>
-      <button type="button" class="opt" :disabled="busy" @click="emit('save')">
+      <button ref="saveBtn" type="button" class="opt" :disabled="busy" @click="emit('save')">
         <span class="ico gray"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg></span>
         Salvar imagem
       </button>
@@ -51,6 +55,8 @@ onMounted(() => first.value?.focus())
 .txt { display: flex; flex-direction: column; gap: 3px; }
 .t { font-size: 17px; font-weight: 600; }
 .s { font-size: 13px; line-height: 1.4; color: #475569; }
+.note { margin: 4px 4px 6px; font-size: 14px; line-height: 1.45; color: #475569; }
+.note strong { font-weight: 600; color: #0F172A; }
 .opt { height: 60px; border: 0; background: transparent; display: flex; align-items: center; gap: 14px; padding: 0 6px; border-radius: 12px; font-size: 16px; font-weight: 500; color: #0F172A; cursor: pointer; text-align: left; }
 .opt:disabled { opacity: 0.5; cursor: progress; }
 .ico { width: 40px; height: 40px; flex: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; }

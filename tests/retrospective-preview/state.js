@@ -25,4 +25,12 @@ export default {
   },
 }
 
-export const useAuthStore = () => ({ user: { role: 'owner', name: 'Dona' } })
+// Igual ao /auth/me: o resumo (id, ano, designKey, viewed) e o nome/logo da clínica vêm no usuário.
+const preview = build()
+const user = {
+  role: 'owner',
+  name: 'Dona',
+  clinic: { name: preview.clinic.name, logoUrl: preview.clinic.logoUrl },
+  retrospective: params.get('view') === 'empty' ? null : { id: preview.id, year: preview.year, designKey: preview.designKey, viewed: preview.viewed },
+}
+export const useAuthStore = () => ({ user })

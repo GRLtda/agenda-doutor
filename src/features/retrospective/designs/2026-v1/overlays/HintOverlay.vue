@@ -6,7 +6,7 @@ const emit = defineEmits(['done'])
 <template>
   <button type="button" class="hint" aria-label="Entendi, começar a retrospectiva" @click.stop="emit('done')" @pointerdown.stop @pointerup.stop>
     <span class="left">
-      <span class="circle outline"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></span>
+      <span class="circle stroked"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></span>
       <span class="lbl">Toque para<br />voltar</span>
     </span>
     <span class="right">
@@ -27,7 +27,7 @@ const emit = defineEmits(['done'])
 .left { left: 0; width: 35%; box-sizing: border-box; border-right: 1.5px dashed rgba(255, 255, 255, 0.55); }
 .right { left: 35%; right: 0; }
 .circle { width: 52px; height: 52px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
-.outline { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
+.stroked { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
 .solid { background: #FFFFFF; color: #0A1230; }
 .lbl { font-size: 15px; font-weight: 600; text-align: center; }
 .bottom { position: absolute; left: 0; right: 0; bottom: 118px; display: flex; flex-direction: column; align-items: center; gap: 8px; }

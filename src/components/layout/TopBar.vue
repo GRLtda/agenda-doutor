@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
+import RetrospectiveShortcut from '@/features/retrospective/components/RetrospectiveShortcut.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
 
@@ -348,6 +349,9 @@ onUnmounted(() => {
       </Transition>
 
 
+
+      <!-- Atalho da Retrospectiva (depois de "Agora não" no banner) -->
+      <RetrospectiveShortcut />
 
       <!-- Notification Button -->
       <div

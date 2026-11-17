@@ -3,11 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { fullRetrospective } from './fixtures/retrospective'
 
+const api = vi.hoisted(() => ({ fetchRetrospectiveLogoDataUrl: vi.fn() }))
 const share = vi.hoisted(() => ({ renderCardPng: vi.fn(), inlineImage: vi.fn() }))
 vi.mock('@/features/retrospective/composables/useShareCard', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, renderCardPng: share.renderCardPng, inlineImage: share.inlineImage }
 })
+vi.mock('@/features/retrospective/api/retrospective.api', () => ({
+  fetchRetrospectiveLogoDataUrl: api.fetchRetrospectiveLogoDataUrl,
+  fetchCurrentRetrospective: vi.fn(),
+  postRetrospectiveView: vi.fn(),
+  postRetrospectiveShare: vi.fn(),
+}))
 
 import Player from '@/features/retrospective/designs/2026-v1/Player.vue'
 import { canShareFiles, shareFile } from '@/features/retrospective/composables/useShareCard'
@@ -22,7 +29,7 @@ function setViewport(width, height = 844) {
 
 async function mountPlayer() {
   localStorage.setItem('agenda-doutor:retrospectiva:dica-vista', '1')
-  const w = mount(Player, { props: { retrospective: fullRetrospective() }, attachTo: document.body })
+  const w = mount(Player, { props: { retrospective: { ...fullRetrospective(), clinic: { name: 'Clínica Aurora', logoUrl: 'https://cdn.test/logo.webp' } } }, attachTo: document.body })
   await flushPromises()
   return w
 }
@@ -31,6 +38,7 @@ beforeEach(() => {
   originalWidth = window.innerWidth
   share.renderCardPng.mockResolvedValue(png())
   share.inlineImage.mockResolvedValue(null)
+  api.fetchRetrospectiveLogoDataUrl.mockResolvedValue('data:image/png;base64,bG9nbw==')
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:preview')
   globalThis.URL.revokeObjectURL = vi.fn()
 })
@@ -54,6 +62,9 @@ describe('compartilhar o story', () => {
     await flushPromises()
     expect(w.find('[role="dialog"][aria-label="Compartilhar story"]').exists()).toBe(true)
     expect(share.renderCardPng).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ outWidth: 1080, outHeight: 1920 }))
+    // Logo do cartão vem da API (bytes), não da URL assinada do CloudFront (sem CORS).
+    expect(api.fetchRetrospectiveLogoDataUrl).toHaveBeenCalledTimes(1)
+    expect(share.inlineImage).not.toHaveBeenCalled()
 
     await w.findAll('.opt')[0].trigger('click')
     await flushPromises()
@@ -85,7 +96,7 @@ describe('compartilhar o story', () => {
     const w = await mountPlayer()
     w.vm.go(9)
     await w.vm.$nextTick()
-    await w.find('button.share').trigger('click')
+    await w.find('button.hshare').trigger('click')
     await flushPromises()
     expect(w.text()).toContain('Baixar imagem')
     expect(w.text()).toContain('O Instagram não deixa postar Stories pelo computador.')
@@ -103,13 +114,46 @@ describe('compartilhar o story', () => {
     share.renderCardPng.mockRejectedValueOnce(new Error('canvas'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const w = await mountPlayer()
-    await w.find('button.share').trigger('click')
+    await w.find('button.hshare').trigger('click')
     await flushPromises()
     expect(w.find('[role="alert"]').text()).toContain('Não foi possível gerar a imagem')
     await w.find('[role="alert"] button').trigger('click')
     await flushPromises()
     expect(share.renderCardPng).toHaveBeenCalledTimes(2)
     expect(w.vm.card.status).toBe('ready')
+    w.unmount()
+  })
+})
+
+describe('posição do botão de compartilhar', () => {
+  it('computador: botão do Instagram no cabeçalho, ao lado do X, sem botão no rodapé', async () => {
+    setViewport(1280, 800)
+    const w = await mountPlayer()
+    const header = w.find('.header')
+    expect(header.find('button.hshare').attributes('aria-label')).toBe('Compartilhar no Instagram')
+    expect(header.find('button.hshare + button.close').exists()).toBe(true)
+    expect(w.find('button.share').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('celular: botão grande no rodapé, sem botão no cabeçalho', async () => {
+    setViewport(390)
+    const w = await mountPlayer()
+    expect(w.find('button.share').exists()).toBe(true)
+    expect(w.find('button.hshare').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('celular sem Web Share: menu do celular só com "Salvar imagem", nunca o aviso do computador', async () => {
+    setViewport(390)
+    const w = await mountPlayer()
+    await w.find('button.share').trigger('click')
+    await flushPromises()
+    expect(w.find('[role="dialog"][aria-label="Compartilhar story"]').exists()).toBe(true)
+    expect(w.text()).not.toContain('pelo computador')
+    const opts = w.findAll('.opt')
+    expect(opts).toHaveLength(1)
+    expect(opts[0].text()).toContain('Salvar imagem')
     w.unmount()
   })
 })
@@ -131,7 +175,7 @@ describe('navegação', () => {
 
   it('mostra a dica na primeira vez e some ao tocar', async () => {
     setViewport(390)
-    const w = mount(Player, { props: { retrospective: fullRetrospective() }, attachTo: document.body })
+    const w = mount(Player, { props: { retrospective: { ...fullRetrospective(), clinic: { name: 'Clínica Aurora', logoUrl: 'https://cdn.test/logo.webp' } } }, attachTo: document.body })
     await flushPromises()
     expect(w.text()).toContain('Toque para avançar')
     await w.find('button.hint').trigger('click')

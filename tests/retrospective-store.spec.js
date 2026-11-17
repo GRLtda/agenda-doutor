@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { reactive } from 'vue'
 import { fullRetrospective } from './fixtures/retrospective'
 
 const api = vi.hoisted(() => ({
@@ -8,11 +9,60 @@ const api = vi.hoisted(() => ({
   postRetrospectiveShare: vi.fn(),
 }))
 vi.mock('@/features/retrospective/api/retrospective.api', () => api)
+const auth = vi.hoisted(() => ({ user: null }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 
 import { useRetrospectiveStore } from '@/features/retrospective/stores/retrospective.store'
 import { getDesign, getLatestDesign, hasDesign, LATEST_DESIGN_KEY } from '@/features/retrospective/designs'
 
-beforeEach(() => setActivePinia(createPinia()))
+const owner = (retrospective) => reactive({ role: 'owner', clinic: { name: 'Clínica Aurora', marketingName: 'Aurora Estética', logoUrl: 'https://cdn/logo.png' }, retrospective })
+beforeEach(() => {
+  setActivePinia(createPinia())
+  auth.user = owner({ id: '6a0000000000000000000001', year: 2026, designKey: '2026-v1', viewed: false })
+  vi.clearAllMocks()
+})
+
+describe('disponibilidade vem do /auth/me', () => {
+  it('sem retrospectiva publicada no /me, nada aparece e nenhuma requisição é feita', () => {
+    auth.user = owner(null)
+    const store = useRetrospectiveStore()
+    expect(store.available).toBe(false)
+    expect(store.summary).toBeNull()
+    expect(api.fetchCurrentRetrospective).not.toHaveBeenCalled()
+  })
+
+  it('só o dono vê; designKey desconhecido nunca aparece', () => {
+    auth.user = { ...owner({ id: 'x', year: 2026, designKey: '2026-v1', viewed: false }), role: 'recepcionista' }
+    expect(useRetrospectiveStore().available).toBe(false)
+    auth.user = owner({ id: 'x', year: 2026, designKey: '2099-v9', viewed: false })
+    expect(useRetrospectiveStore().available).toBe(false)
+  })
+
+  it('resumo usa nome e logo do /me e não pede os stories', () => {
+    const store = useRetrospectiveStore()
+    expect(store.available).toBe(true)
+    expect(store.summary.clinic).toEqual({ name: 'Aurora Estética', logoUrl: 'https://cdn/logo.png' })
+    expect(api.fetchCurrentRetrospective).not.toHaveBeenCalled()
+  })
+
+  it('os stories só são pedidos ao abrir e herdam nome/logo do /me', async () => {
+    const { clinic, ...payload } = fullRetrospective()
+    api.fetchCurrentRetrospective.mockResolvedValue(payload)
+    const store = useRetrospectiveStore()
+    await store.fetchCurrent({ force: true })
+    expect(store.current.clinic.logoUrl).toBe('https://cdn/logo.png')
+    expect(store.ready).toBe(true)
+  })
+
+  it('ver a retrospectiva troca o banner pelo atalho sem recarregar o /me', async () => {
+    api.fetchCurrentRetrospective.mockResolvedValue(fullRetrospective())
+    const store = useRetrospectiveStore()
+    expect(store.bannerHidden).toBe(false)
+    await store.fetchCurrent({ force: true })
+    await store.trackView()
+    expect(store.bannerHidden).toBe(true)
+  })
+})
 
 describe('store da retrospectiva', () => {
   it('carrega a retrospectiva publicada e fica disponível', async () => {
@@ -20,7 +70,7 @@ describe('store da retrospectiva', () => {
     const store = useRetrospectiveStore()
     await store.fetchCurrent()
     expect(store.status).toBe('ready')
-    expect(store.available).toBe(true)
+    expect(store.ready).toBe(true)
     await store.fetchCurrent()
     expect(api.fetchCurrentRetrospective).toHaveBeenCalledTimes(1) // cache
   })
@@ -30,14 +80,14 @@ describe('store da retrospectiva', () => {
     const store = useRetrospectiveStore()
     await store.fetchCurrent()
     expect(store.status).toBe('empty')
-    expect(store.available).toBe(false)
+    expect(store.ready).toBe(false)
   })
 
   it('designKey desconhecido nunca é exibido', async () => {
     api.fetchCurrentRetrospective.mockResolvedValue({ ...fullRetrospective(), designKey: '2099-v9' })
     const store = useRetrospectiveStore()
     await store.fetchCurrent()
-    expect(store.available).toBe(false)
+    expect(store.ready).toBe(false)
   })
 
   it('falha de rede vira status de erro', async () => {

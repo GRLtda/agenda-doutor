@@ -1,5 +1,5 @@
 <script setup>
-// D3: no computador (ou sem Web Share com arquivos), baixa o PNG e orienta a postar pelo celular.
+// D3: só no computador; baixa o PNG e orienta a postar pelo celular.
 import { onMounted, ref } from 'vue'
 
 defineProps({ previewUrl: { type: String, default: null }, busy: { type: Boolean, default: false } })

@@ -112,6 +112,23 @@ export async function inlineImage(url?: string | null): Promise<string | null> {
   }
 }
 
+/**
+ * Celular ou tablet, independente da largura da tela e do suporte a Web Share.
+ * Decide qual tela de compartilhar abrir: nunca mostrar "use o celular" para quem já está nele.
+ */
+export function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Opera Mini|IEMobile/i.test(ua)) return true
+  // iPadOS se apresenta como Mac; o toque denuncia.
+  if (/Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1) return true
+  try {
+    return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches
+  } catch {
+    return false
+  }
+}
+
 export function canShareFiles(file?: File): boolean {
   if (typeof navigator === 'undefined' || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return false
   try {
@@ -148,5 +165,5 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function useShareCard() {
-  return { renderCardPng, inlineImage, canShareFiles, shareFile, downloadBlob, buildFontEmbedCSS }
+  return { renderCardPng, inlineImage, canShareFiles, isMobileDevice, shareFile, downloadBlob, buildFontEmbedCSS }
 }

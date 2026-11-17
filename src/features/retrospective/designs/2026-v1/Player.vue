@@ -14,8 +14,9 @@ import { fmt } from './format'
 import { prefersReducedMotion } from './motion'
 import { isSupportedKind } from './kinds'
 import { CARD_FONTS, CARD_SIZE } from './fonts'
-import sealDark from './seal-dark.svg'
-import { renderCardPng, inlineImage, canShareFiles, shareFile, downloadBlob } from '../../composables/useShareCard'
+import brandMark from './brand.svg'
+import { fetchRetrospectiveLogoDataUrl } from '../../api/retrospective.api'
+import { renderCardPng, inlineImage, canShareFiles, isMobileDevice, shareFile, downloadBlob } from '../../composables/useShareCard'
 import './tokens.css'
 
 const props = defineProps({ retrospective: { type: Object, required: true } })
@@ -127,6 +128,17 @@ function resetCard() {
   card.value = { status: 'idle', blob: null, file: null, url: null, storyKey: null, logo: card.value.logo }
 }
 
+// Baixa o logo em segundo plano assim que o player abre, para o cartão do Instagram já ter o logo pronto no clique.
+let logoPromise = null
+const loadLogo = () => {
+  logoPromise ||= (async () => {
+    if (!retro.value.clinic?.logoUrl) return ''
+    return (await fetchRetrospectiveLogoDataUrl()) || (await inlineImage(retro.value.clinic?.logoUrl)) || ''
+  })().then((logo) => { card.value.logo = logo; return logo })
+  return logoPromise
+}
+onMounted(() => { loadLogo() })
+
 async function prepareCard() {
   const story = current.value
   resetCard()
@@ -135,7 +147,8 @@ async function prepareCard() {
   card.value.status = 'rendering'
   card.value.storyKey = story.key
   try {
-    if (card.value.logo === null) card.value.logo = (await inlineImage(retro.value.clinic?.logoUrl)) || ''
+    // Logo pela API (só aqui, ao gerar o cartão; o CloudFront não tem CORS). A URL do /me fica de reserva.
+    if (card.value.logo === null) await loadLogo()
     await nextTick()
     const node = cardHost.value?.firstElementChild
     if (!node) throw new Error('Cartão não montado')
@@ -149,9 +162,17 @@ async function prepareCard() {
   }
 }
 
+// Celular/tablet sempre recebe o menu do celular (D2), mesmo sem Web Share com arquivos
+// (página em HTTP, Firefox, navegador interno de apps): ali o menu oferece só "Salvar imagem".
+// O diálogo "poste pelo celular" (D3) fica só para computador.
+const onMobile = computed(() => isMobileDevice() || !isDesktop.value)
+const canShare = ref(false)
+const shareOverlay = () => (onMobile.value ? 'sheet' : 'download')
+
 function openShare() {
   toast.value = null
-  overlay.value = canShareFiles() && !isDesktop.value ? 'sheet' : 'download'
+  canShare.value = canShareFiles()
+  overlay.value = shareOverlay()
   prepareCard()
 }
 function closeOverlay() { overlay.value = null }
@@ -195,7 +216,8 @@ async function doSave() {
 
 function retryCard() {
   toast.value = null
-  overlay.value = overlay.value || (canShareFiles() && !isDesktop.value ? 'sheet' : 'download')
+  canShare.value = canShareFiles()
+  overlay.value = overlay.value || shareOverlay()
   prepareCard()
 }
 
@@ -238,7 +260,7 @@ defineExpose({ next, prev, go, index, ms, openShare, card, overlay })
     <template v-if="isDesktop">
       <div class="glow" aria-hidden="true" :style="{ background: c.bg }"></div>
       <div class="dim" aria-hidden="true"></div>
-      <div class="brand mono"><img :src="sealDark" alt="Agenda Doutor" /> Retrospectiva {{ retrospective.year }}</div>
+      <div class="brand mono"><img :src="brandMark" alt="Agenda Doutor" /> Retrospectiva {{ retrospective.year }}</div>
       <button type="button" class="dclose" aria-label="Fechar retrospectiva" @click="close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
     </template>
 
@@ -261,6 +283,7 @@ defineExpose({ next, prev, go, index, ms, openShare, card, overlay })
           :animate="animate"
           :dim-ui="holding || kbPaused"
           :radius="0"
+          :share-in-header="isDesktop"
           @close="close"
           @share="openShare"
         />
@@ -283,6 +306,7 @@ defineExpose({ next, prev, go, index, ms, openShare, card, overlay })
           :thumb-text="sheetThumb"
           :preview-url="card.url"
           :busy="card.status === 'rendering'"
+          :can-share="canShare"
           @share="doShare"
           @save="doSave"
           @cancel="closeOverlay"
@@ -315,11 +339,12 @@ defineExpose({ next, prev, go, index, ms, openShare, card, overlay })
 
 <style scoped>
 .player { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.player.desktop { background: #070C22; color: #FFFFFF; }
-.glow { position: absolute; left: 50%; top: -60px; width: 620px; height: calc(100% + 120px); margin-left: -310px; border-radius: 80px; filter: blur(90px); opacity: 0.9; }
-.dim { position: absolute; inset: 0; background: rgba(5, 9, 26, 0.45); }
+/* Computador: sem fundo próprio; o azul-escuro translúcido vem da camada (RetrospectiveOverlay). */
+.player.desktop { background: transparent; color: #FFFFFF; }
+.glow { position: absolute; left: 50%; top: -60px; width: 620px; height: calc(100% + 120px); margin-left: -310px; border-radius: 80px; filter: blur(90px); opacity: 0.35; }
+.dim { position: absolute; inset: 0; background: rgba(5, 9, 26, 0.12); }
 .brand { position: absolute; top: 18px; left: 32px; display: flex; align-items: center; gap: 14px; font-size: 12px; color: rgba(255, 255, 255, 0.8); }
-.brand img { height: 40px; width: auto; display: block; }
+.brand img { height: 34px; width: auto; display: block; }
 .dclose { position: absolute; top: 16px; right: 24px; width: 48px; height: 48px; border-radius: 999px; border: 0; background: rgba(255, 255, 255, 0.1); color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
 .stage { position: relative; overflow: hidden; flex: none; }
 .desktop .stage { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }

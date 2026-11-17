@@ -10,6 +10,8 @@ import ProfileModal from '@/views/pages/profile/ProfileModal.vue'
 import PaymentErrorBanner from '@/components/layout/PaymentErrorBanner.vue'
 import LiaChatDrawer from '@/components/lia/LiaChatDrawer.vue'
 import LiaLauncher from '@/components/lia/LiaLauncher.vue'
+import RetrospectiveOverlay from '@/features/retrospective/components/RetrospectiveOverlay.vue'
+import { useRetrospectiveOpener } from '@/features/retrospective/composables/useRetrospectiveOpener'
 import { useLayoutStore } from '@/stores/layout'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
@@ -23,6 +25,7 @@ const authStore = useAuthStore()
 const clinicStore = useClinicStore()
 const liaStore = useLiaStore()
 const toast = useToast()
+const retrospective = useRetrospectiveOpener()
 
 const isMobileSidebarOpen = ref(false)
 const isAppointmentModalOpen = ref(false)
@@ -190,6 +193,7 @@ watch(
     <ProfileModal v-if="isProfileModalOpen" @close="closeProfileModal" />
     <LiaChatDrawer v-if="liaStore.isAvailable" :open="liaStore.isOpen" @close="liaStore.isOpen = false" />
     <LiaLauncher />
+    <RetrospectiveOverlay :open="retrospective.isOpen.value" @close="retrospective.close" />
 
     <Transition name="sidebar-overlay-fade">
       <div

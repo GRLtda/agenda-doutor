@@ -8,7 +8,7 @@ const cp = computed(() => props.m.cnt(Number(props.data?.pct) || 0, 300, 1700))
 <template>
   <div class="col" style="gap: 12px">
     <p :style="{ fontSize: '22px', lineHeight: 1.3, fontWeight: 500, ...m.F.a }">{{ tx.p }}</p>
-    <div class="ring" :style="m.F.b">
+    <div class="gauge" :style="m.F.b">
       <svg width="240" height="240" viewBox="0 0 240 240" aria-hidden="true" style="transform: rotate(-90deg)">
         <circle cx="120" cy="120" r="106" fill="none" :stroke="c.ring" stroke-width="18" />
         <circle cx="120" cy="120" r="106" fill="none" :stroke="c.accent" stroke-width="18" stroke-linecap="round" pathLength="100" :stroke-dasharray="`${Math.max(0.01, cp)} 100`" />
@@ -25,6 +25,6 @@ const cp = computed(() => props.m.cnt(Number(props.data?.pct) || 0, 300, 1700))
 
 <style scoped>
 .col { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.ring { position: relative; width: 240px; height: 240px; margin: 18px 0; }
+.gauge { position: relative; width: 240px; height: 240px; margin: 18px 0; }
 .inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 </style>

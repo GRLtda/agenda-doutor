@@ -70,8 +70,8 @@ const routes = [
   {
     path: '/retrospectiva',
     name: 'retrospectiva',
-    component: () => import('../features/retrospective/views/RetrospectiveView.vue'),
-    meta: { requiresAuth: true, title: 'Retrospectiva' },
+    // Link antigo/compartilhável: abre a retrospectiva como camada sobre o painel.
+    redirect: { name: 'resumo-dashboard', query: { retrospectiva: '1' } },
   },
   ...dashboardRoutes,
   {

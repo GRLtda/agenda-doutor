@@ -1,25 +1,55 @@
 <script setup>
 // A2 (carregando) e A3 (erro), em tela cheia, no tema escuro.
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { THEMES } from './theme'
-import { motion, prefersReducedMotion, FINAL_MS } from './motion'
+import { motion, prefersReducedMotion } from './motion'
 import './tokens.css'
 
-const props = defineProps({ state: { type: String, default: 'loading' } })
-const emit = defineEmits(['retry', 'close'])
+// ready: os dados chegaram. A partir daí as etapas que faltam aparecem e ganham o check
+// rapidinho, uma de cada vez (mesmo se já estavam prontas no back-end), e então emite "finished".
+const props = defineProps({ state: { type: String, default: 'loading' }, ready: { type: Boolean, default: false } })
+const emit = defineEmits(['retry', 'close', 'finished'])
 const c = THEMES.dark
 const ms = ref(0)
 const reduce = prefersReducedMotion()
 let raf = 0
 let start = 0
 const loop = (now) => { if (!start) start = now; ms.value = now - start; raf = requestAnimationFrame(loop) }
-onMounted(() => { if (!reduce) raf = requestAnimationFrame(loop); else ms.value = FINAL_MS })
+onMounted(() => { raf = requestAnimationFrame(loop) })
 onBeforeUnmount(() => cancelAnimationFrame(raf))
+
+const LABELS = ['Atendimentos', 'Procedimentos', 'Pacientes e retornos', 'Mensagens automáticas']
+const FAST_GAP = 170 // intervalo entre os checks quando os dados já estão prontos
+const FINISH_DELAY = 320 // respiro depois do último check antes de abrir o player
+// Ritmo de espera: cada etapa aparece a cada 700 ms e é marcada 500 ms depois; a última só com os dados.
+const slow = LABELS.map((_, i) => ({ show: 100 + 700 * i, check: i < LABELS.length - 1 ? 600 + 700 * i : Infinity }))
+const timeline = ref(slow)
+let finishTimer = 0
+
+function fastForward() {
+  const now = ms.value
+  let k = 0
+  timeline.value = slow.map((s) => {
+    if (s.check <= now) return s // já marcada
+    const check = now + FAST_GAP * (k + 1)
+    k += 1
+    return { show: Math.min(s.show, check - FAST_GAP), check }
+  })
+  const last = Math.max(...timeline.value.map((s) => s.check))
+  clearTimeout(finishTimer)
+  finishTimer = setTimeout(() => emit('finished'), Math.max(0, last - now) + FINISH_DELAY)
+}
+watch(() => props.ready, (r) => { if (r) fastForward(); else { clearTimeout(finishTimer); timeline.value = slow } }, { immediate: true })
+onBeforeUnmount(() => clearTimeout(finishTimer))
 
 const steps = computed(() => {
   const m = motion(ms.value)
-  return [['Atendimentos', 400], ['Procedimentos', 1100], ['Pacientes e retornos', 1800], ['Mensagens automáticas', 2500]]
-    .map(([t, at]) => ({ t, style: m.fu(at - 300), done: ms.value > at + 500 && at < 2500 }))
+  return LABELS.map((t, i) => {
+    const { show, check } = timeline.value[i]
+    // Com movimento reduzido, a etapa só aparece (sem deslizar); os checks continuam no tempo.
+    const style = reduce ? { opacity: ms.value >= show ? 1 : 0 } : m.fu(show)
+    return { t, style, done: ms.value >= check }
+  })
 })
 
 const viewport = ref({ w: window.innerWidth, h: window.innerHeight })
@@ -32,7 +62,7 @@ const isError = computed(() => props.state === 'error')
 </script>
 
 <template>
-  <div class="rd26 screen" :style="{ background: isDesktop ? '#070C22' : c.bg }">
+  <div class="rd26 screen" :class="isDesktop ? 'desktop' : 'mobile'" :style="isDesktop ? undefined : { background: c.bg }">
     <div class="stage" :style="{ width: `${390 * scale}px`, height: `${844 * scale}px`, borderRadius: isDesktop ? '16px' : '0' }">
       <div class="frame" :style="{ transform: `scale(${scale})`, background: c.bg, color: c.text }">
         <button type="button" class="close" aria-label="Fechar retrospectiva" @click="emit('close')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
@@ -56,7 +86,7 @@ const isError = computed(() => props.state === 'error')
           <p class="title" style="margin-top: 12px; line-height: 1.15; max-width: 300px">Não conseguimos montar agora</p>
           <p class="sub" :style="{ color: c.muted, maxWidth: '290px', lineHeight: 1.5 }">Pode ter sido a conexão ou um soluço do nosso lado. Seus dados estão seguros.</p>
           <button type="button" class="retry" @click="emit('retry')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>Tentar de novo</button>
-          <button type="button" class="back" :style="{ color: c.muted }" @click="emit('close')">Voltar ao painel</button>
+          <button type="button" class="back" :style="{ color: c.muted }" @click="emit('close')">Fechar</button>
         </div>
       </div>
     </div>
@@ -65,6 +95,8 @@ const isError = computed(() => props.state === 'error')
 
 <style scoped>
 .screen { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+/* Computador: sem fundo próprio; o azul-escuro translúcido vem da camada (RetrospectiveOverlay). */
+.screen.desktop { background: transparent; }
 .stage { position: relative; overflow: hidden; flex: none; }
 .frame { position: absolute; top: 0; left: 0; width: 390px; height: 844px; transform-origin: top left; }
 .close { position: absolute; top: 22px; right: 6px; width: 44px; height: 44px; border: 0; padding: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }

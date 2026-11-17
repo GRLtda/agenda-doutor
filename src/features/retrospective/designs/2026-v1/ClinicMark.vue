@@ -21,13 +21,14 @@ const style = computed(() => ({
 
 <template>
   <div class="mark" :style="style">
-    <img v-if="logoUrl && !failed" :src="logoUrl" alt="" crossorigin="anonymous" @error="failed = true" />
+    <img v-if="logoUrl && !failed" :src="logoUrl" alt="" @error="failed = true" />
     <span v-else :style="{ fontSize: `${Math.round(size * 0.46)}px` }" aria-hidden="true">{{ initial }}</span>
   </div>
 </template>
 
 <style scoped>
 .mark { flex: none; border-radius: 999px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.mark img { width: 78%; height: 78%; object-fit: contain; display: block; }
+/* O logo preenche o círculo inteiro (recorte central), sem borda branca em volta. */
+.mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mark span { color: #0057FF; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 </style>
