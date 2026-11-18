@@ -27,12 +27,16 @@ const phoneInputRef = ref(null)
 const dropdownStyle = ref({})
 const dropdownListRef = ref(null)
 
+// Mostra sempre todos os países. Os que combinam com o DDI digitado sobem para o topo
+// (ex.: "+1" coloca primeiro os DDIs iniciados em 1); o restante segue abaixo.
 const filteredCountries = computed(() => {
-  const query = ddiQuery.value.trim().toLowerCase()
-  return countries.filter(c => 
-    c.name.toLowerCase().includes(query) || 
-    c.ddi.includes(query)
-  )
+  const digits = ddiQuery.value.replace(/\D/g, '')
+  if (!digits) return countries
+  const onlyDigits = (c) => c.ddi.replace(/\D/g, '')
+  const exact = countries.filter(c => onlyDigits(c) === digits)
+  const prefix = countries.filter(c => onlyDigits(c) !== digits && onlyDigits(c).startsWith(digits))
+  const others = countries.filter(c => !onlyDigits(c).startsWith(digits))
+  return [...exact, ...prefix, ...others]
 })
 
 function getFlagUrl(code) {

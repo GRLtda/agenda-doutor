@@ -17,7 +17,7 @@ nativo sem estilo. Use sempre o componente compartilhado correspondente:
 | Texto, e-mail, número, CPF, CNPJ, CEP, telefone simples | [FormInput](../../src/components/global/FormInput.vue) (`cpfMask`, `cnpjMask`, `cepMask`, `phoneMask`) |
 | Senha | [PasswordInput](../../src/components/global/PasswordInput.vue) |
 | Valor em reais | [CurrencyInput](../../src/components/global/CurrencyInput.vue) |
-| Telefone com país (DDI) | [PhoneInputWithDDI](../../src/components/global/PhoneInputWithDDI.vue) |
+| Telefone com país (DDI) | [PhoneInputWithDDI](../../src/components/global/PhoneInputWithDDI.vue) (a lista mostra sempre todos os países; os que combinam com o DDI digitado, como `+1`, sobem para o topo, sem texto de recomendação) |
 | Seleção simples | [StyledSelect](../../src/components/global/StyledSelect.vue) |
 | Seleção com busca | [SearchableSelect](../../src/components/global/SearchableSelect.vue) |
 | Seleção múltipla | [StyledMultiSelect](../../src/components/global/StyledMultiSelect.vue) |
