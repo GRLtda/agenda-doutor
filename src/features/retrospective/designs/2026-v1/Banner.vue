@@ -54,7 +54,7 @@ const name = computed(() => props.retrospective.clinic?.name || 'sua clínica')
 h2 { margin: 0; font-size: 40px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; color: #FFFFFF; }
 .copy p { font-size: 16px; line-height: 1.5; color: rgba(255, 255, 255, 0.82); }
 .actions { display: flex; align-items: center; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
-.primary { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #FFFFFF; color: #0A1230; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25); }
+.primary { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #FFFFFF; color: #0A1230; font-size: 15px; font-weight: 600; cursor: pointer; }
 /* "Ver agora": anel com 5 px de respiro. O ::before é o contorno (branco translúcido com um trecho
    brilhante que gira); o ::after é a mesma faixa desfocada, fazendo o brilho vazar em volta. */
 @property --rd26-cta-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
@@ -71,6 +71,10 @@ h2 { margin: 0; font-size: 40px; line-height: 1.08; font-weight: 700; letter-spa
 .cta-ring::after { padding: 3px; filter: blur(5px); opacity: 0.8; z-index: -1; }
 @keyframes rd26-cta-spin { to { --rd26-cta-angle: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .cta-ring::before, .cta-ring::after { animation: none; } }
+/* Celular/toque: sem o brilho desfocado (filter + máscara vira um retângulo escuro em alguns navegadores móveis). */
+@media (max-width: 900px), (hover: none) { .cta-ring::after { display: none; } }
+/* Sem suporte a máscara com composição, o contorno viraria um bloco cheio: some em vez de aparecer errado. */
+@supports not ((mask-composite: exclude) or (-webkit-mask-composite: xor)) { .cta-ring::before, .cta-ring::after { display: none; } }
 .ghost { height: 48px; padding: 0 16px; border: 0; background: transparent; color: rgba(255, 255, 255, 0.85); font-size: 14px; font-weight: 500; cursor: pointer; }
 .phones { position: relative; width: 300px; height: 244px; flex: none; align-self: flex-start; margin: -6px 0 -28px; }
 .phone { position: absolute; width: 148px; height: 320px; border-radius: 11px; overflow: hidden; }
