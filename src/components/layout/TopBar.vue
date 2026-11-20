@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
 import UserDropdown from '@/components/global/UserDropdown.vue'
+import SecurityAlertDot from '@/components/auth/SecurityAlertDot.vue'
 import RetrospectiveShortcut from '@/features/retrospective/components/RetrospectiveShortcut.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
@@ -446,6 +447,7 @@ onUnmounted(() => {
         v-click-outside="() => (isUserDropdownOpen = false)"
       >
         <UserDropdown v-if="isUserDropdownOpen" direction="down" />
+        <span class="avatar-wrap">
         <div class="user-avatar">
           <img
             v-if="authStore.user?.profilePhotoUrl"
@@ -455,6 +457,8 @@ onUnmounted(() => {
           />
           <span v-else class="avatar-initials">{{ authStore.user?.name?.charAt(0) || 'U' }}</span>
         </div>
+        <SecurityAlertDot :alerts="authStore.securityAlerts" class="avatar-alert-dot" />
+        </span>
         <div class="user-details">
           <span class="user-name">{{ authStore.user?.name || 'Usuário' }}</span>
           <span class="user-email">{{ authStore.user?.email || 'email@exemplo.com' }}</span>
@@ -823,6 +827,20 @@ onUnmounted(() => {
 
 .user-profile:hover {
   background-color: #f3f4f6;
+}
+
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+/* Centro da bolinha sobre a borda do avatar (45°); vale com foto, inicial e sidebar recolhida. */
+.avatar-alert-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .user-avatar {

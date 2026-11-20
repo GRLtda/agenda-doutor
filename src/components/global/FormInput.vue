@@ -22,6 +22,9 @@ const props = defineProps({
   disabledHelp: { type: String, default: '' },
   hideRequiredAsterisk: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  // Ícone à esquerda do campo (componente lucide) e atributos extras do <input> (inputmode, enterkeyhint, autocapitalize...)
+  icon: { type: [Object, Function], default: null },
+  inputAttrs: { type: Object, default: () => ({}) },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -107,8 +110,9 @@ function handleBlur(event) {
       </label>
     </div>
 
+    <div v-else class="fi-control" :class="{ 'has-icon': !!icon }">
+    <component :is="icon" v-if="icon" :size="18" class="fi-icon" aria-hidden="true" />
     <input
-      v-else
       ref="inputRef"
       :type="type"
       :name="name"
@@ -124,7 +128,10 @@ function handleBlur(event) {
       class="form-input"
       :class="{ 'has-error': !!error }"
       :disabled="disabled"
+      :aria-invalid="error ? 'true' : undefined"
+      v-bind="inputAttrs"
     />
+    </div>
     <Transition name="fade-error">
       <span v-if="error" class="error-message">{{ error }}</span>
     </Transition>
@@ -162,6 +169,29 @@ function handleBlur(event) {
   outline: none;
   border-color: var(--azul-principal);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+/* Contêiner do campo: invisível para o layout, só vira posicionado quando há ícone. */
+.fi-control {
+  display: contents;
+}
+.fi-control.has-icon {
+  display: block;
+  position: relative;
+}
+.fi-icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+.fi-control.has-icon .form-input {
+  padding-left: 2.75rem;
+}
+.fi-control.has-icon:focus-within .fi-icon {
+  color: var(--azul-principal);
 }
 .form-input:disabled {
   background-color: #f3f4f6;

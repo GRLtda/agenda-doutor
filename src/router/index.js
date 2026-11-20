@@ -2,32 +2,44 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { checkPlanAccess, getRouteFeature } from '@/composables/usePlanAccess'
 import dashboardRoutes from './dashboard'
+import AuthShell from '../components/auth/AuthShell.vue'
 import LoginView from '../views/pages/autenticacao/LoginView.vue'
 import RegisterView from '../views/pages/autenticacao/RegisterView.vue'
 import ClinicWizardView from '../views/pages/onboarding/ClinicWizardView.vue'
+import OAuthCallbackView from '../views/pages/autenticacao/OAuthCallbackView.vue'
 import AnswerAnamnesisView from '../views/public/AnswerAnamnesisView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
 const routes = [
-  { path: '/', redirect: { name: 'login' } },
-  { path: '/login', name: 'login', component: LoginView, meta: { public: true, title: 'Login' } },
+  // Telas de acesso dentro da mesma casca (foto e layout fixos; só o formulário troca com transição suave).
   {
-    path: '/register',
-    name: 'register',
-    component: RegisterView,
-    meta: { public: true, title: 'Cadastro' },
-  },
-  {
-    path: '/r/:token',
-    name: 'register-admin',
-    component: RegisterView,
-    meta: { public: true, title: 'Cadastro' },
-  },
-  {
-    path: '/e/:token',
-    name: 'register-employee',
-    component: RegisterView,
-    meta: { public: true, title: 'Cadastro' },
+    path: '',
+    component: AuthShell,
+    children: [
+      // O pai com path '' também casa com '/', então o redirect precisa ficar aqui dentro.
+      { path: '', redirect: { name: 'login' } },
+      { path: '/login', name: 'login', component: LoginView, meta: { public: true, title: 'Login' } },
+      // Retorno do login com provedor externo (Google...). Ver docs/auth/OAUTH_PROVEDORES.md
+      { path: '/auth/callback', name: 'oauth-callback', component: OAuthCallbackView, meta: { public: true, title: 'Conectando' } },
+      {
+        path: '/register',
+        name: 'register',
+        component: RegisterView,
+        meta: { public: true, title: 'Cadastro' },
+      },
+      {
+        path: '/r/:token',
+        name: 'register-admin',
+        component: RegisterView,
+        meta: { public: true, title: 'Cadastro' },
+      },
+      {
+        path: '/e/:token',
+        name: 'register-employee',
+        component: RegisterView,
+        meta: { public: true, title: 'Cadastro' },
+      },
+    ],
   },
   {
     path: '/onboarding/clinic',

@@ -53,6 +53,11 @@ export const useAuthStore = defineStore('auth', () => {
   // --- Computed ---
   const isAuthenticated = computed(() => !!accessToken.value)
   const hasClinic = computed(() => !!user.value?.clinic)
+  // Segurança da conta (vem do /me). Default true/[] enquanto o perfil não carregou: sem alerta falso.
+  const hasPassword = computed(() => user.value?.hasPassword !== false)
+  const securityAlerts = computed(() => user.value?.securityAlerts || [])
+  const hasSecurityAlert = computed(() => securityAlerts.value.length > 0)
+  const connectedIdentities = computed(() => user.value?.identities || [])
 
   // Mantemos `token` como alias para compatibilidade com código existente
   const token = computed(() => accessToken.value)
@@ -330,6 +335,21 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Abre a sessão com tokens já emitidos pela API (login por provedor externo, ex.: Google).
+   * Mesmo caminho do login por senha: salva tokens e carrega o perfil completo.
+   */
+  async function loginWithTokens(tokens) {
+    const previousRefreshToken = refreshToken.value
+    clearLocalSession()
+    if (previousRefreshToken) logoutV2(previousRefreshToken).catch(() => {})
+    _saveTokens(tokens)
+    const fullUserData = await fetchUser()
+    // Conta nova ainda não tem clínica: /me responde CLINIC_NOT_FOUND e `fullUserData` fica nulo, mas a sessão
+    // é válida (o router leva ao onboarding), igual ao login por senha. Só é falha se a sessão foi invalidada.
+    return { success: Boolean(accessToken.value), user: fullUserData }
+  }
+
+  /**
    * Login via API V2
    * Retorna access_token + refresh_token
    */
@@ -366,7 +386,8 @@ export const useAuthStore = defineStore('auth', () => {
         success: false,
         error: message,
         code: errorData?.error?.code,
-        details: errorData?.error?.details
+        details: errorData?.error?.details,
+        status: error.response?.status,
       }
     }
   }
@@ -462,6 +483,7 @@ export const useAuthStore = defineStore('auth', () => {
           message: apiError?.message ?? responseData?.message ?? 'Não foi possível concluir o cadastro.',
           details: apiError?.details,
           requestId: responseData?.meta?.request_id,
+          status: error.response?.status,
         },
       }
     }
@@ -566,7 +588,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.error('[Auth] Erro ao solicitar reset de senha:', error)
       const message = error.response?.data?.message || 'Erro ao solicitar o código.'
-      return { success: false, error: message }
+      return { success: false, error: message, status: error.response?.status }
     }
   }
 
@@ -578,7 +600,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.error('[Auth] Erro ao redefinir senha:', error)
       const message = error.response?.data?.message || 'Código inválido ou expirado.'
-      return { success: false, error: message }
+      return { success: false, error: message, status: error.response?.status }
     }
   }
 
@@ -633,6 +655,10 @@ export const useAuthStore = defineStore('auth', () => {
     expiresAt,
     isAuthenticated,
     hasClinic,
+    hasPassword,
+    securityAlerts,
+    hasSecurityAlert,
+    connectedIdentities,
     sessionValidationUnavailable,
 
     notifications,
@@ -643,6 +669,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Auth V2
     login,
+    loginWithTokens,
     logout,
     invalidateSession,
     logoutAll,

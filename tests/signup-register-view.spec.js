@@ -6,8 +6,9 @@ const mocks = vi.hoisted(() => ({
   route: { params: {}, query: {}, path: '/register', name: 'register' },
   register: null,
   getSignupCampaign: null,
+  push: null,
 }))
-vi.mock('vue-router', () => ({ useRoute: () => mocks.route, useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('vue-router', () => ({ useRoute: () => mocks.route, useRouter: () => ({ push: (...a) => mocks.push(...a) }) }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ register: mocks.register }) }))
 vi.mock('@/api/auth', () => ({ verifyInvitationToken: vi.fn(), getSignupCampaign: (...args) => mocks.getSignupCampaign(...args) }))
 vi.mock('@/api/employees', () => ({ getInvitationDetails: vi.fn() }))
@@ -26,6 +27,7 @@ const stubs = {
   PasswordInput: field('PasswordInput'),
   AppButton: { template: '<button type="submit"><slot /></button>' },
   ClinicLogo: true,
+  LottieAnimation: true,
   'router-link': { template: '<a><slot /></a>' },
 }
 const { default: RegisterView } = await import('@/views/pages/autenticacao/RegisterView.vue')
@@ -36,6 +38,7 @@ async function fillAndSubmit(wrapper) {
   await inputs[1].setValue('ana@clinica.com')
   await inputs[2].setValue('(11) 99999-0000')
   await inputs[3].setValue('segura123')
+  await inputs[4].setValue('segura123')
   await wrapper.find('input[type=checkbox]').setValue(true)
   await wrapper.find('form').trigger('submit')
   await flushPromises()
@@ -45,6 +48,7 @@ const errorOf = (wrapper, label) => wrapper.find(`[data-field="${label}"] .err`)
 beforeEach(() => {
   sessionStorage.clear()
   mocks.route = { params: {}, query: {}, path: '/register', name: 'register' }
+  mocks.push = vi.fn()
   mocks.register = vi.fn().mockResolvedValue({ success: true })
   mocks.getSignupCampaign = vi.fn().mockResolvedValue({ data: { data: { valid: true, label: 'Posicionamento Digital', trialDays: 30 } } })
 })
@@ -90,14 +94,14 @@ it('erros de validação da API aparecem em cada campo e somem ao editar', async
   })
   const wrapper = mount(RegisterView, { global: { stubs } })
   await fillAndSubmit(wrapper)
-  expect(errorOf(wrapper, 'Email')).toBe('Informe um e-mail válido.')
+  expect(errorOf(wrapper, 'E-mail')).toBe('Informe um e-mail válido.')
   expect(errorOf(wrapper, 'Senha')).toBe('A senha precisa ter pelo menos 6 caracteres.')
   expect(errorOf(wrapper, 'Telefone')).toBe('Informe um telefone com DDD.')
   expect(errorOf(wrapper, 'Nome completo')).toBe('Informe seu nome completo.')
   expect(wrapper.find('.error-message').exists()).toBe(false)
 
   await wrapper.findAll('input:not([type=checkbox])')[1].setValue('ana@clinica.com.br')
-  expect(errorOf(wrapper, 'Email')).toBe('')
+  expect(errorOf(wrapper, 'E-mail')).toBe('')
   expect(errorOf(wrapper, 'Senha')).toBe('A senha precisa ter pelo menos 6 caracteres.')
 })
 
@@ -105,7 +109,7 @@ it('e-mail já cadastrado aparece no campo e-mail', async () => {
   mocks.register.mockResolvedValue({ success: false, error: { code: 'AUTH_USER_EXISTS', message: 'Usuário com este e-mail já existe' } })
   const wrapper = mount(RegisterView, { global: { stubs } })
   await fillAndSubmit(wrapper)
-  expect(errorOf(wrapper, 'Email')).toBe('Usuário com este e-mail já existe')
+  expect(errorOf(wrapper, 'E-mail')).toBe('Usuário com este e-mail já existe')
 })
 
 it('sem aceitar os termos não chama a API', async () => {
@@ -114,4 +118,40 @@ it('sem aceitar os termos não chama a API', async () => {
   await flushPromises()
   expect(mocks.register).not.toHaveBeenCalled()
   expect(wrapper.text()).toContain('aceitar os termos')
+})
+
+it("senhas diferentes: erro no campo de confirmação e a API não é chamada", async () => {
+  const wrapper = mount(RegisterView, { global: { stubs } })
+  const inputs = wrapper.findAll("input:not([type=checkbox])")
+  await inputs[0].setValue("Dra. Ana")
+  await inputs[1].setValue("ana@clinica.com")
+  await inputs[2].setValue("(11) 99999-0000")
+  await inputs[3].setValue("segura123")
+  await inputs[4].setValue("segura12")
+  await wrapper.find("input[type=checkbox]").setValue(true)
+  await wrapper.find("form").trigger("submit")
+  await flushPromises()
+  expect(mocks.register).not.toHaveBeenCalled()
+  expect(errorOf(wrapper, "Confirmar senha")).toContain("As senhas não conferem")
+  await inputs[4].setValue("segura123")
+  expect(errorOf(wrapper, "Confirmar senha")).toBe("")
+})
+
+it("conta criada: anima na própria tela e segue sozinho para os dados da clínica", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const wrapper = mount(RegisterView, { global: { stubs } })
+  await fillAndSubmit(wrapper)
+  expect(wrapper.text()).toContain("criada!")
+  expect(wrapper.text()).toContain("Abrindo os dados da clínica")
+  expect(mocks.push).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(3100)
+  expect(mocks.push).toHaveBeenCalledWith("/onboarding/clinic")
+  vi.useRealTimers()
+})
+
+it("conta criada: Ir agora segue imediatamente", async () => {
+  const wrapper = mount(RegisterView, { global: { stubs } })
+  await fillAndSubmit(wrapper)
+  await wrapper.find(".go-now").trigger("click")
+  expect(mocks.push).toHaveBeenCalledWith("/onboarding/clinic")
 })

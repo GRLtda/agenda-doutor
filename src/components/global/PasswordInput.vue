@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Eye, EyeOff, Check, X } from 'lucide-vue-next'
+import { ref, computed, useSlots } from 'vue'
+import { Eye, EyeOff, Check, X, Lock, TriangleAlert } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: { type: String, required: true },
@@ -10,6 +10,11 @@ const props = defineProps({
   autocomplete: { type: String, default: 'new-password' },
   hideRequiredAsterisk: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  placeholder: { type: String, default: '' },
+  // Mostra o cadeado à esquerda (visual da tela de acesso)
+  icon: { type: Boolean, default: false },
+  // Atributos extras do <input> (name, enterkeyhint...)
+  inputAttrs: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -17,8 +22,16 @@ const emit = defineEmits(['update:modelValue'])
 const isPasswordVisible = ref(false)
 const inputType = computed(() => (isPasswordVisible.value ? 'text' : 'password'))
 
+const inputId = `pw-${Math.random().toString(36).slice(2, 9)}`
 const inputRef = ref(null)
 defineExpose({ inputRef })
+
+// Aviso de Caps Lock: evita erro de senha por digitação com a tecla ativada.
+const capsLockOn = ref(false)
+function checkCapsLock(event) {
+  if (typeof event.getModifierState === 'function') capsLockOn.value = event.getModifierState('CapsLock')
+}
+const slots = useSlots()
 
 function toggleVisibility() {
   isPasswordVisible.value = !isPasswordVisible.value
@@ -56,29 +69,49 @@ function handleBlur(event) {
 
 <template>
   <div class="password-input-group" v-auto-animate>
-    <label v-if="label" class="form-label">
-      {{ label }}
-      <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
-    </label>
+    <div v-if="label" class="label-row">
+      <label class="form-label" :for="inputId">
+        {{ label }}
+        <span v-if="required && !hideRequiredAsterisk" class="required-asterisk">*</span>
+      </label>
+      <slot v-if="slots['label-action']" name="label-action" />
+    </div>
 
-    <div class="input-wrapper">
+    <div class="input-wrapper" :class="{ 'has-icon': icon }">
+      <Lock v-if="icon" :size="18" class="pi-icon" aria-hidden="true" />
       <input
+        :id="inputId"
         ref="inputRef"
         :type="inputType"
         :value="modelValue"
         @input="handleInput"
-        @blur="handleBlur"
-        :placeholder="props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha'"
+        @blur="handleBlur(); capsLockOn = false"
+        @keydown="checkCapsLock"
+        @keyup="checkCapsLock"
+        :placeholder="props.placeholder || (props.showValidation ? 'Crie uma senha forte' : 'Digite sua senha')"
         class="form-input"
         :class="{ 'has-error': !!error }"
         :autocomplete="autocomplete"
+        :aria-invalid="error ? 'true' : undefined"
+        v-bind="inputAttrs"
       />
-      <button type="button" @click="toggleVisibility" class="visibility-toggle">
+      <button
+        type="button"
+        class="visibility-toggle"
+        :aria-label="isPasswordVisible ? 'Ocultar senha' : 'Mostrar senha'"
+        :aria-pressed="isPasswordVisible ? 'true' : 'false'"
+        @click="toggleVisibility"
+      >
         <Eye v-if="!isPasswordVisible" :size="20" />
         <EyeOff v-else :size="20" />
       </button>
     </div>
     
+    <Transition name="fade-error">
+      <span v-if="capsLockOn" class="caps-warning" role="status">
+        <TriangleAlert :size="14" aria-hidden="true" /> Caps Lock ativado
+      </span>
+    </Transition>
     <Transition name="fade-error">
       <span v-if="error" class="error-message">{{ error }}</span>
     </Transition>
@@ -137,6 +170,37 @@ function handleBlur(event) {
   text-align: left;
   margin-bottom: 1.25rem;
 }
+/* Linha do rótulo (com ação opcional à direita, ex.: "Esqueceu a senha?") */
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.pi-icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+.input-wrapper.has-icon .form-input {
+  padding-left: 2.75rem;
+}
+.input-wrapper.has-icon:focus-within .pi-icon {
+  color: var(--azul-principal);
+}
+.caps-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
 .form-label {
   display: flex;
   margin-bottom: 0.5rem;
@@ -178,12 +242,25 @@ function handleBlur(event) {
 .visibility-toggle {
   position: absolute;
   top: 50%;
-  right: 0.75rem;
+  right: 0.25rem;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   background: none;
   border: none;
+  border-radius: 0.625rem;
   cursor: pointer;
-  color: #9ca3af;
+  color: #64748b;
+}
+.visibility-toggle:hover {
+  color: #334155;
+}
+.visibility-toggle:focus-visible {
+  outline: 2px solid var(--azul-principal);
+  outline-offset: -2px;
 }
 
 /* 2. Lógica da animação de altura (max-height) */

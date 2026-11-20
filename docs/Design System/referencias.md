@@ -33,6 +33,7 @@ Todas as decisões abaixo foram tomadas em 10/11/2026.
 | Campos de formulário | Sempre componentes existentes; nunca input nativo. Textarea cresce sozinha, sem redimensionamento manual. |
 | Mudanças no Design System | Quando o produto pedir uma mudança ou disser que não gosta de algo coberto, o agente atualiza o Design System sozinho na mesma entrega. |
 | Mensagens de erro | Sempre tratadas, amigáveis, com o motivo e o próximo passo; sem termos técnicos nem textos genéricos. |
+| Estados semânticos e modo escuro | Tokens `--ds-success/warning/danger-*` (texto, fundo, contorno) e bloco `.dark` em `tokens.css`, adicionados para o login social e o perfil (19/11/2026). Mensagens inline sempre com ícone. |
 | Nome | Documentação única "Design System", sem numeração de versão. |
 
 Registre novas decisões nesta tabela sempre que o Design System mudar.

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
 import { LogOut, User, CreditCard, LifeBuoy, MessageCircle } from 'lucide-vue-next'
 import StorageUsage from './StorageUsage.vue'
+import SecurityAlertDot from '@/components/auth/SecurityAlertDot.vue'
 
 const props = defineProps({
   direction: {
@@ -75,6 +76,7 @@ async function handleLogout() {
         <button class="dropdown-item" role="menuitem" @click="openProfileModal">
           <User :size="16" />
           <span>Perfil</span>
+          <SecurityAlertDot v-if="!isOnboarding" :alerts="authStore.securityAlerts" size="sm" class="menu-alert-dot" />
         </button>
       </li>
       <li v-if="!isOnboarding && authStore.user?.role === 'owner'">
@@ -167,6 +169,12 @@ ul {
 
 .dropdown-item:hover {
   background-color: #f3f4f6;
+}
+
+/* Bolinha de pendência alinhada à direita do item Perfil. */
+.menu-alert-dot {
+  margin-left: auto;
+  margin-right: 0.125rem;
 }
 
 .separator {

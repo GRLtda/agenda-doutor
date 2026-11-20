@@ -115,4 +115,44 @@
   --ds-duration-slow: 320ms;
   --ds-duration-step: 480ms;
   --ds-stagger: 40ms;
+
+  /* Estados semânticos (texto, fundo e contorno). Sempre acompanhe de ícone ou texto. */
+  --ds-success-text: #047857;
+  --ds-success-bg: #ecfdf5;
+  --ds-success-border: #a7f3d0;
+  --ds-warning-text: #92400e;
+  --ds-warning-bg: #fffbeb;
+  --ds-warning-border: #fde68a;
+  --ds-warning-solid: #f59e0b; /* bolinha de pendência de segurança */
+  --ds-danger-text: #b91c1c;
+  --ds-danger-bg: #fef2f2;
+  --ds-danger-border: #fecaca;
+}
+
+/* Modo escuro: valores dos tokens usados no login social e no perfil. */
+.dark {
+  --ds-canvas: #0b1220;
+  --ds-surface: #111827;
+  --ds-surface-subtle: #151e2e;
+  --ds-surface-muted: #1e293b;
+  --ds-surface-brand: #172554;
+  --ds-border-subtle: #1e293b;
+  --ds-border: #263244;
+  --ds-border-control: #334155;
+  --ds-border-control-hover: #475569;
+  --ds-text: #f1f5f9;
+  --ds-text-secondary: #cbd5e1;
+  --ds-text-muted: #94a3b8;
+  --ds-text-subtle: #64748b;
+  --ds-text-danger: #f87171;
+  --ds-ring: 0 0 0 3px rgba(96, 165, 250, 0.45);
+  --ds-success-text: #6ee7b7;
+  --ds-success-bg: rgba(16, 185, 129, 0.12);
+  --ds-success-border: rgba(16, 185, 129, 0.35);
+  --ds-warning-text: #fcd34d;
+  --ds-warning-bg: rgba(245, 158, 11, 0.12);
+  --ds-warning-border: rgba(245, 158, 11, 0.35);
+  --ds-danger-text: #fca5a5;
+  --ds-danger-bg: rgba(239, 68, 68, 0.12);
+  --ds-danger-border: rgba(239, 68, 68, 0.35);
 }

@@ -6,6 +6,7 @@ import { useCrmStore } from '@/stores/crm'
 import { usePlanAccess } from '@/composables/usePlanAccess'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import UserDropdown from '@/components/global/UserDropdown.vue'
+import SecurityAlertDot from '@/components/auth/SecurityAlertDot.vue'
 import ClinicDropdown from '@/components/global/ClinicDropdown.vue'
 import AppIcon from '@/components/global/AppIcon.vue'
 import {
@@ -440,9 +441,12 @@ const sidebarSections = computed(() => {
         v-click-outside="() => (isUserDropdownOpen = false)"
       >
         <UserDropdown v-if="isUserDropdownOpen && !isCollapsed" />
-        <div class="user-avatar">
-          {{ authStore.user?.name.charAt(0) || 'U' }}
-        </div>
+        <span class="avatar-wrap">
+          <div class="user-avatar">
+            {{ authStore.user?.name.charAt(0) || 'U' }}
+          </div>
+          <SecurityAlertDot :alerts="authStore.securityAlerts" class="avatar-alert-dot" />
+        </span>
         <div v-show="!isCollapsed" class="user-details">
           <span class="user-name">{{ authStore.user?.name || 'Usuário' }}</span>
           <span class="user-email">{{ authStore.user?.email || 'email@exemplo.com' }}</span>
@@ -788,6 +792,20 @@ const sidebarSections = computed(() => {
 .sidebar:not(.is-collapsed) .user-profile:hover {
   background-color: #edf0f4;
 }
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+/* Centro da bolinha sobre a borda do avatar (45°); vale com foto, inicial e sidebar recolhida. */
+.avatar-alert-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .user-avatar {
   width: 36px;
   height: 36px;

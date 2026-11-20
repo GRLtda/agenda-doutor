@@ -7,6 +7,10 @@ para cadastro v2, seleção no atendimento, endereço do WhatsApp, auditoria e m
 
 Consulte as instrucoes gerais de auditoria em [api-clinic/docs/AUDITORIA.md](../api-clinic/docs/AUDITORIA.md).
 
+## Login com provedores externos (Google e futuros)
+
+Antes de alterar login social, vinculo de contas, senha de contas criadas por provedor ou a bolinha de seguranca do perfil, leia [api-clinic/docs/auth/OAUTH_PROVEDORES.md](../api-clinic/docs/auth/OAUTH_PROVEDORES.md) (backend, seguranca, erros, auditoria, variaveis dev/prod) e [docs/auth/LOGIN_SOCIAL.md](docs/auth/LOGIN_SOCIAL.md) (componentes e contratos do frontend). Rode `npm run test:oauth` no CRM e na API.
+
 ## Documentacao obrigatoria e sincronizada
 
 Toda criacao, alteracao, atualizacao ou remocao de codigo, configuracao, modelo de dados, rota, contrato de API, fluxo, regra de negocio, interface, integracao ou teste deve incluir, na mesma entrega, a revisao e a atualizacao da documentacao relacionada.

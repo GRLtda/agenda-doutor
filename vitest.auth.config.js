@@ -5,5 +5,5 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [vue()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  test: { environment: 'jsdom', include: ['tests/auth-resilience-*.spec.js'], clearMocks: true },
+  test: { environment: 'jsdom', include: ['tests/auth-resilience-*.spec.js', 'tests/auth-access-*.spec.js'], clearMocks: true },
 })

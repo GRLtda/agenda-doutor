@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, computed } from 'vue'
+import { defineProps, computed, ref } from 'vue'
 
 const props = defineProps({
   imageUrl: {
@@ -16,6 +16,12 @@ const props = defineProps({
   },
 })
 
+// Imagem fixa: a rolagem do mouse sobre ela rola o formulário (só o painel do formulário tem scroll).
+const formPanel = ref(null)
+function forwardWheel(event) {
+  if (formPanel.value) formPanel.value.scrollTop += event.deltaY
+}
+
 const containerClasses = computed(() => {
   return {
     'auth-container': true,
@@ -26,7 +32,7 @@ const containerClasses = computed(() => {
 
 <template>
   <div :class="containerClasses">
-    <div class="form-panel" :class="`panel-${panelWidth}`">
+    <div ref="formPanel" class="form-panel" :class="`panel-${panelWidth}`">
       <div class="form-content">
         <div v-if="$slots.title" class="content-title">
           <slot name="title" />
@@ -39,7 +45,7 @@ const containerClasses = computed(() => {
         </div>
       </div>
     </div>
-    <div class="image-panel">
+    <div class="image-panel" @wheel.passive="forwardWheel">
       <img :src="imageUrl" alt="Auth Image" class="auth-image" />
       <div class="image-overlay">
         <slot name="image-content" />
@@ -52,7 +58,9 @@ const containerClasses = computed(() => {
 .auth-container {
   display: flex;
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden; /* a página não rola: imagem fixa, só o formulário rola */
   background-color: #ffffff;
   background-image:
     /* Pontos de luz (Radial Gradients) */
@@ -75,11 +83,13 @@ const containerClasses = computed(() => {
   align-items: center;
   padding: 2rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   position: relative;
 }
 
 .form-content {
   width: 100%;
+  margin: auto; /* centraliza sem cortar o topo quando o conteúdo é maior que a tela */
 }
 
 .panel-default .form-content {
@@ -144,6 +154,8 @@ const containerClasses = computed(() => {
   .auth-container,
   .auth-container.image-left {
     display: block; /* Remove o flex layout */
+    height: auto;
+    overflow: visible;
   }
 
   .image-panel {

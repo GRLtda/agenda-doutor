@@ -49,6 +49,8 @@ e a validação dos campos, sem criar um novo tema global.
 | Erro | `#DC2626` | `#FEE2E2` | Falha e atraso; campos inválidos usam borda `#EF4444`. |
 | Neutro | `#64748B` | `#F1F5F9` | Cancelado ou estado sem destaque. |
 
+Tokens (em `tokens.css`, com valores próprios em `.dark`): `--ds-success-*`, `--ds-warning-*` e `--ds-danger-*` (`-text`, `-bg`, `-border`) e `--ds-warning-solid` (bolinha de pendência). Em avisos e mensagens inline use texto + fundo + contorno do mesmo estado, sempre com ícone.
+
 Os componentes podem ter variantes específicas. Mantenha texto ou ícone
 que explique o estado; não dependa somente da cor.
 

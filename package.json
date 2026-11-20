@@ -5,6 +5,7 @@
   "scripts": {
     "test:financeiro": "vitest run --config vitest.financeiro.config.js",
     "test:auth": "vitest run --config vitest.auth.config.js",
+    "test:oauth": "vitest run --config vitest.oauth.config.js",
     "test:signup": "vitest run --config vitest.signup.config.js",
     "test:calendar": "vitest run --config vitest.calendar.config.js",
     "test:stock": "vitest run --config vitest.stock.config.js",
@@ -19,7 +20,8 @@
     "test:lia": "vitest run --config vitest.lia.config.js",
     "dev:lia": "vite --config vite.lia-preview.config.js",
     "test:retrospective": "vitest run --config vitest.retrospective.config.js",
-    "dev:retrospectiva": "vite --config vite.retrospective-preview.config.js"
+    "dev:retrospectiva": "vite --config vite.retrospective-preview.config.js",
+    "dev:oauth-preview": "vite --config vite.oauth-preview.config.js"
   },
   "dependencies": {
     "@fontsource/dm-mono": "^5.3.0",

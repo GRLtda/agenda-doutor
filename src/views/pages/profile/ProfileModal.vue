@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CreditCard, Monitor, Shield, User, HardDrive } from 'lucide-vue-next'
+import { CreditCard, Monitor, Shield, User, HardDrive, Link2 } from 'lucide-vue-next'
 import { version } from '../../../../package.json'
 import { useAuthStore } from '@/stores/auth'
 import OptionsModalShell from '@/components/global/OptionsModalShell.vue'
@@ -28,6 +28,12 @@ const profileTabs = computed(() => {
       label: 'Segurança',
       description: '2FA, redefinição de senha e proteção de conta.',
       icon: Shield,
+    },
+    {
+      value: 'connected',
+      label: 'Experiências Conectadas',
+      description: 'Entre com o Google e outros serviços sem perder o acesso por e-mail e senha.',
+      icon: Link2,
     },
     {
       value: 'devices',

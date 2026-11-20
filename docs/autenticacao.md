@@ -140,3 +140,59 @@ No aplicativo de teste autenticado:
 Composição visual: [Design System](<Design System/README.md>).
 As regras de acesso financeiro continuam em
 [Onboarding e assinatura](onboarding-assinatura-e-trial.md).
+
+## Telas de acesso (Entrar e Criar conta)
+
+`/login`, `/register`, `/r/:token` e `/e/:token` são rotas filhas de **`AuthShell`** (`src/components/auth/AuthShell.vue`). A casca mantém a foto,
+a citação e o layout; só o formulário troca (crossfade de 14 px + altura animada por `SmoothHeight`), então alternar entre as telas é suave.
+
+- **Desktop:** a página não rola; só o formulário tem scroll e a roda do mouse sobre a foto também o rola. As duas fotos (`clinic1`, `clinic2`)
+  alternam a cada 5 s com a citação, e a foto acompanha a tela (login → 1, cadastro → 2). Sem rodízio com `prefers-reduced-motion`.
+- **Celular/iPhone (≤ 900 px):** foto no topo (só a marca branca), por trás de uma folha branca que flutua por cima; respeita
+  `env(safe-area-inset-*)`; campos de 16 px (o iOS não dá zoom), botão de 52 px e alvos de toque de 44 px.
+- **Peças:** `AuthHeader` (título com rabisco azul), `AuthBanner` (erro/atenção/info/sucesso, sempre com ícone), `AuthPromo` (campanha, plano, convite).
+  `FormInput` e `PasswordInput` ganharam `icon` e `inputAttrs`; `PasswordInput` ganhou `placeholder`, o slot `label-action`, aviso de Caps Lock e olho com `aria-label`.
+
+### Cuidados de segurança e reconhecimento como tela de acesso
+
+- `autocomplete` correto (`username`, `current-password`, `new-password`, `email`, `tel`, `one-time-code`), `name`, `inputmode`, `autocapitalize="none"`,
+  `autocorrect="off"` e `enterkeyhint`, para gerenciadores de senha e teclados do celular reconhecerem o formulário.
+- Mensagem de credenciais **genérica** ("E-mail ou senha incorretos."), sem revelar se o e-mail existe; clique duplo bloqueado enquanto envia.
+- `?redirect=` só aceita caminho interno (descarta `https://…` e `//host`); links externos abrem com `noopener,noreferrer`.
+- Sincronização do preenchimento automático do iOS antes de enviar.
+
+### Avisos de falha no login (cada um com texto próprio e uma saída)
+
+| Situação | Aviso |
+|---|---|
+| `AUTH_INVALID_CREDENTIALS` (401) | Erro: "E-mail ou senha incorretos." |
+| Erro por campo (`details.fields`) | No próprio campo, sem aviso geral |
+| `AUTH_RATE_LIMITED` / 429 | Atenção + botão "Aguarde 0:45" com contagem (usa `retry_after`) e atalho "Esqueci minha senha" |
+| `AUTH_SUBSCRIPTION_REQUIRED` | Atenção + "Falar com o suporte" |
+| `AUTH_SESSION_REVOKED` | Informação: sessão terminou por segurança |
+| Sem resposta (conexão) | Erro + "Tentar novamente" |
+| 5xx | Erro + "Tentar novamente" |
+| Chegou por link protegido (`?redirect=`) | Informação: "Entre para continuar de onde parou." |
+
+No cadastro: e-mail já cadastrado (no campo, com "Entrar com este e-mail"), erros de nome/telefone/senha nos campos, termos não aceitos, convite inválido
+(com suporte), limite de tentativas (contagem), sem conexão/5xx (com "Tentar novamente") e oferta expirada ("Esta oferta não está mais disponível").
+`stores/auth.js` (`login` e `register`) agora devolve também `status` (HTTP) para separar essas falhas; o status não aparece na tela.
+
+Testes: `tests/auth-access-login.spec.js` (`npx vitest run --config vitest.auth.config.js`) e `tests/signup-register-view.spec.js`.
+
+### Cadastro: confirmar senha e conta criada
+
+- O cadastro tem **Confirmar senha** logo abaixo da senha. Se não bater, o erro aparece no campo ("As senhas não conferem…") e a API não é chamada; quando bate, aparece "As senhas conferem.". A confirmação não é enviada à API.
+- **Conta criada** não abre mais uma tela cheia: a animação acontece na própria tela (`RegisterView`). O formulário recolhe, o topo da casca fica verde
+  (`AuthShell` expõe `provide('authShell', { celebrate })`; só um brilho suave, sem barra), o Lottie `check.json` (o mesmo do termo aplicado) toca, e uma barra de
+  cerca de 3 s leva sozinha para `/onboarding/clinic` (convite de funcionário vai para `/`). "Ir agora" pula a espera. No celular o brilho fica só na folha de baixo.
+  Com `prefers-reduced-motion` a barra enche de uma vez. Sem confete.
+- A marca branca sobre a foto da clínica fica no canto superior **direito** no desktop e no canto superior esquerdo no celular; a folha branca do celular sobe 100 px sobre a foto.
+
+### Ajustes de layout e links
+
+- O formulário tem largura máxima de 500 px, e a folga vertical do painel acompanha a altura da tela (`clamp`), com espaçamento compacto em telas baixas, para não aparecer uma rolagem mínima.
+- Trocar entre Entrar e Criar conta só faz fade (sem deslocamento lateral); a altura é animada.
+- "Termos de Uso" e "Política de Privacidade" do cadastro abrem `/termos` e `/privacidade` do site institucional em nova aba (`VITE_LANDING_URL`, padrão `https://www.agendadoutor.com`).
+
+- `/auth/callback` (retorno do Google, incluindo "Complete seu cadastro") agora também é filha da casca `AuthShell`, com o mesmo visual (título com rabisco azul, campos com ícone, termos com link, painel de senha opcional). A tela de conta criada usa só fade (sem `<Transition>` aninhado), para sempre terminar visível.
