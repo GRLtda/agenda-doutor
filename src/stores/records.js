@@ -10,6 +10,9 @@ import {
   removeAttachmentsBulk as apiRemoveAttachmentsBulk,
   addProcedureToRecord as apiAddProcedureToRecord,
   removeProcedureFromRecord as apiRemoveProcedureFromRecord,
+  refineRecord as apiRefineRecord,
+  acceptRecordRefinement as apiAcceptRecordRefinement,
+  rejectRecordRefinement as apiRejectRecordRefinement,
 } from '@/api/records'
 import apiClient from '@/api'
 import { galleryError } from '@/api/gallery'
@@ -66,6 +69,30 @@ export const useRecordsStore = defineStore('records', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  // Refinamento por IA: a sugestão só vira prontuário depois de aceita.
+  async function refineRecord(recordId) {
+    try {
+      const response = await apiRefineRecord(recordId)
+      return { success: true, data: response.data }
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Não foi possível refinar agora. Seu prontuário não foi alterado.' }
+    }
+  }
+
+  async function acceptRefinement(recordId, refinementId) {
+    try {
+      const response = await apiAcceptRecordRefinement(recordId, refinementId)
+      currentRecord.value = response.data
+      return { success: true, data: response.data }
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Não foi possível aplicar a melhoria. Seu prontuário continua como estava.' }
+    }
+  }
+
+  async function rejectRefinement(recordId, refinementId) {
+    try { await apiRejectRecordRefinement(recordId, refinementId) } catch { /* A sugestão expira sozinha. */ }
   }
 
   async function uploadAttachmentImage(recordId, file, draftData, options = {}) {
@@ -242,6 +269,9 @@ export const useRecordsStore = defineStore('records', () => {
     createRecord,
     fetchRecordByAppointmentId,
     updateRecord,
+    refineRecord,
+    acceptRefinement,
+    rejectRefinement,
     uploadAttachmentImage,
     attachGalleryPhotos,
     deleteAttachment,

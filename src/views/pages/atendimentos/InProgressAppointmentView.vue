@@ -18,6 +18,9 @@ import EditorToolbar from '@/components/shared/EditorToolbar.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 import AppButton from '@/components/global/AppButton.vue'
 import RecordAttachments from '@/components/pages/appointments/RecordAttachments.vue'
+import RecordRefineButton from '@/components/pages/appointments/RecordRefineButton.vue'
+import RecordRefinementReview from '@/components/pages/appointments/RecordRefinementReview.vue'
+import { useLiaStore } from '@/stores/lia'
 import SaveStatusIndicator from '@/components/shared/SaveStatusIndicator.vue'
 import AnamnesisAnswersModal from '@/components/pages/dashboard/AnamnesisAnswersModal.vue'
 
@@ -344,6 +347,72 @@ async function autoSave() {
   }
 }
 
+// --- Refinar com IA: a Lia só melhora a escrita; a pessoa decide se aceita ---
+const liaStore = useLiaStore()
+const refineLoading = ref(false)
+const refineAccepting = ref(false)
+const refinement = ref(null)
+const editorHasText = computed(() => (editor.value?.getText().trim().length || 0) >= 15)
+const canRefine = computed(() => Boolean(editor.value) && !isViewMode.value && !isLoadingData.value && !loadError.value && editorHasText.value && !refinement.value)
+
+async function refineWithLia() {
+  if (!canRefine.value || refineLoading.value) return
+  refineLoading.value = true
+  editor.value.setEditable(false)
+  try {
+    // A Lia lê o texto salvo no servidor: salva o que está na tela antes de pedir.
+    clearTimeout(debounceTimeout)
+    await autoSave()
+    const recordId = recordsStore.currentRecord?._id
+    if (saveStatus.value === 'error' || !recordId) {
+      toast.error('Não foi possível salvar o prontuário antes de refinar. Confira sua conexão e tente de novo.')
+      return
+    }
+    const result = await recordsStore.refineRecord(recordId)
+    if (isUnmounted) return
+    if (!result.success) {
+      toast.error(result.error)
+    } else if (!result.data.changed) {
+      toast.info(result.data.message)
+    } else {
+      refinement.value = { recordId, ...result.data }
+    }
+  } finally {
+    refineLoading.value = false
+    if (!isViewMode.value && !isUnmounted) editor.value?.setEditable(true)
+  }
+}
+
+async function acceptRefinement() {
+  if (!refinement.value || refineAccepting.value) return
+  refineAccepting.value = true
+  try {
+    const result = await recordsStore.acceptRefinement(refinement.value.recordId, refinement.value.refinementId)
+    if (isUnmounted) return
+    if (!result.success) {
+      toast.error(result.error)
+      refinement.value = null
+      return
+    }
+    // Troca o texto sem disparar o salvamento automático: o servidor já gravou.
+    isLoadingData.value = true
+    editor.value.commands.setContent(result.data.content)
+    isLoadingData.value = false
+    saveStatus.value = 'saved'
+    lastSaved.value = new Date()
+    refinement.value = null
+    toast.success('Melhoria aplicada. A versão anterior ficou guardada no histórico do prontuário.')
+  } finally {
+    refineAccepting.value = false
+  }
+}
+
+function rejectRefinement() {
+  if (!refinement.value || refineAccepting.value) return
+  void recordsStore.rejectRefinement(refinement.value.recordId, refinement.value.refinementId)
+  refinement.value = null
+}
+
 const editor = useEditor({
   content: '',
   extensions: [StarterKit, Underline, BubbleMenuExtension],
@@ -646,6 +715,14 @@ function openPatientProfile() {
 
 <template>
   <div class="in-progress-appointment-layout" :aria-busy="isLoadingData">
+    <RecordRefinementReview
+      v-if="refinement"
+      :original-content="refinement.originalContent"
+      :refined-content="refinement.refinedContent"
+      :accepting="refineAccepting"
+      @accept="acceptRefinement"
+      @reject="rejectRefinement"
+    />
     <AddProcedureModal
       v-if="showAddProcedureModal"
       :appointment-id="appointmentId"
@@ -876,7 +953,11 @@ function openPatientProfile() {
               </div>
             </div>
 
-            <EditorToolbar v-if="!isViewMode" :editor="editor" />
+            <EditorToolbar v-if="!isViewMode" :editor="editor">
+              <template v-if="liaStore.isAvailable" #actions>
+                <RecordRefineButton :loading="refineLoading" :disabled="!canRefine" @click="refineWithLia" />
+              </template>
+            </EditorToolbar>
 
             <div v-if="isViewMode" class="view-mode-header">
               <FileText :size="22" stroke-width="2.5" />

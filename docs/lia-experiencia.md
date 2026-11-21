@@ -32,10 +32,44 @@ Links de texto do modelo seguem o renderer Markdown existente. Os botões de
 navegação usam a estrutura fornecida pelas ferramentas do backend. Permissões e
 confirmações são verificadas pelos fluxos normais de cada tela.
 
-A busca global oferece Buscar com a Lia para usuários com o piloto disponível.
-O texto vira um rascunho em uma nova conversa e fica pronto para revisão e envio.
-Uma resposta em andamento bloqueia essa abertura. Troca de identidade limpa o
-rascunho. Atalhos e busca de pacientes continuam disponíveis.
+### Busca global com a Lia
+
+A busca do top bar (`TopBar.vue`) abre um painel com Ações, Contatos e, para
+usuários com o piloto disponível, o item **Buscar com a Lia**.
+
+- **Aurora azul:** o painel aberto e vazio não tem aurora. Ela acende ao digitar
+  (quando aparece Buscar com a Lia), acelera enquanto a Lia pensa e continua na
+  resposta. Respeita `prefers-reduced-motion`.
+- **Enviar:** Enter sem ação ou contato correspondente, ou clicar em Buscar com a
+  Lia, chama `liaStore.startNewConversation()` e `liaStore.sendMessage()`. A
+  conversa é criada e gravada pelo fluxo normal, então aparece no histórico da
+  Lia como qualquer outra. A pergunta não vira mais rascunho no chat.
+- **Fases do painel:** `idle` (lista normal), `thinking` (mascote pensando e a
+  pergunta), `result` (resposta em Markdown, botões Ir para e Continuar na
+  conversa com a Lia) e `error` (mensagem do backend com Tentar novamente).
+- **Mesmos componentes do chat:** a resposta lê a mensagem do store e mostra os
+  cartões de confirmação (confirmar e cancelar chamam `liaStore.confirmAction` e
+  `cancelAction` sem abrir o chat), relatórios (`LiaAnalyticsCard`), seletor de
+  paciente, horários alternativos e sugestões de continuação. Escolhas e
+  sugestões continuam a mesma conversa e enviam `pageContext` quando há ficha de
+  paciente aberta. Com decisão pendente, Enter não navega sozinho. Confirmações
+  em processamento são conferidas a cada 5 s, como no chat.
+- **Botões filtrados:** vêm de `metadata.navigation` da resposta, validados por
+  `safeProductNavigation`. Cada botão mostra como etiquetas os filtros do destino
+  (`navigationFilters`), tanto na busca quanto nos botões do chat da Lia (rótulo
+  curto mais etiquetas, sem texto longo quebrado). Clicar, ou Enter com a seleção por ↑ ↓, abre a página
+  já com os filtros.
+- **Fechar durante a resposta:** ESC ou fechar não cancela a Lia. A resposta
+  chega em segundo plano e o botão da Lia mostra Resposta pronta. Quando a
+  resposta é exibida no painel, o aviso do botão é limpo.
+- Troca de identidade e piloto indisponível seguem as regras do store; sem o
+  piloto, o painel mantém só Ações e Contatos.
+
+#### Filtros aceitos em destinos
+
+`/atendimentos` aceita `from` e `to` (datas `YYYY-MM-DD` válidas, juntas e com
+`from <= to`) e `view=list`. Não há filtro de situação por URL nessa tela, então
+a situação consultada não é enviada. Qualquer outro parâmetro é recusado.
 
 Os cenários Orientações do sistema e Atendimentos em aberto na prévia local
 permitem conferir os botões e links com dados fictícios. Na revisão de

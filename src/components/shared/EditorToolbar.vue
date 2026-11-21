@@ -1,4 +1,5 @@
 <script setup>
+import { computed, useSlots } from 'vue';
 import {
   Bold, Italic, Strikethrough, Code,
   List, ListOrdered, Minus, AlignLeft, AlignCenter, AlignRight,
@@ -7,6 +8,8 @@ import {
 } from 'lucide-vue-next';
 
 defineProps({ editor: { type: Object, required: true } });
+const slots = useSlots();
+const hasActions = computed(() => Boolean(slots.actions));
 
 // Função auxiliar para aplicar estilos de alinhamento
 const setTextAlign = (alignment) => {
@@ -19,7 +22,8 @@ const setTextAlign = (alignment) => {
 </script>
 
 <template>
-  <div v-if="editor" class="editor-toolbar">
+  <div v-if="editor" class="editor-toolbar-shell" :class="{ 'has-actions': hasActions }">
+  <div class="editor-toolbar">
     <div class="toolbar-group">
       <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Negrito">
         <Bold :size="16" />
@@ -77,10 +81,39 @@ const setTextAlign = (alignment) => {
       </button>
     </div>
   </div>
+  <!-- Ações fixas à direita: não rolam junto com os botões de formatação -->
+  <div v-if="hasActions" class="toolbar-actions">
+    <slot name="actions" />
+  </div>
+  </div>
 </template>
 
 <style scoped>
+.editor-toolbar-shell {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* Com ações fixas, a barra de formatação rola sozinha e o botão fica sempre visível à direita */
+.editor-toolbar-shell.has-actions .editor-toolbar {
+  border-top-right-radius: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0.75rem 1rem 0.75rem 0.75rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+  border-top-right-radius: 0.75rem;
+}
+
 .editor-toolbar {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-wrap: nowrap; /* Impede que os grupos quebrem a linha */
   overflow-x: auto;  /* Permite o scroll horizontal quando necessário */

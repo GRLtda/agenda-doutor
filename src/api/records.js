@@ -91,3 +91,21 @@ export const removeProcedureFromRecord = (recordId, procedureId) => {
 export const removeAttachmentsBulk = (recordId, uploadIds) => {
   return apiClient.post(`/records/${recordId}/attachments/bulk-delete`, { uploadIds })
 }
+
+/**
+ * Pede à Lia uma sugestão de melhoria da redação. Nada é gravado no prontuário.
+ * Rota: POST /api/records/:recordId/refine
+ */
+export const refineRecord = (recordId) => apiClient.post(`/records/${recordId}/refine`, {}, { timeout: 60000 })
+
+/**
+ * Aceita a sugestão: aplica o texto e guarda a versão anterior de forma oculta.
+ * Rota: POST /api/records/:recordId/refinements/:refinementId/accept
+ */
+export const acceptRecordRefinement = (recordId, refinementId) => apiClient.post(`/records/${recordId}/refinements/${refinementId}/accept`, {})
+
+/**
+ * Recusa a sugestão; o prontuário continua como estava.
+ * Rota: POST /api/records/:recordId/refinements/:refinementId/reject
+ */
+export const rejectRecordRefinement = (recordId, refinementId) => apiClient.post(`/records/${recordId}/refinements/${refinementId}/reject`, {})

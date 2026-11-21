@@ -1,8 +1,15 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share } from 'lucide-vue-next'
+import { Search, Menu, User, Settings, LoaderCircle, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, UserPlus, CalendarPlus, CalendarOff, X, Bell, BellOff, CheckCircle, AlertCircle, Info, Share, ArrowUpRight, MessageSquare, RotateCcw, Clock3 } from 'lucide-vue-next'
 import AppButton from '@/components/global/AppButton.vue'
+import LiaAvatar from '@/components/lia/LiaAvatar.vue'
+import LiaActionConfirmationCard from '@/components/lia/LiaActionConfirmationCard.vue'
+import LiaAnalyticsCard from '@/components/lia/LiaAnalyticsCard.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
+import { useLiaPageContext } from '@/composables/useLiaPageContext'
+import { safeProductNavigation, navigationFilters } from '@/components/lia/liaNavigation'
+import { renderLiaMarkdown } from '@/utils/liaMarkdown'
 import UserDropdown from '@/components/global/UserDropdown.vue'
 import SecurityAlertDot from '@/components/auth/SecurityAlertDot.vue'
 import RetrospectiveShortcut from '@/features/retrospective/components/RetrospectiveShortcut.vue'
@@ -137,8 +144,40 @@ const recentPatients = computed(() => {
   ).slice(0, 5)
 })
 
+// Pergunta feita à Lia pela busca: idle | thinking | result | error.
+// A conversa é criada e gravada pelo liaStore, então já fica no histórico da Lia.
+const liaPhase = ref('idle')
+const liaAnswerId = ref(null)
+const liaAnswerFallback = ref(null)
+const liaAsked = ref('')
+const liaError = ref('')
+const pageContext = useLiaPageContext()
+let liaRequestId = 0
+
+// Lê a mensagem do store para que confirmações e cartões acompanhem as atualizações.
+const liaAnswer = computed(() => (liaAnswerId.value && liaStore.messages?.find(item => item.id === liaAnswerId.value)) || liaAnswerFallback.value)
+const confirmationsOf = message => message?.metadata?.confirmations?.length ? message.metadata.confirmations : message?.metadata?.confirmation ? [message.metadata.confirmation] : []
+const liaConfirmations = computed(() => confirmationsOf(liaAnswer.value))
+const liaPatientOptions = computed(() => {
+  const options = liaAnswer.value?.metadata?.patientOptions
+  return Array.isArray(options) && options.length > 1 ? options.map(patient => ({ value: patient.id, label: `${patient.name}${patient.phone ? ` · ${patient.phone}` : ''}` })) : []
+})
+const liaTimes = computed(() => liaAnswer.value?.metadata?.availabilityAlternatives?.times || [])
+const liaFollowups = computed(() => Array.isArray(liaAnswer.value?.metadata?.suggestions) ? liaAnswer.value.metadata.suggestions.slice(0, 2) : [])
+// Com uma decisão pendente (confirmar, escolher paciente ou horário), Enter não navega sozinho.
+const liaNeedsDecision = computed(() => liaConfirmations.value.some(card => card.status === 'pending') || liaPatientOptions.value.length > 0 || liaTimes.value.length > 0)
+const alternativeLabel = value => typeof value === 'string' ? value : `${value.date.split('-').reverse().join('/')} às ${value.time}`
+
+const liaTargets = computed(() =>
+  safeProductNavigation(liaAnswer.value?.metadata?.navigation).map(target => ({ ...target, filters: navigationFilters(target) }))
+)
+const showAura = computed(() => liaPhase.value !== 'idle' || (liaStore.isAvailable && searchQuery.value.trim().length > 0))
+const liaAvatarState = computed(() => ({ thinking: 'thinking', result: 'success', error: 'error' })[liaPhase.value] || 'attentive')
+
 // Lista combinada para navegação
 const allItems = computed(() => {
+  if (liaPhase.value === 'result') return [...liaTargets.value.map(data => ({ type: 'target', data })), { type: 'conversation' }]
+  if (liaPhase.value !== 'idle') return []
   const items = []
   filteredShortcuts.value.forEach((s, i) => items.push({ type: 'shortcut', data: s, index: i }))
   recentPatients.value.forEach((p, i) => items.push({ type: 'patient', data: p, index: filteredShortcuts.value.length + i }))
@@ -152,6 +191,19 @@ const hasNoResults = computed(() => searchQuery.value && !showPatients.value && 
 // Reset selection quando busca muda
 watch(searchQuery, () => {
   selectedIndex.value = 0
+  // Editar a pergunta depois de uma resposta volta para a lista normal.
+  if (liaPhase.value === 'result' || liaPhase.value === 'error') {
+    liaPhase.value = 'idle'
+    liaAnswerId.value = null
+    liaAnswerFallback.value = null
+  }
+})
+
+// Confirmações em processamento são atualizadas pelo servidor; confere a cada 5 s como o chat.
+watch(() => [liaPhase.value, liaConfirmations.value.some(card => card.status === 'processing')], ([phase, processing], _previous, onCleanup) => {
+  if (phase !== 'result' || !processing) return
+  const timer = setInterval(() => { if (!liaStore.isSending) void liaStore.loadMessages?.()?.catch?.(() => {}) }, 5000)
+  onCleanup(() => clearInterval(timer))
 })
 
 function executeShortcut(shortcut) {
@@ -169,25 +221,133 @@ function goToPatient(patient) {
 }
 
 function closeCommandPalette() {
+  // Se a Lia ainda estiver respondendo, ela continua em segundo plano e avisa pelo botão da Lia.
+  liaRequestId++
+  liaPhase.value = 'idle'
+  liaAnswerId.value = null
+  liaAnswerFallback.value = null
+  liaError.value = ''
   isSearchFocused.value = false
   searchQuery.value = ''
   selectedIndex.value = 0
 }
 
 function handleSearchSubmit() {
+  if (liaPhase.value === 'thinking') return
+  if (liaPhase.value === 'error') return retryLia()
   const item = allItems.value[selectedIndex.value]
   if (item) {
     if (item.type === 'shortcut') {
       executeShortcut(item.data)
     } else if (item.type === 'lia') {
       askLia()
+    } else if (item.type === 'target') {
+      openLiaTarget(item.data)
+    } else if (item.type === 'conversation') {
+      openLiaConversation()
     } else {
       goToPatient(item.data)
     }
   }
 }
+
+let lastLiaSend = null
+
+// Envia à Lia pelo store (a conversa é gravada no histórico). `fresh` abre uma conversa nova;
+// seleção de paciente, horários e sugestões continuam a conversa atual.
+async function sendToLia(prompt, { options = {}, fresh = false } = {}) {
+  if (!prompt || !liaStore.isAvailable || liaPhase.value === 'thinking' || liaStore.isSending) return
+  lastLiaSend = { prompt, options, fresh }
+  const requestId = ++liaRequestId
+  if (fresh) liaStore.startNewConversation()
+  liaAsked.value = prompt
+  liaPhase.value = 'thinking'
+  liaAnswerId.value = null
+  liaAnswerFallback.value = null
+  liaError.value = ''
+  selectedIndex.value = 0
+  try {
+    const message = await liaStore.sendMessage(prompt, { ...options, ...(pageContext.value ? { pageContext: pageContext.value } : {}) })
+    if (requestId !== liaRequestId || !isSearchFocused.value) return
+    if (!message) {
+      liaPhase.value = 'idle'
+      return
+    }
+    // A resposta já está na tela: o aviso "Resposta pronta" do botão da Lia seria repetido.
+    liaStore.backgroundNotice = null
+    liaAnswerId.value = message.id
+    liaAnswerFallback.value = message
+    liaPhase.value = 'result'
+    selectedIndex.value = liaNeedsDecision.value ? -1 : 0
+  } catch {
+    if (requestId !== liaRequestId || !isSearchFocused.value) return
+    liaError.value = liaStore.error || 'Não consegui responder agora porque a conexão com a Lia falhou. Tente de novo em instantes.'
+    liaPhase.value = 'error'
+  }
+}
+
 function askLia() {
-  if (liaStore.openWithPrompt(searchQuery.value)) closeCommandPalette()
+  return sendToLia(searchQuery.value.trim().slice(0, 4000), { fresh: true })
+}
+
+function retryLia() {
+  return lastLiaSend ? sendToLia(lastLiaSend.prompt, lastLiaSend) : askLia()
+}
+
+function chooseLiaPatient(message, patientId) {
+  if (!patientId || liaStore.isSending || message.selectedPatientId) return
+  const patient = message.metadata?.patientOptions?.find(item => item.id === patientId)
+  if (!patient) return
+  message.selectedPatientId = patientId
+  return sendToLia(`Quero o paciente ${patient.name}.`, { options: { selectedPatientId: patientId } })
+}
+
+function chooseLiaTime(message, value) {
+  const alternatives = message.metadata?.availabilityAlternatives
+  const time = typeof value === 'string' ? value : value.time
+  const date = typeof value === 'string' ? alternatives?.date : value.date
+  if (!date || !time) return
+  return sendToLia(`Pode ser em ${date} às ${time}.`, {
+    options: {
+      ...(alternatives.patientId ? { selectedPatientId: alternatives.patientId } : {}),
+      selectedAlternative: { date, time, professionalId: alternatives.professionalId, durationMinutes: alternatives.durationMinutes },
+    },
+  })
+}
+
+function askLiaFollowup(suggestion) {
+  return sendToLia(String(suggestion.prompt || '').slice(0, 4000))
+}
+
+async function updateLiaAction(operation, message, confirmation) {
+  await operation(message, confirmation)
+  // O resultado já aparece no cartão; o aviso "Resposta pronta" do botão da Lia seria repetido.
+  if (isSearchFocused.value) liaStore.backgroundNotice = null
+}
+const confirmLiaAction = (message, confirmation) => updateLiaAction(liaStore.confirmAction, message, confirmation)
+const cancelLiaAction = (message, confirmation) => updateLiaAction(liaStore.cancelAction, message, confirmation)
+
+function openLiaPatient(id) {
+  if (!/^[a-f0-9]{24}$/i.test(id)) return
+  closeCommandPalette()
+  router.push({ name: 'detalhes-paciente', params: { id } })
+}
+
+function openLiaAppointment(id) {
+  if (!/^[a-f0-9]{24}$/i.test(id)) return
+  closeCommandPalette()
+  const query = route.name === 'atendimentos' ? route.query : {}
+  router.push({ name: 'atendimentos', query: { ...query, appointment: id } })
+}
+
+function openLiaTarget(target) {
+  closeCommandPalette()
+  router.push(target.to)
+}
+
+function openLiaConversation() {
+  closeCommandPalette()
+  liaStore.isOpen = true
 }
 
 function handleKeyNavigation(e) {
@@ -255,25 +415,128 @@ onUnmounted(() => {
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="isSearchFocused" class="command-overlay" @click.self="closeCommandPalette">
-          <div class="command-palette">
+          <div class="command-palette-wrap" :class="{ 'is-aura': showAura, 'is-thinking': liaPhase === 'thinking' }">
+           <span class="aura-halo" aria-hidden="true"></span>
+           <span class="aura-ring" aria-hidden="true"></span>
+           <div class="command-palette">
             <!-- Search Header inside palette -->
             <div class="palette-header">
-              <Search :size="18" class="palette-search-icon" />
+              <LiaAvatar v-if="liaPhase !== 'idle'" class="palette-lia-icon" :state="liaAvatarState" />
+              <Search v-else :size="18" class="palette-search-icon" />
               <input
                 ref="searchInputRef"
                 type="text"
                 :placeholder="liaStore.isAvailable ? 'Pesquise ou pergunte à Lia' : 'Pesquise pacientes e atalhos'"
                 v-model="searchQuery"
+                :readonly="liaPhase === 'thinking'"
                 @keydown.enter.prevent="handleSearchSubmit"
                 class="palette-search-input"
                 autofocus
               />
-              <button class="close-btn" @click="closeCommandPalette">
+              <button class="close-btn" @click="closeCommandPalette" aria-label="Fechar">
                 <X :size="18" />
               </button>
             </div>
 
-            <div class="palette-content">
+            <!-- A Lia está pensando -->
+            <div v-if="liaPhase === 'thinking'" class="lia-think" role="status" aria-live="polite">
+              <LiaAvatar class="lia-think-avatar" state="thinking" />
+              <div class="lia-think-body">
+                <div class="lia-think-title">Lia está pensando…</div>
+                <div class="lia-think-question">“{{ liaAsked }}”</div>
+                <div v-if="liaStore.streamStatus?.label" class="lia-think-status">{{ liaStore.streamStatus.label }}</div>
+                <div class="lia-think-line" style="width: 92%"></div>
+                <div class="lia-think-line" style="width: 68%"></div>
+              </div>
+            </div>
+
+            <!-- Resposta da Lia, com atalhos já filtrados -->
+            <div v-else-if="liaPhase === 'result' && liaAnswer" class="palette-content is-result">
+              <div class="lia-answer">
+                <div class="lia-answer-label">Lia respondeu</div>
+                <div class="lia-answer-text" v-html="renderLiaMarkdown(liaAnswer.content)"></div>
+              </div>
+
+              <!-- Mesmos cartões do chat: confirmar ações, relatórios, escolha de paciente e horários -->
+              <div v-if="liaConfirmations.length || liaAnswer.metadata?.analyticsCards?.length || liaPatientOptions.length || liaTimes.length" class="lia-extras">
+                <LiaActionConfirmationCard
+                  v-for="confirmation in liaConfirmations"
+                  :key="confirmation.id"
+                  :confirmation="confirmation"
+                  :disabled="liaStore.isSending"
+                  @confirm="confirmLiaAction(liaAnswer, confirmation)"
+                  @cancel="cancelLiaAction(liaAnswer, confirmation)"
+                />
+                <LiaAnalyticsCard
+                  v-for="(card, index) in liaAnswer.metadata?.analyticsCards || []"
+                  :key="`analytics-${index}`"
+                  :card="card"
+                  :conversation-id="liaStore.activeConversationId"
+                  :load-page="liaStore.loadReportPage"
+                  @navigate="openLiaPatient"
+                  @navigate-appointment="openLiaAppointment"
+                />
+                <div v-if="liaPatientOptions.length" class="lia-picker" :class="{ 'is-selected': liaStore.isSending || !!liaAnswer.selectedPatientId }">
+                  <StyledSelect
+                    :model-value="liaAnswer.selectedPatientId || ''"
+                    :options="liaPatientOptions"
+                    label="Quem é o paciente?"
+                    required
+                    placeholder="Selecione um paciente"
+                    @update:model-value="chooseLiaPatient(liaAnswer, $event)"
+                  />
+                </div>
+                <section v-if="liaTimes.length" class="lia-times">
+                  <h3><Clock3 :size="14" /> Horários disponíveis</h3>
+                  <div>
+                    <button
+                      v-for="time in liaTimes"
+                      :key="typeof time === 'string' ? time : time.startAt"
+                      type="button"
+                      :disabled="liaStore.isSending"
+                      @click="chooseLiaTime(liaAnswer, time)"
+                    >{{ alternativeLabel(time) }}</button>
+                  </div>
+                </section>
+              </div>
+
+              <div v-if="liaFollowups.length" class="lia-followups" aria-label="Sugestões para continuar">
+                <button v-for="suggestion in liaFollowups" :key="suggestion.prompt" type="button" :disabled="liaStore.isSending" @click="askLiaFollowup(suggestion)">{{ suggestion.label }}</button>
+              </div>
+              <div v-if="liaTargets.length" class="palette-section">
+                <div class="section-label">Ir para</div>
+                <ul class="palette-list">
+                  <li v-for="(target, idx) in liaTargets" :key="target.id || target.to">
+                    <button type="button" class="palette-item lia-search-action" :class="{ 'is-selected': selectedIndex === idx }" @click="openLiaTarget(target)">
+                      <span class="item-left">
+                        <ArrowUpRight :size="18" class="item-icon" />
+                        <span class="item-text">
+                          <span class="item-label">{{ target.label }}</span>
+                          <span v-if="target.filters.length" class="filter-chips">
+                            <span v-for="filter in target.filters" :key="filter" class="filter-chip">{{ filter }}</span>
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronRight :size="16" class="item-arrow" />
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <div class="palette-section">
+                <button type="button" class="palette-item lia-search-action" :class="{ 'is-selected': selectedIndex === liaTargets.length }" @click="openLiaConversation">
+                  <span class="item-left"><MessageSquare :size="18" class="item-icon" /><span class="item-label">Continuar na conversa com a Lia</span></span>
+                  <ChevronRight :size="16" class="item-arrow" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Falha ao falar com a Lia -->
+            <div v-else-if="liaPhase === 'error'" class="lia-error" role="alert">
+              <div class="lia-error-text">{{ liaError }}</div>
+              <button type="button" class="lia-retry" @click="retryLia"><RotateCcw :size="14" /> Tentar novamente</button>
+            </div>
+
+            <div v-else class="palette-content">
               <!-- Actions Section -->
               <div v-if="showShortcuts" class="palette-section">
                 <div class="section-label">Ações</div>
@@ -318,7 +581,7 @@ onUnmounted(() => {
               <!-- No Results -->
               <div v-if="liaStore.isAvailable" class="palette-section">
                 <button type="button" class="palette-item lia-search-action" :class="{ 'is-selected': selectedIndex === allItems.length - 1 }" :disabled="liaStore.isSending" @click="askLia">
-                  <span class="item-left"><Search :size="18" class="item-icon" /><span class="item-label">Buscar com a Lia</span></span>
+                  <span class="item-left"><LiaAvatar class="item-lia" state="attentive" :active="false" /><span class="item-label">Buscar com a Lia</span><span v-if="searchQuery.trim()" class="item-sub">“{{ searchQuery.trim().slice(0, 34) }}{{ searchQuery.trim().length > 34 ? '…' : '' }}”</span></span>
                   <ChevronRight :size="16" class="item-arrow" />
                 </button>
               </div>
@@ -329,14 +592,21 @@ onUnmounted(() => {
 
             <!-- Footer Hint -->
             <div class="palette-footer">
-              <span><kbd class="kbd-small">↑</kbd></span>
-              <span><kbd class="kbd-small">↓</kbd></span>
-              <span class="footer-text">Navegue</span>
-              <span><kbd class="kbd-small">ENTER</kbd></span>
-              <span class="footer-text">Abrir</span>
-              <span><kbd class="kbd-small">ESC</kbd></span>
-              <span class="footer-text">Fechar</span>
+              <template v-if="liaPhase === 'thinking'">
+                <span><kbd class="kbd-small">ESC</kbd></span>
+                <span class="footer-text">Fechar (a Lia continua respondendo)</span>
+              </template>
+              <template v-else>
+                <span><kbd class="kbd-small">↑</kbd></span>
+                <span><kbd class="kbd-small">↓</kbd></span>
+                <span class="footer-text">Navegue</span>
+                <span><kbd class="kbd-small">ENTER</kbd></span>
+                <span class="footer-text">{{ liaPhase === 'error' ? 'Tentar novamente' : 'Abrir' }}</span>
+                <span><kbd class="kbd-small">ESC</kbd></span>
+                <span class="footer-text">Fechar</span>
+              </template>
             </div>
+           </div>
           </div>
         </div>
       </Transition>
@@ -569,9 +839,157 @@ onUnmounted(() => {
   padding-top: 15vh;
 }
 
-.command-palette {
+/* Aurora azul: só aparece quando a Lia entra na conversa (sugestão "Buscar com a Lia", pensando e resposta) */
+.command-palette-wrap {
+  position: relative;
+  isolation: isolate;
   width: 100%;
   max-width: 640px;
+}
+
+.aura-ring,
+.aura-halo {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, #0057ff, #38bdf8, #8fbaff, #0057ff, #38bdf8, #8fbaff, #0057ff);
+  background-size: 200% 100%;
+  animation: aura-slide 5s linear infinite;
+  transition: opacity 0.45s ease;
+}
+
+.aura-ring {
+  inset: -2px;
+  border-radius: calc(1rem + 2px);
+}
+
+.aura-halo {
+  inset: 6px -22px -14px -22px;
+  border-radius: 1.5rem;
+  filter: blur(26px);
+}
+
+.command-palette-wrap.is-aura .aura-ring { opacity: 1; }
+.command-palette-wrap.is-aura .aura-halo { opacity: 0.55; }
+.command-palette-wrap.is-thinking .aura-ring,
+.command-palette-wrap.is-thinking .aura-halo { animation-duration: 1.3s; }
+.command-palette-wrap.is-thinking .aura-halo { opacity: 0.95; }
+
+@keyframes aura-slide {
+  from { background-position: 0% 0; }
+  to { background-position: 100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aura-ring,
+  .aura-halo { animation: none; }
+}
+
+.palette-lia-icon { width: 28px; flex-shrink: 0; }
+.item-lia { width: 26px; flex-shrink: 0; margin: -4px 0; }
+.item-sub { font-size: 0.8125rem; color: #6b7280; }
+
+.lia-think {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.75rem 1.5rem;
+}
+.lia-think-avatar { width: 88px; flex-shrink: 0; }
+.lia-think-body { flex: 1; min-width: 0; }
+.lia-think-title { font-size: 1rem; font-weight: 600; color: #1e293b; }
+.lia-think-question { margin-top: 2px; font-size: 0.875rem; color: #475569; overflow-wrap: anywhere; }
+.lia-think-status { margin-top: 4px; font-size: 0.8125rem; color: #6b7280; }
+.lia-think-line {
+  height: 9px;
+  margin-top: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #eef1f6 25%, #dbe6ff 50%, #eef1f6 75%);
+  background-size: 200% 100%;
+  animation: lia-shimmer 1.4s linear infinite;
+}
+@keyframes lia-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lia-think-line { animation: none; }
+}
+
+.palette-content.is-result { max-height: min(560px, 70vh); }
+
+/* Cartões da Lia reaproveitados do chat precisam das mesmas variáveis do painel da Lia */
+.lia-extras {
+  --lia-surface: var(--card, #fff);
+  --lia-bg: var(--background, #fff);
+  --lia-text: var(--foreground, #1c2738);
+  --lia-muted: var(--muted-foreground, #737c8d);
+  --lia-line: var(--border, #e7eaf0);
+  --lia-soft: var(--muted, #f5f6f9);
+  --lia-blue: var(--azul-principal, #0057ff);
+  --lia-tint: color-mix(in srgb, var(--lia-blue) 7%, var(--lia-surface));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 1.5rem 1rem;
+  color: var(--lia-text);
+}
+.lia-picker.is-selected :deep(.select-button) { pointer-events: none; opacity: 0.7; }
+.lia-times h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--lia-muted); font-size: 0.75rem; font-weight: 550; }
+.lia-times > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.lia-times button {
+  padding: 8px 12px; border: 1px solid var(--lia-line); border-radius: 10px;
+  color: var(--lia-blue); background: var(--lia-surface); font: inherit; font-size: 0.8125rem;
+}
+.lia-times button:hover:not(:disabled) { background: var(--lia-tint); }
+.lia-times button:disabled { opacity: 0.5; cursor: default; }
+.lia-followups { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 1.5rem 1rem; }
+.lia-followups button {
+  padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 999px; background: #fff;
+  color: #475569; font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+.lia-followups button:hover:not(:disabled) { background: #f1f5f9; }
+.lia-followups button:disabled { opacity: 0.5; cursor: default; }
+
+.lia-answer { padding: 1.25rem 1.5rem 1rem; border-top: 1px solid #f1f5f9; }
+.lia-answer-label { font-size: 0.75rem; font-weight: 500; color: #6b7280; }
+.lia-answer-text { margin-top: 6px; font-size: 0.9375rem; line-height: 1.6; color: #1e293b; overflow-wrap: anywhere; }
+.lia-answer-text :deep(p) { margin: 0 0 0.5rem; }
+.lia-answer-text :deep(p:last-child) { margin-bottom: 0; }
+.lia-answer-text :deep(strong) { font-weight: 600; color: #0f172a; }
+.lia-answer-text :deep(ul),
+.lia-answer-text :deep(ol) { margin: 0 0 0.5rem; padding-left: 1.25rem; }
+
+.item-text { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #0b4fd6;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.lia-error { padding: 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; border-top: 1px solid #f1f5f9; }
+.lia-error-text { font-size: 0.9375rem; color: #1e293b; line-height: 1.5; }
+.lia-retry {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  height: 32px; padding: 0 0.75rem;
+  border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fff;
+  color: #1e293b; font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer;
+}
+.lia-retry:hover { background: #f1f5f9; }
+
+.command-palette {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   background-color: var(--branco);
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 1rem;

@@ -18,7 +18,7 @@ import LiaResponseFeedback from './LiaResponseFeedback.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLiaStore } from '@/stores/lia'
 import { useLiaPageContext } from '@/composables/useLiaPageContext'
-import { safeProductNavigation } from './liaNavigation'
+import { safeProductNavigation, navigationFilters } from './liaNavigation'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
@@ -240,7 +240,7 @@ watch(() => [props.open, liaStore.messages.some(message => messageConfirmations(
               <div class="message-label"><LiaAvatar v-if="message.role === 'assistant'" class="message-character" :active="false" /><span>{{ message.role === 'user' ? 'Você' : 'Lia' }}</span><time v-if="messageTime(message.createdAt)">{{ messageTime(message.createdAt) }}</time></div>
               <div class="message-content"><div class="markdown" v-html="renderMarkdown(message.content)"></div></div>
               <nav v-if="message.role === 'assistant' && safeProductNavigation(message.metadata?.navigation).length" class="product-navigation" aria-label="Abrir recurso do sistema">
-                <AppButton v-for="target in safeProductNavigation(message.metadata.navigation)" :key="target.id || target.to" variant="outline" @click="openProductPage(target)">{{ target.label }}<ArrowUpRight :size="14" /></AppButton>
+                <AppButton v-for="target in safeProductNavigation(message.metadata.navigation)" :key="target.id || target.to" variant="outline" @click="openProductPage(target)"><span class="nav-label">{{ target.label }}</span><span v-for="filter in navigationFilters(target)" :key="filter" class="nav-chip">{{ filter }}</span><ArrowUpRight :size="14" /></AppButton>
               </nav>
               <p v-if="message.status === 'failed'" class="message-failed" role="alert">{{ message.error }} <button type="button" :disabled="liaStore.isSending" @click="retryMessage(message)"><RotateCcw :size="12" /> Tentar novamente</button></p>
               <LiaActionConfirmationCard v-for="confirmation in messageConfirmations(message)" :key="confirmation.id" :confirmation="confirmation" :disabled="liaStore.isSending" @confirm="liaStore.confirmAction(message, confirmation)" @cancel="liaStore.cancelAction(message, confirmation)" />

@@ -12,6 +12,30 @@ const creationTabs = new Set(['termos', 'anamnese', 'unidades'])
 
 export const appointmentDetailsPath = id => /^[a-f0-9]{24}$/i.test(String(id)) ? `/atendimentos?appointment=${id}` : null
 
+const isoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(value))
+// /atendimentos aplica estes filtros pela URL: período (from/to) e visualização em lista.
+function validAppointmentFilters(params) {
+  const keys = [...params.keys()]
+  if (!keys.every(key => ['from', 'to', 'view'].includes(key))) return false
+  const from = params.get('from')
+  const to = params.get('to')
+  if (Boolean(from) !== Boolean(to) || (from && (!isoDate(from) || !isoDate(to) || from > to))) return false
+  return !params.has('view') || params.get('view') === 'list'
+}
+
+export function navigationFilters(target) {
+  try {
+    const params = new URL(target.to, 'https://agenda.invalid').searchParams
+    const filters = []
+    const from = params.get('from')
+    const to = params.get('to')
+    const br = value => value.split('-').reverse().join('/')
+    if (from && to) filters.push(from === to ? br(from) : `${br(from)} a ${br(to)}`)
+    if (params.get('view') === 'list') filters.push('Em lista')
+    return filters
+  } catch { return [] }
+}
+
 export function safeProductNavigation(targets) {
   if (!Array.isArray(targets)) return []
   return targets.filter(target => {
@@ -23,6 +47,7 @@ export function safeProductNavigation(targets) {
     const keys = [...url.searchParams.keys()]
     if (new Set(keys).size !== keys.length) return false
     if (!keys.length) return url.pathname !== '/'
+    if (url.pathname === '/atendimentos') return validAppointmentFilters(url.searchParams)
     if (url.pathname === '/') {
       if (keys.length === 3) return url.searchParams.get('settings') === '1' && creationTabs.has(url.searchParams.get('tab')) && url.searchParams.get('create') === '1'
       if (keys.length !== 2) return false

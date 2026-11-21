@@ -126,6 +126,13 @@ Consulte [api-clinic/docs/CADASTRO_CLINICAS.md](../api-clinic/docs/CADASTRO_CLIN
 
 Consulte [api-clinic/docs/CADASTRO_PACIENTES.md](../api-clinic/docs/CADASTRO_PACIENTES.md) para a relação de erros de validação e exibição por campo.
 
+## Refinar prontuário com IA
+
+Antes de alterar o botão Refinar com IA, a revisão da sugestão ou a API de refinamento, leia
+[Refinar prontuário](docs/refinar-prontuario.md) e [Refinamento de prontuário (API, travas e LGPD)](../api-clinic/docs/REFINAMENTO_PRONTUARIO.md).
+A IA só pode melhorar a redação: nunca remova as travas que preservam números, doses, datas e negações,
+nunca grave a sugestão antes do aceite e nunca coloque texto clínico em logs ou auditoria.
+
 ## Painel do médico
 
 Consulte [API](../api-clinic/docs/SUMMARY_MEDICO.md) e [Interface](docs/resumo-medico.md) para a Visão Geral do médico logado.
