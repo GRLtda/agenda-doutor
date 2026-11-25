@@ -4,10 +4,11 @@ import { reactive } from 'vue'
 import TemplateEditor from '@/components/pages/marketing/TemplateEditor.vue'
 import StyledSelect from '@/components/global/StyledSelect.vue'
 
-const mocks = vi.hoisted(() => ({ store: null, toast: { error: vi.fn() } }))
+const mocks = vi.hoisted(() => ({ store: null, access: vi.fn(), toast: { error: vi.fn() } }))
+vi.mock('@/api/crm', () => ({ getAppointmentConfirmationAccess: () => mocks.access() }))
 vi.mock('@/stores/crmTemplates', () => ({ useCrmTemplatesStore: () => mocks.store }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: {} }) }))
-vi.mock('@/stores/clinic', () => ({ useClinicStore: () => ({ currentClinic: { name: 'Clínica de teste' } }) }))
+vi.mock('@/stores/clinic', () => ({ useClinicStore: () => ({ currentClinic: { _id: 'preview-clinic', name: 'Clínica de teste' } }) }))
 vi.mock('vue-toastification', () => ({ useToast: () => mocks.toast }))
 let wrapper
 const fixture = (button) => ({ name: 'Lembrete de amanhã', content: 'Olá, confirme sua consulta.',
@@ -23,6 +24,7 @@ async function save() {
   return mocks.store.updateTemplate.mock.calls[0][1]
 }
 beforeEach(() => {
+  mocks.access.mockResolvedValue({ data: { enabled: true } })
   mocks.store = reactive({ isLoading: false, availableVariables: [], fetchVariables: vi.fn(),
     getTemplateById: vi.fn(), updateTemplate: vi.fn().mockResolvedValue({ success: true }), createTemplate: vi.fn() })
 })
@@ -55,4 +57,15 @@ it('modelos antigos continuam como resposta comum e link não carrega ação cl�
   await wrapper.findAll('.button-type-control button').find(b => b.text() === 'Link').trigger('click')
   await wrapper.get('input[aria-label="URL do botão 1"]').setValue('https://example.test')
   expect((await save()).interactive.buttons[0]).toMatchObject({ type: 'url', action: 'none' })
+})
+
+it('oculta a ação fora do piloto ou quando a consulta de acesso falha, mantendo respostas comuns', async () => {
+  mocks.access.mockResolvedValue({ data: { enabled: false } })
+  await open({ type: 'reply', displayText: 'Informações', id: 'info' })
+  expect(wrapper.findComponent(StyledSelect).exists()).toBe(false)
+  expect((await save()).interactive.buttons[0]).toMatchObject({ action: 'none', id: 'info' })
+  wrapper.unmount()
+  mocks.access.mockRejectedValue(new Error('unavailable'))
+  await open({ type: 'reply', displayText: 'Informações', id: 'info' })
+  expect(wrapper.findComponent(StyledSelect).exists()).toBe(false)
 })

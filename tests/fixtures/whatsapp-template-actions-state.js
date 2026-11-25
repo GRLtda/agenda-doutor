@@ -11,4 +11,5 @@ const store = reactive({
 })
 export const useCrmTemplatesStore = () => store
 export const useAuthStore = () => ({ user: null })
-export const useClinicStore = () => ({ currentClinic: { name: 'Clínica de demonstração' } })
+export const useClinicStore = () => ({ currentClinic: { _id: 'preview-clinic', name: 'Clínica de demonstração' } })
+export const getAppointmentConfirmationAccess = async () => ({ data: { enabled: new URLSearchParams(location.search).get('access') !== 'blocked' } })

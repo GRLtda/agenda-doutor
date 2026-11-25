@@ -1,5 +1,12 @@
 # Modelos de WhatsApp: ação de confirmar consulta
 
+A ação está liberada somente para a **Instituição Agenda**, com a conta de dono
+verificada no servidor. As demais clínicas continuam com os botões comuns de
+resposta, link e telefone; a nova opção fica oculta. O editor consulta
+`GET /crm/appointment-confirmation/access` e assume bloqueio se a consulta falhar.
+Trocar o nome/e-mail ou alterar dados pelo navegador não concede acesso, pois
+cadastro, envio e clique também são protegidos pela API.
+
 No editor de modelos do Marketing, ative **Botões na mensagem**, escolha
 **Resposta** e, em **Ao clicar**, selecione **Confirmar consulta**. O texto do
 botão continua editável, com limite de 20 caracteres; se estiver vazio, será
@@ -35,4 +42,5 @@ isolado do teste de navegador (`--serve`), que substitui as stores por dados
 fictícios e mantém o salvamento em memória. Não abrir essa fixture no servidor
 normal do produto para avaliar isolamento de serviços.
 
-A ação está implementada e validada localmente, com publicação pendente.
+A publicação na main mantém esse piloto restrito. Os testes e a prévia usam
+dados fictícios e não confirmam consultas de produção.

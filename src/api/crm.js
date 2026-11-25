@@ -1,5 +1,7 @@
 import apiClient from './index'
 
+export const getAppointmentConfirmationAccess = () => apiClient.get('/crm/appointment-confirmation/access')
+
 // --- Funções de Conexão WhatsApp (existentes) ---
 export const initiateWhatsAppConnection = () => {
   return apiClient.post('/v2/whatsapp/connection')

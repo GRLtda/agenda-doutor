@@ -8,6 +8,7 @@ import StyledSelect from '@/components/global/StyledSelect.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
+import { getAppointmentConfirmationAccess } from '@/api/crm'
 
 const props = defineProps({
   templateId: { type: String, default: null },
@@ -44,6 +45,20 @@ const messageLength = computed(() => templateContent.value.length)
 const activeClinic = computed(() => clinicStore.currentClinic || authStore.user?.clinic || {})
 const clinicName = computed(() => activeClinic.value?.name || 'Sua clínica')
 const clinicLogo = computed(() => activeClinic.value?.logoUrl || '')
+const confirmationActionEnabled = ref(false)
+let confirmationAccessGeneration = 0
+watch(() => activeClinic.value?._id || activeClinic.value?.id || (typeof activeClinic.value === 'string' ? activeClinic.value : null), async (clinic) => {
+  const generation = ++confirmationAccessGeneration
+  confirmationActionEnabled.value = false
+  if (!clinic) return
+  try {
+    const { data } = await getAppointmentConfirmationAccess()
+    if (generation === confirmationAccessGeneration) confirmationActionEnabled.value = data?.enabled === true
+  } catch {
+    // Optional pilot capability fails closed; existing template editing remains available.
+    if (generation === confirmationAccessGeneration) confirmationActionEnabled.value = false
+  }
+}, { immediate: true })
 
 const visibleInteractiveButtons = computed(() =>
   interactiveButtons.value
@@ -194,6 +209,7 @@ function addInteractiveButton() {
 }
 
 function setButtonAction(button, action) {
+  if (action === 'confirm_appointment' && !confirmationActionEnabled.value) return
   button.action = action
   if (action === 'confirm_appointment' && !button.displayText.trim()) {
     button.displayText = 'Confirmar consulta'
@@ -467,6 +483,7 @@ async function handleSave() {
 
                     <div v-if="interactiveButtonType === 'reply'" class="button-behavior">
                       <StyledSelect
+                        v-if="confirmationActionEnabled"
                         :model-value="button.action || 'none'"
                         label="Ao clicar"
                         :options="buttonActionOptions"
