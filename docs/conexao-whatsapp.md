@@ -1,5 +1,8 @@
 # Conexão WhatsApp
 
+Para a configuração de uma ação clínica em **Botões na mensagem**, consulte
+[Modelos: confirmar consulta](modelos-whatsapp.md).
+
 A aba de conexão do Marketing apresenta o estado retornado pela API e orienta o pareamento da conta da clínica. Implementação: [ConnectionTab.vue](../src/views/pages/marketing/pages/ConnectionTab.vue) e [store CRM](../src/stores/crm.js). Segue o [Design System](<Design System/README.md>) e as [regras de layout](regras-layout.md).
 
 ## Interface e estados

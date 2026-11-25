@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   test: {
     environment: 'jsdom',
-    include: ['tests/whatsapp-connection.spec.js', 'tests/whatsapp-status.spec.js'],
+    include: ['tests/whatsapp-connection.spec.js', 'tests/whatsapp-status.spec.js', 'tests/whatsapp-template-actions.spec.js'],
     clearMocks: true,
   },
 })

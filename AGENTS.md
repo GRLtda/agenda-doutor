@@ -116,6 +116,9 @@ Para criar ou alterar estados vazios, siga [docs/estados-vazios.md](docs/estados
 
 ## Whatszu local
 
+A ação de confirmar atendimento nos modelos de mensagem está documentada em
+[Modelos de WhatsApp](docs/modelos-whatsapp.md).
+
 Consulte [api-clinic/docs/WHATSZU_LOCAL.md](../api-clinic/docs/WHATSZU_LOCAL.md) para configuração local, TLS, autenticação e webhook.
 
 ## Cadastro de clínicas

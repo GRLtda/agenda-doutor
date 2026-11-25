@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ação de confirmação — dados fictícios</title>
+<style>body { margin:0; background:#f8fafc; } #app { min-height:100vh; padding:24px; box-sizing:border-box; } @media(max-width:600px){#app{padding:12px}}</style></head>
+<body><p style="margin:0;padding:12px 24px;font:13px system-ui;color:#475569">Prévia com dados fictícios. Salvar mantém as alterações apenas nesta página.</p><div id="app"></div><script type="module">
+import '/src/assets/css/global.css'
+import { createApp } from 'vue'
+import TemplateEditor from '/src/components/pages/marketing/TemplateEditor.vue'
+createApp(TemplateEditor, { templateId: 'preview-only' }).mount('#app')
+</script></body></html>

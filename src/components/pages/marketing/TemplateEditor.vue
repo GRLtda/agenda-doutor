@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ArrowLeft, LoaderCircle, Trash2, UserRound } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import AppButton from '@/components/global/AppButton.vue'
+import FormInput from '@/components/global/FormInput.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClinicStore } from '@/stores/clinic'
 import { useCrmTemplatesStore } from '@/stores/crmTemplates'
@@ -26,7 +28,7 @@ const templateTags = ref('')
 const interactiveEnabled = ref(false)
 const interactiveButtonType = ref('reply')
 const interactiveButtons = ref([
-  { displayText: '', id: '', url: '', phoneNumber: '' },
+  { displayText: '', id: '', url: '', phoneNumber: '', action: 'none' },
 ])
 const editorError = ref(null)
 const isLoading = ref(false)
@@ -51,6 +53,7 @@ const visibleInteractiveButtons = computed(() =>
       id: button.id?.trim() || `btn_${index + 1}`,
       url: button.url?.trim(),
       phoneNumber: button.phoneNumber?.trim(),
+      action: interactiveButtonType.value === 'reply' ? button.action || 'none' : 'none',
     }))
     .filter((button) => {
       if (!button.displayText) return false
@@ -137,8 +140,9 @@ onMounted(async () => {
             id: button.id || '',
             url: button.url || '',
             phoneNumber: button.phoneNumber || '',
+            action: button.action || 'none',
           }))
-        : [{ displayText: '', id: '', url: '', phoneNumber: '' }]
+        : [{ displayText: '', id: '', url: '', phoneNumber: '', action: 'none' }]
     } else {
       toast.error('Não foi possível carregar o modelo para edição.')
       emit('close')
@@ -186,13 +190,25 @@ async function applyFormatting(marker) {
 
 function addInteractiveButton() {
   if (interactiveButtons.value.length >= 3) return
-  interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '' })
+  interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '', action: 'none' })
 }
+
+function setButtonAction(button, action) {
+  button.action = action
+  if (action === 'confirm_appointment' && !button.displayText.trim()) {
+    button.displayText = 'Confirmar consulta'
+  }
+}
+
+const buttonActionOptions = [
+  { value: 'none', label: 'Enviar resposta' },
+  { value: 'confirm_appointment', label: 'Confirmar consulta' },
+]
 
 function removeInteractiveButton(index) {
   interactiveButtons.value.splice(index, 1)
   if (!interactiveButtons.value.length) {
-    interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '' })
+    interactiveButtons.value.push({ displayText: '', id: '', url: '', phoneNumber: '', action: 'none' })
   }
 }
 
@@ -225,6 +241,7 @@ async function handleSave() {
         id: button.id,
         url: button.url,
         phoneNumber: button.phoneNumber,
+        action: button.action,
       })),
       buttonText: '',
       listSections: [],
@@ -441,45 +458,45 @@ async function handleSave() {
                     :key="index"
                     class="button-row"
                   >
-                    <label class="field field--compact">
-                      <span>Texto do botão</span>
-                      <input
-                        v-model="button.displayText"
-                        type="text"
-                        maxlength="20"
-                        placeholder="Ex: Confirmar"
-                      />
-                    </label>
+                    <FormInput
+                      v-model="button.displayText"
+                      label="Texto do botão"
+                      placeholder="Ex: Confirmar"
+                      :input-attrs="{ maxlength: 20, 'aria-label': `Texto do botão ${index + 1}` }"
+                    />
 
-                    <label v-if="interactiveButtonType === 'reply'" class="field field--compact">
-                      <span>ID interno</span>
-                      <input
+                    <div v-if="interactiveButtonType === 'reply'" class="button-behavior">
+                      <StyledSelect
+                        :model-value="button.action || 'none'"
+                        label="Ao clicar"
+                        :options="buttonActionOptions"
+                        @update:model-value="setButtonAction(button, $event)"
+                      />
+                      <FormInput
+                        v-if="button.action !== 'confirm_appointment'"
                         v-model="button.id"
-                        type="text"
-                        maxlength="256"
+                        label="ID interno"
                         placeholder="Ex: confirmar"
+                        :input-attrs="{ maxlength: 256, 'aria-label': `ID interno do botão ${index + 1}` }"
                       />
-                    </label>
+                      <p v-else class="button-action-help">Confirma o atendimento vinculado à mensagem e atualiza a agenda.</p>
+                    </div>
 
-                    <label v-else-if="interactiveButtonType === 'url'" class="field field--compact">
-                      <span>URL</span>
-                      <input
-                        v-model="button.url"
-                        type="text"
-                        maxlength="256"
-                        placeholder="Ex: {link_anamnese}"
-                      />
-                    </label>
+                    <FormInput
+                      v-else-if="interactiveButtonType === 'url'"
+                      v-model="button.url"
+                      label="URL"
+                      placeholder="Ex: {link_anamnese}"
+                      :input-attrs="{ maxlength: 256, 'aria-label': `URL do botão ${index + 1}` }"
+                    />
 
-                    <label v-else class="field field--compact">
-                      <span>Telefone</span>
-                      <input
-                        v-model="button.phoneNumber"
-                        type="text"
-                        maxlength="20"
-                        placeholder="Ex: 5511999999999"
-                      />
-                    </label>
+                    <FormInput
+                      v-else
+                      v-model="button.phoneNumber"
+                      label="Telefone"
+                      placeholder="Ex: 5511999999999"
+                      :input-attrs="{ maxlength: 20, 'aria-label': `Telefone do botão ${index + 1}` }"
+                    />
 
                     <button
                       type="button"
@@ -492,6 +509,10 @@ async function handleSave() {
                       <Trash2 :size="15" />
                     </button>
                   </div>
+
+                  <p v-if="interactiveButtonType === 'reply' && interactiveButtons.some(button => button.action === 'confirm_appointment')" class="button-action-help">
+                    Use este modelo em lembretes ou workflows vinculados a uma consulta. Envios de teste não alteram atendimentos.
+                  </p>
 
                   <AppButton
                     variant="outline"
@@ -1091,24 +1112,26 @@ async function handleSave() {
 .button-row {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) 34px;
-  align-items: end;
+  grid-template-areas: 'text behavior remove';
+  align-items: start;
   gap: 0.5rem;
 }
 
-.field--compact {
-  gap: 0.25rem;
-}
-
-.field--compact > span {
-  font-size: 0.7rem;
-}
-
-.field--compact input {
-  height: 34px;
-  font-size: 0.8rem;
+.button-row > .form-group,
+.button-behavior > .form-group { margin-bottom: 0; min-width: 0; }
+.button-row > .form-group:first-child { grid-area: text; min-width: 0; }
+.button-row > .form-group:nth-child(2), .button-behavior { grid-area: behavior; }
+.button-behavior { display: grid; gap: 0.5rem; min-width: 0; }
+.button-action-help {
+  margin: 0;
+  color: var(--muted-foreground, #64748b);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .remove-button {
+  grid-area: remove;
+  margin-top: 1.6rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1445,11 +1468,8 @@ async function handleSave() {
   }
 
   .button-row {
-    grid-template-columns: 1fr 34px;
-  }
-
-  .button-row .field:first-child {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) 34px;
+    grid-template-areas: 'text remove' 'behavior behavior';
   }
 
   .preview-panel {
