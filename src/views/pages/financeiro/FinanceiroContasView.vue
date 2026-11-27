@@ -16,6 +16,7 @@ import FinanceiroBaixaDrawer from '@/components/financeiro/FinanceiroBaixaDrawer
 import FinanceiroResumoDrawer from '@/components/financeiro/FinanceiroResumoDrawer.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
+import { useFinanceiroProfessionals } from '@/composables/useFinanceiroProfessionals'
 import { usePatientsStore } from '@/stores/patients'
 import { formatFinancialDate, localDateForApi } from '@/utils/financialDate'
 
@@ -30,9 +31,11 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const financeiroStore = useFinanceiroStore()
+const { professionalOptions, showProfessionalFilter } = useFinanceiroProfessionals()
 const patientsStore = usePatientsStore()
 
 const filters = reactive({
+  professionalId: '',
   status: '',
   search: '',
   dueStart: '',
@@ -212,6 +215,7 @@ function queriesAreEqual(current, next) {
 
 function applyQueryToFilters() {
   const query = route.query
+  filters.professionalId = queryStringValue(query.professionalId)
   const dueStart = queryStringValue(query.dueStart, formatDateForApi(startOfMonthDate()))
   const dueEnd = queryStringValue(query.dueEnd, formatDateForApi(endOfMonthDate()))
 
@@ -238,6 +242,7 @@ function buildQueryFromFilters() {
   }
 
   if (filters.status) query.status = filters.status
+  if (filters.professionalId) query.professionalId = filters.professionalId
   if (filters.search) query.search = filters.search
   if (filters.page > 1) query.page = String(filters.page)
   if (filters.limit !== 20) query.limit = String(filters.limit)
@@ -420,6 +425,7 @@ function load() {
     sort: filters.sort,
   }
   if (filters.status) params.status = filters.status
+  if (filters.professionalId) params.professionalId = filters.professionalId
   if (filters.search) params.search = filters.search
   if (filters.dueStart) params.dueStart = filters.dueStart
   if (filters.dueEnd) params.dueEnd = filters.dueEnd
@@ -471,6 +477,7 @@ function handleTextSearch() {
 }
 
 function clearFilters() {
+  filters.professionalId = ''
   filters.status = ''
   filters.search = ''
   selectedPatientId.value = null
@@ -649,6 +656,14 @@ watch(() => route.query, () => {
     </div>
 
     <div class="filtros-bar">
+      <StyledSelect
+        v-if="showProfessionalFilter"
+        v-model="filters.professionalId"
+        class="professional-filter"
+        :options="professionalOptions"
+        placeholder="Profissional"
+        @update:model-value="applyFilters"
+      />
       <StyledSelect
         v-model="filters.status"
         class="status-filter"
@@ -880,6 +895,12 @@ watch(() => route.query, () => {
 </template>
 
 <style scoped>
+.professional-filter {
+  flex: 1 1 220px;
+  min-width: 0;
+  margin: 0;
+}
+
 .finance-page {
   display: flex;
   flex-direction: column;
@@ -1031,7 +1052,7 @@ watch(() => route.query, () => {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   padding: 0.7rem;
   background: #fff;
   border: 1px solid #e8edf4;

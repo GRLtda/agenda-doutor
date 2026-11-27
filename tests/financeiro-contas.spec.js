@@ -4,6 +4,7 @@ import Contas from '@/views/pages/financeiro/FinanceiroContasView.vue'
 
 const mocks = vi.hoisted(() => ({ store: null, success: vi.fn(), error: vi.fn() }))
 vi.mock('@/stores/financeiro', () => ({ useFinanceiroStore: () => mocks.store }))
+vi.mock('@/stores/clinic', () => ({ useClinicStore: () => ({ currentClinic: null }) }))
 vi.mock('@/stores/patients', () => ({
   usePatientsStore: () => ({ allPatients: [], fetchAllPatients: vi.fn() }),
 }))
