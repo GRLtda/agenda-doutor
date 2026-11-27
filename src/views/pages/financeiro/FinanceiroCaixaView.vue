@@ -1,5 +1,6 @@
 <script setup>
 import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { SearchX } from 'lucide-vue-next'
@@ -8,13 +9,16 @@ import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import AppSkeleton from '@/components/global/AppSkeleton.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
+import { useFinanceiroProfessionals } from '@/composables/useFinanceiroProfessionals'
 import { formatFinancialDate, localDateForApi } from '@/utils/financialDate'
 
 const financeiroStore = useFinanceiroStore()
+const { professionalOptions, showProfessionalFilter } = useFinanceiroProfessionals()
 const route = useRoute()
 const router = useRouter()
 
 const filters = reactive({
+  professionalId: '',
   startDate: '',
   endDate: '',
   page: 1,
@@ -150,6 +154,7 @@ function queriesAreEqual(current, next) {
 
 function applyQueryToFilters() {
   const query = route.query
+  filters.professionalId = queryStringValue(query.professionalId)
   const startDate = queryStringValue(query.startDate, formatDateForApi(startOfMonthDate()))
   const endDate = queryStringValue(query.endDate, formatDateForApi(endOfMonthDate()))
 
@@ -170,6 +175,7 @@ function buildQueryFromFilters() {
   }
 
   if (filters.page > 1) query.page = String(filters.page)
+  if (filters.professionalId) query.professionalId = filters.professionalId
   if (filters.limit !== 20) query.limit = String(filters.limit)
 
   return query
@@ -344,6 +350,7 @@ function load() {
     limit: String(filters.limit),
   }
   if (filters.startDate) params.startDate = filters.startDate
+  if (filters.professionalId) params.professionalId = filters.professionalId
   if (filters.endDate) params.endDate = filters.endDate
   financeiroStore.fetchCaixa(params)
 }
@@ -389,6 +396,14 @@ watch(() => route.query, () => {
         <p class="subtitle">Movimentações registradas por baixas de contas.</p>
       </div>
       <div class="header-actions">
+        <StyledSelect
+          v-if="showProfessionalFilter"
+          v-model="filters.professionalId"
+          class="professional-filter"
+          :options="professionalOptions"
+          placeholder="Profissional"
+          @update:model-value="applyFilters"
+        />
         <AppDateRangePicker
           class="period-picker"
           :model-value="dateRange"
@@ -533,6 +548,19 @@ watch(() => route.query, () => {
 </template>
 
 <style scoped>
+.professional-filter {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+@media (min-width: 641px) {
+  .professional-filter {
+    width: 240px;
+    max-width: 100%;
+  }
+}
+
 .finance-page {
   display: flex;
   flex-direction: column;
@@ -556,6 +584,7 @@ watch(() => route.query, () => {
 
 .header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.6rem;

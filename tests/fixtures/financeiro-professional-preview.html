@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prévia local do filtro financeiro</title>
+  <style>body { margin: 0; background: var(--background); } #app { padding: 16px; } @media (min-width: 768px) { #app { padding: 28px; } }</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import '/src/assets/css/global.css'
+    import { createApp } from 'vue'
+    import { createPinia } from 'pinia'
+    import { createRouter, createMemoryHistory } from 'vue-router'
+    import { useClinicStore } from '/src/stores/clinic.js'
+    import { useFinanceiroStore } from '/src/stores/financeiro.js'
+    import { useFinanceStore } from '/src/stores/finance.js'
+    import { usePatientsStore } from '/src/stores/patients.js'
+    import Resumo from '/src/views/pages/financeiro/FinanceiroResumoView.vue'
+    import Contas from '/src/views/pages/financeiro/FinanceiroContasView.vue'
+    import Caixa from '/src/views/pages/financeiro/FinanceiroCaixaView.vue'
+    const query = new URLSearchParams(location.search)
+    if (query.has('dark')) document.documentElement.classList.add('dark')
+    const view = query.get('view') || 'resumo'
+    const app = createApp(view === 'resumo' ? Resumo : view === 'caixa' ? Caixa : Contas, { tipo: view === 'pagar' ? 'PAYABLE' : 'RECEIVABLE' })
+    const pinia = createPinia()
+    app.use(pinia)
+    app.directive('auto-animate', {})
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
+    app.use(router)
+    const clinic = useClinicStore(pinia)
+    const owner = { _id: 'ana', name: 'Dra. Ana', role: 'owner' }
+    clinic.currentClinic = { owner, staff: [owner, { _id: 'bruno', name: 'Dr. Bruno com sobrenome extenso para revisão', role: 'medico' }] }
+    const store = useFinanceiroStore(pinia)
+    for (const method of ['fetchResumo', 'fetchCaixa', 'fetchContas', 'fetchCategorias', 'fetchLucratividadeProcedimentos']) store[method] = async () => ({ success: true })
+    const finance = useFinanceStore(pinia)
+    for (const method of ['fetchDashboardData', 'fetchTopClients', 'fetchTopProcedures']) finance[method] = async () => {}
+    usePatientsStore(pinia).fetchAllPatients = async () => {}
+    await router.push('/')
+    app.mount('#app')
+  </script>
+</body>
+</html>

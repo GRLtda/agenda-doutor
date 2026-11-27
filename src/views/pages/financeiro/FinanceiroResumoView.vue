@@ -1,5 +1,6 @@
 <script setup>
 import AppDateRangePicker from '@/components/global/AppDateRangePicker.vue'
+import StyledSelect from '@/components/global/StyledSelect.vue'
 import { computed, onMounted, ref } from 'vue'
 import { Activity, TrendingUp, Users, SearchX } from 'lucide-vue-next'
 import {
@@ -17,6 +18,7 @@ import { Doughnut, Line } from 'vue-chartjs'
 import AppEmptyState from '@/components/global/AppEmptyState.vue'
 import FinanceSummaryCard from '@/components/financeiro/FinanceSummaryCard.vue'
 import { useFinanceiroStore } from '@/stores/financeiro'
+import { useFinanceiroProfessionals } from '@/composables/useFinanceiroProfessionals'
 import { useFinanceStore } from '@/stores/finance'
 import { formatFinancialDate } from '@/utils/financialDate'
 
@@ -32,6 +34,8 @@ ChartJS.register(
 )
 
 const financeiroStore = useFinanceiroStore()
+const { professionalOptions, showProfessionalFilter } = useFinanceiroProfessionals()
+const selectedProfessional = ref('')
 const analyticsStore = useFinanceStore()
 
 const dateRange = ref([startOfMonthDate(), endOfMonthDate()])
@@ -637,18 +641,21 @@ function load() {
   const params = {
     startDate,
     endDate,
+    ...(selectedProfessional.value ? { professionalId: selectedProfessional.value } : {}),
   }
   financeiroStore.fetchResumo(params)
   financeiroStore.fetchLucratividadeProcedimentos(params)
   financeiroStore.fetchCaixa(params)
-  analyticsStore.fetchDashboardData('custom', startDate, endDate)
+  analyticsStore.fetchDashboardData('custom', startDate, endDate, selectedProfessional.value || null)
   analyticsStore.fetchTopClients({
+    professionalId: selectedProfessional.value || null,
     period: 'custom',
     startDate,
     endDate,
     page: 1,
   })
   analyticsStore.fetchTopProcedures({
+    professionalId: selectedProfessional.value || null,
     period: 'custom',
     startDate,
     endDate,
@@ -668,6 +675,14 @@ onMounted(load)
       </div>
 
       <div class="header-tools">
+        <StyledSelect
+          v-if="showProfessionalFilter"
+          v-model="selectedProfessional"
+          class="professional-filter"
+          :options="professionalOptions"
+          placeholder="Profissional"
+          @update:model-value="load"
+        />
         <AppDateRangePicker
           class="period-picker"
           :model-value="dateRange"
@@ -991,6 +1006,19 @@ onMounted(load)
 </template>
 
 <style scoped>
+.professional-filter {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+@media (min-width: 641px) {
+  .professional-filter {
+    width: 240px;
+    max-width: 100%;
+  }
+}
+
 .finance-page {
   display: flex;
   flex-direction: column;

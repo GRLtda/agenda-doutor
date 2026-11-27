@@ -42,3 +42,28 @@ e `npm run build` para validar a compilação. A revisão visual deve cobrir:
 
 Padrões visuais: [Regras de layout](regras-layout.md) e
 [Componentes compartilhados](componentes-compartilhados.md).
+
+## Filtro por profissional
+
+Resumo, A receber, A pagar e Caixa exibem o `StyledSelect` de profissional quando
+a clínica tem mais de um membro com papel `owner` ou `medico`, sem duplicar o
+proprietário presente na equipe. A opção inicial é **Todos os profissionais**.
+O resumo aplica a seleção aos indicadores, categorias, movimentos, gráficos e
+rankings; nas contas e no caixa, `professionalId` é preservado na URL e trocar
+a seleção retorna à primeira página. Limpar filtros nas contas também limpa o
+profissional.
+
+A API resolve o profissional pelo médico do atendimento vinculado à origem da
+conta (`APPOINTMENT`) ou pelo destinatário explícito `PROFESSIONAL/userId`.
+Lançamentos manuais sem esse vínculo aparecem somente em Todos os profissionais.
+O caixa usa o vínculo da conta, preservando baixas de competências anteriores e
+estornos de contas excluídas. Não há migração de dados nem mudança de permissões.
+
+Validação: `npm.cmd run test:financeiro`, `npm.cmd run build`, testes de API
+`node --import tsx --test tests/financial-professional-filter.test.ts`,
+`npm.cmd run financeiro:test` e `npx.cmd tsc --noEmit --pretty false` na API.
+Prévia isolada com dados fictícios:
+`/tests/fixtures/financeiro-professional-preview.html?view=resumo` (também
+`receber`, `pagar`, `caixa`, com `&dark=1` para o tema escuro). O filtro reutiliza
+`StyledSelect`, sem modificar o componente base ou o Design System. A revisão
+visual não foi concluída; o usuário solicitou não controlar seu computador.
